@@ -5,7 +5,10 @@ import api from "../api";
 export default function AuthPage() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
   const [message, setMessage] = useState("");
 
   const handleChange = (e) => {
@@ -32,10 +35,10 @@ export default function AuthPage() {
 
       setMessage(
         err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.message ||
-        "Something went wrong."
-      ),
+          err.response?.data?.message ||
+          err.message ||
+          "Something went wrong."
+      );
     }
   };
 
@@ -79,9 +82,7 @@ export default function AuthPage() {
           </button>
         </form>
 
-        {message && (
-          <p className="mt-4 text-sm text-red-600">{message}</p>
-        )}
+        {message && <p className="mt-4 text-sm text-red-600">{message}</p>}
 
         <button
           onClick={() => setIsLogin(!isLogin)}
