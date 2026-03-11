@@ -1,0 +1,17 @@
+[
+    {
+        "name": "Federal Skilled Worker",
+        "min_experience": 2,
+        "max_age": 50
+    },
+    {
+        "name": "Canadian Experience Class",
+        "min_experience": 1,
+        "max_age": 45
+    },
+    {
+        "name": "Provincial Nominee Program",
+        "min_experience": 1,
+        "max_age": 55
+    }
+]
