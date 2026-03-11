@@ -27,7 +27,15 @@ export default function AuthPage() {
         setIsLogin(true);
       }
     } catch (err) {
-      setMessage(err.response?.data?.detail || "Something went wrong.");
+      console.log("AUTH ERROR:", err);
+      console.log("AUTH ERROR RESPONSE:", err.response);
+
+      setMessage(
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        err.message ||
+        "Something went wrong."
+      ),
     }
   };
 
