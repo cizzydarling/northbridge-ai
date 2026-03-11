@@ -18,7 +18,7 @@ app = FastAPI(title="NorthBridgeAI")
 
 origins = [
     "http://localhost:5173",
-    "https://northbridge-ai.vercel.app",
+    "https://northbridge-on11wfrgs-cizzydarlings-projects.vercel.app",
 ]
 
 app.add_middleware(
