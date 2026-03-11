@@ -16,14 +16,12 @@ import app.models.profile_model
 
 app = FastAPI(title="NorthBridgeAI")
 
-origins = [
-    "http://localhost:5173",
-    "https://northbridge-on11wfrgs-cizzydarlings-projects.vercel.app",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://localhost:5173",
+    ],
+    allow_origin_regex=r"https://northbridge-.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
