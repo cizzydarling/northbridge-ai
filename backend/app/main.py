@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.data.db import Base, engine
 from app.routes import (
     program_routes,
@@ -9,7 +11,6 @@ from app.routes import (
     auth_routes,
     profile_routes,
 )
-from fastapi.middleware.cors import CORSMiddleware
 
 import app.models.user_models
 import app.models.profile_model

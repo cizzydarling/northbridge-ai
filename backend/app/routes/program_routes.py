@@ -9,7 +9,7 @@ from app.data.db import get_db
 from app.services.crs_calculator import calculate_crs
 from app.services.pathway_matcher import match_pathways
 from app.models.recommendation import Recommendation
-from app.dependencies.auth import get_current_user
+from app.routes.auth_routes import get_current_user
 from app.models.profile_model import Profile
 from fastapi import APIRouter, Depends, HTTPException
 
