@@ -5,9 +5,14 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr
 
 from app.data.db import get_db
 from app.models.user_models import User
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -35,24 +40,31 @@ def create_access_token(data: dict):
 
 
 @router.post("/register")
-def register(email: str, password: str, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == email).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+def register(data: RegisterRequest, db: Session = Depends(get_db)):
+    try:
+        existing_user = db.query(User).filter(User.email == data.email).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
-    new_user = User(
-        email=email,
-        password=hash_password(password),
-    )
+        new_user = User(
+            email=data.email,
+            password=hash_password(data.password),
+        )
 
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
 
-    return {
-        "id": new_user.id,
-        "email": new_user.email,
-    }
+        return {
+            "id": new_user.id,
+            "email": new_user.email,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 
 @router.post("/login")
