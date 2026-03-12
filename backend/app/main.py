@@ -11,7 +11,7 @@ from app.routes import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 
-import app.models.db_models
+import app.models.user_models
 import app.models.profile_model
 
 app = FastAPI(title="NorthBridgeAI")
