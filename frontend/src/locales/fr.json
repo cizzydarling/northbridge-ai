@@ -1,0 +1,627 @@
+{
+  "app": {
+    "name": "NorthBridgeAI",
+    "tagline": "Stratégie d’immigration, gestion de dossiers et aperçu client"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "saving": "Enregistrement...",
+    "updating": "Mise à jour...",
+    "deleting": "Suppression...",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "reset": "Réinitialiser",
+    "clear": "Effacer",
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "submit": "Soumettre",
+    "continue": "Continuer",
+    "back": "Retour",
+    "next": "Suivant",
+    "done": "Terminé",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "remove": "Retirer",
+    "save": "Enregistrer",
+    "create": "Créer",
+    "download": "Télécharger",
+    "view": "Voir",
+    "details": "Détails",
+    "status": "Statut",
+    "actions": "Actions",
+    "notes": "Notes",
+    "name": "Nom",
+    "email": "Courriel",
+    "password": "Mot de passe",
+    "role": "Rôle",
+    "date": "Date",
+    "language": "Langue",
+    "english": "Anglais",
+    "french": "Français",
+    "yes": "Oui",
+    "no": "Non",
+    "optional": "Optionnel",
+    "required": "Obligatoire",
+    "or": "ou",
+    "all": "Tous",
+    "none": "Aucun",
+    "unknown": "Inconnu",
+    "notAvailable": "Non disponible",
+    "pricing": "Tarification",
+    "option": "Option {{index}}"
+  },
+  "layout": {
+    "agentWorkspace": "Espace agent",
+    "personalWorkspace": "Espace personnel",
+    "myApplication": "Ma demande",
+    "myDocuments": "Mes documents"
+  },
+  "nav": {
+    "home": "Accueil",
+    "dashboard": "Tableau de bord",
+    "clients": "Clients",
+    "matters": "Dossiers",
+    "profile": "Profil",
+    "strategy": "Stratégie",
+    "simulations": "Simulations",
+    "billing": "Facturation",
+    "settings": "Paramètres",
+    "admin": "Admin",
+    "logout": "Se déconnecter",
+    "login": "Se connecter",
+    "register": "S’inscrire",
+    "aiAssistant": "Assistant IA"
+  },
+  "auth": {
+    "welcomeBack": "Bon retour",
+    "createAccount": "Créez votre compte",
+    "subtitle": "Accédez à votre espace NorthBridgeAI",
+    "email": "Courriel",
+    "password": "Mot de passe",
+    "individual": "Particulier",
+    "agent": "Agent",
+    "pleaseWait": "Veuillez patienter...",
+    "login": "Se connecter",
+    "register": "S’inscrire",
+    "switchToRegister": "Créer un compte",
+    "switchToLogin": "Retour à la connexion",
+    "registrationSuccess": "Compte créé avec succès."
+  },
+  "landing": {
+    "badge": "Planification d’immigration guidée",
+    "getStarted": "Commencer",
+    "startFree": "Commencer gratuitement",
+    "viewPricing": "Voir les tarifs",
+    "heroTitle": "Planifiez votre parcours d’immigration avec plus de clarté et de confiance",
+    "heroText": "NorthBridgeAI vous aide à organiser votre profil, comprendre votre état de préparation, gérer vos documents et avancer avec un plan plus clair.",
+    "previewTitle": "Ce que vous pouvez faire dans la plateforme",
+    "valueTitle": "Conçu pour vous aider à avancer plus vite",
+    "valueSubtitle": "Organisez-vous, comprenez vos prochaines étapes et préparez-vous avec plus de confiance.",
+    "ctaTitle": "Commencez à bâtir votre plan aujourd’hui",
+    "ctaText": "Créez votre compte, complétez votre profil et générez vos conseils personnalisés.",
+    "stats": {
+      "readiness": {
+        "title": "Préparation",
+        "text": "Voyez à quel point votre demande semble solide en ce moment."
+      },
+      "documents": {
+        "title": "Documents",
+        "text": "Suivez les documents probablement requis au même endroit."
+      },
+      "strategy": {
+        "title": "Stratégie",
+        "text": "Consultez les prochaines étapes suggérées et les voies possibles."
+      }
+    },
+    "preview": {
+      "application": {
+        "title": "Espace de demande",
+        "text": "Enregistrez les détails de votre demande et suivez un parcours guidé."
+      },
+      "eligibility": {
+        "title": "Vue d’admissibilité",
+        "text": "Comprenez vos forces, vos points d’attention et votre niveau de préparation."
+      },
+      "documents": {
+        "title": "Liste de documents",
+        "text": "Suivez vos pièces justificatives et sachez ce qu’il reste à compléter."
+      },
+      "strategy": {
+        "title": "Stratégie personnelle",
+        "text": "Voyez des conseils adaptés à votre profil et à votre demande."
+      }
+    },
+    "values": {
+      "organize": {
+        "title": "Restez organisé",
+        "text": "Conservez votre profil, les détails de votre demande et vos documents dans un même espace."
+      },
+      "readiness": {
+        "title": "Comprenez votre préparation",
+        "text": "Voyez ce qui semble solide et ce qui pourrait encore nécessiter de l’attention."
+      },
+      "confidence": {
+        "title": "Avancez avec confiance",
+        "text": "Suivez des étapes claires au lieu de deviner quoi faire ensuite."
+      }
+    },
+    "footer": {
+      "product": "Produit",
+      "pricing": "Tarification",
+      "signIn": "Connexion",
+      "legal": "Mentions légales",
+      "disclaimer": "NorthBridgeAI fournit un soutien informatif et de planification seulement et ne remplace pas un avis juridique.",
+      "rights": "Tous droits réservés."
+    }
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "subtitle": "Suivez les clients, les dossiers, les stratégies et la facturation au même endroit",
+    "welcome": "Bienvenue sur NorthBridgeAI",
+    "overview": "Aperçu",
+    "quickActions": "Actions rapides",
+    "recentClients": "Clients récents",
+    "recentMatters": "Dossiers récents",
+    "recentSimulations": "Simulations récentes",
+    "emptyState": "Aucun élément à afficher.",
+    "createClient": "Créer un client",
+    "createMatter": "Créer un dossier",
+    "runStrategy": "Lancer une stratégie",
+    "viewClients": "Voir les clients",
+    "viewMatters": "Voir les dossiers",
+    "latestStrategy": "Dernière stratégie",
+    "bestImmigrationOption": "Meilleure option d’immigration",
+    "currentPlan": "Forfait actuel",
+    "noProgramsAvailable": "Aucun programme disponible.",
+    "stats": {
+      "totalClients": "Nombre total de clients",
+      "activeMatters": "Dossiers actifs",
+      "savedSimulations": "Simulations enregistrées",
+      "plan": "Forfait actuel"
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "subtitle": "Construisez votre profil d’admissibilité",
+    "currentProfile": "Profil actuel",
+    "personalInformation": "Renseignements personnels",
+    "immigrationFactors": "Facteurs d’immigration",
+    "age": "Âge",
+    "education": "Études",
+    "languageScore": "Score linguistique",
+    "experienceYears": "Années d’expérience",
+    "hasJobOffer": "Possède une offre d’emploi",
+    "hasCanadianExperience": "Possède une expérience canadienne",
+    "studiedInCanada": "A étudié au Canada",
+    "nocCode": "Code CNP",
+    "occupation": "Profession",
+    "province": "Province privilégiée",
+    "saveProfile": "Enregistrer le profil",
+    "profileSaved": "Profil enregistré avec succès.",
+    "updateProfile": "Mettre à jour le profil",
+    "viewStrategy": "Voir la stratégie",
+    "loadError": "Impossible de charger le profil.",
+    "saveError": "Échec de l’enregistrement du profil.",
+    "loading": "Chargement du profil...",
+    "selectProvince": "Sélectionnez une province",
+    "additionalInformation": "Renseignements supplémentaires",
+    "placeholders": {
+      "occupation": "ex. Coordonnatrice de projet",
+      "nocCode": "ex. 13100"
+    },
+    "educationOptions": {
+      "highSchool": "Études secondaires",
+      "diploma": "Diplôme",
+      "bachelor": "Baccalauréat",
+      "master": "Maîtrise",
+      "phd": "Doctorat"
+    }
+  },
+  "programs": {
+    "studyPermit": "Permis d'études",
+    "workPermit": "Permis de travail",
+    "spousalSponsorship": "Parrainage du conjoint"
+  },
+  "selfDashboard": {
+    "loadError": "Impossible de charger votre tableau de bord.",
+    "loading": "Chargement de votre tableau de bord...",
+    "welcome": "Bienvenue{{email}}",
+    "subtitle": "Suivez votre progression et voyez quoi faire ensuite.",
+    "workspaceLabel": "Espace personnel de demande",
+    "notStarted": "Non commencé",
+    "notRun": "Non évalué",
+    "saved": "Enregistré",
+    "pending": "En attente",
+    "available": "Disponible",
+    "noApplicationSaved": "Aucune demande enregistrée",
+    "documentReadiness": "État des documents",
+    "lastUpdated": "Dernière mise à jour",
+    "quickActions": "Actions rapides",
+    "progressOverview": "Aperçu de la progression",
+    "cards": {
+      "applicationType": "Type de demande",
+      "readiness": "État de préparation",
+      "docsCompleted": "Documents obligatoires complétés",
+      "lastUpdated": "Dernière mise à jour"
+    },
+    "metrics": {
+      "readiness": "Préparation",
+      "documents": "Documents",
+      "scoreHelper": "Score : {{score}}",
+      "noScore": "Aucun score pour le moment",
+      "requiredComplete": "{{completed}} sur {{required}} obligatoires"
+    },
+    "hero": {
+      "startTitle": "Commencez votre demande",
+      "buildingTitle": "Continuez à préparer votre demande",
+      "strongTitle": "Votre demande semble solide",
+      "moderateTitle": "Votre demande progresse bien",
+      "weakTitle": "Votre demande a besoin d’amélioration",
+      "continueTitle": "Continuez votre demande"
+    },
+    "cta": {
+      "startApplication": "Commencer la demande",
+      "completeDocuments": "Compléter les documents",
+      "reviewApplication": "Revoir la demande"
+    },
+    "actions": {
+      "startApplication": "Commencer la demande",
+      "continueApplication": "Continuer la demande",
+      "openDocuments": "Ouvrir les documents",
+      "viewStrategy": "Voir la stratégie",
+      "updateProfile": "Mettre à jour le profil",
+      "askAssistant": "Parler à l’assistant IA"
+    },
+    "snapshot": {
+      "title": "Aperçu de la demande",
+      "readinessScore": "Score de préparation",
+      "requiredRemaining": "Obligatoires restants",
+      "strategy": "Stratégie"
+    },
+    "progress": {
+      "profile": "Profil",
+      "application": "Demande",
+      "eligibility": "Admissibilité",
+      "documents": "Documents",
+      "strategy": "Stratégie"
+    },
+    "status": {
+      "startApplication": "Commencez votre demande pour recevoir des conseils personnalisés.",
+      "documentsRemaining": "{{percent}} % complété. Il reste encore {{count}} document(s) obligatoire(s).",
+      "readiness": "État actuel : {{readiness}}{{score}}",
+      "readinessWithScore": " (score : {{score}})",
+      "continueApplication": "Continuez votre demande pour poursuivre votre préparation."
+    },
+    "nextStep": {
+      "title": "Meilleure prochaine étape",
+      "start": {
+        "title": "Commencez votre demande",
+        "body": "Complétez votre profil et les détails de votre demande pour débloquer des conseils personnalisés."
+      },
+      "documents": {
+        "title": "Complétez vos documents obligatoires",
+        "body": "Il vous reste encore {{count}} document(s) obligatoire(s) à compléter."
+      },
+      "improve": {
+        "title": "Renforcez votre demande",
+        "body": "Consultez vos résultats et améliorez les points plus faibles de votre dossier."
+      },
+      "review": {
+        "title": "Examinez votre stratégie",
+        "body": "Vos informations principales sont en place. Consultez vos conseils personnalisés et les prochaines étapes."
+      }
+    },
+    "readinessStates": {
+      "Strong": "Fort",
+      "Moderate": "Modéré",
+      "Weak": "À améliorer",
+      "default": "Non commencé"
+    },
+    "aiHelper": "Obtenez des réponses personnalisées instantanément",
+    "applicationSummary": "Résumé de la demande",
+    "currentProgram": "Programme actuel",
+    "importantNoteTitle": "Important",
+    "importantNoteBody": "Cette plateforme fournit des informations générales uniquement et ne constitue pas un avis juridique.",
+    "routeLabels": {
+      "dashboard": "Tableau de bord",
+      "profile": "Profil",
+      "strategy": "Stratégie",
+      "documents": "Documents",
+      "application": "Demande",
+      "chat": "Assistant IA"
+    }
+  },
+  "selfApplication": {
+    "subtitle": "Parlez-nous de votre situation, enregistrez votre profil et générez des conseils personnalisés pour votre demande.",
+    "profileHelp": "Enregistrez vos renseignements pour que vos conseils reposent sur les bonnes informations.",
+    "overviewTitle": "Aperçu de votre demande",
+    "intakeTitle": "Détails de la demande",
+    "intakeHelp": "Choisissez votre type de demande et complétez les détails ci-dessous.",
+    "generateGuidance": "Générer les conseils",
+    "readinessTitle": "À quel point votre demande est-elle solide ?",
+    "readinessHelp": "Cette section met en évidence votre état actuel, vos forces et ce qui pourrait nécessiter de l’attention.",
+    "readinessLabel": "État actuel",
+    "documentsTitle": "Documents et notes de préparation",
+    "documentsHelp": "Consultez les formulaires probables, les détails manquants et les pièces justificatives à préparer.",
+    "checklistTitle": "Liste probable de documents",
+    "checklistHelp": "Voici votre liste de travail basée sur les informations saisies.",
+    "applicationType": "Type de demande",
+    "summary": "Résumé",
+    "strengths": "Ce qui semble solide",
+    "concerns": "Ce qui peut nécessiter de l’attention",
+    "nextSteps": "Prochaines étapes recommandées",
+    "likelyForms": "Formulaires probables",
+    "missingDetails": "Détails manquants à revoir",
+    "preparationNotes": "Notes de préparation",
+    "noneListed": "Rien pour le moment.",
+    "notGenerated": "Pas encore généré",
+    "ready": "Prêt",
+    "available": "Disponible",
+    "pending": "En attente",
+    "emptyGuidance": "Générez vos conseils pour voir votre état de préparation et vos prochaines étapes.",
+    "emptyDocuments": "Générez vos conseils pour voir les documents probables et les notes de préparation.",
+    "emptyChecklist": "Générez vos conseils pour créer votre liste de documents.",
+    "messages": {
+      "guidanceGenerated": "Vos conseils personnalisés sont prêts."
+    },
+    "cards": {
+      "applicationType": "Type de demande",
+      "guidanceStatus": "Conseils",
+      "documentsLikelyNeeded": "Documents probables",
+      "strategy": "Stratégie"
+    },
+    "overview": {
+      "guidance": "Conseils",
+      "readiness": "Préparation",
+      "documents": "Documents probables"
+    },
+    "readinessValues": {
+      "strong": "Fort",
+      "moderate": "Modéré",
+      "weak": "À améliorer"
+    },
+    "fields": {
+      "dliName": "Nom de l’EED",
+      "schoolName": "Nom de l’école",
+      "programName": "Nom du programme",
+      "intakeTerm": "Session d’entrée",
+      "tuitionAmount": "Montant des frais de scolarité",
+      "gapExplanation": "Explication de l’interruption d’études",
+      "proofOfFunds": "Preuve de fonds disponible",
+      "sdsEligible": "Admissible au VDE",
+      "previousRefusal": "Refus antérieur",
+      "accompanyingFamily": "Famille accompagnante",
+      "passportValid": "Passeport valide",
+      "permitType": "Type de permis",
+      "employerName": "Nom de l’employeur",
+      "jobTitle": "Titre du poste",
+      "nocCode": "Code CNP",
+      "wage": "Salaire",
+      "provinceOfWork": "Province de travail",
+      "openWorkPermitBasis": "Base du permis de travail ouvert",
+      "currentStatusInCanada": "Statut actuel au Canada",
+      "expiresOn": "Expire le",
+      "lmiaAvailable": "EIMT disponible",
+      "sponsorStatus": "Statut du répondant",
+      "principalApplicantCountry": "Pays du demandeur principal",
+      "relationshipType": "Type de relation",
+      "relationshipStartDate": "Date de début de la relation",
+      "marriageDate": "Date du mariage",
+      "proofOfRelationshipNotes": "Notes sur la preuve de relation",
+      "cohabiting": "Vie commune",
+      "dependentChildren": "Enfants à charge",
+      "previousMarriageOrSponsorship": "Mariage ou parrainage antérieur",
+      "policeCertificatesReady": "Certificats de police prêts",
+      "medicalsReady": "Visites médicales prêtes"
+    }
+  },
+  "selfDocuments": {
+    "loading": "Chargement de vos documents...",
+    "subtitle": "Suivez votre liste de documents et téléversez les fichiers pour votre demande enregistrée.",
+    "workspaceTitle": "Espace documents",
+    "savedApplicationType": "Type de demande enregistrée :",
+    "noApplication": "Aucune demande enregistrée pour le moment.",
+    "syncButton": "Synchroniser depuis la demande enregistrée",
+    "syncing": "Synchronisation...",
+    "progressTitle": "Progression de la préparation",
+    "progressSubtitle": "{{completed}} sur {{required}} documents obligatoires complétés",
+    "checklistTitle": "Liste personnelle de documents",
+    "documentFallback": "Document",
+    "complete": "Complété",
+    "uploadedFile": "Fichier téléversé :",
+    "savedAt": "Enregistré {{date}}",
+    "openFile": "Ouvrir le fichier",
+    "noFile": "Aucun fichier téléversé pour le moment.",
+    "uploading": "Téléversement...",
+    "updating": "Mise à jour...",
+    "markComplete": "Marquer comme complété",
+    "removingFile": "Suppression du fichier...",
+    "removeFile": "Supprimer le fichier",
+    "clearing": "Suppression...",
+    "clearEntry": "Supprimer l’entrée",
+    "noNotes": "Aucune note ajoutée.",
+    "stats": {
+      "totalItems": "Nombre total",
+      "requiredItems": "Obligatoires",
+      "completedRequired": "Obligatoires complétés",
+      "progress": "Progression"
+    },
+    "priority": {
+      "required": "Obligatoire",
+      "recommended": "Recommandé",
+      "info": "Info"
+    },
+    "empty": {
+      "noApplication": "Enregistrez et générez d’abord votre demande, puis vos documents apparaîtront ici.",
+      "noDocuments": "Aucun document trouvé pour le moment. Essayez de synchroniser depuis votre demande enregistrée."
+    },
+    "messages": {
+      "synced": "Documents synchronisés depuis votre demande enregistrée.",
+      "uploaded": "Document téléversé avec succès.",
+      "markedComplete": "Document marqué comme complété.",
+      "markedIncomplete": "Document marqué comme incomplet.",
+      "fileRemoved": "Fichier supprimé.",
+      "cleared": "Entrée supprimée."
+    },
+    "errors": {
+      "noApplication": "Aucune demande enregistrée n’a été trouvée. Complétez d’abord votre demande.",
+      "load": "Échec du chargement des documents.",
+      "sync": "Échec de la synchronisation des documents.",
+      "upload": "Échec du téléversement du document.",
+      "update": "Échec de la mise à jour du document.",
+      "removeFile": "Échec de la suppression du fichier.",
+      "clear": "Échec de la suppression de l’entrée."
+    }
+  },
+  "strategy": {
+    "title": "Stratégie",
+    "subtitle": "Planification d’immigration assistée par IA",
+    "exportStrategyReport": "Exporter le rapport de stratégie",
+    "refreshStrategy": "Actualiser la stratégie",
+    "upgradeNow": "Mettre à niveau",
+    "goToProfile": "Aller au profil",
+    "premiumNotice": "Passez à un forfait supérieur pour débloquer toutes les fonctionnalités",
+    "noStrategyAvailable": "Aucune stratégie disponible pour le moment",
+    "completeProfileFirst": "Complétez d’abord votre profil",
+    "loadError": "Échec du chargement de la stratégie.",
+    "accessDenied": "Votre forfait actuel ne permet pas l’accès à la stratégie.",
+    "exportRequiresPaidPlan": "L’exportation des rapports nécessite un forfait payant.",
+    "exportError": "Échec de l’exportation du rapport de stratégie.",
+    "loadingAccess": "Chargement des accès...",
+    "upgradeRequired": "Mise à niveau requise",
+    "upgradeRequiredBody": "La stratégie personnelle est disponible avec un forfait payant. Passez à Individual Pro ou Agent Pro pour débloquer les recommandations avancées, les estimations de probabilité, le plan d’action et les rapports téléchargeables.",
+    "noAiStrategy": "Aucune stratégie IA disponible pour le moment.",
+    "months": "mois",
+    "fallbackNextStepPrioritize": "Priorisez votre voie de demande {{program}}.",
+    "fallbackNextStepDocuments": "Rassemblez vos résultats linguistiques, vos antécédents professionnels et vos documents d’études.",
+    "rankLabel": "Rang {{index}}",
+    "stepLabel": "Étape {{index}} : {{title}}",
+    "scenarioLabel": "Scénario {{index}}",
+    "projectedCrs": "CRS projeté",
+    "noStrengthsYet": "Aucune force indiquée pour le moment.",
+    "noWeaknessesYet": "Aucune faiblesse indiquée pour le moment.",
+    "unlocked": "Débloqué",
+    "locked": "Verrouillé",
+    "plan": "Forfait",
+    "premiumAccess": "Accès premium",
+    "premiumFeatures": "Fonctionnalités premium",
+    "strategySummary": "Résumé de la stratégie",
+    "recommendedPrograms": "Programmes recommandés",
+    "nextSteps": "Prochaines étapes",
+    "drawPredictor": "Prévision des tirages",
+    "predictedDrawType": "Type de tirage prévu",
+    "predictedCutoff": "Seuil prévu",
+    "likelihood": "Probabilité",
+    "timeWindow": "Fenêtre de temps",
+    "probabilityEngine": "Moteur de probabilité",
+    "timelineEstimate": "Échéancier estimé",
+    "provinceTargeting": "Ciblage provincial",
+    "improvementScenarios": "Scénarios d’amélioration",
+    "strategyRoadmap": "Plan d’action stratégique",
+    "aiStrategy": "Stratégie IA",
+    "strengths": "Forces",
+    "weaknesses": "Faiblesses",
+    "currentCrsScore": "Score CRS actuel",
+    "bestPathway": "Meilleure voie",
+    "premiumList": {
+      "f1": "Conseils stratégiques avancés",
+      "f2": "Estimations de probabilité",
+      "f3": "Projections d’échéancier",
+      "f4": "Recommandations provinciales",
+      "f5": "Scénarios d’amélioration",
+      "f6": "Rapports téléchargeables"
+    },
+    "scoreLabels": {
+      "unavailable": "Indisponible",
+      "veryStrong": "Très fort",
+      "strong": "Fort",
+      "competitive": "Compétitif",
+      "needsImprovement": "À améliorer"
+    },
+    "probabilityCards": {
+      "pr12Months": "RP dans les 12 mois",
+      "expressEntry": "Via Entrée express",
+      "pnp": "Via PCP"
+    }
+  },
+  "billing": {
+    "title": "Facturation",
+    "subtitle": "Gérez votre abonnement, votre accès et l’état du paiement",
+    "currentPlan": "Forfait actuel",
+    "subscriptionStatus": "Statut de l’abonnement",
+    "manageSubscription": "Gérer l’abonnement",
+    "upgrade": "Passer à un forfait supérieur",
+    "downgrade": "Passer à un forfait inférieur",
+    "freePlan": "Gratuit",
+    "proPlan": "Pro",
+    "teamPlan": "Équipe",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "trialing": "En essai",
+    "pastDue": "En retard",
+    "canceled": "Annulé",
+    "paymentFeaturePending": "L’intégration de la facturation n’est pas encore complètement activée."
+  },
+  "legal": {
+    "title": "Avis juridique",
+    "agreementTitle": "Convention d’utilisation et avis juridique",
+    "intro": "Veuillez lire et accepter les conditions avant de continuer.",
+    "accept": "J’ai lu et j’accepte l’avis juridique et les conditions d’utilisation.",
+    "decline": "Je n’accepte pas",
+    "continue": "Continuer vers la plateforme",
+    "required": "Vous devez accepter la convention avant de continuer.",
+    "success": "Convention acceptée avec succès.",
+    "sections": {
+      "termsOfUseTitle": "Conditions d'utilisation",
+      "termsOfUseBody": "En utilisant cette plateforme, vous acceptez que le service fournisse uniquement un soutien administratif et informatif.",
+      "aiDisclaimerTitle": "Avertissement sur l'IA",
+      "aiDisclaimerBody": "Les résultats générés par l’IA peuvent contenir des erreurs ou des informations obsolètes. Vérifiez toujours avant utilisation.",
+      "notLegalAdviceTitle": "Pas un avis juridique",
+      "notLegalAdviceBody": "NorthBridgeAI fournit des outils éducatifs et stratégiques. Il ne remplace pas l’avis juridique d’un avocat en immigration autorisé ou d’un consultant réglementé.",
+      "privacyTitle": "Confidentialité et utilisation des données",
+      "privacyBody": "Vos données peuvent être utilisées pour générer des rapports, des simulations et des recommandations dans la plateforme."
+    }
+  },
+  "chat": {
+    "title": "Assistant IA",
+    "placeholder": "Écrivez votre question...",
+    "thinking": "L’IA réfléchit...",
+    "startTitle": "Commencez votre parcours vers le Canada",
+    "startSubtitle": "Posez une question ou choisissez une suggestion",
+    "send": "Envoyer",
+    "refresh": "Actualiser",
+    "refreshing": "Actualisation...",
+    "currentStage": "Étape actuelle",
+    "readiness": "Préparation",
+    "score": "Score",
+    "nextBestAction": "Meilleure prochaine étape",
+    "loadingShort": "Chargement...",
+    "loadingJourney": "Chargement de votre parcours...",
+    "exploreStep": "Explorer cette étape",
+    "explainIt": "M’expliquer",
+    "goToLabel": "Aller à {{destination}}",
+    "recommendedDestination": "Destination recommandée :",
+    "suggestions": {
+      "nextStep": "Quelle est ma prochaine étape ?",
+      "crs": "Comment améliorer mon score CRS ?",
+      "eligibility": "Suis-je admissible à Entrée express ?",
+      "province": "Quelle province devrais-je cibler ?"
+    },
+    "disclaimer": "Information générale seulement — ceci n’est pas un conseil juridique."
+  },
+  "errors": {
+    "generic": "Une erreur est survenue.",
+    "network": "Une erreur réseau est survenue.",
+    "unauthorized": "Vous n’êtes pas autorisé à effectuer cette action.",
+    "forbidden": "Accès refusé.",
+    "notFound": "La ressource demandée est introuvable.",
+    "validation": "Veuillez vérifier le formulaire et corriger les champs indiqués.",
+    "server": "Erreur du serveur. Veuillez réessayer plus tard."
+  },
+  "success": {
+    "saved": "Enregistré avec succès.",
+    "updated": "Mis à jour avec succès.",
+    "deleted": "Supprimé avec succès."
+  }
+}
