@@ -13,12 +13,19 @@ from app.services.strategy_service import build_strategy
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
 
 
+def normalize_language(language: str | None) -> str:
+    normalized = (language or "en").strip().lower()
+    return "fr" if normalized == "fr" else "en"
+
+
 @router.post("/chat", response_model=AIChatResponse)
 def chat_with_ai(
     payload: AIChatRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    language = normalize_language(payload.language)
+
     profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
 
     if not profile:
@@ -26,28 +33,29 @@ def chat_with_ai(
             status_code=404,
             detail=(
                 "Profile not found. Please complete your profile first."
-                if payload.language == "en"
+                if language == "en"
                 else "Profil introuvable. Veuillez d’abord compléter votre profil."
             ),
         )
 
     try:
-        strategy = build_strategy(profile, language=payload.language)
+        strategy = build_strategy(profile, language=language)
         journey = get_user_journey(
             db=db,
             current_user=current_user,
-            language=payload.language,
+            language=language,
         )
 
-        reply = generate_ai_chat_reply(
-            user_message=payload.message,
+        ai_result = generate_ai_chat_reply(
+            user_message=(payload.message or "").strip(),
             profile=profile,
             strategy_data=strategy,
             journey_data=journey,
-            language=payload.language,
+            language=language,
             chat_history=payload.chat_history or [],
         )
 
+        reply = str(ai_result.get("reply", "")).strip()
         if not reply:
             raise ValueError("Empty AI reply")
 
@@ -55,7 +63,10 @@ def chat_with_ai(
             reply=reply,
             profile_found=True,
             strategy_loaded=True,
-            language=payload.language,
+            language=language,
+            suggested_next_actions=ai_result.get("suggested_next_actions") or [],
+            pathways=ai_result.get("pathways") or [],
+            french_advantage=ai_result.get("french_advantage"),
         )
 
     except HTTPException:
@@ -65,7 +76,7 @@ def chat_with_ai(
             status_code=500,
             detail=(
                 "The AI assistant is temporarily unavailable. Please try again."
-                if payload.language == "en"
+                if language == "en"
                 else "L’assistant IA est temporairement indisponible. Veuillez réessayer."
             ),
         )

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
+import Button from "../components/ui/Button";
 import DisclosureAcceptanceModal from "../components/DisclosureAcceptanceModal";
 
 import {
@@ -13,9 +14,26 @@ import {
 } from "../api";
 
 const APPLICATION_TYPE_OPTIONS = [
-  { value: "study_permit", labelKey: "programs.studyPermit" },
-  { value: "work_permit", labelKey: "programs.workPermit" },
-  { value: "spousal_sponsorship", labelKey: "programs.spousalSponsorship" },
+  {
+    value: "permanent_residence",
+    labelKey: "programs.permanentResidence",
+    defaultLabel: "Permanent Residence",
+  },
+  {
+    value: "study_permit",
+    labelKey: "programs.studyPermit",
+    defaultLabel: "Study Permit",
+  },
+  {
+    value: "work_permit",
+    labelKey: "programs.workPermit",
+    defaultLabel: "Work Permit",
+  },
+  {
+    value: "spousal_sponsorship",
+    labelKey: "programs.spousalSponsorship",
+    defaultLabel: "Spousal Sponsorship",
+  },
 ];
 
 const READINESS_KEY_MAP = {
@@ -36,6 +54,8 @@ const DEFAULT_PROFILE_FORM = {
   noc_code: "",
   preferred_province: "",
 };
+
+const DEFAULT_PERMANENT_RESIDENCE_INTAKE = {};
 
 const DEFAULT_STUDY_PERMIT_INTAKE = {
   dli_name: "",
@@ -80,6 +100,9 @@ const DEFAULT_SPOUSAL_SPONSORSHIP_INTAKE = {
 };
 
 function getDefaultIntakeByType(type) {
+  if (type === "permanent_residence") {
+    return { ...DEFAULT_PERMANENT_RESIDENCE_INTAKE };
+  }
   if (type === "study_permit") return { ...DEFAULT_STUDY_PERMIT_INTAKE };
   if (type === "work_permit") return { ...DEFAULT_WORK_PERMIT_INTAKE };
   if (type === "spousal_sponsorship") {
@@ -109,9 +132,9 @@ export default function SelfApplicationPage() {
   const [profileExists, setProfileExists] = useState(false);
 
   const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE_FORM);
-  const [applicationType, setApplicationType] = useState("study_permit");
+  const [applicationType, setApplicationType] = useState("permanent_residence");
   const [intakePayload, setIntakePayload] = useState(
-    getDefaultIntakeByType("study_permit")
+    getDefaultIntakeByType("permanent_residence")
   );
 
   const [eligibilityResult, setEligibilityResult] = useState({});
@@ -158,12 +181,24 @@ export default function SelfApplicationPage() {
 
       if (savedAppRes.status === "fulfilled") {
         const app = savedAppRes.value.data;
-        const savedType = app.matter_type || "study_permit";
+        const savedType = app.matter_type || "permanent_residence";
         setApplicationType(savedType);
         setIntakePayload(
           mergeIntakeWithDefaults(savedType, app.intake_payload || {})
         );
-        setEligibilityResult(app.eligibility_result || {});
+
+        const savedEligibility = app.eligibility_result || {};
+        const savedPathways = Array.isArray(app.pathways_result)
+          ? app.pathways_result
+          : Array.isArray(savedEligibility.pathways)
+          ? savedEligibility.pathways
+          : [];
+
+        setEligibilityResult({
+          ...savedEligibility,
+          pathways: savedPathways,
+        });
+
         setFormsAssistantResult(app.forms_result || {});
         setChecklist(
           Array.isArray(app.checklist_result) ? app.checklist_result : []
@@ -180,7 +215,6 @@ export default function SelfApplicationPage() {
   function switchLanguage(lang) {
     i18n.changeLanguage(lang);
     localStorage.setItem("language", lang);
-    window.location.reload();
   }
 
   function handleProfileChange(field, value) {
@@ -258,17 +292,29 @@ export default function SelfApplicationPage() {
       setMessage("");
       setError("");
 
-        const res = await runSelfWorkspace(
-          {
-            matter_type: applicationType,
-            intake: intakePayload,
-          },
-          i18n.language
-        );    
+      const res = await runSelfWorkspace(
+        {
+          matter_type: applicationType,
+          intake: intakePayload,
+        },
+        i18n.language
+      );
 
-      setEligibilityResult(res.data?.eligibility || {});
-      setFormsAssistantResult(res.data?.forms_assistant || {});
-      setChecklist(Array.isArray(res.data?.checklist) ? res.data.checklist : []);
+      const responseData = res.data || {};
+      const responseEligibility = responseData.eligibility || {};
+      const responsePathways = Array.isArray(responseData.pathways)
+        ? responseData.pathways
+        : Array.isArray(responseEligibility.pathways)
+        ? responseEligibility.pathways
+        : [];
+
+      setEligibilityResult({
+        ...responseEligibility,
+        pathways: responsePathways,
+      });
+
+      setFormsAssistantResult(responseData.forms_assistant || {});
+      setChecklist(Array.isArray(responseData.checklist) ? responseData.checklist : []);
 
       setMessage(t("selfApplication.messages.guidanceGenerated"));
     } catch (err) {
@@ -283,10 +329,26 @@ export default function SelfApplicationPage() {
     const raw = eligibilityResult?.readiness;
     if (!raw) return t("selfApplication.notGenerated");
     const key = READINESS_KEY_MAP[raw];
-    return key
-      ? t(`selfApplication.readinessValues.${key}`)
-      : raw;
+    return key ? t(`selfApplication.readinessValues.${key}`) : raw;
   }, [eligibilityResult, t]);
+
+  const activePathways = useMemo(() => {
+    const eligibilityPathways = Array.isArray(eligibilityResult?.pathways)
+      ? eligibilityResult.pathways
+      : [];
+
+    if (eligibilityPathways.length > 0) {
+      return eligibilityPathways;
+    }
+
+    if (applicationType === "permanent_residence") {
+      return Array.isArray(strategyData?.recommended_programs)
+        ? strategyData.recommended_programs
+        : [];
+    }
+
+    return [];
+  }, [eligibilityResult, strategyData, applicationType]);
 
   const summaryCards = useMemo(() => {
     const selectedType = APPLICATION_TYPE_OPTIONS.find(
@@ -296,7 +358,9 @@ export default function SelfApplicationPage() {
     return [
       {
         label: t("selfApplication.cards.applicationType"),
-        value: selectedType ? t(selectedType.labelKey) : "-",
+        value: selectedType
+          ? t(selectedType.labelKey, { defaultValue: selectedType.defaultLabel })
+          : "-",
       },
       {
         label: t("selfApplication.cards.guidanceStatus"),
@@ -321,7 +385,9 @@ export default function SelfApplicationPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="p-6 text-slate-700">{t("common.loading")}</div>
+        <div className="flex justify-center py-16">
+          <p className="text-slate-600">{t("common.loading")}</p>
+        </div>
       </Layout>
     );
   }
@@ -329,48 +395,51 @@ export default function SelfApplicationPage() {
   return (
     <Layout>
       <div className="min-h-screen bg-slate-50 px-4 py-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-blue-600">
-                {t("app.name")}
-              </p>
-              <h1 className="text-3xl font-bold text-slate-900">
-                {t("layout.myApplication")}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                {t("selfApplication.subtitle")}
-              </p>
-            </div>
+        <div className="mx-auto max-w-6xl space-y-6">
+          <section className="rounded-3xl bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 px-6 py-8 text-white shadow-xl md:px-8 md:py-10">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-200">
+                  {t("app.name")}
+                </p>
+                <h1 className="mt-2 text-3xl font-bold">
+                  {t("layout.myApplication")}
+                </h1>
+                <p className="mt-2 max-w-xl text-sm text-blue-100">
+                  {t("selfApplication.subtitle")}
+                </p>
+              </div>
 
-            <div className="w-full md:w-56">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                {t("common.language")}
-              </label>
-              <select
-                value={i18n.language}
-                onChange={(e) => switchLanguage(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500"
-              >
-                <option value="en">{t("common.english")}</option>
-                <option value="fr">{t("common.french")}</option>
-              </select>
+              <div className="w-full md:w-56">
+                <select
+                  value={i18n.language}
+                  onChange={(e) => switchLanguage(e.target.value)}
+                  className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white backdrop-blur-sm outline-none"
+                >
+                  <option value="en" className="text-slate-900">
+                    {t("common.english")}
+                  </option>
+                  <option value="fr" className="text-slate-900">
+                    {t("common.french")}
+                  </option>
+                </select>
+              </div>
             </div>
-          </div>
+          </section>
 
           {message ? (
-            <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
               {message}
             </div>
           ) : null}
 
           {error ? (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           ) : null}
 
-          <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-4">
             {summaryCards.map((card) => (
               <SummaryCard key={card.label} label={card.label} value={card.value} />
             ))}
@@ -378,7 +447,7 @@ export default function SelfApplicationPage() {
 
           <div className="grid gap-6 xl:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-              <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">
                     {t("profile.title")}
@@ -388,13 +457,9 @@ export default function SelfApplicationPage() {
                   </p>
                 </div>
 
-                <button
-                  onClick={handleSaveProfile}
-                  disabled={savingProfile}
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-                >
+                <Button onClick={handleSaveProfile} disabled={savingProfile}>
                   {savingProfile ? t("common.saving") : t("profile.saveProfile")}
-                </button>
+                </Button>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -411,16 +476,12 @@ export default function SelfApplicationPage() {
                 <InputField
                   label={t("profile.languageScore")}
                   value={profileForm.language_score}
-                  onChange={(value) =>
-                    handleProfileChange("language_score", value)
-                  }
+                  onChange={(value) => handleProfileChange("language_score", value)}
                 />
                 <InputField
                   label={t("profile.experienceYears")}
                   value={profileForm.experience_years}
-                  onChange={(value) =>
-                    handleProfileChange("experience_years", value)
-                  }
+                  onChange={(value) => handleProfileChange("experience_years", value)}
                 />
                 <InputField
                   label={t("profile.occupation")}
@@ -435,18 +496,14 @@ export default function SelfApplicationPage() {
                 <InputField
                   label={t("profile.province")}
                   value={profileForm.preferred_province}
-                  onChange={(value) =>
-                    handleProfileChange("preferred_province", value)
-                  }
+                  onChange={(value) => handleProfileChange("preferred_province", value)}
                 />
 
                 <div className="grid gap-3 md:col-span-2 md:grid-cols-3">
                   <CheckboxField
                     label={t("profile.hasJobOffer")}
                     checked={Boolean(profileForm.has_job_offer)}
-                    onChange={(value) =>
-                      handleProfileChange("has_job_offer", value)
-                    }
+                    onChange={(value) => handleProfileChange("has_job_offer", value)}
                   />
                   <CheckboxField
                     label={t("profile.hasCanadianExperience")}
@@ -492,8 +549,8 @@ export default function SelfApplicationPage() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-slate-900">
                   {t("selfApplication.intakeTitle")}
@@ -503,15 +560,11 @@ export default function SelfApplicationPage() {
                 </p>
               </div>
 
-              <button
-                onClick={handleRunWorkspace}
-                disabled={runningWorkspace}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-              >
+              <Button onClick={handleRunWorkspace} disabled={runningWorkspace}>
                 {runningWorkspace
                   ? t("common.loading")
                   : t("selfApplication.generateGuidance")}
-              </button>
+              </Button>
             </div>
 
             <div className="mb-6">
@@ -525,18 +578,34 @@ export default function SelfApplicationPage() {
               >
                 {APPLICATION_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {t(option.labelKey)}
+                    {t(option.labelKey, { defaultValue: option.defaultLabel })}
                   </option>
                 ))}
               </select>
             </div>
 
+            {applicationType === "permanent_residence" ? (
+              <PermanentResidenceIntake
+                t={t}
+                profileForm={profileForm}
+                pathways={activePathways}
+              />
+            ) : null}
+
             {applicationType === "study_permit" ? (
-              <StudyPermitIntake values={intakePayload} onChange={handleIntakeChange} t={t} />
+              <StudyPermitIntake
+                values={intakePayload}
+                onChange={handleIntakeChange}
+                t={t}
+              />
             ) : null}
 
             {applicationType === "work_permit" ? (
-              <WorkPermitIntake values={intakePayload} onChange={handleIntakeChange} t={t} />
+              <WorkPermitIntake
+                values={intakePayload}
+                onChange={handleIntakeChange}
+                t={t}
+              />
             ) : null}
 
             {applicationType === "spousal_sponsorship" ? (
@@ -548,7 +617,38 @@ export default function SelfApplicationPage() {
             ) : null}
           </div>
 
-          <div className="mt-6 grid gap-6 md:grid-cols-2">
+          {applicationType === "permanent_residence" ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <SectionHeading
+                title={t("selfApplication.pathwaysTitle", {
+                  defaultValue: "Top immigration pathways",
+                })}
+                subtitle={t("selfApplication.pathwaysHelp", {
+                  defaultValue:
+                    "For permanent residence, the AI should guide you toward the strongest programs based on your saved profile and strategy.",
+                })}
+              />
+
+              {activePathways.length === 0 ? (
+                <EmptyState
+                  text={t("selfApplication.emptyPathways", {
+                    defaultValue:
+                      "Generate guidance to see the strongest permanent residence pathways for your profile.",
+                  })}
+                />
+              ) : (
+                <ResultList
+                  title={t("selfApplication.pathwaysListTitle", {
+                    defaultValue: "Recommended pathways",
+                  })}
+                  items={activePathways}
+                  emptyText={t("selfApplication.noneListed")}
+                />
+              )}
+            </div>
+          ) : null}
+
+          <div className="grid gap-6 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <SectionHeading
                 title={t("selfApplication.readinessTitle")}
@@ -631,7 +731,7 @@ export default function SelfApplicationPage() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <SectionHeading
               title={t("selfApplication.checklistTitle")}
               subtitle={t("selfApplication.checklistHelp")}
@@ -803,6 +903,93 @@ function InfoBox({ label, value }) {
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
       <p className="text-sm font-medium text-slate-500">{label}</p>
       <p className="mt-2 text-sm text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function PermanentResidenceIntake({ t, profileForm, pathways }) {
+  const hasProfileSignals =
+    profileForm.age !== "" ||
+    profileForm.education !== "" ||
+    profileForm.language_score !== "" ||
+    profileForm.experience_years !== "" ||
+    profileForm.occupation !== "" ||
+    profileForm.noc_code !== "" ||
+    profileForm.preferred_province !== "";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+        <p className="text-sm font-semibold text-blue-900">
+          {t("selfApplication.prNoticeTitle", {
+            defaultValue: "Permanent residence guidance",
+          })}
+        </p>
+        <p className="mt-2 text-sm leading-6 text-blue-800">
+          {t("selfApplication.prNoticeBody", {
+            defaultValue:
+              "This flow uses your saved profile to guide you toward the strongest permanent residence pathways, such as Express Entry, Canadian Experience Class, Federal Skilled Worker, Provincial Nominee Program options, and other relevant opportunities.",
+          })}
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <InfoBox
+          label={t("selfApplication.prSignals.profileReadyLabel", {
+            defaultValue: "Profile signal",
+          })}
+          value={
+            hasProfileSignals
+              ? t("selfApplication.prSignals.profileReadyValue", {
+                  defaultValue: "Profile data available",
+                })
+              : t("selfApplication.prSignals.profileMissingValue", {
+                  defaultValue: "Complete your profile first",
+                })
+          }
+        />
+
+        <InfoBox
+          label={t("selfApplication.prSignals.pathwaysLabel", {
+            defaultValue: "Pathways currently visible",
+          })}
+          value={String(pathways.length)}
+        />
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+        <p className="text-sm font-semibold text-slate-900">
+          {t("selfApplication.prFocusTitle", {
+            defaultValue: "What the AI should consider",
+          })}
+        </p>
+        <ul className="mt-3 space-y-2 text-sm text-slate-700">
+          <li>
+            {t("selfApplication.prFocusItems.0", {
+              defaultValue:
+                "Your age, education, language score, and work experience",
+            })}
+          </li>
+          <li>
+            {t("selfApplication.prFocusItems.1", {
+              defaultValue:
+                "Canadian study or work history and whether you have a job offer",
+            })}
+          </li>
+          <li>
+            {t("selfApplication.prFocusItems.2", {
+              defaultValue:
+                "Province preference and where your profile may be a stronger fit",
+            })}
+          </li>
+          <li>
+            {t("selfApplication.prFocusItems.3", {
+              defaultValue:
+                "French-speaking opportunities once your backend strategy engine includes them",
+            })}
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }

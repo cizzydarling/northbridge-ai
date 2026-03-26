@@ -238,11 +238,11 @@ export const sendAIMessage = ({
   language = getLanguage(),
 }) =>
   api.post("/ai/chat", {
-    message,
+    message: (message || "").trim(),
     chat_history,
-    language,
+    language: language === "fr" ? "fr" : "en",
   });
-
+  
 /* =========================
    CLIENTS
 ========================= */

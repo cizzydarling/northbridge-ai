@@ -2,7 +2,49 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
 import { getMyJourney, sendAIMessage } from "../api";
+
+const STARTER_PROMPTS = {
+  en: [
+    "What should I do next in my immigration journey?",
+    "Which pathway looks strongest for my profile?",
+    "How can I improve my chances for permanent residence?",
+    "Does my profile have any francophone advantage?",
+  ],
+  fr: [
+    "Quelle est ma prochaine meilleure étape ?",
+    "Quel parcours semble le plus fort pour mon profil ?",
+    "Comment puis-je améliorer mes chances de résidence permanente ?",
+    "Mon profil a-t-il un avantage francophone ?",
+  ],
+};
+
+const ACTION_ROUTE_MAP = {
+  profile: "/profile",
+  strategy: "/strategy",
+  document: "/self/documents",
+  documents: "/self/documents",
+  application: "/self/application",
+  permit: "/self/application",
+  pathway: "/strategy",
+  express: "/strategy",
+  pnp: "/strategy",
+  francophone: "/strategy",
+  french: "/strategy",
+  chat: "/chat",
+};
+
+function inferRouteFromAction(actionText = "") {
+  const text = actionText.toLowerCase();
+
+  for (const [keyword, route] of Object.entries(ACTION_ROUTE_MAP)) {
+    if (text.includes(keyword)) return route;
+  }
+
+  return "/strategy";
+}
 
 export default function ChatPage() {
   const { t, i18n } = useTranslation();
@@ -13,116 +55,58 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [journey, setJourney] = useState(null);
   const [journeyLoading, setJourneyLoading] = useState(true);
-  const [refreshingJourney, setRefreshingJourney] = useState(false);
+  const [suggestedActions, setSuggestedActions] = useState([]);
+  const [pathways, setPathways] = useState([]);
+  const [frenchAdvantage, setFrenchAdvantage] = useState(null);
 
   const bottomRef = useRef(null);
-
   const language = i18n.language === "fr" ? "fr" : "en";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages, loading, suggestedActions, pathways]);
 
   useEffect(() => {
-    loadJourney(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadJourney();
   }, [language]);
 
-  async function loadJourney(initialLoad = false) {
+  async function loadJourney() {
     try {
-      if (initialLoad) {
-        setJourneyLoading(true);
-      } else {
-        setRefreshingJourney(true);
-      }
-
+      setJourneyLoading(true);
       const res = await getMyJourney(language);
       setJourney(res.data);
-    } catch (err) {
+    } catch {
       setJourney(null);
     } finally {
-      if (initialLoad) {
-        setJourneyLoading(false);
-      } else {
-        setRefreshingJourney(false);
-      }
+      setJourneyLoading(false);
     }
   }
 
-  const suggestedQuestions = useMemo(() => {
-    return [
-      t("chat.suggestions.nextStep"),
-      t("chat.suggestions.crs"),
-      t("chat.suggestions.eligibility"),
-      t("chat.suggestions.province"),
-    ];
-  }, [t, language]);
-
-  const followUpActions = useMemo(() => {
-    return [
-      language === "fr"
-        ? "Comment améliorer mon profil ?"
-        : "How can I improve my profile?",
-      language === "fr"
-        ? "Quelle est ma prochaine étape ?"
-        : "What should I do next?",
-      language === "fr"
-        ? "Quels programmes me conviennent ?"
-        : "Which programs fit my profile?",
-    ];
+  const starterPrompts = useMemo(() => {
+    return STARTER_PROMPTS[language] || STARTER_PROMPTS.en;
   }, [language]);
 
-  const readinessLabel = useMemo(() => {
-    const label = journey?.readiness?.label;
-    if (!label) {
-      return language === "fr" ? "Non commencé" : "Not started";
-    }
-    if (label === "Strong") {
-      return language === "fr" ? "Fort" : "Strong";
-    }
-    if (label === "Moderate") {
-      return language === "fr" ? "Modéré" : "Moderate";
-    }
-    if (label === "Weak") {
-      return language === "fr" ? "À améliorer" : "Needs improvement";
-    }
-    return label;
-  }, [journey, language]);
-
-  const stageLabel =
-    journey?.current_stage || (language === "fr" ? "Parcours" : "Journey");
-
+  const readinessLabel = journey?.readiness?.label || "—";
+  const currentStage = journey?.current_stage || "—";
   const nextBestAction =
-    journey?.next_best_action ||
-    (language === "fr"
-      ? "Posez une question pour obtenir votre prochaine meilleure étape."
-      : "Ask a question to get your next best action.");
-
+    journey?.next_best_action || t("chat.placeholderAction", { defaultValue: "Review your strategy" });
   const recommendedRoute = journey?.recommended_route || "/dashboard";
+  const documentProgress = journey?.documents?.progress_percent ?? 0;
+  const remainingRequired = journey?.documents?.remaining_required ?? 0;
 
-  const recommendedRouteLabel = useMemo(() => {
-    if (recommendedRoute === "/profile") {
-      return t("selfDashboard.routeLabels.profile");
-    }
-    if (recommendedRoute === "/strategy") {
-      return t("selfDashboard.routeLabels.strategy");
-    }
-    if (recommendedRoute === "/self/documents") {
-      return t("selfDashboard.routeLabels.documents");
-    }
-    if (recommendedRoute === "/chat") {
-      return t("selfDashboard.routeLabels.chat");
-    }
-    if (recommendedRoute === "/dashboard") {
-      return t("selfDashboard.routeLabels.dashboard");
-    }
-    return t("selfDashboard.routeLabels.application");
-  }, [recommendedRoute, t]);
+  const frenchSignals = Array.isArray(frenchAdvantage?.signals)
+    ? frenchAdvantage.signals
+    : [];
+  const frenchRecommendations = Array.isArray(frenchAdvantage?.recommendations)
+    ? frenchAdvantage.recommendations
+    : [];
+  const frenchStrategicValue = frenchAdvantage?.strategic_value || null;
 
   const sendMessage = async (messageText = input) => {
-    if (!messageText.trim() || loading) return;
+    const trimmed = (messageText || "").trim();
+    if (!trimmed || loading) return;
 
-    const userMessage = { role: "user", content: messageText };
+    const userMessage = { role: "user", content: trimmed };
     const updatedMessages = [...messages, userMessage];
 
     setMessages(updatedMessages);
@@ -131,28 +115,38 @@ export default function ChatPage() {
 
     try {
       const res = await sendAIMessage({
-        message: messageText,
+        message: trimmed,
         language,
         chat_history: updatedMessages,
       });
 
-      const aiMessage = {
-        role: "assistant",
-        content: res.data.reply,
-      };
+      const data = res.data || {};
 
-      setMessages([...updatedMessages, aiMessage]);
-      loadJourney(false);
+      setMessages([
+        ...updatedMessages,
+        { role: "assistant", content: data.reply || "" },
+      ]);
+
+      setSuggestedActions(
+        Array.isArray(data.suggested_next_actions)
+          ? data.suggested_next_actions
+          : []
+      );
+
+      setPathways(Array.isArray(data.pathways) ? data.pathways : []);
+      setFrenchAdvantage(data.french_advantage || null);
     } catch (err) {
+      const errorMessage =
+        err?.response?.data?.detail ||
+        (language === "fr"
+          ? "Une erreur est survenue. Veuillez réessayer."
+          : "Something went wrong. Please try again.");
+
       setMessages([
         ...updatedMessages,
         {
           role: "assistant",
-          content:
-            err?.response?.data?.detail ||
-            (language === "fr"
-              ? "Une erreur est survenue. Veuillez réessayer."
-              : "Something went wrong. Please try again."),
+          content: errorMessage,
         },
       ]);
     } finally {
@@ -160,221 +154,308 @@ export default function ChatPage() {
     }
   };
 
-  const handleKeyDown = (e) => {
+  function handleKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
-  };
-
-  function handleGoToNextStep() {
-    navigate(recommendedRoute);
   }
 
   return (
     <Layout>
-      <div className="min-h-screen bg-[#0B1F3A] text-white flex flex-col">
-        <div className="px-6 py-4 border-b border-slate-700 flex justify-between items-center">
-          <h1 className="text-xl font-semibold">{t("chat.title")}</h1>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => loadJourney(false)}
-              disabled={refreshingJourney}
-              className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/15 disabled:opacity-50"
-            >
-              {refreshingJourney
-                ? t("chat.refreshing")
-                : t("chat.refresh")}
-            </button>
-
-            <div className="text-xs bg-white/10 px-3 py-1 rounded-full">
-              {language.toUpperCase()}
-            </div>
+      <div className="mx-auto max-w-6xl space-y-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {t("chat.title")}
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              {t("chat.disclaimer")}
+            </p>
           </div>
+
+          <Button variant="secondary" onClick={loadJourney} disabled={journeyLoading}>
+            {journeyLoading
+              ? t("common.loading")
+              : t("chat.refresh", { defaultValue: "Refresh" })}
+          </Button>
         </div>
 
-        <div className="border-b border-slate-700 bg-white/5">
-          <div className="max-w-4xl mx-auto px-6 py-5">
-            <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                  {t("chat.currentStage")}
-                </p>
-                <p className="mt-2 text-lg font-semibold text-white">
-                  {journeyLoading ? t("chat.loadingShort") : stageLabel}
-                </p>
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="p-5">
+            <p className="text-sm text-slate-500">
+              {t("chat.currentStage", { defaultValue: "Current stage" })}
+            </p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">
+              {currentStage}
+            </p>
+          </Card>
 
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-slate-300">
-                      {t("chat.readiness")}
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-white">
-                      {journeyLoading ? "—" : readinessLabel}
-                    </p>
-                  </div>
+          <Card className="p-5">
+            <p className="text-sm text-slate-500">
+              {t("chat.readiness", { defaultValue: "Readiness" })}
+            </p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">
+              {readinessLabel}
+            </p>
+          </Card>
 
-                  <div className="text-right">
-                    <p className="text-xs text-slate-300">
-                      {t("chat.score")}
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-white">
-                      {journeyLoading ? "—" : journey?.readiness?.score ?? "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
+          <Card className="p-5">
+            <p className="text-sm text-slate-500">
+              {t("chat.documentProgress", { defaultValue: "Document progress" })}
+            </p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">
+              {documentProgress}%
+            </p>
+          </Card>
 
-              <div className="rounded-2xl border border-red-400/20 bg-red-600/90 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-red-100">
-                  {t("chat.nextBestAction")}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-white">
-                  {journeyLoading
-                    ? t("chat.loadingJourney")
-                    : nextBestAction}
-                </p>
-
-                {!journeyLoading && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => sendMessage(t("chat.suggestions.nextStep"))}
-                      className="rounded-full bg-white/10 px-3 py-2 text-xs font-medium text-white hover:bg-white/15"
-                    >
-                      {t("chat.exploreStep")}
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        sendMessage(
-                          language === "fr"
-                            ? "Peux-tu m’expliquer cette prochaine étape ?"
-                            : "Can you explain this next step?"
-                        )
-                      }
-                      className="rounded-full bg-white/10 px-3 py-2 text-xs font-medium text-white hover:bg-white/15"
-                    >
-                      {t("chat.explainIt")}
-                    </button>
-
-                    <button
-                      onClick={handleGoToNextStep}
-                      className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
-                    >
-                      {t("chat.goToLabel", {
-                        destination: recommendedRouteLabel.toLowerCase(),
-                      })}
-                    </button>
-                  </div>
-                )}
-
-                {!journeyLoading && (
-                  <p className="mt-3 text-xs text-red-100">
-                    {t("chat.recommendedDestination")}{" "}
-                    <span className="font-semibold text-white">
-                      {recommendedRouteLabel}
-                    </span>
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+          <Card className="p-5">
+            <p className="text-sm text-slate-500">
+              {t("chat.remainingRequired", { defaultValue: "Remaining required documents" })}
+            </p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">
+              {remainingRequired}
+            </p>
+          </Card>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="max-w-4xl mx-auto space-y-4">
-            {messages.length === 0 && (
-              <div className="text-center text-slate-300 mt-12">
-                <p className="text-2xl font-semibold">{t("chat.startTitle")}</p>
-                <p className="text-sm mt-2 text-slate-400">
-                  {t("chat.startSubtitle")}
-                </p>
+        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+          <Card className="p-6">
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              {t("chat.nextBestAction", { defaultValue: "Next best action" })}
+            </p>
+            <p className="mt-3 text-sm leading-6 text-slate-700">
+              {nextBestAction}
+            </p>
 
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {suggestedQuestions.map((q) => (
-                    <button
-                      key={q}
-                      onClick={() => sendMessage(q)}
-                      className="bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl text-left text-sm"
+            <div className="mt-5">
+              <Button
+                variant="primary"
+                onClick={() => navigate(recommendedRoute)}
+              >
+                {t("chat.goToNext", { defaultValue: "Go to next step" })}
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              {t("chat.suggestedPrompts", { defaultValue: "Suggested prompts" })}
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {starterPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => sendMessage(prompt)}
+                  disabled={loading}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {(suggestedActions.length > 0 || pathways.length > 0 || frenchStrategicValue) && (
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="p-6 lg:col-span-1">
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                {t("chat.actionableSteps", { defaultValue: "Actionable next steps" })}
+              </p>
+
+              {suggestedActions.length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  {suggestedActions.map((action, index) => (
+                    <div
+                      key={`${action}-${index}`}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                     >
-                      {q}
-                    </button>
+                      <p className="text-sm text-slate-800">{action}</p>
+                      <div className="mt-3">
+                        <Button
+                          variant="secondary"
+                          onClick={() => navigate(inferRouteFromAction(action))}
+                        >
+                          {t("chat.openAction", { defaultValue: "Open related page" })}
+                        </Button>
+                      </div>
+                    </div>
                   ))}
                 </div>
+              ) : (
+                <p className="mt-4 text-sm text-slate-500">
+                  {t("chat.noActions", { defaultValue: "No actions suggested yet." })}
+                </p>
+              )}
+            </Card>
+
+            <Card className="p-6 lg:col-span-1">
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                {t("chat.topPathways", { defaultValue: "Top pathways" })}
+              </p>
+
+              {pathways.length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  {pathways.map((pathway, index) => (
+                    <div
+                      key={`${pathway}-${index}`}
+                      className={`rounded-2xl border p-4 ${
+                        index === 0
+                          ? "border-blue-200 bg-blue-50"
+                          : "border-slate-200 bg-slate-50"
+                      }`}
+                    >
+                      <p
+                        className={`text-xs font-semibold uppercase tracking-wide ${
+                          index === 0 ? "text-blue-700" : "text-slate-500"
+                        }`}
+                      >
+                        {index === 0
+                          ? t("chat.primaryPathway", { defaultValue: "Primary pathway" })
+                          : t("common.option", { index })}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-slate-900">
+                        {pathway}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-slate-500">
+                  {t("chat.noPathways", { defaultValue: "No pathways surfaced yet." })}
+                </p>
+              )}
+            </Card>
+
+            <Card className="p-6 lg:col-span-1">
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                {t("chat.francophoneAngle", { defaultValue: "Francophone angle" })}
+              </p>
+
+              {frenchStrategicValue ? (
+                <div className="mt-4 space-y-4">
+                  <span
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                      frenchStrategicValue === "high"
+                        ? "bg-green-100 text-green-700"
+                        : frenchStrategicValue === "medium"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {frenchStrategicValue}
+                  </span>
+
+                  {frenchSignals.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {t("chat.signals", { defaultValue: "Signals" })}
+                      </p>
+                      <ul className="mt-2 space-y-2">
+                        {frenchSignals.slice(0, 3).map((item, index) => (
+                          <li
+                            key={`${item}-${index}`}
+                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                          >
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {frenchRecommendations.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {t("chat.recommendations", { defaultValue: "Recommendations" })}
+                      </p>
+                      <ul className="mt-2 space-y-2">
+                        {frenchRecommendations.slice(0, 3).map((item, index) => (
+                          <li
+                            key={`${item}-${index}`}
+                            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                          >
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-slate-500">
+                  {t("chat.noFrancophoneAngle", {
+                    defaultValue: "No francophone angle surfaced yet.",
+                  })}
+                </p>
+              )}
+            </Card>
+          </div>
+        )}
+
+        <Card className="h-[520px] overflow-y-auto p-6">
+          <div className="space-y-4">
+            {messages.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                <p className="text-sm text-slate-500">
+                  {t("chat.startSubtitle", {
+                    defaultValue:
+                      "Ask a question about your strategy, pathways, documents, or next steps.",
+                  })}
+                </p>
               </div>
             )}
 
             {messages.map((msg, idx) => (
-              <div key={idx}>
+              <div
+                key={idx}
+                className={`flex ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
                 <div
-                  className={`flex ${
-                    msg.role === "user" ? "justify-end" : "justify-start"
+                  className={`max-w-2xl rounded-2xl px-4 py-3 text-sm leading-6 ${
+                    msg.role === "user"
+                      ? "bg-blue-600 text-white"
+                      : "border border-slate-200 bg-slate-100 text-slate-900"
                   }`}
                 >
-                  <div
-                    className={`max-w-xl px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap ${
-                      msg.role === "user"
-                        ? "bg-red-600 text-white"
-                        : "bg-white text-slate-900"
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
                 </div>
-
-                {msg.role === "assistant" && idx === messages.length - 1 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {followUpActions.map((action) => (
-                      <button
-                        key={action}
-                        onClick={() => sendMessage(action)}
-                        className="text-xs border border-slate-600 px-3 py-2 rounded-full text-slate-200 hover:bg-slate-800"
-                      >
-                        {action}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             ))}
 
             {loading && (
-              <div className="text-sm text-slate-400">
+              <p className="text-sm text-slate-400">
                 {t("chat.thinking")}
-              </div>
+              </p>
             )}
 
             <div ref={bottomRef} />
           </div>
-        </div>
+        </Card>
 
-        <div className="px-6 py-4 border-t border-slate-700">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex gap-2">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={t("chat.placeholder")}
-                className="flex-1 rounded-lg px-4 py-3 bg-slate-800 border border-slate-600 text-white focus:outline-none"
-                rows={2}
-              />
+        <Card className="p-4">
+          <div className="flex gap-2">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={3}
+              placeholder={t("chat.placeholder")}
+              className="flex-1 resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+            />
 
-              <button
-                onClick={() => sendMessage()}
-                disabled={loading || !input.trim()}
-                className="bg-red-600 px-5 py-2 rounded-lg font-medium disabled:opacity-50"
-              >
+            <div className="flex items-end">
+              <Button onClick={() => sendMessage()} disabled={loading || !input.trim()}>
                 {t("chat.send")}
-              </button>
+              </Button>
             </div>
-
-            <p className="text-xs text-slate-400 mt-2">
-              {t("chat.disclaimer")}
-            </p>
           </div>
-        </div>
+        </Card>
       </div>
     </Layout>
   );

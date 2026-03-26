@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   loginUser,
@@ -9,6 +9,10 @@ import {
   refreshCurrentUser,
 } from "../api";
 
+import Input from "../components/ui/Input";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+
 function getErrorMessage(err, fallback = "Something went wrong.") {
   if (!err.response) {
     return "Unable to connect to server. Please check your connection.";
@@ -17,9 +21,7 @@ function getErrorMessage(err, fallback = "Something went wrong.") {
   const detail = err.response?.data?.detail;
   const message = err.response?.data?.message;
 
-  if (typeof detail === "string" && detail.trim()) {
-    return detail;
-  }
+  if (typeof detail === "string" && detail.trim()) return detail;
 
   if (Array.isArray(detail) && detail.length > 0) {
     const first = detail[0];
@@ -32,9 +34,7 @@ function getErrorMessage(err, fallback = "Something went wrong.") {
     return detail.msg || "Request validation failed.";
   }
 
-  if (typeof message === "string" && message.trim()) {
-    return message;
-  }
+  if (typeof message === "string" && message.trim()) return message;
 
   return fallback;
 }
@@ -55,7 +55,6 @@ export default function AuthPage() {
   function switchLanguage(lang) {
     i18n.changeLanguage(lang);
     localStorage.setItem("language", lang);
-    window.location.reload();
   }
 
   const handleChange = (e) => {
@@ -78,22 +77,15 @@ export default function AuthPage() {
         const token = res?.data?.access_token;
         const returnedUser = res?.data?.user;
 
-        if (!token) {
-          throw new Error("No token returned from server.");
-        }
+        if (!token) throw new Error("No token returned");
 
         setToken(token);
-
-        if (returnedUser) {
-          setCurrentUserLocal(returnedUser);
-        }
+        if (returnedUser) setCurrentUserLocal(returnedUser);
 
         const freshUser = await refreshCurrentUser();
         const user = freshUser || returnedUser;
 
-        if (!user) {
-          throw new Error("Unable to resolve user after login.");
-        }
+        if (!user) throw new Error("User resolution failed");
 
         if (user.role === "agent" || user.plan === "agent_pro") {
           navigate("/clients");
@@ -109,16 +101,17 @@ export default function AuthPage() {
 
         setMessage(t("auth.registrationSuccess"));
         setIsLogin(true);
-        setForm((prev) => ({ ...prev, password: "" }));
+        setForm((prev) => ({
+          ...prev,
+          password: "",
+        }));
       }
     } catch (err) {
-      console.error("AUTH ERROR:", err);
-      console.error("AUTH ERROR RESPONSE:", err.response?.data);
-
+      console.error(err);
       setMessage(
         getErrorMessage(
           err,
-          isLogin ? "Login failed." : "Registration failed."
+          isLogin ? t("auth.loginFailed") : t("auth.registrationFailed")
         )
       );
     } finally {
@@ -126,88 +119,324 @@ export default function AuthPage() {
     }
   };
 
+  const heroTitle =
+    i18n.language === "fr"
+      ? "Une expérience d’immigration plus claire, moderne et guidée"
+      : "A clearer, more modern, and guided immigration experience";
+
+  const heroSubtitle =
+    i18n.language === "fr"
+      ? "Accédez à votre profil, votre stratégie, vos documents et votre assistant IA dans un espace structuré et professionnel."
+      : "Access your profile, strategy, documents, and AI assistant in one structured and professional workspace.";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
-        <div className="mb-6 flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-blue-600">
-              {t("app.name")}
-            </p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">
-              {isLogin ? t("auth.welcomeBack") : t("auth.createAccount")}
-            </h1>
-            <p className="mt-2 text-slate-500">{t("auth.subtitle")}</p>
+    <div className="min-h-screen bg-slate-50">
+      <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative hidden overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 lg:flex">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.06),transparent_28%)]" />
+
+          <div className="relative flex w-full flex-col justify-between p-10 xl:p-14">
+            <div>
+              <Link to="/" className="inline-flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-bold text-blue-900 shadow-sm">
+                  NB
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    {t("app.name")}
+                  </p>
+                  <p className="text-xs text-blue-200">{t("app.tagline")}</p>
+                </div>
+              </Link>
+
+              <div className="mt-16 max-w-xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-200">
+                  {isLogin ? t("auth.welcomeBack") : t("auth.createAccount")}
+                </p>
+
+                <h1 className="mt-4 text-4xl font-bold leading-tight text-white xl:text-5xl">
+                  {heroTitle}
+                </h1>
+
+                <p className="mt-5 text-lg leading-8 text-slate-300">
+                  {heroSubtitle}
+                </p>
+              </div>
+
+              <div className="mt-10 grid max-w-xl gap-4 sm:grid-cols-3">
+                <FeatureStat
+                  value={i18n.language === "fr" ? "Guidé" : "Guided"}
+                  label={
+                    i18n.language === "fr"
+                      ? "Prochaines étapes claires"
+                      : "Clear next steps"
+                  }
+                />
+                <FeatureStat
+                  value={i18n.language === "fr" ? "Simple" : "Simple"}
+                  label={
+                    i18n.language === "fr"
+                      ? "Expérience fluide"
+                      : "Smooth experience"
+                  }
+                />
+                <FeatureStat
+                  value={i18n.language === "fr" ? "Fiable" : "Trusted"}
+                  label={
+                    i18n.language === "fr"
+                      ? "Cadre professionnel"
+                      : "Professional structure"
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <PreviewCard
+                title={
+                  i18n.language === "fr"
+                    ? "Stratégie personnalisée"
+                    : "Personalized strategy"
+                }
+                text={
+                  i18n.language === "fr"
+                    ? "Obtenez une lecture claire de votre position, de vos forces et de vos prochaines étapes."
+                    : "Get a clear read on your position, strengths, and recommended next actions."
+                }
+              />
+              <PreviewCard
+                title={i18n.language === "fr" ? "Assistant IA" : "AI Assistant"}
+                text={
+                  i18n.language === "fr"
+                    ? "Recevez des réponses guidées selon votre profil et votre progression."
+                    : "Receive guided answers based on your profile and your progress."
+                }
+                featured
+              />
+            </div>
           </div>
+        </section>
 
-          <select
-            value={i18n.language}
-            onChange={(e) => switchLanguage(e.target.value)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
-          >
-            <option value="en">{t("common.english")}</option>
-            <option value="fr">{t("common.french")}</option>
-          </select>
-        </div>
+        <section className="flex items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
+          <div className="w-full max-w-md">
+            <div className="mb-6 flex items-center justify-between gap-3 lg:hidden">
+              <Link to="/" className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-900 text-sm font-bold text-white shadow-sm">
+                  NB
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {t("app.name")}
+                  </p>
+                  <p className="text-xs text-slate-500">{t("app.tagline")}</p>
+                </div>
+              </Link>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            name="email"
-            placeholder={t("auth.email")}
-            value={form.email}
-            onChange={handleChange}
-            className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
-            required
-          />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => switchLanguage("en")}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    i18n.language === "en"
+                      ? "bg-blue-900 text-white"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchLanguage("fr")}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    i18n.language === "fr"
+                      ? "bg-blue-900 text-white"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  FR
+                </button>
+              </div>
+            </div>
 
-          <input
-            type="password"
-            name="password"
-            placeholder={t("auth.password")}
-            value={form.password}
-            onChange={handleChange}
-            className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
-            required
-          />
+            <Card variant="elevated" padding="lg" className="shadow-xl">
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-blue-600">
+                    {t("app.name")}
+                  </p>
+                  <h1 className="mt-1 text-3xl font-bold text-slate-900">
+                    {isLogin ? t("auth.welcomeBack") : t("auth.createAccount")}
+                  </h1>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {t("auth.subtitle")}
+                  </p>
+                </div>
 
-          {!isLogin && (
-            <select
-              name="role"
-              value={form.role}
-              onChange={handleChange}
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
-            >
-              <option value="individual">{t("auth.individual")}</option>
-              <option value="agent">{t("auth.agent")}</option>
-            </select>
-          )}
+                <div className="hidden items-center gap-2 lg:flex">
+                  <button
+                    type="button"
+                    onClick={() => switchLanguage("en")}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                      i18n.language === "en"
+                        ? "bg-blue-900 text-white"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchLanguage("fr")}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                      i18n.language === "fr"
+                        ? "bg-blue-900 text-white"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    FR
+                  </button>
+                </div>
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-slate-900 py-3 font-medium text-white"
-          >
-            {loading
-              ? t("auth.pleaseWait")
-              : isLogin
-              ? t("auth.login")
-              : t("auth.register")}
-          </button>
-        </form>
+              <div className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(true);
+                    setMessage("");
+                  }}
+                  className={`flex h-11 items-center justify-center rounded-xl text-sm font-medium transition ${
+                    isLogin
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {t("auth.login")}
+                </button>
 
-        {message && <p className="mt-4 text-sm text-red-600">{message}</p>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(false);
+                    setMessage("");
+                  }}
+                  className={`flex h-11 items-center justify-center rounded-xl text-sm font-medium transition ${
+                    !isLogin
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {t("auth.register")}
+                </button>
+              </div>
 
-        <button
-          onClick={() => {
-            setIsLogin(!isLogin);
-            setMessage("");
-          }}
-          className="mt-4 w-full rounded-xl border border-slate-300 py-3 font-medium text-slate-700"
-        >
-          {isLogin ? t("auth.switchToRegister") : t("auth.switchToLogin")}
-        </button>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <Input
+                  label={t("auth.email")}
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                />
+
+                <Input
+                  label={t("auth.password")}
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                />
+
+                {!isLogin && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">
+                      {t("auth.role", { defaultValue: "Role" })}
+                    </label>
+                    <select
+                      name="role"
+                      value={form.role}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="individual">{t("auth.individual")}</option>
+                      <option value="agent">{t("auth.agent")}</option>
+                    </select>
+                  </div>
+                )}
+
+                <Button type="submit" disabled={loading} className="h-12 w-full">
+                  {loading
+                    ? t("auth.pleaseWait")
+                    : isLogin
+                    ? t("auth.login")
+                    : t("auth.register")}
+                </Button>
+              </form>
+
+              {message && (
+                <div
+                  className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
+                    message.toLowerCase().includes("success") ||
+                    message.toLowerCase().includes("successfully")
+                      ? "border border-green-200 bg-green-50 text-green-700"
+                      : "border border-red-200 bg-red-50 text-red-700"
+                  }`}
+                >
+                  {message}
+                </div>
+              )}
+
+              <div className="mt-6 border-t border-slate-200 pt-6">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-12 w-full"
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setMessage("");
+                  }}
+                >
+                  {isLogin
+                    ? t("auth.switchToRegister")
+                    : t("auth.switchToLogin")}
+                </Button>
+
+                <p className="mt-4 text-center text-sm text-slate-500">
+                  {i18n.language === "fr"
+                    ? "En continuant, vous accédez à une plateforme de planification et de soutien informatif."
+                    : "By continuing, you access a planning and informational support platform."}
+                </p>
+              </div>
+            </Card>
+          </div>
+        </section>
       </div>
+    </div>
+  );
+}
+
+function FeatureStat({ value, label }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <p className="text-lg font-bold text-white">{value}</p>
+      <p className="mt-1 text-sm text-slate-300">{label}</p>
+    </div>
+  );
+}
+
+function PreviewCard({ title, text, featured = false }) {
+  return (
+    <div
+      className={`rounded-2xl p-4 ${
+        featured
+          ? "border border-blue-200 bg-white/15"
+          : "border border-white/10 bg-white/5"
+      }`}
+    >
+      <p className="text-sm font-semibold text-white">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-300">{text}</p>
     </div>
   );
 }

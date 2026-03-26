@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -46,21 +46,31 @@ def get_allowed_origins() -> list[str]:
     default_origins = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://northbridgeai.com",
+        "https://www.northbridgeai.com",
         "https://northbridgeia.com",
         "https://www.northbridgeia.com",
     ]
 
     env_origins = os.getenv("CORS_ORIGINS", "").strip()
-    if not env_origins:
-        return default_origins
 
-    parsed: list[str] = []
-    for origin in env_origins.split(","):
-        cleaned = origin.strip().rstrip("/")
-        if cleaned:
-            parsed.append(cleaned)
+    parsed_env_origins: list[str] = []
+    if env_origins:
+        for origin in env_origins.split(","):
+            cleaned = origin.strip().rstrip("/")
+            if cleaned:
+                parsed_env_origins.append(cleaned)
 
-    return parsed or default_origins
+    merged = []
+    seen = set()
+
+    for origin in default_origins + parsed_env_origins:
+        normalized = origin.rstrip("/")
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            merged.append(normalized)
+
+    return merged
 
 
 def register_routers(app: FastAPI) -> None:
@@ -97,9 +107,12 @@ def create_app() -> FastAPI:
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
+    allowed_origins = get_allowed_origins()
+    print("CORS allowed origins:", allowed_origins)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=get_allowed_origins(),
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

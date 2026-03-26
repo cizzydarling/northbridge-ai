@@ -1,12 +1,12 @@
-// src/components/Layout.jsx
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getCurrentUserLocal, logoutUser } from "../api";
+import Button from "../components/ui/Button";
 
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const currentUser = getCurrentUserLocal();
   const isAgentWorkspace =
@@ -18,7 +18,6 @@ export default function Layout({ children }) {
         { label: t("nav.clients"), path: "/clients" },
         { label: t("nav.matters"), path: "/matters" },
         { label: t("nav.strategy"), path: "/strategy" },
-        { label: t("nav.aiAssistant"), path: "/chat" },
         { label: t("nav.billing"), path: "/billing" },
       ]
     : [
@@ -26,7 +25,6 @@ export default function Layout({ children }) {
         { label: t("layout.myApplication"), path: "/self/application" },
         { label: t("layout.myDocuments"), path: "/self/documents" },
         { label: t("nav.strategy"), path: "/strategy" },
-        { label: t("nav.aiAssistant"), path: "/chat" },
         { label: t("nav.profile"), path: "/profile" },
       ];
 
@@ -35,25 +33,30 @@ export default function Layout({ children }) {
     navigate("/auth");
   }
 
+  function switchLanguage(lang) {
+    i18n.changeLanguage(lang);
+    localStorage.setItem("language", lang);
+  }
+
   function isActive(path) {
     if (path === "/dashboard") {
-      return location.pathname === "/dashboard";
+      return location.pathname === "/dashboard" || location.pathname === "/";
     }
-    return location.pathname.startsWith(path);
+    return location.pathname === path || location.pathname.startsWith(path + "/");
   }
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-6">
-          <div className="flex min-w-0 items-center gap-4">
+          <div className="flex min-w-0 items-center gap-6">
             <Link to="/dashboard" className="shrink-0">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0B1F3A] text-sm font-bold text-white shadow-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-900 text-sm font-bold text-white shadow-sm">
                   NB
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-[#0B1F3A]">
+                  <p className="truncate text-sm font-semibold text-blue-900">
                     {t("app.name")}
                   </p>
                   <p className="truncate text-xs text-slate-500">
@@ -75,12 +78,8 @@ export default function Layout({ children }) {
                     to={item.path}
                     className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
                       active
-                        ? item.path === "/chat"
-                          ? "bg-red-600 text-white shadow-sm"
-                          : "bg-[#0B1F3A] text-white shadow-sm"
-                        : item.path === "/chat"
-                        ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        ? "bg-blue-100 text-blue-900 ring-1 ring-blue-200"
+                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                     }`}
                   >
                     {item.label}
@@ -90,19 +89,45 @@ export default function Layout({ children }) {
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              to="/chat"
-              className="hidden rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-red-700 md:inline-flex"
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="hidden items-center gap-2 sm:flex">
+              <button
+                type="button"
+                onClick={() => switchLanguage("en")}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  i18n.language === "en"
+                    ? "bg-blue-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                EN
+              </button>
+              <button
+                type="button"
+                onClick={() => switchLanguage("fr")}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  i18n.language === "fr"
+                    ? "bg-blue-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                FR
+              </button>
+            </div>
+
+            <Button
+              variant="primary"
+              className="hidden h-10 px-4 md:inline-flex"
+              onClick={() => navigate("/chat")}
             >
               {t("nav.aiAssistant")}
-            </Link>
+            </Button>
 
-            <div className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 md:flex">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-semibold text-white">
+            <div className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 md:flex">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-900 text-xs font-semibold text-white">
                 {(currentUser?.email || "U").slice(0, 1).toUpperCase()}
               </div>
-              <div className="max-w-[180px]">
+              <div className="max-w-[160px]">
                 <p className="truncate text-sm font-medium text-slate-900">
                   {currentUser?.email || t("common.unknown")}
                 </p>
@@ -112,17 +137,18 @@ export default function Layout({ children }) {
               </div>
             </div>
 
-            <button
+            <Button
+              variant="secondary"
+              className="h-10 px-4"
               onClick={handleLogout}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
               {t("nav.logout")}
-            </button>
+            </Button>
           </div>
         </div>
 
         <div className="border-t border-slate-100 bg-white lg:hidden">
-          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3 md:px-6">
+          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
             {primaryNavItems.map((item) => {
               const active = isActive(item.path);
 
@@ -130,13 +156,9 @@ export default function Layout({ children }) {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
+                  className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium ${
                     active
-                      ? item.path === "/chat"
-                        ? "bg-red-600 text-white"
-                        : "bg-[#0B1F3A] text-white"
-                      : item.path === "/chat"
-                      ? "border border-red-200 bg-red-50 text-red-700"
+                      ? "bg-blue-100 text-blue-900 ring-1 ring-blue-200"
                       : "bg-slate-100 text-slate-700"
                   }`}
                 >
@@ -144,11 +166,47 @@ export default function Layout({ children }) {
                 </Link>
               );
             })}
+
+            <Link
+              to="/chat"
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium ${
+                isActive("/chat")
+                  ? "bg-blue-100 text-blue-900 ring-1 ring-blue-200"
+                  : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              {t("nav.aiAssistant")}
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2 px-4 pb-3 sm:hidden">
+            <button
+              type="button"
+              onClick={() => switchLanguage("en")}
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                i18n.language === "en"
+                  ? "bg-blue-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              onClick={() => switchLanguage("fr")}
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                i18n.language === "fr"
+                  ? "bg-blue-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              FR
+            </button>
           </div>
         </div>
       </header>
 
-      <main>{children}</main>
+      <main className="mx-auto max-w-7xl px-4 py-8 md:px-6">{children}</main>
     </div>
   );
 }

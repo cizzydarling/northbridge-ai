@@ -40,7 +40,10 @@ export default function Dashboard() {
   const role = currentUser?.role || "individual";
   const isAgent = role === "agent" || role === "admin";
   const currentPlan = billing?.plan || currentUser?.plan || "free";
-  const subscriptionStatus = billing?.subscription_status || currentUser?.subscription_status || "not subscribed";
+  const subscriptionStatus =
+    billing?.subscription_status ||
+    currentUser?.subscription_status ||
+    "not subscribed";
   const paidAccess = hasPaidPlan(currentUser, currentPlan);
   const hasAgentPlan = hasAgentWorkspaceAccess(currentUser, currentPlan);
 
@@ -107,14 +110,14 @@ export default function Dashboard() {
         }
       } catch (err) {
         console.error(err);
-        setMessage("Could not load dashboard data.");
+        setMessage(t("dashboard.loadError", { defaultValue: "Could not load dashboard data." }));
       } finally {
         setLoading(false);
       }
     };
 
     loadDashboard();
-  }, [navigate]);
+  }, [navigate, t]);
 
   const profileCompletion = useMemo(() => {
     if (!profile) return 0;
@@ -142,33 +145,50 @@ export default function Dashboard() {
   const crsScore = strategy?.crs_score ?? "--";
 
   const topScenario =
-    strategy?.improvement_scenarios?.[0]?.change || t("dashboard.noStrategyYet");
+    strategy?.improvement_scenarios?.[0]?.change ||
+    t("dashboard.noStrategyYet", { defaultValue: "No strategy available yet." });
 
   const premiumStatusLabel = paidAccess
     ? t("strategy.unlocked")
     : t("strategy.locked");
 
   const planDisplay = useMemo(() => {
-    if (currentPlan === "individual_pro") return "Individual Pro";
-    if (currentPlan === "agent_pro") return "Agent Pro";
-    if (currentPlan === "free") return "Free";
+    if (currentPlan === "individual_pro") {
+      return t("dashboard.plans.individualPro", { defaultValue: "Individual Pro" });
+    }
+    if (currentPlan === "agent_pro") {
+      return t("dashboard.plans.agentPro", { defaultValue: "Agent Pro" });
+    }
+    if (currentPlan === "free") {
+      return t("dashboard.plans.free", { defaultValue: "Free" });
+    }
     return currentPlan;
-  }, [currentPlan]);
+  }, [currentPlan, t]);
 
   const statusDisplay = useMemo(() => {
-    if (subscriptionStatus === "active") return "Active";
-    if (subscriptionStatus === "trialing") return "Trialing";
-    if (subscriptionStatus === "canceled") return "Canceled";
-    if (subscriptionStatus === "past_due") return "Past Due";
+    if (subscriptionStatus === "active") {
+      return t("billing.active", { defaultValue: "Active" });
+    }
+    if (subscriptionStatus === "trialing") {
+      return t("billing.trialing", { defaultValue: "Trialing" });
+    }
+    if (subscriptionStatus === "canceled") {
+      return t("billing.canceled", { defaultValue: "Canceled" });
+    }
+    if (subscriptionStatus === "past_due") {
+      return t("billing.pastDue", { defaultValue: "Past Due" });
+    }
     return subscriptionStatus;
-  }, [subscriptionStatus]);
+  }, [subscriptionStatus, t]);
 
   if (loading) {
     return (
       <Layout>
         <div className="flex items-center justify-center">
           <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 shadow-xl">
-            <p className="text-lg font-medium text-slate-700">{t("common.loading")}</p>
+            <p className="text-lg font-medium text-slate-700">
+              {t("common.loading")}
+            </p>
           </div>
         </div>
       </Layout>
@@ -179,8 +199,12 @@ export default function Dashboard() {
     <Layout>
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">{t("dashboard.title")}</h1>
-          <p className="mt-2 text-sm text-slate-600">{t("dashboard.subtitle")}</p>
+          <h1 className="text-3xl font-bold text-slate-900">
+            {t("dashboard.title")}
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            {t("dashboard.subtitle")}
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -210,18 +234,26 @@ export default function Dashboard() {
 
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-          <p className="text-sm font-medium text-slate-500">{t("dashboard.currentPlan")}</p>
+          <p className="text-sm font-medium text-slate-500">
+            {t("dashboard.currentPlan")}
+          </p>
           <p className="mt-2 text-2xl font-bold text-slate-900">{planDisplay}</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-          <p className="text-sm font-medium text-slate-500">{t("dashboard.subscriptionStatus")}</p>
+          <p className="text-sm font-medium text-slate-500">
+            {t("dashboard.subscriptionStatus")}
+          </p>
           <p className="mt-2 text-2xl font-bold text-slate-900">{statusDisplay}</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-          <p className="text-sm font-medium text-slate-500">{t("strategy.premiumAccess")}</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{premiumStatusLabel}</p>
+          <p className="text-sm font-medium text-slate-500">
+            {t("strategy.premiumAccess")}
+          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">
+            {premiumStatusLabel}
+          </p>
         </div>
       </div>
 
@@ -291,7 +323,9 @@ export default function Dashboard() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-          <h3 className="text-xl font-semibold text-slate-900">{t("dashboard.nextSteps")}</h3>
+          <h3 className="text-xl font-semibold text-slate-900">
+            {t("dashboard.nextSteps")}
+          </h3>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <button
@@ -380,41 +414,48 @@ export default function Dashboard() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-          <h3 className="text-xl font-semibold text-slate-900">Account Summary</h3>
+          <h3 className="text-xl font-semibold text-slate-900">
+            {t("dashboard.accountSummary")}
+          </h3>
+
           <div className="mt-5 space-y-3">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Email
+                {t("dashboard.email")}
               </p>
               <p className="mt-1 text-slate-900">{currentUser?.email || "--"}</p>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Role
+                {t("dashboard.role")}
               </p>
               <p className="mt-1 text-slate-900">{role}</p>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Access
+                {t("dashboard.access")}
               </p>
               <p className="mt-1 text-slate-900">
-                {paidAccess ? "Premium features enabled" : "Free access only"}
+                {paidAccess
+                  ? t("dashboard.premiumEnabled")
+                  : t("dashboard.freeOnly")}
               </p>
             </div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-          <h3 className="text-xl font-semibold text-slate-900">Recommended Action</h3>
+          <h3 className="text-xl font-semibold text-slate-900">
+            {t("dashboard.recommendedAction")}
+          </h3>
 
           <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
             {!profile ? (
               <>
                 <p className="text-sm text-slate-700">
-                  Complete your profile to unlock more personalized recommendations.
+                  {t("dashboard.actionCompleteProfile")}
                 </p>
                 <button
                   onClick={() => navigate("/profile")}
@@ -426,7 +467,7 @@ export default function Dashboard() {
             ) : !paidAccess ? (
               <>
                 <p className="text-sm text-slate-700">
-                  Upgrade your plan to unlock premium strategy insights, reports, and advanced tools.
+                  {t("dashboard.actionUpgrade")}
                 </p>
                 <button
                   onClick={() => navigate("/billing")}
@@ -438,7 +479,7 @@ export default function Dashboard() {
             ) : isAgent && !hasAgentPlan ? (
               <>
                 <p className="text-sm text-slate-700">
-                  Upgrade to Agent Pro to access the client workspace and premium client tools.
+                  {t("dashboard.actionUpgradeAgent")}
                 </p>
                 <button
                   onClick={() => navigate("/billing")}
@@ -450,10 +491,12 @@ export default function Dashboard() {
             ) : (
               <>
                 <p className="text-sm text-slate-700">
-                  Your account is set up. Continue building your strategy and using premium tools.
+                  {t("dashboard.actionContinue")}
                 </p>
                 <button
-                  onClick={() => navigate(isAgent && hasAgentPlan ? "/clients" : "/strategy")}
+                  onClick={() =>
+                    navigate(isAgent && hasAgentPlan ? "/clients" : "/strategy")
+                  }
                   className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
                 >
                   {isAgent && hasAgentPlan

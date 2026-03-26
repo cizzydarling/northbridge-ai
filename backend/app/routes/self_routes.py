@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.access_control import get_current_user
 from app.data.db import get_db
+from app.models.profile_model import Profile
 from app.models.self_application_model import SelfApplication
 from app.models.self_document_model import SelfDocument
 from app.schemas.self_application_schema import (
@@ -13,8 +14,11 @@ from app.schemas.self_application_schema import (
 from app.services.checklist_engine import build_checklist
 from app.services.eligibility_engine import evaluate_matter_eligibility
 from app.services.forms_assistant import build_forms_assistant
+from app.services.strategy_service import build_strategy
 
 router = APIRouter(prefix="/self", tags=["Self"])
+
+PERMANENT_RESIDENCE_MATTER_TYPE = "permanent_residence"
 
 
 def require_self_user(current_user=Depends(get_current_user)):
@@ -32,11 +36,24 @@ def require_self_user(current_user=Depends(get_current_user)):
     return current_user
 
 
+def normalize_language(language: str | None) -> str:
+    normalized = (language or "en").strip().lower()
+    return normalized if normalized in {"en", "fr"} else "en"
+
+
 def get_self_application_for_user(db: Session, user_id: int) -> SelfApplication | None:
     return (
         db.query(SelfApplication)
         .filter(SelfApplication.user_id == user_id)
         .order_by(SelfApplication.updated_at.desc())
+        .first()
+    )
+
+
+def get_profile_for_user(db: Session, user_id: int) -> Profile | None:
+    return (
+        db.query(Profile)
+        .filter(Profile.user_id == user_id)
         .first()
     )
 
@@ -89,6 +106,297 @@ def sync_self_documents_from_checklist(
             db.add(document)
 
 
+def build_pr_eligibility_from_strategy(strategy: dict, language: str) -> dict:
+    if language == "fr":
+        readiness = "Strong" if (strategy.get("crs_score") or 0) >= 470 else (
+            "Moderate" if (strategy.get("crs_score") or 0) >= 430 else "Weak"
+        )
+
+        strengths = list(strategy.get("strengths") or [])
+        weaknesses = list(strategy.get("weaknesses") or [])
+        next_steps = list(strategy.get("next_steps") or [])
+        pathways = list(strategy.get("recommended_programs") or [])
+
+        if pathways:
+            strengths.insert(
+                0,
+                "Des parcours de résidence permanente ont été identifiés à partir de votre profil."
+            )
+
+        advisor_summary = strategy.get("advisor_summary") or (
+            "Votre profil a été analysé pour repérer les voies de résidence permanente "
+            "les plus réalistes, notamment Entrée express, les programmes des candidats "
+            "des provinces et les autres possibilités pertinentes."
+        )
+
+        return {
+            "readiness": readiness,
+            "strengths": strengths,
+            "concerns": weaknesses,
+            "next_steps": next_steps,
+            "summary": advisor_summary,
+            "pathways": pathways,
+            "french_advantage": strategy.get("french_advantage") or {},
+        }
+
+    readiness = "Strong" if (strategy.get("crs_score") or 0) >= 470 else (
+        "Moderate" if (strategy.get("crs_score") or 0) >= 430 else "Weak"
+    )
+
+    strengths = list(strategy.get("strengths") or [])
+    weaknesses = list(strategy.get("weaknesses") or [])
+    next_steps = list(strategy.get("next_steps") or [])
+    pathways = list(strategy.get("recommended_programs") or [])
+
+    if pathways:
+        strengths.insert(
+            0,
+            "Permanent residence pathways were identified from your current profile."
+        )
+
+    advisor_summary = strategy.get("advisor_summary") or (
+        "Your profile was analyzed to identify the most realistic permanent residence "
+        "pathways, including Express Entry, Provincial Nominee Program options, and "
+        "other relevant opportunities."
+    )
+
+    return {
+        "readiness": readiness,
+        "strengths": strengths,
+        "concerns": weaknesses,
+        "next_steps": next_steps,
+        "summary": advisor_summary,
+        "pathways": pathways,
+        "french_advantage": strategy.get("french_advantage") or {},
+    }
+
+
+def build_pr_forms_assistant_from_strategy(strategy: dict, language: str) -> dict:
+    pathways = list(strategy.get("recommended_programs") or [])
+    missing_fields = []
+
+    if strategy.get("crs_score") is None:
+        missing_fields.append("CRS score inputs")
+
+    if language == "fr":
+        summary = (
+            "Utilisez d’abord cette analyse pour confirmer vos voies de résidence "
+            "permanente les plus fortes. Ensuite, préparez les documents liés au "
+            "profil, à l’expérience de travail, aux langues, aux études et à la "
+            "preuve des éléments qui renforcent votre dossier."
+        )
+
+        preparation_notes = [
+            "Vérifiez que votre profil contient des renseignements complets sur l’âge, les études, l’expérience et les langues.",
+            "Préparez vos résultats linguistiques, preuves d’études et preuves d’expérience de travail qualifié.",
+            "Comparez Entrée express aux programmes provinciaux selon votre province cible.",
+        ]
+
+        if strategy.get("french_advantage", {}).get("strategic_value") in {"medium", "high"}:
+            preparation_notes.append(
+                "Si vous avez un bon niveau de français, préparez aussi les éléments pouvant soutenir une stratégie francophone."
+            )
+
+        recommended_forms = [
+            {"form_key": "profile_review", "form_name": "Révision du profil"},
+            {"form_key": "language_evidence", "form_name": "Preuves linguistiques"},
+            {"form_key": "education_evidence", "form_name": "Preuves d’études"},
+            {"form_key": "work_history_evidence", "form_name": "Preuves d’expérience de travail"},
+        ]
+
+        if pathways:
+            recommended_forms.append(
+                {"form_key": "pathway_selection", "form_name": "Sélection de la voie prioritaire"}
+            )
+
+        return {
+            "summary": summary,
+            "recommended_forms": recommended_forms,
+            "missing_fields": missing_fields,
+            "preparation_notes": preparation_notes,
+        }
+
+    summary = (
+        "Use this assessment first to confirm your strongest permanent residence "
+        "pathways. Then prepare documents tied to your profile, work history, "
+        "language results, education, and any factors that strengthen your file."
+    )
+
+    preparation_notes = [
+        "Make sure your profile includes complete information on age, education, work experience, and language.",
+        "Prepare language results, education records, and proof of skilled work history.",
+        "Compare Express Entry with province-specific pathways based on your target province.",
+    ]
+
+    if strategy.get("french_advantage", {}).get("strategic_value") in {"medium", "high"}:
+        preparation_notes.append(
+            "If you have strong French ability, prepare supporting evidence for a francophone or bilingual strategy."
+        )
+
+    recommended_forms = [
+        {"form_key": "profile_review", "form_name": "Profile review"},
+        {"form_key": "language_evidence", "form_name": "Language evidence"},
+        {"form_key": "education_evidence", "form_name": "Education evidence"},
+        {"form_key": "work_history_evidence", "form_name": "Work history evidence"},
+    ]
+
+    if pathways:
+        recommended_forms.append(
+            {"form_key": "pathway_selection", "form_name": "Primary pathway selection"}
+        )
+
+    return {
+        "summary": summary,
+        "recommended_forms": recommended_forms,
+        "missing_fields": missing_fields,
+        "preparation_notes": preparation_notes,
+    }
+
+
+def build_pr_checklist_from_strategy(strategy: dict, language: str) -> list[dict]:
+    pathways = list(strategy.get("recommended_programs") or [])
+    french_advantage = strategy.get("french_advantage") or {}
+    has_french_advantage = french_advantage.get("strategic_value") in {"medium", "high"}
+
+    if language == "fr":
+        checklist = [
+            {
+                "id": "profile_complete",
+                "name": "Profil d’immigration complété",
+                "status": "Required",
+                "reason": "Votre profil doit être complet pour cibler correctement les voies de résidence permanente.",
+            },
+            {
+                "id": "language_results",
+                "name": "Résultats linguistiques",
+                "status": "Required",
+                "reason": "Les résultats linguistiques sont essentiels pour évaluer les options de résidence permanente.",
+            },
+            {
+                "id": "education_records",
+                "name": "Preuves d’études",
+                "status": "Required",
+                "reason": "Les études influencent fortement l’évaluation et les options disponibles.",
+            },
+            {
+                "id": "work_experience_records",
+                "name": "Preuves d’expérience de travail qualifié",
+                "status": "Required",
+                "reason": "L’expérience de travail qualifié soutient la plupart des parcours de résidence permanente.",
+            },
+            {
+                "id": "pathway_review",
+                "name": "Révision des voies recommandées",
+                "status": "Recommended",
+                "reason": "Comparez les programmes recommandés pour choisir la meilleure stratégie.",
+            },
+        ]
+
+        if pathways:
+            checklist.append(
+                {
+                    "id": "province_and_program_match",
+                    "name": "Validation province / programme",
+                    "status": "Recommended",
+                    "reason": "Certaines provinces ou certains volets peuvent mieux correspondre à votre profil actuel.",
+                }
+            )
+
+        if has_french_advantage:
+            checklist.append(
+                {
+                    "id": "french_strategy_support",
+                    "name": "Éléments à l’appui d’une stratégie francophone",
+                    "status": "Recommended",
+                    "reason": "Le dossier semble pouvoir bénéficier d’un positionnement francophone ou bilingue.",
+                }
+            )
+
+        return checklist
+
+    checklist = [
+        {
+            "id": "profile_complete",
+            "name": "Complete immigration profile",
+            "status": "Required",
+            "reason": "Your profile needs to be complete to target permanent residence pathways correctly.",
+        },
+        {
+            "id": "language_results",
+            "name": "Language test results",
+            "status": "Required",
+            "reason": "Language results are core to evaluating permanent residence options.",
+        },
+        {
+            "id": "education_records",
+            "name": "Education records",
+            "status": "Required",
+            "reason": "Education strongly affects pathway targeting and competitiveness.",
+        },
+        {
+            "id": "work_experience_records",
+            "name": "Proof of skilled work experience",
+            "status": "Required",
+            "reason": "Skilled work history supports most permanent residence pathways.",
+        },
+        {
+            "id": "pathway_review",
+            "name": "Review recommended pathways",
+            "status": "Recommended",
+            "reason": "Compare the recommended programs to choose the strongest strategy.",
+        },
+    ]
+
+    if pathways:
+        checklist.append(
+            {
+                "id": "province_and_program_match",
+                "name": "Province and pathway alignment review",
+                "status": "Recommended",
+                "reason": "Some provinces or pathway streams may fit your current profile better than others.",
+            }
+        )
+
+    if has_french_advantage:
+        checklist.append(
+            {
+                "id": "french_strategy_support",
+                "name": "Francophone strategy support evidence",
+                "status": "Recommended",
+                "reason": "Your profile may benefit from a French-speaking or bilingual pathway strategy.",
+            }
+        )
+
+    return checklist
+
+
+def run_permanent_residence_workspace(
+    db: Session,
+    current_user,
+    language: str,
+) -> dict:
+    profile = get_profile_for_user(db, current_user.id)
+
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail="Complete your profile first to generate permanent residence guidance.",
+        )
+
+    strategy = build_strategy(profile, language=language)
+
+    eligibility = build_pr_eligibility_from_strategy(strategy, language=language)
+    forms_assistant = build_pr_forms_assistant_from_strategy(strategy, language=language)
+    checklist = build_pr_checklist_from_strategy(strategy, language=language)
+
+    return {
+        "strategy": strategy,
+        "eligibility": eligibility,
+        "forms_assistant": forms_assistant,
+        "checklist": checklist,
+    }
+
+
 @router.get("/application")
 def get_self_application_context(
     db: Session = Depends(get_db),
@@ -122,15 +430,42 @@ def get_saved_self_application(
 @router.post("/workspace", response_model=SelfWorkspaceResponse)
 def run_self_workspace(
     payload: SelfApplicationUpsertRequest,
+    language: str = Query(default="en"),
     db: Session = Depends(get_db),
     current_user=Depends(require_self_user),
 ):
     matter_type = payload.matter_type
     intake = payload.intake or {}
+    language = normalize_language(language)
 
-    eligibility = evaluate_matter_eligibility(matter_type, intake)
-    forms_assistant = build_forms_assistant(matter_type, intake)
-    checklist = build_checklist(matter_type, intake)
+    strategy = None
+
+    if matter_type == PERMANENT_RESIDENCE_MATTER_TYPE:
+        pr_workspace = run_permanent_residence_workspace(
+            db=db,
+            current_user=current_user,
+            language=language,
+        )
+        strategy = pr_workspace["strategy"]
+        eligibility = pr_workspace["eligibility"]
+        forms_assistant = pr_workspace["forms_assistant"]
+        checklist = pr_workspace["checklist"]
+    else:
+        eligibility = evaluate_matter_eligibility(
+            matter_type,
+            intake,
+            language=language,
+        )
+        forms_assistant = build_forms_assistant(
+            matter_type,
+            intake,
+            language=language,
+        )
+        checklist = build_checklist(
+            matter_type,
+            intake,
+            language=language,
+        )
 
     application = get_self_application_for_user(db, current_user.id)
 
@@ -161,9 +496,16 @@ def run_self_workspace(
     db.commit()
     db.refresh(application)
 
-    return {
+    response_payload = {
         "application": application,
         "eligibility": eligibility,
         "forms_assistant": forms_assistant,
         "checklist": checklist,
     }
+
+    if strategy is not None:
+        response_payload["strategy"] = strategy
+        response_payload["pathways"] = strategy.get("recommended_programs", [])
+        response_payload["french_advantage"] = strategy.get("french_advantage", {})
+
+    return response_payload

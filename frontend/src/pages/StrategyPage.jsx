@@ -2,87 +2,30 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
-import StatCard from "../components/StatCard";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
 import {
-  downloadStrategyReport,
-  getBillingStatus,
   getMyStrategy,
+  downloadStrategyReport,
   getToken,
   logoutUser,
-  refreshStrategy,
-  getCurrentUserLocal,
-  refreshCurrentUser,
 } from "../api";
-
-function canAccessStrategy(user) {
-  if (!user) return false;
-  if (user.role === "admin") return true;
-  return ["individual_pro", "agent_pro"].includes(user.plan);
-}
-
-function canAccessReports(user) {
-  if (!user) return false;
-  if (user.role === "admin") return true;
-  return ["individual_pro", "agent_pro"].includes(user.plan);
-}
 
 export default function StrategyPage() {
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
 
   const [data, setData] = useState(null);
-  const [billing, setBilling] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingAccess, setLoadingAccess] = useState(true);
-  const [currentUser, setCurrentUser] = useState(getCurrentUserLocal());
+  const [downloading, setDownloading] = useState(false);
 
-  const pricingPath = "/pricing";
+  const redirectToDisclosure = () => {
+    navigate("/legal/disclosure?redirect=/strategy");
+  };
 
-  function switchLanguage(lang) {
-    i18n.changeLanguage(lang);
-    localStorage.setItem("language", lang);
-    window.location.reload();
-  }
-
-  useEffect(() => {
-    const loadUserAccess = async () => {
-      try {
-        setLoadingAccess(true);
-
-        const token = getToken();
-        if (!token) {
-          navigate("/auth");
-          return;
-        }
-
-        const localUser = getCurrentUserLocal();
-        if (localUser) {
-          setCurrentUser(localUser);
-        }
-
-        const refreshedUser = await refreshCurrentUser();
-        setCurrentUser(refreshedUser);
-      } catch (err) {
-        console.error(err);
-
-        if (err.response?.status === 401) {
-          logoutUser();
-          navigate("/auth");
-          return;
-        }
-      } finally {
-        setLoadingAccess(false);
-      }
-    };
-
-    loadUserAccess();
-  }, [navigate]);
-
-  const fetchStrategy = async (isRefresh = false) => {
+  const loadStrategy = async ({ isRefresh = false } = {}) => {
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -99,13 +42,8 @@ export default function StrategyPage() {
         return;
       }
 
-      const [strategyRes, billingRes] = await Promise.all([
-        isRefresh ? refreshStrategy(i18n.language) : getMyStrategy(i18n.language),
-        getBillingStatus(),
-      ]);
-
-      setData(strategyRes.data);
-      setBilling(billingRes.data);
+      const response = await getMyStrategy();
+      setData(response.data);
     } catch (err) {
       console.error(err);
 
@@ -115,21 +53,20 @@ export default function StrategyPage() {
         return;
       }
 
-      if (err.response?.status === 403) {
-        setData(null);
-        setMessage(
-          err.response?.data?.detail || t("strategy.accessDenied")
-        );
+      if (
+        err.response?.status === 403 &&
+        typeof err.response?.data?.detail === "string" &&
+        err.response.data.detail.toLowerCase().includes("disclosures")
+      ) {
+        redirectToDisclosure();
         return;
       }
 
       if (err.response?.status === 404) {
         setData(null);
-        setMessage(t("strategy.completeProfileFirst"));
+        setMessage("Complete your profile first to generate your strategy.");
       } else {
-        setMessage(
-          err.response?.data?.detail || t("strategy.loadError")
-        );
+        setMessage(err.response?.data?.detail || "Failed to load strategy.");
       }
     } finally {
       setLoading(false);
@@ -138,205 +75,126 @@ export default function StrategyPage() {
   };
 
   useEffect(() => {
-    if (loadingAccess) return;
+    loadStrategy();
+  }, []);
 
-    if (!canAccessStrategy(currentUser)) {
-      setLoading(false);
-      return;
-    }
-
-    fetchStrategy();
-  }, [loadingAccess, currentUser]);
-
-  const handleExportReport = async () => {
-    if (!canAccessReports(currentUser)) {
-      setMessage(t("strategy.exportRequiresPaidPlan"));
-      return;
-    }
-
+  const handleDownload = async () => {
     try {
+      setDownloading(true);
       setMessage("");
 
       const response = await downloadStrategyReport();
       const blob = response?.data;
 
       if (!(blob instanceof Blob)) {
-        throw new Error(t("strategy.exportError"));
+        throw new Error("Invalid download response.");
       }
 
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "northbridge_strategy_report.html";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "northbridge_strategy_report.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
 
-      if (err.response?.status === 403) {
-        setMessage(
-          err.response?.data?.detail || t("strategy.exportRequiresPaidPlan")
-        );
-      } else {
-        setMessage(
-          err.response?.data?.detail || err.message || t("strategy.exportError")
-        );
+      if (
+        err.response?.status === 403 &&
+        typeof err.response?.data?.detail === "string" &&
+        err.response.data.detail.toLowerCase().includes("disclosures")
+      ) {
+        redirectToDisclosure();
+        return;
       }
+
+      setMessage(
+        err.response?.data?.detail ||
+          err.message ||
+          "Failed to download report."
+      );
+    } finally {
+      setDownloading(false);
     }
   };
 
-  const isPremium = data?.is_premium === true || canAccessStrategy(currentUser);
-  const recommendedPrograms = data?.recommended_programs || [];
-  const improvementScenarios = data?.improvement_scenarios || [];
-  const roadmap = data?.roadmap || [];
-  const provinceRecommendations = data?.province_recommendations || [];
+  const recommendedPrograms = Array.isArray(data?.recommended_programs)
+    ? data.recommended_programs
+    : [];
+  const strengths = Array.isArray(data?.strengths) ? data.strengths : [];
+  const weaknesses = Array.isArray(data?.weaknesses) ? data.weaknesses : [];
+  const nextSteps = Array.isArray(data?.next_steps) ? data.next_steps : [];
+  const roadmap = Array.isArray(data?.roadmap) ? data.roadmap : [];
+  const improvementScenarios = Array.isArray(data?.improvement_scenarios)
+    ? data.improvement_scenarios
+    : [];
+  const provinceRecommendations = Array.isArray(data?.province_recommendations)
+    ? data.province_recommendations
+    : [];
+  const aiStrategy = data?.ai_strategy || "";
+  const advisorSummary = data?.advisor_summary || "";
   const timelineEstimate = data?.timeline_estimate || {};
-  const timelineSteps = timelineEstimate?.timeline_steps || [];
   const probabilityEstimate = data?.probability_estimate || {};
   const drawPrediction = data?.draw_prediction || {};
-  const drawHints = drawPrediction?.category_hints || [];
-  const strengths = data?.strengths || [];
-  const weaknesses = data?.weaknesses || [];
-  const strategyNextSteps = data?.next_steps || [];
-  const advisorSummary = data?.advisor_summary || "";
+  const frenchAdvantage = data?.french_advantage || {};
   const crsScore = data?.crs_score ?? "--";
-  const aiStrategy = data?.ai_strategy || t("strategy.noAiStrategy");
+  const isPremium = Boolean(data?.is_premium);
+
+  const frenchSignals = Array.isArray(frenchAdvantage?.signals)
+    ? frenchAdvantage.signals
+    : [];
+  const frenchRecommendations = Array.isArray(frenchAdvantage?.recommendations)
+    ? frenchAdvantage.recommendations
+    : [];
+  const frenchStrategicValue = frenchAdvantage?.strategic_value || "low";
+  const hasFrenchAdvantage =
+    frenchSignals.length > 0 || frenchRecommendations.length > 0;
 
   const scoreLabel = useMemo(() => {
-    if (typeof crsScore !== "number") {
-      return t("strategy.scoreLabels.unavailable");
-    }
-    if (crsScore >= 500) {
-      return t("strategy.scoreLabels.veryStrong");
-    }
-    if (crsScore >= 470) {
-      return t("strategy.scoreLabels.strong");
-    }
-    if (crsScore >= 430) {
-      return t("strategy.scoreLabels.competitive");
-    }
-    return t("strategy.scoreLabels.needsImprovement");
-  }, [crsScore, t]);
+    if (typeof crsScore !== "number") return "Unavailable";
+    if (crsScore >= 500) return "Very strong";
+    if (crsScore >= 470) return "Strong";
+    if (crsScore >= 430) return "Competitive";
+    return "Needs improvement";
+  }, [crsScore]);
 
-  const topProgram = recommendedPrograms[0] || t("common.notAvailable");
-
-  const timelineSummary = useMemo(() => {
-    const minMonths = timelineEstimate?.estimated_pr_timeline_min_months;
-    const maxMonths = timelineEstimate?.estimated_pr_timeline_max_months;
-
-    if (typeof minMonths === "number" && typeof maxMonths === "number") {
-      return `${minMonths}-${maxMonths} ${t("strategy.months")}`;
-    }
-
-    return t("common.notAvailable");
-  }, [timelineEstimate, t]);
-
-  const drawSummary = useMemo(() => {
-    const min = drawPrediction?.predicted_cutoff_min;
-    const max = drawPrediction?.predicted_cutoff_max;
+  const timelineLabel = useMemo(() => {
+    const min = timelineEstimate?.estimated_pr_timeline_min_months;
+    const max = timelineEstimate?.estimated_pr_timeline_max_months;
 
     if (typeof min === "number" && typeof max === "number") {
-      return `${min}-${max}`;
+      return `${min}-${max} months`;
     }
 
-    return t("common.notAvailable");
-  }, [drawPrediction, t]);
+    return "Not available";
+  }, [timelineEstimate]);
 
-  const dashboardNextSteps = useMemo(() => {
-    if (strategyNextSteps.length > 0) {
-      return strategyNextSteps.slice(0, 4);
-    }
+  const expressEntryChance =
+    typeof probabilityEstimate?.chance_via_express_entry === "number"
+      ? `${probabilityEstimate.chance_via_express_entry}%`
+      : "—";
 
-    const steps = [];
+  const pnpChance =
+    typeof probabilityEstimate?.chance_via_pnp === "number"
+      ? `${probabilityEstimate.chance_via_pnp}%`
+      : "—";
 
-    if (recommendedPrograms.length > 0) {
-      steps.push(
-        t("strategy.fallbackNextStepPrioritize", {
-          program: recommendedPrograms[0],
-        })
-      );
-    }
+  const twelveMonthChance =
+    typeof probabilityEstimate?.chance_of_pr_within_12_months === "number"
+      ? `${probabilityEstimate.chance_of_pr_within_12_months}%`
+      : "—";
 
-    steps.push(t("strategy.fallbackNextStepDocuments"));
+  const topProgram = recommendedPrograms[0] || "Not available";
 
-    return steps.slice(0, 4);
-  }, [recommendedPrograms, strategyNextSteps, t]);
-
-  if (loadingAccess) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center">
-          <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 shadow-xl">
-            <p className="text-lg font-medium text-slate-700">
-              {t("strategy.loadingAccess")}
-            </p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!canAccessStrategy(currentUser)) {
-    return (
-      <Layout>
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
-          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-blue-600">{t("app.name")}</p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-900">
-                {t("strategy.upgradeRequired")}
-              </h1>
-              <p className="mt-3 text-slate-600">
-                {t("strategy.upgradeRequiredBody")}
-              </p>
-            </div>
-
-            <div className="w-full md:w-56">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                {t("common.language")}
-              </label>
-              <select
-                value={i18n.language}
-                onChange={(e) => switchLanguage(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500"
-              >
-                <option value="en">{t("common.english")}</option>
-                <option value="fr">{t("common.french")}</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-6 flex gap-3">
-            <button
-              onClick={() => navigate(pricingPath)}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-            >
-              {t("strategy.upgradeNow")}
-            </button>
-
-            <button
-              onClick={() => navigate("/profile")}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700"
-            >
-              {t("strategy.goToProfile")}
-            </button>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  const topThreePrograms = recommendedPrograms.slice(0, 3);
 
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center">
-          <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 shadow-xl">
-            <p className="text-lg font-medium text-slate-700">
-              {t("common.loading")}
-            </p>
-          </div>
+        <div className="flex justify-center py-16">
+          <p className="text-slate-600">Loading your strategy...</p>
         </div>
       </Layout>
     );
@@ -344,402 +202,401 @@ export default function StrategyPage() {
 
   return (
     <Layout>
-      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">
-            {t("strategy.title")}
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {t("strategy.subtitle")}
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 md:items-end">
-          <div className="w-full md:w-56">
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              {t("common.language")}
-            </label>
-            <select
-              value={i18n.language}
-              onChange={(e) => switchLanguage(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500"
-            >
-              <option value="en">{t("common.english")}</option>
-              <option value="fr">{t("common.french")}</option>
-            </select>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => navigate(pricingPath)}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700"
-            >
-              {t("common.pricing")}
-            </button>
-
-            <button
-              onClick={handleExportReport}
-              disabled={!canAccessReports(currentUser)}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-            >
-              {t("strategy.exportStrategyReport")}
-            </button>
-
-            <button
-              onClick={() => fetchStrategy(true)}
-              disabled={refreshing}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-60"
-            >
-              {refreshing ? t("common.loading") : t("strategy.refreshStrategy")}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {billing?.plan === "free" && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-800">
-          {t("strategy.premiumNotice")}
-        </div>
-      )}
-
       {message && (
-        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+        <div
+          className={`mb-6 rounded-2xl px-4 py-3 ${
+            message.toLowerCase().includes("success")
+              ? "border border-green-200 bg-green-50 text-green-700"
+              : "border border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
           {message}
         </div>
       )}
 
-      {!message && data && (
+      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-blue-600">NorthBridgeAI</p>
+          <h1 className="mt-1 text-3xl font-bold text-slate-900">
+            Your Immigration Strategy
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+            Understand your position, prioritize the right actions, and increase
+            your chances with a structured plan.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => navigate("/profile")}>
+            Edit Profile
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => loadStrategy({ isRefresh: true })}
+            disabled={refreshing}
+          >
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+
+          {!isPremium && (
+            <Button onClick={() => navigate("/pricing")}>Upgrade</Button>
+          )}
+
+          <Button onClick={handleDownload} disabled={!isPremium || downloading}>
+            {downloading ? "Downloading..." : "Download Report"}
+          </Button>
+        </div>
+      </div>
+
+      {!data && !message && (
+        <Card className="p-8 text-center">
+          <h2 className="text-2xl font-semibold text-slate-900">
+            No strategy available yet
+          </h2>
+          <p className="mt-3 text-slate-600">
+            Complete your profile to generate your first strategy.
+          </p>
+          <div className="mt-6">
+            <Button onClick={() => navigate("/profile")}>
+              Complete Profile
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {data && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <StatCard
-              label={t("strategy.currentCrsScore")}
+          <section className="rounded-3xl bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 px-6 py-8 text-white shadow-xl md:px-8 md:py-10">
+            <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-200">
+                  Strategy Snapshot
+                </p>
+                <h2 className="mt-3 text-3xl font-bold md:text-4xl">
+                  {isPremium ? "Premium Strategy" : "Free Strategy"}
+                </h2>
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-blue-100 md:text-base">
+                  {advisorSummary ||
+                    "Your strategy is based on your current profile information."}
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Button onClick={() => navigate("/chat")}>
+                    Ask AI Assistant
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate("/profile")}
+                  >
+                    Update Profile
+                  </Button>
+                  {!isPremium && (
+                    <Button onClick={() => navigate("/pricing")}>
+                      Unlock Premium
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">
+                    CRS Score
+                  </p>
+                  <p className="mt-2 text-3xl font-bold">{crsScore}</p>
+                  <p className="mt-2 text-sm text-blue-100">{scoreLabel}</p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">
+                    Estimated Timeline
+                  </p>
+                  <p className="mt-2 text-3xl font-bold">{timelineLabel}</p>
+                  <p className="mt-2 text-sm text-blue-100">
+                    Expected PR window
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {!isPremium && (
+            <Card className="border border-amber-200 bg-amber-50 p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-amber-900">
+                    Unlock premium strategy insights
+                  </p>
+                  <p className="mt-1 text-sm text-amber-800">
+                    Get roadmap details, probability estimates, advanced
+                    scenarios, draw outlook, province analysis, AI guidance, and
+                    full report export.
+                  </p>
+                </div>
+
+                <Button onClick={() => navigate("/pricing")}>
+                  Upgrade to Premium
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="CRS Score"
               value={crsScore}
-              badge={scoreLabel}
-              description={t("strategy.strategySummary")}
-              valueClassName="text-5xl"
+              description={scoreLabel}
             />
-
-            <StatCard
-              label={t("strategy.bestPathway")}
+            <MetricCard
+              label="Top Program"
               value={topProgram}
-              description={t("strategy.recommendedPrograms")}
-              valueClassName="text-2xl"
+              description="Best-fit pathway"
             />
-
-            <StatCard
-              label={t("strategy.plan")}
-              value={billing?.plan || currentUser?.plan || "free"}
-              description={t("billing.currentPlan")}
-              valueClassName="text-2xl"
+            <MetricCard
+              label="Timeline"
+              value={timelineLabel}
+              description="Estimated PR window"
             />
-
-            <StatCard
-              label={t("strategy.premiumAccess")}
-              value={isPremium ? t("strategy.unlocked") : t("strategy.locked")}
-              description={t("strategy.premiumFeatures")}
-              valueClassName="text-2xl"
+            <MetricCard
+              label="12-Month Chance"
+              value={isPremium ? twelveMonthChance : "Locked"}
+              description={
+                isPremium ? "Estimated probability" : "Premium insight"
+              }
+              locked={!isPremium}
             />
           </div>
 
-          {advisorSummary && (
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-xl">
-              <h3 className="text-xl font-semibold text-slate-900">
-                {t("strategy.strategySummary")}
-              </h3>
-              <p className="mt-3 text-sm leading-6 text-slate-700">
-                {advisorSummary}
-              </p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl xl:col-span-2">
-              <h3 className="text-xl font-semibold text-slate-900">
-                {t("strategy.recommendedPrograms")}
-              </h3>
+          <div className="grid gap-6 xl:grid-cols-3">
+            <Card className="p-6 xl:col-span-2">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Pathways
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                    Recommended Programs
+                  </h2>
+                </div>
+              </div>
 
               {recommendedPrograms.length > 0 ? (
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {recommendedPrograms.map((program, index) => (
                     <div
                       key={index}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4"
+                      className={`rounded-2xl border p-4 ${
+                        index === 0
+                          ? "border-blue-200 bg-blue-50"
+                          : "border-slate-200 bg-slate-50"
+                      }`}
                     >
-                      <div className="text-xs font-semibold uppercase text-blue-600">
-                        {t("common.option", { index: index + 1 })}
-                      </div>
-                      <div className="mt-2 text-slate-800">{program}</div>
+                      <p
+                        className={`text-xs font-semibold uppercase tracking-wide ${
+                          index === 0 ? "text-blue-700" : "text-slate-500"
+                        }`}
+                      >
+                        {index === 0 ? "Primary option" : `Option ${index + 1}`}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-slate-900">
+                        {program}
+                      </p>
                     </div>
                   ))}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-slate-500">
-                  {t("common.notAvailable")}
+                  No recommendations available yet.
                 </p>
               )}
-            </div>
+            </Card>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-              <h3 className="text-xl font-semibold text-slate-900">
-                {t("strategy.nextSteps")}
-              </h3>
+            <Card className="p-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Action plan
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                Next Steps
+              </h2>
 
-              <div className="mt-5 space-y-3">
-                {dashboardNextSteps.map((step, index) => (
-                  <div
-                    key={index}
-                    className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-sm text-white">
-                      {index + 1}
+              {nextSteps.length > 0 ? (
+                <div className="mt-5 space-y-3">
+                  {nextSteps.map((step, index) => (
+                    <div
+                      key={index}
+                      className={`flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 ${
+                        !isPremium ? "opacity-70" : ""
+                      }`}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-900 text-sm font-semibold text-white">
+                        {index + 1}
+                      </div>
+                      <p className="text-sm text-slate-700">{step}</p>
                     </div>
-                    <p className="text-sm text-slate-700">{step}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-slate-500">
+                  No next steps available yet.
+                </p>
+              )}
+
+              {!isPremium && (
+                <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-amber-900">
+                    Unlock the full action plan
+                  </p>
+                  <p className="mt-1 text-sm text-amber-800">
+                    Premium gives you deeper sequencing, advanced action items,
+                    and a stronger execution roadmap.
+                  </p>
+                  <div className="mt-3">
+                    <Button onClick={() => navigate("/pricing")}>
+                      See Premium
+                    </Button>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              )}
+            </Card>
           </div>
 
-          {!isPremium && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-              <h3 className="text-xl font-semibold text-slate-900">
-                {t("strategy.premiumFeatures")}
-              </h3>
-              <ul className="mt-4 space-y-2 text-slate-700">
-                <li>{t("strategy.premiumList.f1")}</li>
-                <li>{t("strategy.premiumList.f2")}</li>
-                <li>{t("strategy.premiumList.f3")}</li>
-                <li>{t("strategy.premiumList.f4")}</li>
-                <li>{t("strategy.premiumList.f5")}</li>
-                <li>{t("strategy.premiumList.f6")}</li>
-              </ul>
-              <button
-                onClick={() => navigate(pricingPath)}
-                className="mt-5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-              >
-                {t("strategy.upgradeNow")}
-              </button>
-            </div>
+          {hasFrenchAdvantage && (
+            <Card className="p-6">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Francophone advantage
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                    French-speaking pathway potential
+                  </h2>
+                </div>
+
+                <span
+                  className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                    frenchStrategicValue === "high"
+                      ? "bg-green-100 text-green-700"
+                      : frenchStrategicValue === "medium"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {frenchStrategicValue} strategic value
+                </span>
+              </div>
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    What the strategy sees
+                  </h3>
+
+                  {frenchSignals.length > 0 ? (
+                    <ul className="mt-3 space-y-3">
+                      {frenchSignals.map((item, index) => (
+                        <li
+                          key={index}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                        >
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-500">
+                      No French-language signals available yet.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Recommended next moves
+                  </h3>
+
+                  {frenchRecommendations.length > 0 ? (
+                    <ul className="mt-3 space-y-3">
+                      {frenchRecommendations.map((item, index) => (
+                        <li
+                          key={index}
+                          className={`rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 ${
+                            !isPremium ? "opacity-80" : ""
+                          }`}
+                        >
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-500">
+                      No French-language recommendations available yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {!isPremium && (
+                <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-amber-900">
+                    Premium can go deeper here
+                  </p>
+                  <p className="mt-1 text-sm text-amber-800">
+                    Unlock deeper strategy interpretation, province targeting,
+                    and advanced planning tied to your broader immigration
+                    profile.
+                  </p>
+                  <div className="mt-3">
+                    <Button onClick={() => navigate("/pricing")}>
+                      Upgrade to Premium
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
           )}
 
-          {isPremium && drawPrediction?.predicted_draw_type && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-              <h3 className="text-xl font-semibold text-slate-900">
-                {t("strategy.drawPredictor")}
-              </h3>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <Card className="p-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Strength analysis
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                Strengths
+              </h2>
 
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-                <DrawMetricCard
-                  label={t("strategy.predictedDrawType")}
-                  value={drawPrediction.predicted_draw_type}
-                />
-                <DrawMetricCard
-                  label={t("strategy.predictedCutoff")}
-                  value={drawSummary}
-                />
-                <DrawMetricCard
-                  label={t("strategy.likelihood")}
-                  value={drawPrediction.likelihood || t("common.notAvailable")}
-                />
-                <DrawMetricCard
-                  label={t("strategy.timeWindow")}
-                  value={
-                    drawPrediction.estimated_time_window ||
-                    t("common.notAvailable")
-                  }
-                />
-              </div>
-
-              {drawHints.length > 0 && (
-                <ul className="mt-4 space-y-2">
-                  {drawHints.map((hint, index) => (
-                    <li
-                      key={index}
-                      className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"
-                    >
-                      {hint}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {isPremium && (
-            <>
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-                <h3 className="text-xl font-semibold text-slate-900">
-                  {t("strategy.probabilityEngine")}
-                </h3>
-
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <ProbabilityCard
-                    label={t("strategy.probabilityCards.pr12Months")}
-                    value={probabilityEstimate?.chance_of_pr_within_12_months}
-                  />
-                  <ProbabilityCard
-                    label={t("strategy.probabilityCards.expressEntry")}
-                    value={probabilityEstimate?.chance_via_express_entry}
-                  />
-                  <ProbabilityCard
-                    label={t("strategy.probabilityCards.pnp")}
-                    value={probabilityEstimate?.chance_via_pnp}
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-                <h3 className="text-xl font-semibold text-slate-900">
-                  {t("strategy.timelineEstimate")}
-                </h3>
-                <p className="mt-3 text-3xl font-bold text-slate-900">
-                  {timelineSummary}
-                </p>
-
-                {timelineSteps.length > 0 && (
-                  <div className="mt-4 space-y-4">
-                    {timelineSteps.map((step, index) => (
-                      <div
-                        key={index}
-                        className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <p className="font-semibold text-slate-900">
-                          {step.title}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {step.reason}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {provinceRecommendations.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-                  <h3 className="text-xl font-semibold text-slate-900">
-                    {t("strategy.provinceTargeting")}
-                  </h3>
-                  <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                    {provinceRecommendations.map((item, index) => (
-                      <div
-                        key={index}
-                        className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <p className="text-xs font-semibold uppercase text-blue-600">
-                          {t("strategy.rankLabel", { index: index + 1 })}
-                        </p>
-                        <p className="mt-2 text-lg font-semibold text-slate-900">
-                          {item.province}
-                        </p>
-                        <p className="mt-2 text-sm text-slate-700">
-                          {item.reason}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {roadmap.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-                  <h3 className="text-xl font-semibold text-slate-900">
-                    {t("strategy.strategyRoadmap")}
-                  </h3>
-                  <div className="mt-4 space-y-4">
-                    {roadmap.map((step, index) => (
-                      <div
-                        key={index}
-                        className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <p className="font-semibold text-slate-900">
-                          {t("strategy.stepLabel", {
-                            index: index + 1,
-                            title: step.title,
-                          })}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {step.reason}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {improvementScenarios.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-                  <h3 className="text-xl font-semibold text-slate-900">
-                    {t("strategy.improvementScenarios")}
-                  </h3>
-                  <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {improvementScenarios.map((item, index) => (
-                      <div
-                        key={index}
-                        className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <div className="text-xs font-semibold uppercase text-blue-600">
-                          {t("strategy.scenarioLabel", { index: index + 1 })}
-                        </div>
-                        <div className="mt-2 text-slate-800">{item.change}</div>
-                        <div className="mt-4 text-sm text-slate-500">
-                          {t("strategy.projectedCrs")}
-                        </div>
-                        <div className="mt-1 text-2xl font-bold text-slate-900">
-                          {item.new_crs}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-                <h3 className="text-xl font-semibold text-slate-900">
-                  {t("strategy.aiStrategy")}
-                </h3>
-                <div className="prose prose-slate mt-6 max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {aiStrategy}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-              <h3 className="text-xl font-semibold text-slate-900">
-                {t("strategy.strengths")}
-              </h3>
               {strengths.length > 0 ? (
                 <ul className="mt-5 space-y-3">
                   {strengths.map((item, index) => (
                     <li
                       key={index}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
                     >
                       {item}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-4 text-sm text-slate-500">
-                  {t("strategy.noStrengthsYet")}
-                </p>
+                <p className="mt-4 text-sm text-slate-500">No strengths yet.</p>
               )}
-            </div>
+            </Card>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-              <h3 className="text-xl font-semibold text-slate-900">
-                {t("strategy.weaknesses")}
-              </h3>
+            <Card className="p-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Improvement areas
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                Weaknesses
+              </h2>
+
               {weaknesses.length > 0 ? (
                 <ul className="mt-5 space-y-3">
                   {weaknesses.map((item, index) => (
                     <li
                       key={index}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                      className={`rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 ${
+                        !isPremium ? "blur-[2px] select-none" : ""
+                      }`}
                     >
                       {item}
                     </li>
@@ -747,68 +604,318 @@ export default function StrategyPage() {
                 </ul>
               ) : (
                 <p className="mt-4 text-sm text-slate-500">
-                  {t("strategy.noWeaknessesYet")}
+                  No weaknesses yet.
                 </p>
               )}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {!message && !data && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xl">
-          <div className="mb-6 flex justify-end">
-            <div className="w-full max-w-56">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                {t("common.language")}
-              </label>
-              <select
-                value={i18n.language}
-                onChange={(e) => switchLanguage(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500"
+              {!isPremium && (
+                <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-amber-900">
+                    Weakness analysis is premium
+                  </p>
+                  <p className="mt-1 text-sm text-amber-800">
+                    Unlock the blockers that may reduce your score or delay your
+                    pathway.
+                  </p>
+                  <div className="mt-3">
+                    <Button onClick={() => navigate("/pricing")}>
+                      Upgrade to Unlock
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <Card className="p-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Advisor summary
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-900">
+              Strategic Overview
+            </h2>
+
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <p
+                className={`text-sm leading-7 text-slate-700 ${
+                  !isPremium ? "blur-[2px] select-none" : ""
+                }`}
               >
-                <option value="en">{t("common.english")}</option>
-                <option value="fr">{t("common.french")}</option>
-              </select>
+                {advisorSummary || "No strategic summary available yet."}
+              </p>
             </div>
-          </div>
 
-          <h2 className="text-2xl font-semibold text-slate-900">
-            {t("strategy.noStrategyAvailable")}
-          </h2>
-          <p className="mt-3 text-slate-600">
-            {t("strategy.completeProfileFirst")}
-          </p>
-          <button
-            onClick={() => navigate("/profile")}
-            className="mt-6 rounded-xl bg-slate-900 px-5 py-3 font-medium text-white"
-          >
-            {t("strategy.goToProfile")}
-          </button>
+            {!isPremium && (
+              <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">
+                  Full advisor summary available on Premium
+                </p>
+                <p className="mt-1 text-sm text-amber-800">
+                  Unlock the complete AI-generated guidance tailored to your
+                  profile.
+                </p>
+                <div className="mt-3">
+                  <Button onClick={() => navigate("/pricing")}>
+                    View Pricing
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <PremiumSection isPremium={isPremium}>
+            <>
+              <div className="grid gap-6 xl:grid-cols-3">
+                <Card className="p-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Forecast
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                    Probability
+                  </h2>
+
+                  <div className="mt-5 space-y-4">
+                    <MiniMetric
+                      label="Express Entry"
+                      value={expressEntryChance}
+                    />
+                    <MiniMetric label="PNP" value={pnpChance} />
+                    <MiniMetric label="12 Months" value={twelveMonthChance} />
+                  </div>
+                </Card>
+
+                <Card className="p-6 xl:col-span-2">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Advanced planning
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                    Roadmap
+                  </h2>
+
+                  {roadmap.length > 0 ? (
+                    <div className="mt-5 space-y-4">
+                      {roadmap.map((step, index) => (
+                        <div
+                          key={index}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                        >
+                          <p className="font-semibold text-slate-900">
+                            Step {index + 1}: {step.title}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            {step.reason}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-slate-500">
+                      No roadmap available.
+                    </p>
+                  )}
+                </Card>
+              </div>
+
+              {provinceRecommendations.length > 0 && (
+                <Card className="p-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Regional fit
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                    Province Recommendations
+                  </h2>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-3">
+                    {provinceRecommendations.map((item, index) => (
+                      <div
+                        key={index}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Rank {index + 1}
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-slate-900">
+                          {item.province}
+                        </p>
+                        <p className="mt-2 text-sm text-slate-600">
+                          {item.reason}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {improvementScenarios.length > 0 && (
+                <Card className="p-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Opportunity modeling
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                    Improvement Scenarios
+                  </h2>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {improvementScenarios.map((item, index) => (
+                      <div
+                        key={index}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Scenario {index + 1}
+                        </p>
+                        <p className="mt-2 text-sm text-slate-900">
+                          {item.change}
+                        </p>
+                        <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Projected CRS
+                        </p>
+                        <p className="mt-1 text-2xl font-bold text-blue-900">
+                          {item.new_crs}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {drawPrediction?.predicted_draw_type && (
+                <Card className="p-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Market outlook
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                    Draw Outlook
+                  </h2>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+                    <MiniMetric
+                      label="Draw Type"
+                      value={drawPrediction.predicted_draw_type || "—"}
+                    />
+                    <MiniMetric
+                      label="Likelihood"
+                      value={drawPrediction.likelihood || "—"}
+                    />
+                    <MiniMetric
+                      label="Time Window"
+                      value={drawPrediction.estimated_time_window || "—"}
+                    />
+                    <MiniMetric
+                      label="Cutoff Range"
+                      value={
+                        typeof drawPrediction.predicted_cutoff_min ===
+                          "number" &&
+                        typeof drawPrediction.predicted_cutoff_max === "number"
+                          ? `${drawPrediction.predicted_cutoff_min}-${drawPrediction.predicted_cutoff_max}`
+                          : "—"
+                      }
+                    />
+                  </div>
+                </Card>
+              )}
+
+              {aiStrategy && (
+                <Card className="p-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    AI advisor
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                    AI Strategy
+                  </h2>
+
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                    <div className="prose prose-slate max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {aiStrategy}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </>
+          </PremiumSection>
+
+          {!isPremium && (
+            <Card className="border border-blue-200 bg-blue-50 p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">
+                    Ready to unlock your full strategy?
+                  </p>
+                  <p className="mt-1 text-sm text-blue-800">
+                    Upgrade to Premium to access forecasts, province analysis,
+                    improvement scenarios, AI strategy, and report export.
+                  </p>
+                </div>
+                <Button onClick={() => navigate("/pricing")}>
+                  Go to Pricing
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
       )}
     </Layout>
   );
 }
 
-function ProbabilityCard({ label, value }) {
-  const numericValue = typeof value === "number" ? value : null;
+function PremiumSection({ isPremium, children }) {
+  if (isPremium) return children;
 
   return (
-    <div className="rounded-xl bg-slate-50 p-5 ring-1 ring-slate-200">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-3 text-4xl font-bold text-slate-900">
-        {numericValue !== null ? `${numericValue}%` : "--"}
-      </p>
+    <div className="relative overflow-hidden rounded-3xl">
+      <div className="pointer-events-none opacity-40 blur-[2px]">
+        {children}
+      </div>
+
+      <div className="absolute inset-0 flex items-center justify-center bg-white/40 p-6 backdrop-blur-[1px]">
+        <div className="max-w-md rounded-3xl border border-amber-200 bg-white p-6 text-center shadow-xl">
+          <p className="text-sm font-semibold text-slate-900">
+            Unlock full strategy insights
+          </p>
+          <p className="mt-2 text-sm text-slate-600">
+            Access roadmap, predictions, advanced scenarios, province analysis,
+            and AI-powered guidance.
+          </p>
+          <div className="mt-4">
+            <Button onClick={() => navigateToPricing()}>
+              Upgrade to Premium
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function DrawMetricCard({ label, value }) {
+function navigateToPricing() {
+  window.location.href = "/pricing";
+}
+
+function MetricCard({ label, value, description, locked = false }) {
   return (
-    <div className="rounded-xl bg-slate-50 p-5 ring-1 ring-slate-200">
+    <Card className="p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p
+        className={`mt-2 text-3xl font-bold ${
+          locked ? "text-slate-400" : "text-blue-900"
+        }`}
+      >
+        {value}
+      </p>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
+    </Card>
+  );
+}
+
+function MiniMetric({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
       <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-3 text-2xl font-bold text-slate-900">{value || "--"}</p>
+      <p className="mt-2 text-xl font-bold text-slate-900">{value}</p>
     </div>
   );
 }

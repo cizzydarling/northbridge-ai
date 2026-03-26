@@ -4,6 +4,7 @@
     "tagline": "Immigration strategy, case management, and client insights"
   },
   "common": {
+    "appName": "NorthBridgeAI",
     "loading": "Loading...",
     "saving": "Saving...",
     "updating": "Updating...",
@@ -81,104 +82,140 @@
     "password": "Password",
     "individual": "Individual",
     "agent": "Agent",
+    "role": "Role",
     "pleaseWait": "Please wait...",
     "login": "Log in",
     "register": "Register",
     "switchToRegister": "Create an account",
     "switchToLogin": "Back to sign in",
-    "registrationSuccess": "Account created successfully."
+    "registrationSuccess": "Account created successfully.",
+    "networkError": "Unable to connect to server. Please check your connection.",
+    "loginFailed": "Login failed.",
+    "registrationFailed": "Registration failed."
   },
   "landing": {
     "badge": "Guided immigration planning",
     "getStarted": "Get Started",
     "startFree": "Start Free",
-    "viewPricing": "View Pricing",
-    "heroTitle": "Plan your immigration journey with more clarity and confidence",
-    "heroText": "NorthBridgeAI helps you organize your profile, understand your readiness, manage documents, and follow a clearer path forward.",
-    "previewTitle": "What you can do inside the platform",
-    "valueTitle": "Built to help you move forward faster",
-    "valueSubtitle": "Get organized, understand your next steps, and prepare with more confidence.",
-    "ctaTitle": "Start building your plan today",
-    "ctaText": "Create your account, complete your profile, and generate your personalized guidance.",
-    "stats": {
-      "readiness": {
-        "title": "Readiness",
-        "text": "See how strong your application looks right now."
-      },
-      "documents": {
-        "title": "Documents",
-        "text": "Track likely required documents in one place."
-      },
-      "strategy": {
-        "title": "Strategy",
-        "text": "Review suggested next steps and pathway guidance."
-      }
-    },
-    "preview": {
-      "application": {
-        "title": "Application workspace",
-        "text": "Save your application details and work through a guided intake."
-      },
-      "eligibility": {
-        "title": "Eligibility view",
-        "text": "Understand your strengths, concerns, and readiness level."
-      },
-      "documents": {
-        "title": "Document checklist",
-        "text": "Track supporting files and know what still needs attention."
-      },
-      "strategy": {
-        "title": "Personal strategy",
-        "text": "See tailored guidance based on your profile and application details."
-      }
-    },
-    "values": {
-      "organize": {
-        "title": "Stay organized",
-        "text": "Keep your profile, application details, and documents in one workspace."
-      },
-      "readiness": {
-        "title": "Understand readiness",
-        "text": "See what looks strong and what may still need attention."
-      },
-      "confidence": {
-        "title": "Move with confidence",
-        "text": "Follow clear next steps instead of guessing what to do next."
-      }
-    },
-    "footer": {
-      "product": "Product",
-      "pricing": "Pricing",
-      "signIn": "Sign in",
-      "legal": "Legal",
-      "disclaimer": "NorthBridgeAI provides informational and planning support only and does not replace legal advice.",
-      "rights": "All rights reserved."
-    }
+    "viewPricing": "View Pricing"
   },
   "dashboard": {
     "title": "Dashboard",
-    "subtitle": "Track clients, matters, strategy outputs, and billing from one place",
-    "welcome": "Welcome to NorthBridgeAI",
-    "overview": "Overview",
-    "quickActions": "Quick actions",
-    "recentClients": "Recent clients",
-    "recentMatters": "Recent matters",
-    "recentSimulations": "Recent simulations",
-    "emptyState": "Nothing to show yet.",
-    "createClient": "Create client",
-    "createMatter": "Create matter",
-    "runStrategy": "Run strategy",
-    "viewClients": "View clients",
-    "viewMatters": "View matters",
-    "latestStrategy": "Latest strategy",
-    "bestImmigrationOption": "Best immigration option",
+    "subtitle": "Track your progress and move forward with clarity",
+    "loadError": "Could not load dashboard data.",
     "currentPlan": "Current plan",
+    "subscriptionStatus": "Subscription status",
+    "startProfile": "Complete your profile to unlock more personalized recommendations.",
+    "freePlanNotice": "You are currently on the free plan. Upgrade to unlock advanced strategy, reports, and premium tools.",
+    "agentPlanNotice": "Your current plan does not include the full agent workspace. Upgrade to Agent Pro to unlock it.",
+    "profileCompletion": "Profile completion",
+    "completeProfiles": "Complete your profile to improve your results",
+    "currentCrsScore": "Current CRS score",
+    "latestStrategy": "Latest strategy",
+    "bestPathway": "Best pathway",
+    "bestImmigrationOption": "Best immigration option",
+    "topImprovement": "Top improvement",
+    "improvementDescription": "Best next optimization opportunity",
+    "nextSteps": "Next steps",
+    "updateProfile": "Update profile",
+    "createProfile": "Create profile",
+    "openStrategy": "Open strategy",
+    "managePlan": "Manage plan",
+    "openClientWorkspace": "Open client workspace",
+    "strategySnapshot": "Strategy snapshot",
+    "recommendedPrograms": "Recommended programs",
     "noProgramsAvailable": "No programs available.",
-    "stats": {
-      "totalClients": "Total clients",
-      "activeMatters": "Active matters",
-      "savedSimulations": "Saved simulations",
-      "plan": "Current plan"
+    "noStrategyYet": "No strategy available yet.",
+    "accountSummary": "Account Summary",
+    "email": "Email",
+    "role": "Role",
+    "access": "Access",
+    "premiumEnabled": "Premium features enabled",
+    "freeOnly": "Free access only",
+    "recommendedAction": "Recommended Action",
+    "actionCompleteProfile": "Complete your profile to unlock more personalized recommendations.",
+    "actionUpgrade": "Upgrade your plan to unlock premium strategy insights, reports, and advanced tools.",
+    "actionUpgradeAgent": "Upgrade to Agent Pro to access the client workspace and premium client tools.",
+    "actionContinue": "Your account is set up. Continue building your strategy and using premium tools.",
+    "plans": {
+      "individualPro": "Individual Pro",
+      "agentPro": "Agent Pro",
+      "free": "Free"
+    },
+    "hero": {
+      "eyebrow": "NorthBridgeAI Dashboard",
+      "title": "Your guided immigration workspace",
+      "subtitle": "Move from uncertainty to action with a clearer profile, stronger strategy, and a more organized application workflow.",
+      "primaryCta": "Complete Profile",
+      "secondaryCta": "View Strategy"
+    },
+    "actions": {
+      "title": "Choose your next step",
+      "subtitle": "Everything you need is organized into clear actions so you always know where to go next."
+    },
+    "cards": {
+      "profile": {
+        "title": "Complete Profile",
+        "description": "Add or update your immigration profile so strategy and guidance are more accurate.",
+        "cta": "Open Profile"
+      },
+      "strategy": {
+        "title": "View Strategy",
+        "description": "Review your pathway recommendations, strengths, weaknesses, and next steps.",
+        "cta": "Open Strategy"
+      },
+      "chat": {
+        "title": "Ask the AI Assistant",
+        "description": "Get guided answers based on your profile, strategy, and application context.",
+        "cta": "Open Assistant"
+      },
+      "application": {
+        "title": "Continue Application",
+        "description": "Resume your saved application workflow and keep building your case step by step.",
+        "cta": "Open Application"
+      },
+      "documents": {
+        "title": "Manage Documents",
+        "description": "Track required files, uploads, and your document preparation progress.",
+        "cta": "Open Documents"
+      },
+      "disclosure": {
+        "title": "Review Disclosure",
+        "description": "Read and confirm important legal and informational disclosures for your journey.",
+        "cta": "Open Disclosure"
+      }
+    },
+    "highlights": {
+      "simple": {
+        "value": "Simple",
+        "label": "Clear experience"
+      },
+      "guided": {
+        "value": "Guided",
+        "label": "Next best action"
+      },
+      "trustworthy": {
+        "value": "Trusted",
+        "label": "Structured planning"
+      }
+    },
+    "guidance": {
+      "eyebrow": "Planning guidance",
+      "title": "Build momentum with the right order",
+      "description": "The strongest workflow is usually: complete your profile, review your strategy, ask the AI assistant for clarification, and then organize your documents and application steps."
+    },
+    "tips": {
+      "one": "Start with your profile so your strategy has the right foundation.",
+      "two": "Review your strategy before spending time on lower-priority tasks.",
+      "three": "Keep your documents organized early to reduce friction later."
+    },
+    "legal": {
+      "eyebrow": "Important information",
+      "title": "Use the platform with confidence",
+      "description": "NorthBridgeAI is designed to support planning, organization, and educational guidance. It does not replace legal advice from a licensed lawyer or regulated consultant.",
+      "calloutTitle": "Best practice",
+      "calloutText": "Keep your profile current, review your strategy regularly, and use disclosures and document tools before taking major action.",
+      "cta": "Review Disclosure"
     }
   },
   "profile": {
@@ -219,118 +256,10 @@
     }
   },
   "programs": {
+    "permanentResidence": "Permanent Residence",
     "studyPermit": "Study Permit",
     "workPermit": "Work Permit",
     "spousalSponsorship": "Spousal Sponsorship"
-  },
-  "selfDashboard": {
-    "loadError": "Failed to load your dashboard.",
-    "loading": "Loading your dashboard...",
-    "welcome": "Welcome{{email}}",
-    "subtitle": "Track your progress and see what to do next.",
-    "workspaceLabel": "Personal application workspace",
-    "notStarted": "Not started",
-    "notRun": "Not run",
-    "saved": "Saved",
-    "pending": "Pending",
-    "available": "Available",
-    "noApplicationSaved": "No application saved yet",
-    "documentReadiness": "Document readiness",
-    "lastUpdated": "Last updated",
-    "quickActions": "Quick actions",
-    "progressOverview": "Progress overview",
-    "cards": {
-      "applicationType": "Application type",
-      "readiness": "Readiness",
-      "docsCompleted": "Required documents completed",
-      "lastUpdated": "Last updated"
-    },
-    "metrics": {
-      "readiness": "Readiness",
-      "documents": "Documents",
-      "scoreHelper": "Score: {{score}}",
-      "noScore": "No score yet",
-      "requiredComplete": "{{completed}} of {{required}} required"
-    },
-    "hero": {
-      "startTitle": "Start your application",
-      "buildingTitle": "Keep building your application",
-      "strongTitle": "Your application looks strong",
-      "moderateTitle": "Your application is moving in the right direction",
-      "weakTitle": "Your application needs improvement",
-      "continueTitle": "Continue your application"
-    },
-    "cta": {
-      "startApplication": "Start application",
-      "completeDocuments": "Complete documents",
-      "reviewApplication": "Review application"
-    },
-    "actions": {
-      "startApplication": "Start application",
-      "continueApplication": "Continue application",
-      "openDocuments": "Open documents",
-      "viewStrategy": "View strategy",
-      "updateProfile": "Update profile",
-      "askAssistant": "Ask AI Assistant"
-    },
-    "snapshot": {
-      "title": "Application snapshot",
-      "readinessScore": "Readiness score",
-      "requiredRemaining": "Required remaining",
-      "strategy": "Strategy"
-    },
-    "progress": {
-      "profile": "Profile",
-      "application": "Application",
-      "eligibility": "Eligibility",
-      "documents": "Documents",
-      "strategy": "Strategy"
-    },
-    "status": {
-      "startApplication": "Start your application to receive personalized guidance.",
-      "documentsRemaining": "{{percent}}% complete. {{count}} required document(s) still remaining.",
-      "readiness": "Current readiness: {{readiness}}{{score}}",
-      "readinessWithScore": " (score: {{score}})",
-      "continueApplication": "Continue your application to keep building your plan."
-    },
-    "nextStep": {
-      "title": "Next best step",
-      "start": {
-        "title": "Begin your application",
-        "body": "Complete your profile and application details to unlock personalized guidance."
-      },
-      "documents": {
-        "title": "Finish your required documents",
-        "body": "You still have {{count}} required document(s) to complete."
-      },
-      "improve": {
-        "title": "Strengthen your application",
-        "body": "Review your readiness results and improve the weaker parts of your case."
-      },
-      "review": {
-        "title": "Review your strategy",
-        "body": "Your core information is in place. Review your personalized guidance and next steps."
-      }
-    },
-    "readinessStates": {
-      "Strong": "Strong",
-      "Moderate": "Moderate",
-      "Weak": "Needs improvement",
-      "default": "Not started"
-    },
-    "aiHelper": "Get personalized guidance instantly",
-    "applicationSummary": "Application summary",
-    "currentProgram": "Current program",
-    "importantNoteTitle": "Important",
-    "importantNoteBody": "This platform provides general guidance only and does not replace legal advice.",
-    "routeLabels": {
-      "dashboard": "Dashboard",
-      "profile": "Profile",
-      "strategy": "Strategy",
-      "documents": "Documents",
-      "application": "Application",
-      "chat": "AI Assistant"
-    }
   },
   "selfApplication": {
     "subtitle": "Tell us about your situation, save your profile, and generate personalized guidance for your application.",
@@ -362,6 +291,25 @@
     "emptyGuidance": "Generate your guidance to see your readiness and next steps.",
     "emptyDocuments": "Generate your guidance to see likely documents and preparation notes.",
     "emptyChecklist": "Generate your guidance to build your document checklist.",
+    "emptyPathways": "Generate guidance to see the strongest permanent residence pathways for your profile.",
+    "pathwaysTitle": "Top immigration pathways",
+    "pathwaysHelp": "For permanent residence, the AI should guide you toward the strongest programs based on your saved profile and strategy.",
+    "pathwaysListTitle": "Recommended pathways",
+    "prNoticeTitle": "Permanent residence guidance",
+    "prNoticeBody": "This flow uses your saved profile to guide you toward the strongest permanent residence pathways, such as Express Entry, Canadian Experience Class, Federal Skilled Worker, Provincial Nominee Program options, and other relevant opportunities.",
+    "prFocusTitle": "What the AI should consider",
+    "prFocusItems": {
+      "0": "Your age, education, language score, and work experience",
+      "1": "Canadian study or work history and whether you have a job offer",
+      "2": "Province preference and where your profile may be a stronger fit",
+      "3": "French-speaking opportunities once your backend strategy engine includes them"
+    },
+    "prSignals": {
+      "profileReadyLabel": "Profile signal",
+      "profileReadyValue": "Profile data available",
+      "profileMissingValue": "Complete your profile first",
+      "pathwaysLabel": "Pathways currently visible"
+    },
     "messages": {
       "guidanceGenerated": "Your application guidance is ready."
     },
@@ -423,6 +371,7 @@
     "savedApplicationType": "Saved application type:",
     "noApplication": "No saved application found yet.",
     "syncButton": "Sync from Saved Application",
+    "syncDocuments": "Sync documents",
     "syncing": "Syncing...",
     "progressTitle": "Preparation Progress",
     "progressSubtitle": "{{completed}} of {{required}} required documents completed",
@@ -432,15 +381,22 @@
     "uploadedFile": "Uploaded file:",
     "savedAt": "Saved {{date}}",
     "openFile": "Open File",
+    "viewFile": "View file",
     "noFile": "No file uploaded yet.",
     "uploading": "Uploading...",
     "updating": "Updating...",
     "markComplete": "Mark complete",
+    "markIncomplete": "Mark incomplete",
     "removingFile": "Removing File...",
     "removeFile": "Remove File",
     "clearing": "Clearing...",
     "clearEntry": "Clear Entry",
     "noNotes": "No notes added.",
+    "total": "Total",
+    "required": "Required",
+    "completed": "Completed",
+    "progress": "Progress",
+    "empty": "No documents found yet.",
     "stats": {
       "totalItems": "Total Items",
       "requiredItems": "Required Items",
@@ -451,10 +407,6 @@
       "required": "Required",
       "recommended": "Recommended",
       "info": "Info"
-    },
-    "empty": {
-      "noApplication": "Save and generate your self application guidance first, then your documents will appear here.",
-      "noDocuments": "No document records were found yet. Try syncing from your saved application."
     },
     "messages": {
       "synced": "Documents synced from your saved application.",
@@ -477,91 +429,114 @@
   "strategy": {
     "title": "Strategy",
     "subtitle": "AI-assisted immigration planning",
-    "exportStrategyReport": "Export strategy report",
-    "refreshStrategy": "Refresh strategy",
-    "upgradeNow": "Upgrade now",
-    "goToProfile": "Go to profile",
-    "premiumNotice": "Upgrade to unlock full strategy features",
-    "noStrategyAvailable": "No strategy available yet",
-    "completeProfileFirst": "Complete your profile first",
-    "loadError": "Failed to load strategy.",
-    "accessDenied": "Your current plan does not include strategy access.",
-    "exportRequiresPaidPlan": "Exporting reports requires a paid plan.",
-    "exportError": "Failed to export strategy report.",
-    "loadingAccess": "Loading access...",
-    "upgradeRequired": "Upgrade required",
-    "upgradeRequiredBody": "Personal strategy is available on a paid plan. Upgrade to Individual Pro or Agent Pro to unlock advanced recommendations, probability estimates, roadmap guidance, and downloadable reports.",
-    "noAiStrategy": "No AI strategy available yet.",
-    "months": "months",
-    "fallbackNextStepPrioritize": "Prioritize your {{program}} application pathway.",
-    "fallbackNextStepDocuments": "Gather your language results, work history, and education documents.",
-    "rankLabel": "Rank {{index}}",
-    "stepLabel": "Step {{index}}: {{title}}",
-    "scenarioLabel": "Scenario {{index}}",
-    "projectedCrs": "Projected CRS",
-    "noStrengthsYet": "No strengths listed yet.",
-    "noWeaknessesYet": "No weaknesses listed yet.",
+    "premiumAccess": "Premium access",
     "unlocked": "Unlocked",
     "locked": "Locked",
-    "plan": "Plan",
-    "premiumAccess": "Premium access",
-    "premiumFeatures": "Premium features",
+    "upgradeNow": "Upgrade now",
     "strategySummary": "Strategy summary",
-    "recommendedPrograms": "Recommended programs",
-    "nextSteps": "Next steps",
-    "drawPredictor": "Draw predictor",
-    "predictedDrawType": "Predicted draw type",
-    "predictedCutoff": "Predicted cutoff",
-    "likelihood": "Likelihood",
-    "timeWindow": "Time window",
-    "probabilityEngine": "Probability engine",
-    "timelineEstimate": "Timeline estimate",
-    "provinceTargeting": "Province targeting",
-    "improvementScenarios": "Improvement scenarios",
-    "strategyRoadmap": "Strategy roadmap",
-    "aiStrategy": "AI strategy",
-    "strengths": "Strengths",
-    "weaknesses": "Weaknesses",
-    "currentCrsScore": "Current CRS score",
-    "bestPathway": "Best pathway",
-    "premiumList": {
-      "f1": "Advanced strategy guidance",
-      "f2": "Probability estimates",
-      "f3": "Timeline projections",
-      "f4": "Province recommendations",
-      "f5": "Improvement scenarios",
-      "f6": "Downloadable reports"
-    },
-    "scoreLabels": {
-      "unavailable": "Unavailable",
-      "veryStrong": "Very Strong",
-      "strong": "Strong",
-      "competitive": "Competitive",
-      "needsImprovement": "Needs Improvement"
-    },
-    "probabilityCards": {
-      "pr12Months": "PR Within 12 Months",
-      "expressEntry": "Via Express Entry",
-      "pnp": "Via PNP"
-    }
+    "noStrategyAvailable": "No strategy available"
   },
-  "billing": {
-    "title": "Billing",
-    "subtitle": "Manage your subscription, plan access, and payment status",
-    "currentPlan": "Current plan",
-    "subscriptionStatus": "Subscription status",
-    "manageSubscription": "Manage subscription",
-    "upgrade": "Upgrade",
-    "downgrade": "Downgrade",
-    "freePlan": "Free",
-    "proPlan": "Pro",
-    "teamPlan": "Team",
-    "active": "Active",
-    "inactive": "Inactive",
-    "trialing": "Trialing",
-    "pastDue": "Past due",
-    "canceled": "Canceled",
-    "paymentFeaturePending": "Billing integration is not fully enabled yet."
+  "pricing": {
+    "pageLabel": "Pricing",
+    "title": "Choose the plan that matches your journey",
+    "subtitle": "Start free, then unlock deeper strategy, stronger AI guidance, and a more complete immigration planning experience.",
+    "trustNote": "Structured guidance. Clear next steps. No guesswork.",
+    "home": "Home",
+    "signIn": "Sign in",
+    "backToStrategy": "Back to Strategy",
+    "error": "Unable to start the premium flow right now. Please try again.",
+    "availableTitle": "What the platform helps you do",
+    "heroCards": {
+      "0": {
+        "title": "Full strategy access",
+        "text": "Unlock the complete immigration strategy experience."
+      },
+      "1": {
+        "title": "Better next steps",
+        "text": "See clearer priorities and deeper action planning."
+      },
+      "2": {
+        "title": "Premium guidance",
+        "text": "Access more complete advisor insights and roadmap content."
+      }
+    },
+    "free": {
+      "badge": "Start here",
+      "title": "Free",
+      "price": "$0",
+      "subtitle": "For getting started",
+      "button": "Get started",
+      "features": {
+        "0": "Basic eligibility check",
+        "1": "Personal profile",
+        "2": "Limited AI assistant access",
+        "3": "Simple application guidance"
+      }
+    },
+    "pro": {
+      "badge": "Most popular",
+      "title": "Premium",
+      "price": "$29/month",
+      "subtitle": "For users who want stronger guidance and a more complete planning experience",
+      "button": "Upgrade to Premium",
+      "loading": "Loading...",
+      "features": {
+        "0": "Full personalized strategy",
+        "1": "More advanced AI guidance",
+        "2": "Progress tracking",
+        "3": "Recommended next steps and deeper planning",
+        "4": "Full weaknesses analysis",
+        "5": "Complete advisor summary"
+      }
+    },
+    "available": {
+      "cards": {
+        "0": {
+          "title": "Profile clarity",
+          "text": "Understand your situation with a more structured profile."
+        },
+        "1": {
+          "title": "Strategy guidance",
+          "text": "See what matters most and what to do next."
+        },
+        "2": {
+          "title": "Document organization",
+          "text": "Track supporting files and preparation steps in one place."
+        },
+        "3": {
+          "title": "AI support",
+          "text": "Ask questions and receive guided answers throughout your journey."
+        }
+      }
+    },
+    "strategyUnlock": {
+      "label": "Connected to your strategy page",
+      "title": "What Premium unlocks",
+      "text": "Premium unlocks the sections currently gated on your strategy page, including deeper weaknesses analysis, stronger next-step planning, and fuller AI-generated guidance."
+    },
+    "unlockCards": {
+      "0": {
+        "title": "Detailed weaknesses",
+        "text": "See the profile gaps and blockers affecting your options."
+      },
+      "1": {
+        "title": "Smarter next steps",
+        "text": "Get a clearer sequence of actions to improve your case."
+      },
+      "2": {
+        "title": "Full summary",
+        "text": "Unlock the complete strategic advisor summary."
+      },
+      "3": {
+        "title": "Premium growth path",
+        "text": "Prepare your account for future premium features."
+      }
+    },
+    "footer": {
+      "backHome": "Back home",
+      "legal": "Legal",
+      "disclaimer": "NorthBridgeAI provides informational and planning support only and does not replace legal advice."
+    }
   },
   "legal": {
     "title": "Legal disclaimer",
@@ -574,41 +549,81 @@
     "success": "Agreement accepted successfully.",
     "sections": {
       "termsOfUseTitle": "Terms of Use",
-      "termsOfUseBody": "By using this platform, you agree that the service provides administrative and informational support only.",
       "aiDisclaimerTitle": "AI Assistance Disclaimer",
-      "aiDisclaimerBody": "AI-generated outputs may contain errors or outdated information. Always review before use.",
-      "notLegalAdviceTitle": "Not legal advice",
-      "notLegalAdviceBody": "NorthBridgeAI provides educational and strategic support tools. It does not replace legal advice from a licensed immigration lawyer or regulated consultant.",
-      "privacyTitle": "Privacy and data use",
-      "privacyBody": "Your data may be used to generate reports, simulations, and recommendations within the platform."
+      "notLegalAdviceTitle": "No Legal Advice Acknowledgment"
+    },
+    "custom": {
+      "termsOfUseBody": "By using NorthBridgeAI, you acknowledge and agree that the platform provides administrative, educational, informational, workflow, organization, and document-preparation support only. NorthBridgeAI does not guarantee eligibility, approval, invitation, permit issuance, permanent residence, citizenship, or any immigration outcome. You remain solely responsible for reviewing all information, confirming its accuracy, and deciding whether and how to use any content, output, recommendation, checklist, template, or draft generated or displayed by the platform.",
+      "privacyConsentTitle": "Privacy and Data Processing Consent",
+      "privacyConsentBody": "You consent to the collection, storage, organization, use, and processing of the information and documents you submit for the operation of the platform, including profile analysis, workflow support, document organization, AI-assisted features, report generation, and related service delivery. You are responsible for ensuring that you have the right to provide any third-party personal information or documents uploaded to the platform.",
+      "aiDisclaimerBody": "You understand and accept that AI-generated content may contain errors, omissions, incomplete reasoning, formatting issues, or outdated information. AI outputs may misinterpret facts, fail to account for exceptions, or present information in a way that is not appropriate for your specific legal or procedural situation. All AI-generated outputs, including recommendations, explanations, drafts, checklists, probabilities, and summaries, must be independently reviewed and verified before being relied upon or used.",
+      "notLegalAdviceBody": "You acknowledge that NorthBridgeAI does not provide legal advice, legal representation, or regulated immigration representation unless such professional services are explicitly offered through a properly authorized lawyer or regulated immigration professional under a separate valid engagement. Use of this platform alone does not create a lawyer-client, consultant-client, fiduciary, or other professional advisory relationship.",
+      "userResponsibilityTitle": "User Responsibility Acknowledgment",
+      "userResponsibilityBody": "You acknowledge that you are solely responsible for the accuracy, completeness, and truthfulness of the information you provide, the documents you upload, and the final content of any immigration-related form, application, letter, declaration, or submission. You also acknowledge that deadlines, eligibility rules, documentary requirements, and government processes may change and that it is your responsibility to confirm current official requirements before taking action.",
+      "scopeTitle": "Platform Scope and Limitation Acknowledgment",
+      "scopeBody": "You understand that the platform is intended to support planning, organization, education, and workflow assistance only. NorthBridgeAI is not responsible for decisions made by immigration authorities, for user misunderstandings, for incomplete or incorrect user-provided information, or for actions taken by users without independent review. Past outputs, saved strategies, or prior guidance should not be treated as guarantees of current accuracy or future results.",
+      "loading": "Loading disclosures...",
+      "loadError": "Failed to load disclosure acceptance status.",
+      "saveError": "Failed to save disclosure acceptance.",
+      "mustAcceptAll": "You must review and accept every required disclosure before continuing.",
+      "mustCertify": "You must confirm the final acknowledgment before continuing.",
+      "acceptedSuccess": "Disclosures accepted successfully.",
+      "requiredDisclosuresTitle": "Required Disclosures and Acknowledgments",
+      "requiredDisclosuresBody": "Please read each disclosure carefully. These acknowledgments are required before continuing to AI-assisted guidance, planning, document, or workflow features.",
+      "scopeLabel": "Scope",
+      "scopeValue": "Planning Only",
+      "reviewLabel": "Review",
+      "reviewValue": "Required",
+      "relationshipLabel": "Legal Relationship",
+      "relationshipValue": "Not Created",
+      "alreadyAccepted": "These disclosures have already been accepted for this scope and version.",
+      "reviewTitle": "Review each required acknowledgment",
+      "reviewSubtitle": "You must actively confirm each item before continuing.",
+      "acceptedBadge": "Accepted",
+      "versionLabel": "Version",
+      "finalCertificationTitle": "Final User Certification",
+      "finalCertificationBody": "I confirm that I have read and understood the disclosures above, that I will not treat platform content as legal advice, that I will independently review all outputs before use, and that I remain solely responsible for my decisions, submissions, deadlines, and the accuracy of my information and documents.",
+      "alreadyAcceptedButton": "Already Accepted",
+      "acceptAndContinue": "Accept and Continue",
+      "reviewRecommendationTitle": "Recommended protection step",
+      "reviewRecommendationBody": "For stronger legal protection, have your final disclosure language, privacy policy, terms of use, client engagement wording, and workflow-specific acknowledgments reviewed by a licensed lawyer before public launch.",
+      "progress": "Completion"
     }
   },
   "chat": {
     "title": "AI Assistant",
     "placeholder": "Type your question...",
+    "placeholderAction": "Review your strategy",
     "thinking": "AI is thinking...",
-    "startTitle": "Start your journey to Canada",
-    "startSubtitle": "Ask anything or choose a suggestion below",
     "send": "Send",
+    "disclaimer": "General information only — not legal advice.",
     "refresh": "Refresh",
-    "refreshing": "Refreshing...",
     "currentStage": "Current stage",
     "readiness": "Readiness",
-    "score": "Score",
+    "documentProgress": "Document progress",
+    "remainingRequired": "Remaining required documents",
     "nextBestAction": "Next best action",
-    "loadingShort": "Loading...",
-    "loadingJourney": "Loading your journey...",
-    "exploreStep": "Explore this step",
-    "explainIt": "Explain it",
-    "goToLabel": "Go to {{destination}}",
-    "recommendedDestination": "Recommended destination:",
-    "suggestions": {
-      "nextStep": "What should I do next?",
-      "crs": "How can I improve my CRS score?",
-      "eligibility": "Am I eligible for Express Entry?",
-      "province": "Which province should I target?"
-    },
-    "disclaimer": "General information only — not legal advice."
+    "goToNext": "Go to next step",
+    "suggestedPrompts": "Suggested prompts",
+    "startSubtitle": "Ask a question about your strategy, pathways, documents, or next steps.",
+    "actionableSteps": "Actionable next steps",
+    "openAction": "Open related page",
+    "noActions": "No actions suggested yet.",
+    "topPathways": "Top pathways",
+    "primaryPathway": "Primary pathway",
+    "noPathways": "No pathways surfaced yet.",
+    "francophoneAngle": "Francophone angle",
+    "signals": "Signals",
+    "recommendations": "Recommendations",
+    "noFrancophoneAngle": "No francophone angle surfaced yet."
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Manage your subscription, plan access, and payment status",
+    "active": "Active",
+    "trialing": "Trialing",
+    "canceled": "Canceled",
+    "pastDue": "Past Due"
   },
   "errors": {
     "generic": "Something went wrong.",

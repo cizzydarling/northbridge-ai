@@ -5,10 +5,26 @@ import en from "./locales/en.json";
 import fr from "./locales/fr.json";
 
 const supportedLanguages = ["en", "fr"];
-const storedLanguage = localStorage.getItem("language");
-const initialLanguage = supportedLanguages.includes(storedLanguage)
-  ? storedLanguage
-  : "en";
+const fallbackLanguage = "en";
+
+function getStoredLanguage() {
+  try {
+    const storedLanguage = localStorage.getItem("language");
+    return supportedLanguages.includes(storedLanguage)
+      ? storedLanguage
+      : fallbackLanguage;
+  } catch {
+    return fallbackLanguage;
+  }
+}
+
+function applyDocumentLanguage(language) {
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = language;
+  }
+}
+
+const initialLanguage = getStoredLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
@@ -20,7 +36,7 @@ i18n.use(initReactI18next).init({
     },
   },
   lng: initialLanguage,
-  fallbackLng: "en",
+  fallbackLng: fallbackLanguage,
   supportedLngs: supportedLanguages,
   interpolation: {
     escapeValue: false,
@@ -30,11 +46,20 @@ i18n.use(initReactI18next).init({
   },
 });
 
-i18n.on("languageChanged", (lng) => {
-  localStorage.setItem("language", lng);
-  document.documentElement.lang = lng;
+i18n.on("languageChanged", (language) => {
+  const safeLanguage = supportedLanguages.includes(language)
+    ? language
+    : fallbackLanguage;
+
+  try {
+    localStorage.setItem("language", safeLanguage);
+  } catch {
+    // ignore storage errors
+  }
+
+  applyDocumentLanguage(safeLanguage);
 });
 
-document.documentElement.lang = initialLanguage;
+applyDocumentLanguage(initialLanguage);
 
 export default i18n;
