@@ -10,62 +10,12 @@ from app.schemas.profile_schema import ProfileCreate, ProfileResponse, ProfileUp
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
 
-def get_user_profile_or_404(db: Session, user_id: int) -> Profile:
-    profile = db.query(Profile).filter(Profile.user_id == user_id).first()
+def _sync_user_identity_from_profile(user: User, payload: ProfileCreate | ProfileUpdate) -> None:
+    if payload.first_name is not None:
+        user.first_name = payload.first_name.strip() or None
 
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
-    return profile
-
-
-def _create_profile_for_user(
-    profile_data: ProfileCreate,
-    db: Session,
-    current_user: User,
-) -> Profile:
-    existing_profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-
-    if existing_profile:
-        raise HTTPException(status_code=400, detail="Profile already exists")
-
-    new_profile = Profile(
-        user_id=current_user.id,
-        age=profile_data.age,
-        education=profile_data.education,
-        language_score=profile_data.language_score,
-        experience_years=profile_data.experience_years,
-        has_job_offer=profile_data.has_job_offer,
-        has_canadian_experience=profile_data.has_canadian_experience,
-        studied_in_canada=profile_data.studied_in_canada,
-        occupation=profile_data.occupation,
-        noc_code=profile_data.noc_code,
-        preferred_province=profile_data.preferred_province,
-    )
-
-    db.add(new_profile)
-    db.commit()
-    db.refresh(new_profile)
-
-    return new_profile
-
-
-@router.post("/create", response_model=ProfileResponse)
-def create_profile(
-    profile_data: ProfileCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return _create_profile_for_user(profile_data, db, current_user)
-
-
-@router.post("", response_model=ProfileResponse)
-def create_profile_alias(
-    profile_data: ProfileCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return _create_profile_for_user(profile_data, db, current_user)
+    if payload.last_name is not None:
+        user.last_name = payload.last_name.strip() or None
 
 
 @router.get("/me", response_model=ProfileResponse)
@@ -73,21 +23,89 @@ def get_my_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_user_profile_or_404(db, current_user.id)
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found.")
+
+    return profile
+
+
+@router.post("/create", response_model=ProfileResponse)
+def create_profile(
+    payload: ProfileCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    existing_profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if existing_profile:
+        raise HTTPException(status_code=400, detail="Profile already exists.")
+
+    profile = Profile(
+        user_id=current_user.id,
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+        nationality=payload.nationality,
+        current_country=payload.current_country,
+        current_city=payload.current_city,
+        phone_number=payload.phone_number,
+        date_of_birth=payload.date_of_birth,
+        marital_status=payload.marital_status,
+        preferred_language=payload.preferred_language,
+        age=payload.age,
+        education=payload.education,
+        language_score=payload.language_score,
+        experience_years=payload.experience_years,
+        has_job_offer=payload.has_job_offer,
+        has_canadian_experience=payload.has_canadian_experience,
+        studied_in_canada=payload.studied_in_canada,
+        occupation=payload.occupation,
+        noc_code=payload.noc_code,
+        preferred_province=payload.preferred_province,
+    )
+
+    _sync_user_identity_from_profile(current_user, payload)
+
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+
+    return profile
 
 
 @router.put("/me", response_model=ProfileResponse)
 def update_my_profile(
-    profile_data: ProfileUpdate,
+    payload: ProfileUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    profile = get_user_profile_or_404(db, current_user.id)
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
 
-    update_data = profile_data.model_dump(exclude_unset=True)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found.")
 
-    for field, value in update_data.items():
-        setattr(profile, field, value)
+    profile.first_name = payload.first_name
+    profile.last_name = payload.last_name
+    profile.nationality = payload.nationality
+    profile.current_country = payload.current_country
+    profile.current_city = payload.current_city
+    profile.phone_number = payload.phone_number
+    profile.date_of_birth = payload.date_of_birth
+    profile.marital_status = payload.marital_status
+    profile.preferred_language = payload.preferred_language
+
+    profile.age = payload.age
+    profile.education = payload.education
+    profile.language_score = payload.language_score
+    profile.experience_years = payload.experience_years
+    profile.has_job_offer = payload.has_job_offer
+    profile.has_canadian_experience = payload.has_canadian_experience
+    profile.studied_in_canada = payload.studied_in_canada
+    profile.occupation = payload.occupation
+    profile.noc_code = payload.noc_code
+    profile.preferred_province = payload.preferred_province
+
+    _sync_user_identity_from_profile(current_user, payload)
 
     db.commit()
     db.refresh(profile)

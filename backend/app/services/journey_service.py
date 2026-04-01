@@ -9,6 +9,10 @@ from app.models.user_models import User
 from app.services.strategy_service import build_strategy
 
 
+def _normalize_language(language: str) -> str:
+    return "fr" if (language or "").lower() == "fr" else "en"
+
+
 def _safe_stage(language: str, key: str) -> str:
     labels = {
         "en": {
@@ -26,10 +30,10 @@ def _safe_stage(language: str, key: str) -> str:
             "ready": "Prêt à avancer",
         },
     }
-    return labels["fr" if language == "fr" else "en"][key]
+    return labels[language][key]
 
 
-def _safe_action(language: str, key: str, **kwargs) -> str:
+def _safe_action(language: str, key: str) -> str:
     messages = {
         "en": {
             "start_application": "Start your application to unlock personalized guidance.",
@@ -38,6 +42,10 @@ def _safe_action(language: str, key: str, **kwargs) -> str:
             "complete_documents": "Complete your required documents to keep moving forward.",
             "improve_case": "Improve the weaker parts of your case before moving forward.",
             "continue_application": "Continue your application and follow the guided next steps.",
+
+            # NEW French-priority actions
+            "review_french_priority": "Review francophone and bilingual pathways first — they may be your strongest option.",
+            "confirm_french_strength": "Confirm your French language strength and how it impacts your eligibility.",
         },
         "fr": {
             "start_application": "Commencez votre demande pour débloquer des conseils personnalisés.",
@@ -46,9 +54,13 @@ def _safe_action(language: str, key: str, **kwargs) -> str:
             "complete_documents": "Complétez vos documents obligatoires pour continuer à avancer.",
             "improve_case": "Renforcez les points plus faibles de votre dossier avant de continuer.",
             "continue_application": "Continuez votre demande et suivez les prochaines étapes guidées.",
+
+            # NEW French-priority actions
+            "review_french_priority": "Analysez d’abord les voies francophones ou bilingues — elles peuvent être les plus avantageuses.",
+            "confirm_french_strength": "Confirmez votre niveau de français et son impact sur votre admissibilité.",
         },
     }
-    return messages["fr" if language == "fr" else "en"][key].format(**kwargs)
+    return messages[language][key]
 
 
 def get_user_journey(
@@ -56,9 +68,7 @@ def get_user_journey(
     current_user: User,
     language: str = "en",
 ) -> Dict[str, Any]:
-    language = (language or "en").lower()
-    if language not in {"en", "fr"}:
-        language = "en"
+    language = _normalize_language(language)
 
     profile: Optional[Profile] = (
         db.query(Profile).filter(Profile.user_id == current_user.id).first()
@@ -72,6 +82,9 @@ def get_user_journey(
     )
 
     strategy = build_strategy(profile, language=language) if profile else None
+
+    french_advantage = strategy.get("french_advantage") if strategy else {}
+    french_value = (french_advantage or {}).get("strategic_value", "low")
 
     documents = []
     if application and application.matter_type:
@@ -104,46 +117,66 @@ def get_user_journey(
         readiness = application.eligibility_result.get("readiness")
         readiness_score = application.eligibility_result.get("score")
 
-    current_stage = _safe_stage(language, "start")
-    next_best_action = _safe_action(language, "start_application")
-    recommended_route = "/self/application"
+    # -------------------------
+    # INTELLIGENT JOURNEY LOGIC
+    # -------------------------
 
     if not application:
-        current_stage = _safe_stage(language, "start")
-        next_best_action = _safe_action(language, "start_application")
-        recommended_route = "/self/application"
-    elif not profile:
-        current_stage = _safe_stage(language, "profile")
-        next_best_action = _safe_action(language, "complete_profile")
-        recommended_route = "/profile"
-    elif not strategy:
-        current_stage = _safe_stage(language, "strategy")
-        next_best_action = _safe_action(language, "review_strategy")
-        recommended_route = "/strategy"
-    elif remaining_required_count > 0:
-        current_stage = _safe_stage(language, "documents")
-        next_best_action = _safe_action(language, "complete_documents")
-        recommended_route = "/self/documents"
-    elif readiness == "Weak":
-        current_stage = _safe_stage(language, "strategy")
-        next_best_action = (
-            strategy.get("next_steps", [None])[0]
-            or _safe_action(language, "improve_case")
-        )
-        recommended_route = "/strategy"
-    else:
-        current_stage = _safe_stage(language, "ready")
-        next_best_action = (
-            strategy.get("next_steps", [None])[0]
-            or _safe_action(language, "continue_application")
-        )
-        recommended_route = "/self/application"
+        return {
+            "language": language,
+            "current_stage": _safe_stage(language, "start"),
+            "next_best_action": _safe_action(language, "start_application"),
+            "recommended_route": "/self/application",
+        }
+
+    if not profile:
+        return {
+            "language": language,
+            "current_stage": _safe_stage(language, "profile"),
+            "next_best_action": _safe_action(language, "complete_profile"),
+            "recommended_route": "/profile",
+        }
+
+    if not strategy:
+        return {
+            "language": language,
+            "current_stage": _safe_stage(language, "strategy"),
+            "next_best_action": _safe_action(language, "review_strategy"),
+            "recommended_route": "/strategy",
+        }
+
+    # 🔥 NEW: French priority BEFORE documents
+    if french_value in {"medium", "high"}:
+        return {
+            "language": language,
+            "current_stage": _safe_stage(language, "strategy"),
+            "next_best_action": _safe_action(language, "review_french_priority"),
+            "recommended_route": "/strategy",
+        }
+
+    if remaining_required_count > 0:
+        return {
+            "language": language,
+            "current_stage": _safe_stage(language, "documents"),
+            "next_best_action": _safe_action(language, "complete_documents"),
+            "recommended_route": "/self/documents",
+        }
+
+    if readiness == "Weak":
+        return {
+            "language": language,
+            "current_stage": _safe_stage(language, "strategy"),
+            "next_best_action": strategy.get("next_steps", [None])[0]
+            or _safe_action(language, "improve_case"),
+            "recommended_route": "/strategy",
+        }
 
     return {
         "language": language,
-        "profile_completed": profile is not None,
-        "application_started": application is not None,
-        "strategy_ready": strategy is not None,
+        "current_stage": _safe_stage(language, "ready"),
+        "next_best_action": strategy.get("next_steps", [None])[0]
+        or _safe_action(language, "continue_application"),
+        "recommended_route": "/self/application",
         "documents": {
             "total": len(documents),
             "required": required_count,
@@ -155,11 +188,7 @@ def get_user_journey(
             "label": readiness,
             "score": readiness_score,
         },
-        "current_stage": current_stage,
-        "next_best_action": next_best_action,
-        "recommended_route": recommended_route,
-        "matter_type": getattr(application, "matter_type", None),
-        "recommended_programs": strategy.get("recommended_programs", []) if strategy else [],
-        "strategy_next_steps": strategy.get("next_steps", []) if strategy else [],
-        "crs_score": strategy.get("crs_score") if strategy else None,
+        "recommended_programs": strategy.get("recommended_programs", []),
+        "strategy_next_steps": strategy.get("next_steps", []),
+        "crs_score": strategy.get("crs_score"),
     }

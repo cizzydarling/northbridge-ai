@@ -48,17 +48,89 @@ def _get_preferred_province(profile) -> str:
     return (_safe_get(profile, "preferred_province", "") or "").strip()
 
 
+def deduplicate_programs(programs: List[str]) -> List[str]:
+    seen = set()
+    ordered = []
+
+    for program in programs:
+        normalized = (program or "").strip().lower()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(program)
+
+    return ordered
+
+
+def prioritize_french_programs(
+    programs: List[str],
+    french_advantage: Dict,
+    language: str = "en",
+) -> List[str]:
+    language = _normalize_language(language)
+    strategic_value = (french_advantage or {}).get("strategic_value", "low")
+
+    if strategic_value not in {"medium", "high"}:
+        return deduplicate_programs(programs)
+
+    prioritized = []
+    remaining = []
+
+    french_keywords = [
+        "francophone",
+        "bilingual",
+        "bilingue",
+        "category",
+        "catégorie",
+        "express entry",
+        "entrée express",
+    ]
+
+    for program in programs:
+        normalized = (program or "").strip().lower()
+        if any(keyword in normalized for keyword in french_keywords):
+            prioritized.append(program)
+        else:
+            remaining.append(program)
+
+    ordered = prioritized + remaining
+
+    if strategic_value == "high":
+        if language == "fr" and not any(
+            "francophone" in (p or "").lower() or "bilingue" in (p or "").lower()
+            for p in ordered
+        ):
+            ordered.insert(0, "Voies francophones et bilingues")
+        elif language != "fr" and not any(
+            "francophone" in (p or "").lower() or "bilingual" in (p or "").lower()
+            for p in ordered
+        ):
+            ordered.insert(0, "Francophone and bilingual pathways")
+
+    return deduplicate_programs(ordered)
+
+
+def prioritize_next_steps(
+    next_steps: List[str],
+    french_advantage: Dict,
+    language: str = "en",
+) -> List[str]:
+    language = _normalize_language(language)
+    strategic_value = (french_advantage or {}).get("strategic_value", "low")
+
+    if strategic_value not in {"medium", "high"}:
+        return deduplicate_programs(next_steps)
+
+    if language == "fr":
+        french_step = "Confirmer si le français peut renforcer les options de résidence permanente."
+    else:
+        french_step = "Confirm whether French ability can strengthen PR pathway options."
+
+    ordered = [french_step] + list(next_steps)
+    return deduplicate_programs(ordered)
+
+
 def detect_french_advantage(profile, language: str = "en") -> Dict:
-    """
-    Lightweight francophone detection layer that works with the current profile shape.
-
-    Today the profile only exposes a generic `language_score`, so this function uses
-    conservative heuristics and keeps the output optional / advisory rather than
-    pretending we have a full French test breakdown.
-
-    Later, when the profile model is expanded with dedicated French fields, this
-    function can be upgraded without changing the strategy response contract.
-    """
     language = _normalize_language(language)
 
     language_score = _get_language_score(profile)
@@ -70,91 +142,76 @@ def detect_french_advantage(profile, language: str = "en") -> Dict:
     strategic_value = "low"
 
     if language == "fr":
-        french_signals.append(
-            "Profile is currently being assessed in French."
-        )
+        french_signals.append("Le profil est actuellement évalué en français.")
         strategic_value = "medium"
 
     if language_score >= 7:
-        french_signals.append(
-            "Strong language profile may support bilingual or francophone pathway exploration."
-        )
+        if language == "fr":
+            french_signals.append(
+                "Le profil linguistique fort peut appuyer une stratégie bilingue ou francophone."
+            )
+            recommendations.append(
+                "Si vous pouvez démontrer une bonne maîtrise du français, intégrez les voies francophones dans votre stratégie d’immigration."
+            )
+        else:
+            french_signals.append(
+                "Strong language profile may support bilingual or francophone pathway exploration."
+            )
+            recommendations.append(
+                "If you have or can prove strong French ability, include francophone-focused pathways in your immigration plan."
+            )
         strategic_value = "medium"
 
     if language_score >= 9:
-        french_signals.append(
-            "Very strong language score may improve competitiveness for language-driven pathways."
-        )
+        if language == "fr":
+            french_signals.append(
+                "Un très bon score linguistique peut améliorer la compétitivité pour les voies axées sur la langue."
+            )
+        else:
+            french_signals.append(
+                "Very strong language score may improve competitiveness for language-driven pathways."
+            )
         is_potentially_french_competitive = True
         strategic_value = "high"
 
     if preferred_province and preferred_province.lower() != "quebec":
-        french_signals.append(
-            f"Preferred destination outside Quebec may strengthen the value of a francophone-focused strategy in provinces such as {preferred_province}."
-        )
+        if language == "fr":
+            french_signals.append(
+                f"La préférence pour une destination hors Québec peut renforcer la valeur d’une stratégie francophone, notamment pour {preferred_province}."
+            )
+            recommendations.append(
+                f"Examinez les programmes provinciaux liés à {preferred_province} et comparez-les avec les autres options de résidence permanente."
+            )
+        else:
+            french_signals.append(
+                f"Preferred destination outside Quebec may strengthen the value of a francophone-focused strategy in provinces such as {preferred_province}."
+            )
+            recommendations.append(
+                f"Review provincial pathways connected to {preferred_province} and compare them with broader permanent residence options."
+            )
         if strategic_value == "low":
             strategic_value = "medium"
 
     if language == "fr":
-        recommendations.append(
-            "Assess dedicated francophone and bilingual immigration opportunities alongside standard permanent residence pathways."
+        recommendations.insert(
+            0,
+            "Évaluez les possibilités d’immigration francophones et bilingues en parallèle des voies classiques de résidence permanente.",
         )
-
-    if language_score >= 7:
-        recommendations.append(
-            "If you have or can prove strong French ability, include francophone-focused pathways in your immigration plan."
-        )
-
-    if preferred_province:
-        recommendations.append(
-            f"Review provincial pathways connected to {preferred_province} and compare them with broader permanent residence options."
-        )
+        if not preferred_province:
+            recommendations.append(
+                "Comparez Entrée express et les voies provinciales pour identifier le meilleur parcours vers la résidence permanente."
+            )
     else:
-        recommendations.append(
-            "Compare Express Entry with province-specific pathways to identify the strongest permanent residence route."
+        recommendations.insert(
+            0,
+            "Assess dedicated francophone and bilingual immigration opportunities alongside standard permanent residence pathways.",
         )
+        if not preferred_province:
+            recommendations.append(
+                "Compare Express Entry with province-specific pathways to identify the strongest permanent residence route."
+            )
 
-    if not recommendations:
-        recommendations.append(
-            "Capture French-specific test results later to improve pathway targeting."
-        )
-
-    if language == "fr":
-        return {
-            "is_potentially_french_competitive": is_potentially_french_competitive,
-            "strategic_value": strategic_value,
-            "signals": [
-                "Le profil est actuellement évalué en français."
-                if signal == "Profile is currently being assessed in French."
-                else "Le profil linguistique fort peut appuyer une stratégie bilingue ou francophone."
-                if signal == "Strong language profile may support bilingual or francophone pathway exploration."
-                else "Un très bon score linguistique peut améliorer la compétitivité pour les voies axées sur la langue."
-                if signal == "Very strong language score may improve competitiveness for language-driven pathways."
-                else f"La préférence pour une destination hors Québec peut renforcer la valeur d’une stratégie francophone, notamment pour {preferred_province}."
-                if preferred_province
-                and signal
-                == f"Preferred destination outside Quebec may strengthen the value of a francophone-focused strategy in provinces such as {preferred_province}."
-                else signal
-                for signal in french_signals
-            ],
-            "recommendations": [
-                "Évaluez les possibilités d’immigration francophones et bilingues en parallèle des voies classiques de résidence permanente."
-                if item
-                == "Assess dedicated francophone and bilingual immigration opportunities alongside standard permanent residence pathways."
-                else "Si vous avez ou pouvez démontrer une forte capacité en français, incluez les voies francophones dans votre plan d’immigration."
-                if item
-                == "If you have or can prove strong French ability, include francophone-focused pathways in your immigration plan."
-                else f"Examinez les programmes provinciaux liés à {preferred_province} et comparez-les avec les autres options de résidence permanente."
-                if preferred_province
-                and item
-                == f"Review provincial pathways connected to {preferred_province} and compare them with broader permanent residence options."
-                else "Comparez Entrée express et les voies provinciales pour identifier le meilleur parcours vers la résidence permanente."
-                if item
-                == "Compare Express Entry with province-specific pathways to identify the strongest permanent residence route."
-                else "Ajoutez plus tard des résultats de test de français pour améliorer le ciblage des parcours."
-                for item in recommendations
-            ],
-        }
+    recommendations = deduplicate_programs(recommendations)
 
     return {
         "is_potentially_french_competitive": is_potentially_french_competitive,
@@ -165,12 +222,6 @@ def detect_french_advantage(profile, language: str = "en") -> Dict:
 
 
 def recommend_programs(profile, crs_score: int, language: str = "en") -> List[str]:
-    """
-    Fallback recommendation layer used when the recommendation engine does not
-    produce eligible pathways. This version is more profile-aware than the
-    original score-only approach, but still keeps the logic lightweight so it
-    won't disrupt existing behavior.
-    """
     language = _normalize_language(language)
 
     programs: List[str] = []
@@ -184,6 +235,12 @@ def recommend_programs(profile, crs_score: int, language: str = "en") -> List[st
     french_advantage = detect_french_advantage(profile, language=language)
 
     if language == "fr":
+        if french_advantage["strategic_value"] in {"medium", "high"}:
+            programs.append("Voies francophones et bilingues")
+
+        if crs_score >= 440:
+            programs.append("Sélections par catégorie")
+
         if has_canadian_experience and crs_score >= 430:
             programs.append("Catégorie de l’expérience canadienne")
 
@@ -195,14 +252,9 @@ def recommend_programs(profile, crs_score: int, language: str = "en") -> List[st
         if experience_years >= 1 and language_score >= 7:
             programs.append("Programme des travailleurs qualifiés (fédéral)")
 
-        if french_advantage["strategic_value"] in {"medium", "high"}:
-            programs.append("Voies francophones et bilingues")
-
         if crs_score >= 400:
             if preferred_province:
-                programs.append(
-                    f"Programme des candidats de la province de {preferred_province}"
-                )
+                programs.append(f"Programme des candidats de la province de {preferred_province}")
             else:
                 programs.append("Volets des programmes des candidats des provinces (PCP)")
 
@@ -212,13 +264,20 @@ def recommend_programs(profile, crs_score: int, language: str = "en") -> List[st
         if studied_in_canada:
             programs.append("Parcours de transition après études vers la résidence permanente")
 
-        if crs_score >= 440:
-            programs.append("Sélections par catégorie")
-
         if not programs:
             programs.append("Permis de travail ou permis d’études avant la résidence permanente")
 
-        return deduplicate_programs(programs)
+        return prioritize_french_programs(
+            deduplicate_programs(programs),
+            french_advantage,
+            language=language,
+        )
+
+    if french_advantage["strategic_value"] in {"medium", "high"}:
+        programs.append("Francophone and bilingual pathways")
+
+    if crs_score >= 440:
+        programs.append("Category-based draws")
 
     if has_canadian_experience and crs_score >= 430:
         programs.append("Canadian Experience Class")
@@ -230,9 +289,6 @@ def recommend_programs(profile, crs_score: int, language: str = "en") -> List[st
 
     if experience_years >= 1 and language_score >= 7:
         programs.append("Federal Skilled Worker")
-
-    if french_advantage["strategic_value"] in {"medium", "high"}:
-        programs.append("Francophone and bilingual pathways")
 
     if crs_score >= 400:
         if preferred_province:
@@ -246,27 +302,14 @@ def recommend_programs(profile, crs_score: int, language: str = "en") -> List[st
     if studied_in_canada:
         programs.append("Post-study transition pathways to permanent residence")
 
-    if crs_score >= 440:
-        programs.append("Category-based draws")
-
     if not programs:
         programs.append("Work permit or study pathway before permanent residence")
 
-    return deduplicate_programs(programs)
-
-
-def deduplicate_programs(programs: List[str]) -> List[str]:
-    seen = set()
-    ordered = []
-
-    for program in programs:
-        normalized = (program or "").strip().lower()
-        if not normalized or normalized in seen:
-            continue
-        seen.add(normalized)
-        ordered.append(program)
-
-    return ordered
+    return prioritize_french_programs(
+        deduplicate_programs(programs),
+        french_advantage,
+        language=language,
+    )
 
 
 def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> List[Dict]:
@@ -283,11 +326,20 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
     french_advantage = detect_french_advantage(profile, language=language)
 
     if language == "fr":
+        if french_advantage["strategic_value"] in {"medium", "high"}:
+            steps.append({
+                "title": "Évaluer les possibilités francophones et bilingues",
+                "estimated_crs_gain": 0,
+                "priority": 1,
+                "difficulty": "Faible",
+                "reason": "Les voies francophones peuvent devenir une priorité stratégique pour un profil fort en français.",
+            })
+
         if language_score < 9:
             steps.append({
                 "title": "Améliorer le score linguistique jusqu’au NCLC/CLB 9 ou plus",
                 "estimated_crs_gain": 28,
-                "priority": 1,
+                "priority": 2,
                 "difficulty": "Moyen",
                 "reason": "L’amélioration linguistique est l’un des moyens les plus rapides d’augmenter la compétitivité du score CRS.",
             })
@@ -296,7 +348,7 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
             steps.append({
                 "title": "Acquérir 1 année supplémentaire d’expérience de travail qualifié",
                 "estimated_crs_gain": 10,
-                "priority": 2,
+                "priority": 3,
                 "difficulty": "Lié au temps",
                 "reason": "Une expérience qualifiée supplémentaire renforce le score CRS et l’admissibilité aux programmes.",
             })
@@ -305,7 +357,7 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
             steps.append({
                 "title": "Obtenir une offre d’emploi valide au Canada",
                 "estimated_crs_gain": 50,
-                "priority": 3,
+                "priority": 4,
                 "difficulty": "Difficile",
                 "reason": "Une offre d’emploi admissible peut ajouter des points CRS et améliorer les options d’immigration.",
             })
@@ -314,7 +366,7 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
             steps.append({
                 "title": "Acquérir une expérience de travail canadienne",
                 "estimated_crs_gain": 40,
-                "priority": 4,
+                "priority": 5,
                 "difficulty": "Moyen",
                 "reason": "L’expérience canadienne améliore à la fois le score CRS et la flexibilité des parcours.",
             })
@@ -323,18 +375,9 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
             steps.append({
                 "title": "Envisager des parcours d’études au Canada",
                 "estimated_crs_gain": 30,
-                "priority": 5,
+                "priority": 6,
                 "difficulty": "Long terme",
                 "reason": "Les études au Canada peuvent renforcer le profil et ouvrir des options supplémentaires.",
-            })
-
-        if french_advantage["strategic_value"] in {"medium", "high"}:
-            steps.append({
-                "title": "Évaluer les possibilités francophones et bilingues",
-                "estimated_crs_gain": 0,
-                "priority": 6,
-                "difficulty": "Faible",
-                "reason": "Un profil francophone ou bilingue peut ouvrir des stratégies supplémentaires selon la province ciblée et le positionnement du dossier.",
             })
 
         if preferred_province:
@@ -365,11 +408,20 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
 
         return sorted(steps, key=lambda step: step["priority"])
 
+    if french_advantage["strategic_value"] in {"medium", "high"}:
+        steps.append({
+            "title": "Review francophone and bilingual immigration opportunities first",
+            "estimated_crs_gain": 0,
+            "priority": 1,
+            "difficulty": "Low",
+            "reason": "French-capable profiles may unlock stronger category-based or province-targeted options.",
+        })
+
     if language_score < 9:
         steps.append({
             "title": "Improve language score to CLB 9 or higher",
             "estimated_crs_gain": 28,
-            "priority": 1,
+            "priority": 2,
             "difficulty": "Medium",
             "reason": "Language improvement is one of the fastest ways to increase CRS competitiveness.",
         })
@@ -378,7 +430,7 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
         steps.append({
             "title": "Gain 1 more year of skilled work experience",
             "estimated_crs_gain": 10,
-            "priority": 2,
+            "priority": 3,
             "difficulty": "Time-based",
             "reason": "More skilled experience strengthens CRS and program competitiveness.",
         })
@@ -387,7 +439,7 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
         steps.append({
             "title": "Secure a valid Canadian job offer",
             "estimated_crs_gain": 50,
-            "priority": 3,
+            "priority": 4,
             "difficulty": "Hard",
             "reason": "A qualifying job offer can add meaningful CRS points and improve pathway options.",
         })
@@ -396,7 +448,7 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
         steps.append({
             "title": "Gain Canadian work experience",
             "estimated_crs_gain": 40,
-            "priority": 4,
+            "priority": 5,
             "difficulty": "Medium",
             "reason": "Canadian experience improves both CRS and pathway flexibility.",
         })
@@ -405,18 +457,9 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
         steps.append({
             "title": "Consider study-based pathways in Canada",
             "estimated_crs_gain": 30,
-            "priority": 5,
+            "priority": 6,
             "difficulty": "Long-term",
             "reason": "Canadian education can strengthen profile quality and open additional options.",
-        })
-
-    if french_advantage["strategic_value"] in {"medium", "high"}:
-        steps.append({
-            "title": "Review francophone and bilingual immigration opportunities",
-            "estimated_crs_gain": 0,
-            "priority": 6,
-            "difficulty": "Low",
-            "reason": "A bilingual or French-capable profile may support additional permanent residence strategies depending on province and pathway fit.",
         })
 
     if preferred_province:
@@ -448,6 +491,33 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
     return sorted(steps, key=lambda step: step["priority"])
 
 
+def _translate_list_items(items: List[str], language: str) -> List[str]:
+    language = _normalize_language(language)
+    if language != "fr":
+        return items
+
+    translations = {
+        "Canadian Experience Class": "Catégorie de l’expérience canadienne",
+        "Express Entry": "Entrée express",
+        "Express Entry (borderline, improve score if possible)": "Entrée express (profil limite, amélioration recommandée)",
+        "Federal Skilled Worker": "Programme des travailleurs qualifiés (fédéral)",
+        "Francophone and bilingual pathways": "Voies francophones et bilingues",
+        "Provincial Nominee Program (PNP) pathways": "Volets des programmes des candidats des provinces (PCP)",
+        "Valid job-offer-based pathways": "Parcours fondés sur une offre d’emploi valide",
+        "Post-study transition pathways to permanent residence": "Parcours de transition après études vers la résidence permanente",
+        "Category-based draws": "Sélections par catégorie",
+        "Work permit or study pathway before permanent residence": "Permis de travail ou permis d’études avant la résidence permanente",
+        "The profile may benefit from a priority francophone or bilingual strategy.": "Le profil peut bénéficier d’une stratégie francophone ou bilingue prioritaire.",
+        "The profile may benefit from a francophone or bilingual strategy.": "Le profil peut bénéficier d’une stratégie francophone ou bilingue.",
+        "Confirm whether French ability can strengthen PR pathway options.": "Confirmer si le français peut renforcer les options de résidence permanente.",
+    }
+
+    output = []
+    for item in items:
+        output.append(translations.get(item, item))
+    return output
+
+
 def build_strategy(profile, language: str = "en") -> Dict:
     language = _normalize_language(language)
 
@@ -456,50 +526,53 @@ def build_strategy(profile, language: str = "en") -> Dict:
     recommendation_result = build_recommendation_result(profile, crs_score)
     programs = [p["name"] for p in recommendation_result.get("eligible_pathways", [])]
 
+    french_advantage = detect_french_advantage(profile, language=language)
+
     if not programs:
         programs = recommend_programs(profile, crs_score, language=language)
     else:
         fallback_programs = recommend_programs(profile, crs_score, language=language)
-        programs = deduplicate_programs(programs + fallback_programs)
-
-    french_advantage = detect_french_advantage(profile, language=language)
+        programs = prioritize_french_programs(
+            deduplicate_programs(_translate_list_items(programs, language) + fallback_programs),
+            french_advantage,
+            language=language,
+        )
 
     strengths = list(recommendation_result.get("strengths", []))
     weaknesses = list(recommendation_result.get("weaknesses", []))
     next_steps = list(recommendation_result.get("next_steps", []))
     advisor_summary = recommendation_result.get("advisor_summary")
 
+    strengths = _translate_list_items(strengths, language)
+    weaknesses = _translate_list_items(weaknesses, language)
+    next_steps = _translate_list_items(next_steps, language)
+
     if french_advantage["strategic_value"] in {"medium", "high"}:
         if language == "fr":
-            strengths.append(
-                "Le profil pourrait bénéficier d’une stratégie francophone ou bilingue selon les résultats linguistiques détaillés."
-            )
-            next_steps.append(
-                "Vérifier si les capacités en français peuvent être utilisées dans une stratégie de résidence permanente ou une voie provinciale ciblée."
+            strengths.insert(
+                0,
+                "Le profil peut bénéficier d’une stratégie francophone ou bilingue prioritaire."
             )
         else:
-            strengths.append(
-                "The profile may benefit from a francophone or bilingual immigration strategy depending on detailed language results."
-            )
-            next_steps.append(
-                "Confirm whether French ability can be used to strengthen permanent residence or province-targeted strategy options."
+            strengths.insert(
+                0,
+                "The profile may benefit from a priority francophone or bilingual strategy."
             )
 
+    next_steps = prioritize_next_steps(next_steps, french_advantage, language=language)
+
     if not advisor_summary:
+        advisor_summary = (
+            "Cette stratégie est basée sur votre profil actuel, votre score CRS estimé et vos leviers d’amélioration."
+            if language == "fr"
+            else "This strategy is based on your current profile, estimated CRS score, and improvement levers."
+        )
+
+    if french_advantage["strategic_value"] == "high":
         if language == "fr":
-            advisor_summary = (
-                "Cette stratégie est basée sur votre profil actuel, votre score CRS estimé "
-                "et vos principaux leviers d’amélioration. L’objectif est d’identifier les "
-                "voies de résidence permanente les plus réalistes, les provinces à cibler "
-                "et les actions prioritaires à prendre ensuite."
-            )
+            advisor_summary += " Les possibilités francophones devraient être traitées comme une priorité stratégique."
         else:
-            advisor_summary = (
-                "This strategy is based on your current profile, estimated CRS score, "
-                "and main improvement levers. The goal is to identify the most realistic "
-                "permanent residence pathways, province targets, and the highest-priority "
-                "actions to take next."
-            )
+            advisor_summary += " Francophone opportunities should be treated as a strategic priority."
 
     scenarios = simulate_crs_improvements(profile)
     roadmap = generate_strategy_roadmap(profile, crs_score, language=language)
@@ -520,7 +593,7 @@ def build_strategy(profile, language: str = "en") -> Dict:
     }
 
     try:
-        ai_advice = generate_ai_strategy(
+        ai_result = generate_ai_strategy(
             profile,
             crs_score,
             programs,

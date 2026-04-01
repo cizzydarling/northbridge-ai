@@ -63,6 +63,7 @@ def get_user_by_email(db: Session, email: str) -> User | None:
     return db.query(User).filter(User.email == email).first()
 
 
+# ✅ FIXED HERE
 def serialize_user(user: User) -> dict:
     return {
         "id": user.id,
@@ -70,6 +71,8 @@ def serialize_user(user: User) -> dict:
         "role": user.role,
         "plan": user.plan,
         "subscription_status": user.subscription_status,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
     }
 
 

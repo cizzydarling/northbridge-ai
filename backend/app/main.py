@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +18,9 @@ from app.routes import (
     client_strategy_routes,
     crs_routes,
     disclosure_routes,
+    document_review_routes,
     express_entry_routes,
+    generated_document_routes,
     journey_routes,
     matter_routes,
     profile_routes,
@@ -30,6 +33,7 @@ from app.routes import (
 )
 
 import app.models.disclosure_acceptance_model
+import app.models.generated_document_model
 import app.models.matter_model
 import app.models.profile_model
 import app.models.recommendation
@@ -37,6 +41,7 @@ import app.models.self_application_model
 import app.models.self_document_model
 import app.models.user_models
 
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
@@ -84,6 +89,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(strategy_routes.router)
     app.include_router(ai_routes.router)
     app.include_router(journey_routes.router)
+    app.include_router(document_review_routes.router)
 
     app.include_router(client_routes.router)
     app.include_router(client_profile_routes.router)
@@ -97,6 +103,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(matter_routes.router)
     app.include_router(self_routes.router)
     app.include_router(self_document_routes.router)
+    app.include_router(generated_document_routes.router)
 
 
 def create_app() -> FastAPI:
@@ -109,6 +116,7 @@ def create_app() -> FastAPI:
 
     allowed_origins = get_allowed_origins()
     print("CORS allowed origins:", allowed_origins)
+    print("OPENAI_API_KEY loaded:", bool(os.getenv("OPENAI_API_KEY")))
 
     app.add_middleware(
         CORSMiddleware,

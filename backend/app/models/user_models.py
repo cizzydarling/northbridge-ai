@@ -1,4 +1,3 @@
-# backend/app/models/user_models.py
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
 
@@ -9,18 +8,18 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
-    role = Column(String, nullable=False, default="individual", server_default="individual")
 
-    plan = Column(String, nullable=False, default="free", server_default="free")
+    role = Column(String, nullable=False, default="individual")
+
+    plan = Column(String, nullable=False, default="free")
     subscription_status = Column(String, nullable=True)
     stripe_customer_id = Column(String, nullable=True, unique=True)
     stripe_subscription_id = Column(String, nullable=True, unique=True)
 
-    profile = relationship("Profile", back_populates="user", uselist=False)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
 
-    disclosure_acceptances = relationship(
-        "DisclosureAcceptance",
-        cascade="all, delete-orphan",
-    )
+    profile = relationship("Profile", back_populates="user", uselist=False)

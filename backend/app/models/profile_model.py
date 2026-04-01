@@ -8,20 +8,29 @@ class Profile(Base):
     __tablename__ = "profiles"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
 
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
-    client_id = Column(Integer, ForeignKey("clients.id"), nullable=True, index=True)
+    # Personal identity / background
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
+    nationality = Column(String, nullable=True)
+    current_country = Column(String, nullable=True)
+    current_city = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+    date_of_birth = Column(String, nullable=True)
+    marital_status = Column(String, nullable=True)
+    preferred_language = Column(String, nullable=True, default="en")
 
-    age = Column(Integer, nullable=False)
-    education = Column(String, nullable=False)
-    language_score = Column(Integer, nullable=False)
-    experience_years = Column(Integer, nullable=False)
-    has_job_offer = Column(Boolean, default=False, nullable=False)
-    has_canadian_experience = Column(Boolean, default=False, nullable=False)
-    studied_in_canada = Column(Boolean, default=False, nullable=False)
+    # Immigration / eligibility profile
+    age = Column(Integer, nullable=True)
+    education = Column(String, nullable=True)
+    language_score = Column(Integer, nullable=True)
+    experience_years = Column(Integer, nullable=True)
+    has_job_offer = Column(Boolean, default=False)
+    has_canadian_experience = Column(Boolean, default=False)
+    studied_in_canada = Column(Boolean, default=False)
     occupation = Column(String, nullable=True)
     noc_code = Column(String, nullable=True)
     preferred_province = Column(String, nullable=True)
 
     user = relationship("User", back_populates="profile")
-    client = relationship("Client", back_populates="profile")

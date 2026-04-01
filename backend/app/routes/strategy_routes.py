@@ -1,362 +1,559 @@
-from io import BytesIO
-
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import Response
-from reportlab.lib.pagesizes import LETTER
-from reportlab.lib.utils import simpleSplit
-from reportlab.pdfgen import canvas
 from sqlalchemy.orm import Session
 
-from app.core.access_control import has_individual_pro
+from app.core.access_control import get_current_user, has_individual_pro
 from app.data.db import get_db
-from app.models.disclosure_acceptance_model import DisclosureAcceptance
 from app.models.profile_model import Profile
-from app.models.user_models import User
-from app.routes.auth_routes import get_current_user
+from app.models.self_application_model import SelfApplication
+from app.models.self_document_model import SelfDocument
+from app.schemas.self_application_schema import (
+    SelfApplicationResponse,
+    SelfApplicationUpsertRequest,
+    SelfWorkspaceResponse,
+)
+from app.services.checklist_engine import build_checklist
+from app.services.decision_engine import build_user_decision_context
+from app.services.eligibility_engine import evaluate_matter_eligibility
+from app.services.forms_assistant import build_forms_assistant
 from app.services.strategy_service import build_strategy
 
-router = APIRouter(prefix="/strategy", tags=["Strategy"])
+router = APIRouter(prefix="/self", tags=["Self"])
 
-REQUIRED_DISCLOSURES = [
-    "terms_of_use",
-    "privacy_consent",
-    "ai_assistance_disclaimer",
-    "no_legal_advice_acknowledgment",
-    "user_responsibility_acknowledgment",
-    "limitation_of_scope_acknowledgment",
-]
+PERMANENT_RESIDENCE_MATTER_TYPE = "permanent_residence"
 
 
-def require_disclosures_accepted(db: Session, current_user: User) -> None:
-    for disclosure_type in REQUIRED_DISCLOSURES:
-        latest = (
-            db.query(DisclosureAcceptance)
-            .filter(
-                DisclosureAcceptance.user_id == current_user.id,
-                DisclosureAcceptance.disclosure_type == disclosure_type,
-            )
-            .order_by(DisclosureAcceptance.accepted_at.desc())
-            .first()
+def require_self_user(current_user=Depends(get_current_user)):
+    is_agent = (
+        getattr(current_user, "plan", None) == "agent"
+        or getattr(current_user, "role", None) == "agent"
+    )
+
+    if is_agent:
+        raise HTTPException(
+            status_code=403,
+            detail="This endpoint is only available to self-serve users.",
         )
 
-        if not latest:
-            raise HTTPException(
-                status_code=403,
-                detail="Disclosures must be accepted before accessing strategy.",
+    return current_user
+
+
+def normalize_language(language: str | None) -> str:
+    normalized = (language or "en").strip().lower()
+    return normalized if normalized in {"en", "fr"} else "en"
+
+
+def t(en: str, fr: str, language: str) -> str:
+    return fr if language == "fr" else en
+
+
+def get_self_application_for_user(db: Session, user_id: int) -> SelfApplication | None:
+    return (
+        db.query(SelfApplication)
+        .filter(SelfApplication.user_id == user_id)
+        .order_by(SelfApplication.updated_at.desc())
+        .first()
+    )
+
+
+def get_profile_for_user(db: Session, user_id: int) -> Profile | None:
+    return db.query(Profile).filter(Profile.user_id == user_id).first()
+
+
+def sync_self_documents_from_checklist(
+    db: Session,
+    user_id: int,
+    matter_type: str,
+    checklist: list[dict],
+) -> None:
+    existing_documents = (
+        db.query(SelfDocument)
+        .filter(
+            SelfDocument.user_id == user_id,
+            SelfDocument.matter_type == matter_type,
+        )
+        .all()
+    )
+
+    existing_by_key = {doc.document_key: doc for doc in existing_documents}
+
+    for item in checklist:
+        document_key = str(item.get("id") or "").strip()
+        if not document_key:
+            continue
+
+        document_name = item.get("name") or "Document"
+        priority = item.get("status") or "Required"
+        notes = item.get("reason")
+        required = priority == "Required"
+
+        existing = existing_by_key.get(document_key)
+
+        if existing:
+            existing.document_name = document_name
+            existing.priority = priority
+            existing.required = required
+            existing.notes = notes
+        else:
+            document = SelfDocument(
+                user_id=user_id,
+                matter_type=matter_type,
+                document_key=document_key,
+                document_name=document_name,
+                priority=priority,
+                required=required,
+                notes=notes,
+                completed=False,
+            )
+            db.add(document)
+
+
+def build_pr_eligibility_from_strategy(strategy: dict, language: str) -> dict:
+    readiness = "Strong" if (strategy.get("crs_score") or 0) >= 470 else (
+        "Moderate" if (strategy.get("crs_score") or 0) >= 430 else "Weak"
+    )
+
+    strengths = list(strategy.get("strengths") or [])
+    weaknesses = list(strategy.get("weaknesses") or [])
+    next_steps = list(strategy.get("next_steps") or [])
+    pathways = list(strategy.get("recommended_programs") or [])
+
+    if language == "fr":
+        if pathways:
+            strengths.insert(
+                0,
+                "Des parcours de résidence permanente ont été identifiés à partir de votre profil."
             )
 
+        advisor_summary = strategy.get("advisor_summary") or (
+            "Votre profil a été analysé pour repérer les voies de résidence permanente "
+            "les plus réalistes, notamment Entrée express, les programmes des candidats "
+            "des provinces et les autres possibilités pertinentes."
+        )
+    else:
+        if pathways:
+            strengths.insert(
+                0,
+                "Permanent residence pathways were identified from your current profile."
+            )
 
-def build_basic_strategy_payload(
-    strategy: dict,
-    language: str,
-    current_user: User,
-    profile: Profile,
-) -> dict:
+        advisor_summary = strategy.get("advisor_summary") or (
+            "Your profile was analyzed to identify the most realistic permanent residence "
+            "pathways, including Express Entry, Provincial Nominee Program options, and "
+            "other relevant opportunities."
+        )
+
     return {
-        "user_id": current_user.id,
-        "profile_id": profile.id,
-        "language": language,
-        "is_premium": False,
-        "crs_score": strategy.get("crs_score"),
-        "recommended_programs": strategy.get("recommended_programs", [])[:3],
-        "strengths": strategy.get("strengths", [])[:3],
-        "weaknesses": strategy.get("weaknesses", [])[:3],
-        "next_steps": strategy.get("next_steps", [])[:3],
-        "advisor_summary": strategy.get("advisor_summary"),
-        "improvement_scenarios": [],
-        "roadmap": [],
-        "province_recommendations": [],
-        "timeline_estimate": {},
-        "probability_estimate": {},
-        "draw_prediction": {},
-        "ai_strategy": "",
+        "readiness": readiness,
+        "strengths": strengths,
+        "concerns": weaknesses,
+        "next_steps": next_steps,
+        "summary": advisor_summary,
+        "pathways": pathways,
+        "french_advantage": strategy.get("french_advantage") or {},
     }
 
 
-def draw_wrapped_text(
-    pdf: canvas.Canvas,
-    text: str,
-    x: int,
-    y: int,
-    max_width: int,
-    font_name: str = "Helvetica",
-    font_size: int = 10,
-    line_gap: int = 4,
-):
-    pdf.setFont(font_name, font_size)
-    lines = simpleSplit(text or "", font_name, font_size, max_width)
-    current_y = y
+def build_pr_forms_assistant_from_strategy(strategy: dict, language: str) -> dict:
+    pathways = list(strategy.get("recommended_programs") or [])
+    missing_fields = []
 
-    for line in lines:
-        pdf.drawString(x, current_y, line)
-        current_y -= font_size + line_gap
-
-    return current_y
-
-
-def draw_bullets(
-    pdf: canvas.Canvas,
-    items: list[str],
-    x: int,
-    y: int,
-    max_width: int,
-    font_size: int = 10,
-):
-    current_y = y
-
-    for item in items:
-        bullet_text = f"• {item}"
-        current_y = draw_wrapped_text(
-            pdf,
-            bullet_text,
-            x,
-            current_y,
-            max_width,
-            font_name="Helvetica",
-            font_size=font_size,
-            line_gap=3,
-        )
-        current_y -= 4
-
-    return current_y
-
-
-def build_strategy_report_pdf(
-    profile: Profile,
-    strategy_data: dict,
-    user_email: str | None = None,
-    language: str = "en",
-) -> bytes:
-    buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=LETTER)
-    width, height = LETTER
-
-    margin_x = 50
-    max_width = width - (margin_x * 2)
-    y = height - 50
-
-    def new_page():
-        nonlocal y
-        pdf.showPage()
-        y = height - 50
-
-    def ensure_space(min_y: int = 90):
-        nonlocal y
-        if y < min_y:
-            new_page()
-
-    title = (
-        "Rapport stratégique NorthBridgeAI"
-        if language == "fr"
-        else "NorthBridgeAI Strategy Report"
-    )
-    subtitle = (
-        "Usage informatif uniquement - pas un avis juridique."
-        if language == "fr"
-        else "For informational use only - not legal advice."
-    )
-
-    pdf.setFont("Helvetica-Bold", 18)
-    pdf.drawString(margin_x, y, title)
-    y -= 25
-
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(margin_x, y, subtitle)
-    y -= 20
-
-    if user_email:
-      pdf.drawString(margin_x, y, f"User: {user_email}")
-      y -= 20
-
-    sections = []
+    if strategy.get("crs_score") is None:
+        missing_fields.append("CRS score inputs" if language == "en" else "Données du score CRS")
 
     if language == "fr":
-        sections.extend(
-            [
-                (
-                    "Profil",
-                    [
-                        f"Âge: {profile.age}",
-                        f"Études: {profile.education}",
-                        f"Score linguistique: {profile.language_score}",
-                        f"Expérience: {profile.experience_years} an(s)",
-                        f"Offre d’emploi: {'Oui' if profile.has_job_offer else 'Non'}",
-                        f"Expérience canadienne: {'Oui' if profile.has_canadian_experience else 'Non'}",
-                        f"Études au Canada: {'Oui' if profile.studied_in_canada else 'Non'}",
-                        f"Profession: {profile.occupation or 'Non précisé'}",
-                        f"Code CNP: {profile.noc_code or 'Non précisé'}",
-                        f"Province privilégiée: {profile.preferred_province or 'Non précisé'}",
-                    ],
-                ),
-                (
-                    "Résumé stratégique",
-                    [strategy_data.get("advisor_summary") or "Non disponible"],
-                ),
-                ("Programmes recommandés", strategy_data.get("recommended_programs", [])),
-                ("Forces", strategy_data.get("strengths", [])),
-                ("Faiblesses", strategy_data.get("weaknesses", [])),
-                ("Prochaines étapes", strategy_data.get("next_steps", [])),
-            ]
-        )
-    else:
-        sections.extend(
-            [
-                (
-                    "Profile",
-                    [
-                        f"Age: {profile.age}",
-                        f"Education: {profile.education}",
-                        f"Language score: {profile.language_score}",
-                        f"Experience: {profile.experience_years} year(s)",
-                        f"Has job offer: {'Yes' if profile.has_job_offer else 'No'}",
-                        f"Has Canadian experience: {'Yes' if profile.has_canadian_experience else 'No'}",
-                        f"Studied in Canada: {'Yes' if profile.studied_in_canada else 'No'}",
-                        f"Occupation: {profile.occupation or 'Not provided'}",
-                        f"NOC code: {profile.noc_code or 'Not provided'}",
-                        f"Preferred province: {profile.preferred_province or 'Not provided'}",
-                    ],
-                ),
-                (
-                    "Strategy Summary",
-                    [strategy_data.get("advisor_summary") or "Not available"],
-                ),
-                ("Recommended Programs", strategy_data.get("recommended_programs", [])),
-                ("Strengths", strategy_data.get("strengths", [])),
-                ("Weaknesses", strategy_data.get("weaknesses", [])),
-                ("Next Steps", strategy_data.get("next_steps", [])),
-            ]
+        summary = (
+            "Utilisez d’abord cette analyse pour confirmer vos voies de résidence "
+            "permanente les plus fortes. Ensuite, préparez les documents liés au "
+            "profil, à l’expérience de travail, aux langues, aux études et à la "
+            "preuve des éléments qui renforcent votre dossier."
         )
 
-    crs_score = strategy_data.get("crs_score")
-    ensure_space()
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(margin_x, y, f"CRS Score: {crs_score if crs_score is not None else '--'}")
-    y -= 20
+        preparation_notes = [
+            "Vérifiez que votre profil contient des renseignements complets sur l’âge, les études, l’expérience et les langues.",
+            "Préparez vos résultats linguistiques, preuves d’études et preuves d’expérience de travail qualifié.",
+            "Comparez Entrée express aux programmes provinciaux selon votre province cible.",
+        ]
 
-    for section_title, section_items in sections:
-        ensure_space()
-        pdf.setFont("Helvetica-Bold", 13)
-        pdf.drawString(margin_x, y, section_title)
-        y -= 18
+        if strategy.get("french_advantage", {}).get("strategic_value") in {"medium", "high"}:
+            preparation_notes.append(
+                "Si vous avez un bon niveau de français, préparez aussi les éléments pouvant soutenir une stratégie francophone."
+            )
 
-        if section_items:
-            y = draw_bullets(pdf, section_items, margin_x, y, max_width)
-        else:
-            y = draw_wrapped_text(pdf, "—", margin_x, y, max_width)
+        recommended_forms = [
+            {"form_key": "profile_review", "form_name": "Révision du profil"},
+            {"form_key": "language_evidence", "form_name": "Preuves linguistiques"},
+            {"form_key": "education_evidence", "form_name": "Preuves d’études"},
+            {"form_key": "work_history_evidence", "form_name": "Preuves d’expérience de travail"},
+        ]
 
-        y -= 10
+        if pathways:
+            recommended_forms.append(
+                {"form_key": "pathway_selection", "form_name": "Sélection de la voie prioritaire"}
+            )
 
-    ai_strategy = strategy_data.get("ai_strategy")
-    if ai_strategy:
-        ensure_space()
-        pdf.setFont("Helvetica-Bold", 13)
-        pdf.drawString(
-            margin_x,
-            y,
-            "AI Strategy" if language == "en" else "Stratégie IA",
-        )
-        y -= 18
-        y = draw_wrapped_text(
-            pdf,
-            ai_strategy,
-            margin_x,
-            y,
-            max_width,
-            font_size=10,
-            line_gap=3,
-        )
-
-    pdf.save()
-    pdf_bytes = buffer.getvalue()
-    buffer.close()
-    return pdf_bytes
-
-
-@router.get("/me")
-def get_my_strategy(
-    language: str = Query(default="en"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    require_disclosures_accepted(db, current_user)
-
-    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
-    language = (language or "en").lower()
-    if language not in {"en", "fr"}:
-        language = "en"
-
-    strategy = build_strategy(profile, language=language)
-
-    if has_individual_pro(current_user):
         return {
-            "user_id": current_user.id,
-            "profile_id": profile.id,
-            "language": language,
-            "is_premium": True,
-            **strategy,
+            "summary": summary,
+            "recommended_forms": recommended_forms,
+            "missing_fields": missing_fields,
+            "preparation_notes": preparation_notes,
         }
 
-    return build_basic_strategy_payload(
-        strategy=strategy,
-        language=language,
-        current_user=current_user,
-        profile=profile,
+    summary = (
+        "Use this assessment first to confirm your strongest permanent residence "
+        "pathways. Then prepare documents tied to your profile, work history, "
+        "language results, education, and any factors that strengthen your file."
     )
 
+    preparation_notes = [
+        "Make sure your profile includes complete information on age, education, work experience, and language.",
+        "Prepare language results, education records, and proof of skilled work history.",
+        "Compare Express Entry with province-specific pathways based on your target province.",
+    ]
 
-@router.get("")
-def get_my_strategy_alias(
-    language: str = Query(default="en"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return get_my_strategy(language=language, db=db, current_user=current_user)
-
-
-@router.get("/report")
-def export_strategy_report(
-    language: str = Query(default="en"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    require_disclosures_accepted(db, current_user)
-
-    if not has_individual_pro(current_user):
-        raise HTTPException(
-            status_code=403,
-            detail="Premium plan required to export strategy report.",
+    if strategy.get("french_advantage", {}).get("strategic_value") in {"medium", "high"}:
+        preparation_notes.append(
+            "If you have strong French ability, prepare supporting evidence for a francophone or bilingual strategy."
         )
 
-    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    recommended_forms = [
+        {"form_key": "profile_review", "form_name": "Profile review"},
+        {"form_key": "language_evidence", "form_name": "Language evidence"},
+        {"form_key": "education_evidence", "form_name": "Education evidence"},
+        {"form_key": "work_history_evidence", "form_name": "Work history evidence"},
+    ]
+
+    if pathways:
+        recommended_forms.append(
+            {"form_key": "pathway_selection", "form_name": "Primary pathway selection"}
+        )
+
+    return {
+        "summary": summary,
+        "recommended_forms": recommended_forms,
+        "missing_fields": missing_fields,
+        "preparation_notes": preparation_notes,
+    }
+
+
+def build_pr_checklist_from_strategy(strategy: dict, language: str) -> list[dict]:
+    pathways = list(strategy.get("recommended_programs") or [])
+    french_advantage = strategy.get("french_advantage") or {}
+    has_french_advantage = french_advantage.get("strategic_value") in {"medium", "high"}
+
+    if language == "fr":
+        checklist = [
+            {
+                "id": "profile_complete",
+                "name": "Profil d’immigration complété",
+                "status": "Required",
+                "reason": "Votre profil doit être complet pour cibler correctement les voies de résidence permanente.",
+            },
+            {
+                "id": "language_results",
+                "name": "Résultats linguistiques",
+                "status": "Required",
+                "reason": "Les résultats linguistiques sont essentiels pour évaluer les options de résidence permanente.",
+            },
+            {
+                "id": "education_records",
+                "name": "Preuves d’études",
+                "status": "Required",
+                "reason": "Les études influencent fortement l’évaluation et les options disponibles.",
+            },
+            {
+                "id": "work_experience_records",
+                "name": "Preuves d’expérience de travail qualifié",
+                "status": "Required",
+                "reason": "L’expérience de travail qualifié soutient la plupart des parcours de résidence permanente.",
+            },
+            {
+                "id": "pathway_review",
+                "name": "Révision des voies recommandées",
+                "status": "Recommended",
+                "reason": "Comparez les programmes recommandés pour choisir la meilleure stratégie.",
+            },
+        ]
+
+        if pathways:
+            checklist.append(
+                {
+                    "id": "province_and_program_match",
+                    "name": "Validation province / programme",
+                    "status": "Recommended",
+                    "reason": "Certaines provinces ou certains volets peuvent mieux correspondre à votre profil actuel.",
+                }
+            )
+
+        if has_french_advantage:
+            checklist.append(
+                {
+                    "id": "french_strategy_support",
+                    "name": "Éléments à l’appui d’une stratégie francophone",
+                    "status": "Recommended",
+                    "reason": "Le dossier semble pouvoir bénéficier d’un positionnement francophone ou bilingue.",
+                }
+            )
+
+        return checklist
+
+    checklist = [
+        {
+            "id": "profile_complete",
+            "name": "Complete immigration profile",
+            "status": "Required",
+            "reason": "Your profile needs to be complete to target permanent residence pathways correctly.",
+        },
+        {
+            "id": "language_results",
+            "name": "Language test results",
+            "status": "Required",
+            "reason": "Language results are core to evaluating permanent residence options.",
+        },
+        {
+            "id": "education_records",
+            "name": "Education records",
+            "status": "Required",
+            "reason": "Education strongly affects pathway targeting and competitiveness.",
+        },
+        {
+            "id": "work_experience_records",
+            "name": "Proof of skilled work experience",
+            "status": "Required",
+            "reason": "Skilled work history supports most permanent residence pathways.",
+        },
+        {
+            "id": "pathway_review",
+            "name": "Review recommended pathways",
+            "status": "Recommended",
+            "reason": "Compare the recommended programs to choose the strongest strategy.",
+        },
+    ]
+
+    if pathways:
+        checklist.append(
+            {
+                "id": "province_and_program_match",
+                "name": "Province and pathway alignment review",
+                "status": "Recommended",
+                "reason": "Some provinces or pathway streams may fit your current profile better than others.",
+            }
+        )
+
+    if has_french_advantage:
+        checklist.append(
+            {
+                "id": "french_strategy_support",
+                "name": "Francophone strategy support evidence",
+                "status": "Recommended",
+                "reason": "Your profile may benefit from a French-speaking or bilingual pathway strategy.",
+            }
+        )
+
+    return checklist
+
+
+def build_premium_decision_payload(
+    decision: dict,
+    *,
+    is_premium: bool,
+    language: str,
+) -> dict:
+    if is_premium:
+        return {
+            **decision,
+            "locked": False,
+            "is_premium": True,
+        }
+
+    recommended_actions = list(decision.get("recommended_actions") or [])
+    top_pathways = list(decision.get("top_pathways") or [])
+
+    preview = {
+        "priority_label": decision.get("priority_label"),
+        "priority_reason": decision.get("priority_reason"),
+        "primary_recommendation": decision.get("primary_recommendation"),
+        "recommended_actions": recommended_actions[:1],
+        "top_pathways": top_pathways[:1],
+        "readiness": decision.get("readiness"),
+        "confidence_label": decision.get("confidence_label"),
+        "french_advantage": decision.get("french_advantage"),
+        "missing_fields_count": decision.get("missing_fields_count", 0),
+        "remaining_required_documents": decision.get("remaining_required_documents", 0),
+        "locked": True,
+        "is_premium": False,
+        "upgrade_reason": t(
+            "Upgrade to Premium to unlock the full decision engine, deeper actions, and full pathway ranking.",
+            "Passez à Premium pour débloquer le moteur de décision complet, des actions plus approfondies et le classement complet des voies.",
+            language,
+        ),
+    }
+    return preview
+
+
+def run_permanent_residence_workspace(
+    db: Session,
+    current_user,
+    language: str,
+) -> dict:
+    profile = get_profile_for_user(db, current_user.id)
 
     if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
-    language = (language or "en").lower()
-    if language not in {"en", "fr"}:
-        language = "en"
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Complete your profile first to generate permanent residence guidance."
+                if language == "en"
+                else "Complétez d’abord votre profil pour générer des conseils en résidence permanente."
+            ),
+        )
 
     strategy = build_strategy(profile, language=language)
 
-    pdf_bytes = build_strategy_report_pdf(
-        profile=profile,
-        strategy_data=strategy,
-        user_email=getattr(current_user, "email", None),
+    eligibility = build_pr_eligibility_from_strategy(strategy, language=language)
+    forms_assistant = build_pr_forms_assistant_from_strategy(strategy, language=language)
+    checklist = build_pr_checklist_from_strategy(strategy, language=language)
+    decision = build_user_decision_context(
+        strategy=strategy,
+        eligibility=eligibility,
+        forms_assistant=forms_assistant,
+        checklist=checklist,
         language=language,
     )
 
-    filename = (
-        "rapport_strategie_northbridge.pdf"
-        if language == "fr"
-        else "northbridge_strategy_report.pdf"
+    return {
+        "strategy": strategy,
+        "eligibility": eligibility,
+        "forms_assistant": forms_assistant,
+        "checklist": checklist,
+        "decision": decision,
+    }
+
+
+@router.get("/application")
+def get_self_application_context(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_self_user),
+):
+    application = get_self_application_for_user(db, current_user.id)
+
+    return {
+        "message": "Self application workspace is available.",
+        "user_id": current_user.id,
+        "email": current_user.email,
+        "role": getattr(current_user, "role", None),
+        "plan": getattr(current_user, "plan", None),
+        "application": application,
+    }
+
+
+@router.get("/application/saved", response_model=SelfApplicationResponse)
+def get_saved_self_application(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_self_user),
+):
+    application = get_self_application_for_user(db, current_user.id)
+
+    if not application:
+        raise HTTPException(status_code=404, detail="No saved self application found.")
+
+    return application
+
+
+@router.post("/workspace", response_model=SelfWorkspaceResponse)
+def run_self_workspace(
+    payload: SelfApplicationUpsertRequest,
+    language: str = Query(default="en"),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_self_user),
+):
+    matter_type = payload.matter_type
+    intake = payload.intake or {}
+    language = normalize_language(language)
+    is_premium = has_individual_pro(current_user)
+
+    strategy = None
+
+    if matter_type == PERMANENT_RESIDENCE_MATTER_TYPE:
+        pr_workspace = run_permanent_residence_workspace(
+            db=db,
+            current_user=current_user,
+            language=language,
+        )
+        strategy = pr_workspace["strategy"]
+        eligibility = pr_workspace["eligibility"]
+        forms_assistant = pr_workspace["forms_assistant"]
+        checklist = pr_workspace["checklist"]
+        raw_decision = pr_workspace["decision"]
+    else:
+        eligibility = evaluate_matter_eligibility(
+            matter_type,
+            intake,
+            language=language,
+        )
+        forms_assistant = build_forms_assistant(
+            matter_type,
+            intake,
+            language=language,
+        )
+        checklist = build_checklist(
+            matter_type,
+            intake,
+            language=language,
+        )
+        raw_decision = build_user_decision_context(
+            strategy=None,
+            eligibility=eligibility,
+            forms_assistant=forms_assistant,
+            checklist=checklist,
+            language=language,
+        )
+
+    decision = build_premium_decision_payload(
+        raw_decision,
+        is_premium=is_premium,
+        language=language,
     )
 
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    application = get_self_application_for_user(db, current_user.id)
+
+    if application:
+        application.matter_type = matter_type
+        application.intake_payload = intake
+        application.eligibility_result = eligibility
+        application.forms_result = forms_assistant
+        application.checklist_result = checklist
+    else:
+        application = SelfApplication(
+            user_id=current_user.id,
+            matter_type=matter_type,
+            intake_payload=intake,
+            eligibility_result=eligibility,
+            forms_result=forms_assistant,
+            checklist_result=checklist,
+        )
+        db.add(application)
+
+    sync_self_documents_from_checklist(
+        db=db,
+        user_id=current_user.id,
+        matter_type=matter_type,
+        checklist=checklist,
     )
+
+    db.commit()
+    db.refresh(application)
+
+    response_payload = {
+        "application": application,
+        "eligibility": eligibility,
+        "forms_assistant": forms_assistant,
+        "checklist": checklist,
+        "decision": decision,
+    }
+
+    if strategy is not None:
+        response_payload["strategy"] = strategy
+        response_payload["pathways"] = strategy.get("recommended_programs", [])
+        response_payload["french_advantage"] = strategy.get("french_advantage", {})
+
+    return response_payload

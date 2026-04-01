@@ -12,6 +12,7 @@ from app.schemas.self_application_schema import (
     SelfWorkspaceResponse,
 )
 from app.services.checklist_engine import build_checklist
+from app.services.decision_engine import build_user_decision_context
 from app.services.eligibility_engine import evaluate_matter_eligibility
 from app.services.forms_assistant import build_forms_assistant
 from app.services.strategy_service import build_strategy
@@ -51,11 +52,7 @@ def get_self_application_for_user(db: Session, user_id: int) -> SelfApplication 
 
 
 def get_profile_for_user(db: Session, user_id: int) -> Profile | None:
-    return (
-        db.query(Profile)
-        .filter(Profile.user_id == user_id)
-        .first()
-    )
+    return db.query(Profile).filter(Profile.user_id == user_id).first()
 
 
 def sync_self_documents_from_checklist(
@@ -107,16 +104,16 @@ def sync_self_documents_from_checklist(
 
 
 def build_pr_eligibility_from_strategy(strategy: dict, language: str) -> dict:
+    readiness = "Strong" if (strategy.get("crs_score") or 0) >= 470 else (
+        "Moderate" if (strategy.get("crs_score") or 0) >= 430 else "Weak"
+    )
+
+    strengths = list(strategy.get("strengths") or [])
+    weaknesses = list(strategy.get("weaknesses") or [])
+    next_steps = list(strategy.get("next_steps") or [])
+    pathways = list(strategy.get("recommended_programs") or [])
+
     if language == "fr":
-        readiness = "Strong" if (strategy.get("crs_score") or 0) >= 470 else (
-            "Moderate" if (strategy.get("crs_score") or 0) >= 430 else "Weak"
-        )
-
-        strengths = list(strategy.get("strengths") or [])
-        weaknesses = list(strategy.get("weaknesses") or [])
-        next_steps = list(strategy.get("next_steps") or [])
-        pathways = list(strategy.get("recommended_programs") or [])
-
         if pathways:
             strengths.insert(
                 0,
@@ -128,37 +125,18 @@ def build_pr_eligibility_from_strategy(strategy: dict, language: str) -> dict:
             "les plus réalistes, notamment Entrée express, les programmes des candidats "
             "des provinces et les autres possibilités pertinentes."
         )
+    else:
+        if pathways:
+            strengths.insert(
+                0,
+                "Permanent residence pathways were identified from your current profile."
+            )
 
-        return {
-            "readiness": readiness,
-            "strengths": strengths,
-            "concerns": weaknesses,
-            "next_steps": next_steps,
-            "summary": advisor_summary,
-            "pathways": pathways,
-            "french_advantage": strategy.get("french_advantage") or {},
-        }
-
-    readiness = "Strong" if (strategy.get("crs_score") or 0) >= 470 else (
-        "Moderate" if (strategy.get("crs_score") or 0) >= 430 else "Weak"
-    )
-
-    strengths = list(strategy.get("strengths") or [])
-    weaknesses = list(strategy.get("weaknesses") or [])
-    next_steps = list(strategy.get("next_steps") or [])
-    pathways = list(strategy.get("recommended_programs") or [])
-
-    if pathways:
-        strengths.insert(
-            0,
-            "Permanent residence pathways were identified from your current profile."
+        advisor_summary = strategy.get("advisor_summary") or (
+            "Your profile was analyzed to identify the most realistic permanent residence "
+            "pathways, including Express Entry, Provincial Nominee Program options, and "
+            "other relevant opportunities."
         )
-
-    advisor_summary = strategy.get("advisor_summary") or (
-        "Your profile was analyzed to identify the most realistic permanent residence "
-        "pathways, including Express Entry, Provincial Nominee Program options, and "
-        "other relevant opportunities."
-    )
 
     return {
         "readiness": readiness,
@@ -176,7 +154,7 @@ def build_pr_forms_assistant_from_strategy(strategy: dict, language: str) -> dic
     missing_fields = []
 
     if strategy.get("crs_score") is None:
-        missing_fields.append("CRS score inputs")
+        missing_fields.append("CRS score inputs" if language == "en" else "Données du score CRS")
 
     if language == "fr":
         summary = (
@@ -380,7 +358,11 @@ def run_permanent_residence_workspace(
     if not profile:
         raise HTTPException(
             status_code=404,
-            detail="Complete your profile first to generate permanent residence guidance.",
+            detail=(
+                "Complete your profile first to generate permanent residence guidance."
+                if language == "en"
+                else "Complétez d’abord votre profil pour générer des conseils en résidence permanente."
+            ),
         )
 
     strategy = build_strategy(profile, language=language)
@@ -388,12 +370,20 @@ def run_permanent_residence_workspace(
     eligibility = build_pr_eligibility_from_strategy(strategy, language=language)
     forms_assistant = build_pr_forms_assistant_from_strategy(strategy, language=language)
     checklist = build_pr_checklist_from_strategy(strategy, language=language)
+    decision = build_user_decision_context(
+        strategy=strategy,
+        eligibility=eligibility,
+        forms_assistant=forms_assistant,
+        checklist=checklist,
+        language=language,
+    )
 
     return {
         "strategy": strategy,
         "eligibility": eligibility,
         "forms_assistant": forms_assistant,
         "checklist": checklist,
+        "decision": decision,
     }
 
 
@@ -450,6 +440,7 @@ def run_self_workspace(
         eligibility = pr_workspace["eligibility"]
         forms_assistant = pr_workspace["forms_assistant"]
         checklist = pr_workspace["checklist"]
+        decision = pr_workspace["decision"]
     else:
         eligibility = evaluate_matter_eligibility(
             matter_type,
@@ -464,6 +455,13 @@ def run_self_workspace(
         checklist = build_checklist(
             matter_type,
             intake,
+            language=language,
+        )
+        decision = build_user_decision_context(
+            strategy=None,
+            eligibility=eligibility,
+            forms_assistant=forms_assistant,
+            checklist=checklist,
             language=language,
         )
 
@@ -501,6 +499,7 @@ def run_self_workspace(
         "eligibility": eligibility,
         "forms_assistant": forms_assistant,
         "checklist": checklist,
+        "decision": decision,
     }
 
     if strategy is not None:
