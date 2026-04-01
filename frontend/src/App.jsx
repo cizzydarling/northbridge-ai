@@ -70,7 +70,6 @@ function OnboardingGate({ children }) {
         return;
       }
 
-      // Agents skip self onboarding
       if (user.role === "agent" || user.plan === "agent_pro") {
         if (mounted) {
           setHasProfile(true);
@@ -142,7 +141,6 @@ function ProtectedAppRoute({ children }) {
 export default function App() {
   return (
     <Routes>
-      {/* PUBLIC */}
       <Route
         path="/"
         element={
@@ -170,7 +168,6 @@ export default function App() {
         }
       />
 
-      {/* ONBOARDING */}
       <Route
         path="/onboarding"
         element={
@@ -180,7 +177,6 @@ export default function App() {
         }
       />
 
-      {/* SELF FLOW */}
       <Route
         path="/dashboard"
         element={
@@ -262,7 +258,6 @@ export default function App() {
         }
       />
 
-      {/* CLIENT FLOW */}
       <Route
         path="/clients"
         element={
