@@ -153,8 +153,11 @@ export default function DisclosureAcceptanceModal({
           (item) => nextChecked[item.type] === true
         );
 
-        if (allAlreadyAccepted && onAccepted) {
-          await onAccepted();
+        if (allAlreadyAccepted) {
+          onClose?.();
+          if (onAccepted) {
+            await onAccepted();
+          }
         }
       } catch (err) {
         console.error("Failed to load disclosures", err);
@@ -174,7 +177,7 @@ export default function DisclosureAcceptanceModal({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, clientId, matterId, onAccepted]);
+  }, [isOpen, clientId, matterId, onAccepted, onClose]);
 
   const allChecked = useMemo(() => {
     return REQUIRED_DISCLOSURES.every((item) => checked[item.type] === true);
@@ -227,6 +230,8 @@ export default function DisclosureAcceptanceModal({
           matter_id: matterId,
         });
       }
+
+      onClose?.();
 
       if (onAccepted) {
         await onAccepted();
@@ -353,9 +358,7 @@ export default function DisclosureAcceptanceModal({
             disabled={!canSubmit || loadingExisting}
             className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
           >
-            {submitting
-              ? t("common.saving")
-              : t("legal.continue")}
+            {submitting ? t("common.saving") : t("legal.continue")}
           </button>
         </div>
       </div>

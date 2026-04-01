@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import AICopilotCard from "../components/AICopilotCard";
 import {
   getMyStrategy,
   downloadStrategyReport,
@@ -14,6 +16,8 @@ import {
 
 export default function StrategyPage() {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language === "fr" ? "fr" : "en";
 
   const [data, setData] = useState(null);
   const [message, setMessage] = useState("");
@@ -64,9 +68,9 @@ export default function StrategyPage() {
 
       if (err.response?.status === 404) {
         setData(null);
-        setMessage("Complete your profile first to generate your strategy.");
+        setMessage(t("strategy.completeProfilePrompt"));
       } else {
-        setMessage(err.response?.data?.detail || "Failed to load strategy.");
+        setMessage(err.response?.data?.detail || t("errors.server"));
       }
     } finally {
       setLoading(false);
@@ -111,9 +115,7 @@ export default function StrategyPage() {
       }
 
       setMessage(
-        err.response?.data?.detail ||
-          err.message ||
-          "Failed to download report."
+        err.response?.data?.detail || err.message || t("errors.server")
       );
     } finally {
       setDownloading(false);
@@ -152,24 +154,44 @@ export default function StrategyPage() {
   const hasFrenchAdvantage =
     frenchSignals.length > 0 || frenchRecommendations.length > 0;
 
+  const frenchPriorityTitle = useMemo(() => {
+    if (frenchStrategicValue === "high") {
+      return t("strategy.frenchPriorityDetected");
+    }
+    if (frenchStrategicValue === "medium") {
+      return t("strategy.frenchOpportunityDetected");
+    }
+    return t("strategy.frenchLanguageReview");
+  }, [frenchStrategicValue, t]);
+
+  const frenchPriorityDescription = useMemo(() => {
+    if (frenchStrategicValue === "high") {
+      return t("strategy.frenchPriorityHighBody");
+    }
+    if (frenchStrategicValue === "medium") {
+      return t("strategy.frenchPriorityMediumBody");
+    }
+    return t("strategy.frenchPriorityLowBody");
+  }, [frenchStrategicValue, t]);
+
   const scoreLabel = useMemo(() => {
-    if (typeof crsScore !== "number") return "Unavailable";
-    if (crsScore >= 500) return "Very strong";
-    if (crsScore >= 470) return "Strong";
-    if (crsScore >= 430) return "Competitive";
-    return "Needs improvement";
-  }, [crsScore]);
+    if (typeof crsScore !== "number") return t("strategy.scoreUnavailable");
+    if (crsScore >= 500) return t("strategy.scoreVeryStrong");
+    if (crsScore >= 470) return t("strategy.scoreStrong");
+    if (crsScore >= 430) return t("strategy.scoreCompetitive");
+    return t("strategy.scoreNeedsImprovement");
+  }, [crsScore, t]);
 
   const timelineLabel = useMemo(() => {
     const min = timelineEstimate?.estimated_pr_timeline_min_months;
     const max = timelineEstimate?.estimated_pr_timeline_max_months;
 
     if (typeof min === "number" && typeof max === "number") {
-      return `${min}-${max} months`;
+      return `${min}-${max} ${t("strategy.monthsSuffix")}`;
     }
 
-    return "Not available";
-  }, [timelineEstimate]);
+    return t("strategy.notAvailable");
+  }, [timelineEstimate, t]);
 
   const expressEntryChance =
     typeof probabilityEstimate?.chance_via_express_entry === "number"
@@ -186,15 +208,13 @@ export default function StrategyPage() {
       ? `${probabilityEstimate.chance_of_pr_within_12_months}%`
       : "—";
 
-  const topProgram = recommendedPrograms[0] || "Not available";
-
-  const topThreePrograms = recommendedPrograms.slice(0, 3);
+  const topProgram = recommendedPrograms[0] || t("strategy.notAvailable");
 
   if (loading) {
     return (
       <Layout>
         <div className="flex justify-center py-16">
-          <p className="text-slate-600">Loading your strategy...</p>
+          <p className="text-slate-600">{t("strategy.loadingStrategy")}</p>
         </div>
       </Layout>
     );
@@ -216,19 +236,18 @@ export default function StrategyPage() {
 
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-sm font-semibold text-blue-600">NorthBridgeAI</p>
+          <p className="text-sm font-semibold text-blue-600">{t("app.name")}</p>
           <h1 className="mt-1 text-3xl font-bold text-slate-900">
-            Your Immigration Strategy
+            {t("strategy.title")}
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Understand your position, prioritize the right actions, and increase
-            your chances with a structured plan.
+            {t("strategy.subtitle")}
           </p>
         </div>
 
         <div className="flex flex-wrap gap-3">
           <Button variant="secondary" onClick={() => navigate("/profile")}>
-            Edit Profile
+            {t("strategy.editProfile")}
           </Button>
 
           <Button
@@ -236,15 +255,19 @@ export default function StrategyPage() {
             onClick={() => loadStrategy({ isRefresh: true })}
             disabled={refreshing}
           >
-            {refreshing ? "Refreshing..." : "Refresh"}
+            {refreshing ? t("strategy.refreshing") : t("strategy.refresh")}
           </Button>
 
           {!isPremium && (
-            <Button onClick={() => navigate("/pricing")}>Upgrade</Button>
+            <Button onClick={() => navigate("/pricing")}>
+              {t("strategy.upgradeNow")}
+            </Button>
           )}
 
           <Button onClick={handleDownload} disabled={!isPremium || downloading}>
-            {downloading ? "Downloading..." : "Download Report"}
+            {downloading
+              ? t("strategy.downloading")
+              : t("strategy.downloadReport")}
           </Button>
         </div>
       </div>
@@ -252,14 +275,14 @@ export default function StrategyPage() {
       {!data && !message && (
         <Card className="p-8 text-center">
           <h2 className="text-2xl font-semibold text-slate-900">
-            No strategy available yet
+            {t("strategy.noStrategyAvailable")}
           </h2>
           <p className="mt-3 text-slate-600">
-            Complete your profile to generate your first strategy.
+            {t("strategy.completeProfilePrompt")}
           </p>
           <div className="mt-6">
             <Button onClick={() => navigate("/profile")}>
-              Complete Profile
+              {t("dashboard.hero.primaryCta")}
             </Button>
           </div>
         </Card>
@@ -271,29 +294,30 @@ export default function StrategyPage() {
             <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-200">
-                  Strategy Snapshot
+                  {t("strategy.snapshotEyebrow")}
                 </p>
                 <h2 className="mt-3 text-3xl font-bold md:text-4xl">
-                  {isPremium ? "Premium Strategy" : "Free Strategy"}
+                  {isPremium
+                    ? t("strategy.premiumStrategy")
+                    : t("strategy.freeStrategy")}
                 </h2>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-blue-100 md:text-base">
-                  {advisorSummary ||
-                    "Your strategy is based on your current profile information."}
+                  {advisorSummary || t("strategy.noStrategicSummary")}
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Button onClick={() => navigate("/chat")}>
-                    Ask AI Assistant
+                    {t("nav.aiAssistant")}
                   </Button>
                   <Button
                     variant="secondary"
                     onClick={() => navigate("/profile")}
                   >
-                    Update Profile
+                    {t("strategy.editProfile")}
                   </Button>
                   {!isPremium && (
                     <Button onClick={() => navigate("/pricing")}>
-                      Unlock Premium
+                      {t("strategy.upgradeNow")}
                     </Button>
                   )}
                 </div>
@@ -302,7 +326,7 @@ export default function StrategyPage() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
                 <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">
-                    CRS Score
+                    {t("strategy.metricCrs")}
                   </p>
                   <p className="mt-2 text-3xl font-bold">{crsScore}</p>
                   <p className="mt-2 text-sm text-blue-100">{scoreLabel}</p>
@@ -310,33 +334,55 @@ export default function StrategyPage() {
 
                 <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">
-                    Estimated Timeline
+                    {t("strategy.metricTimeline")}
                   </p>
                   <p className="mt-2 text-3xl font-bold">{timelineLabel}</p>
                   <p className="mt-2 text-sm text-blue-100">
-                    Expected PR window
+                    {t("strategy.estimatedPrWindow")}
                   </p>
                 </div>
               </div>
             </div>
           </section>
 
+          <AICopilotCard
+            title={
+              language === "fr"
+                ? "Copilote IA de stratégie"
+                : "Strategy AI Copilot"
+            }
+            description={
+              language === "fr"
+                ? "Obtenez une explication claire de votre stratégie actuelle et de vos prochaines priorités."
+                : "Get a clear explanation of your current strategy and next priorities."
+            }
+            buttonLabel={
+              language === "fr"
+                ? "Expliquez ma stratégie"
+                : "Explain my strategy"
+            }
+            language={language}
+            prompt={
+              language === "fr"
+                ? "Expliquez ma stratégie actuelle simplement. Retournez aussi 3 suggested_next_actions courtes, chacune liée à une page ou une action concrète."
+                : "Explain my current strategy simply. Also return 3 short suggested_next_actions, each tied to a concrete page or next action."
+            }
+          />
+
           {!isPremium && (
             <Card className="border border-amber-200 bg-amber-50 p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-amber-900">
-                    Unlock premium strategy insights
+                    {t("strategy.unlockPremiumTitle")}
                   </p>
                   <p className="mt-1 text-sm text-amber-800">
-                    Get roadmap details, probability estimates, advanced
-                    scenarios, draw outlook, province analysis, AI guidance, and
-                    full report export.
+                    {t("strategy.unlockPremiumBody")}
                   </p>
                 </div>
 
                 <Button onClick={() => navigate("/pricing")}>
-                  Upgrade to Premium
+                  {t("strategy.upgradeNow")}
                 </Button>
               </div>
             </Card>
@@ -344,41 +390,103 @@ export default function StrategyPage() {
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
-              label="CRS Score"
+              label={t("strategy.metricCrs")}
               value={crsScore}
               description={scoreLabel}
             />
             <MetricCard
-              label="Top Program"
+              label={t("strategy.metricTopProgram")}
               value={topProgram}
-              description="Best-fit pathway"
+              description={t("strategy.bestFitPathway")}
             />
             <MetricCard
-              label="Timeline"
+              label={t("strategy.metricTimeline")}
               value={timelineLabel}
-              description="Estimated PR window"
+              description={t("strategy.estimatedPrWindow")}
             />
             <MetricCard
-              label="12-Month Chance"
-              value={isPremium ? twelveMonthChance : "Locked"}
+              label={t("strategy.metricTwelveMonthChance")}
+              value={isPremium ? twelveMonthChance : t("strategy.locked")}
               description={
-                isPremium ? "Estimated probability" : "Premium insight"
+                isPremium
+                  ? t("strategy.probabilityTitle")
+                  : t("strategy.premiumInsight")
               }
               locked={!isPremium}
             />
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-3">
-            <Card className="p-6 xl:col-span-2">
-              <div className="flex items-center justify-between gap-4">
+          {hasFrenchAdvantage && (
+            <Card className="border border-blue-200 bg-blue-50 p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Pathways
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-700">
+                    {t("strategy.frenchPrioritySignal")}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                    Recommended Programs
+                    {frenchPriorityTitle}
                   </h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                    {frenchPriorityDescription}
+                  </p>
                 </div>
+
+                <span
+                  className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                    frenchStrategicValue === "high"
+                      ? "bg-green-100 text-green-700"
+                      : frenchStrategicValue === "medium"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {t("strategy.strategicValueLabel", {
+                    value: frenchStrategicValue,
+                  })}
+                </span>
+              </div>
+
+              {frenchRecommendations.length > 0 && (
+                <div className="mt-5 rounded-2xl border border-blue-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {t("strategy.whyThisMattersNow")}
+                  </p>
+                  <ul className="mt-3 space-y-2">
+                    {frenchRecommendations.slice(0, 3).map((item, index) => (
+                      <li
+                        key={index}
+                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Button onClick={() => navigate("/chat")}>
+                  {t("strategy.askWhyFrenchPrioritized")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate("/profile")}
+                >
+                  {t("strategy.updateLanguageProfile")}
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          <div className="grid gap-6 xl:grid-cols-3">
+            <Card className="p-6 xl:col-span-2">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  {t("strategy.pathwaysEyebrow")}
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                  {t("strategy.recommendedProgramsTitle")}
+                </h2>
               </div>
 
               {recommendedPrograms.length > 0 ? (
@@ -397,7 +505,9 @@ export default function StrategyPage() {
                           index === 0 ? "text-blue-700" : "text-slate-500"
                         }`}
                       >
-                        {index === 0 ? "Primary option" : `Option ${index + 1}`}
+                        {index === 0
+                          ? t("strategy.primaryOption")
+                          : t("common.option", { index: index + 1 })}
                       </p>
                       <p className="mt-2 text-sm font-medium text-slate-900">
                         {program}
@@ -407,17 +517,17 @@ export default function StrategyPage() {
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-slate-500">
-                  No recommendations available yet.
+                  {t("strategy.noRecommendationsYet")}
                 </p>
               )}
             </Card>
 
             <Card className="p-6">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Action plan
+                {t("strategy.actionPlanEyebrow")}
               </p>
               <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                Next Steps
+                {t("strategy.nextStepsTitle")}
               </h2>
 
               {nextSteps.length > 0 ? (
@@ -438,22 +548,21 @@ export default function StrategyPage() {
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-slate-500">
-                  No next steps available yet.
+                  {t("strategy.noNextStepsYet")}
                 </p>
               )}
 
               {!isPremium && (
                 <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4">
                   <p className="text-sm font-semibold text-amber-900">
-                    Unlock the full action plan
+                    {t("strategy.unlockFullActionPlanTitle")}
                   </p>
                   <p className="mt-1 text-sm text-amber-800">
-                    Premium gives you deeper sequencing, advanced action items,
-                    and a stronger execution roadmap.
+                    {t("strategy.unlockFullActionPlanBody")}
                   </p>
                   <div className="mt-3">
                     <Button onClick={() => navigate("/pricing")}>
-                      See Premium
+                      {t("strategy.upgradeNow")}
                     </Button>
                   </div>
                 </div>
@@ -466,10 +575,10 @@ export default function StrategyPage() {
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Francophone advantage
+                    {t("strategy.frenchAdvantageEyebrow")}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                    French-speaking pathway potential
+                    {t("strategy.frenchAdvantageTitle")}
                   </h2>
                 </div>
 
@@ -482,14 +591,16 @@ export default function StrategyPage() {
                       : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  {frenchStrategicValue} strategic value
+                  {t("strategy.strategicValueLabel", {
+                    value: frenchStrategicValue,
+                  })}
                 </span>
               </div>
 
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">
-                    What the strategy sees
+                    {t("strategy.whatStrategySees")}
                   </h3>
 
                   {frenchSignals.length > 0 ? (
@@ -505,14 +616,14 @@ export default function StrategyPage() {
                     </ul>
                   ) : (
                     <p className="mt-3 text-sm text-slate-500">
-                      No French-language signals available yet.
+                      {t("strategy.noFrenchSignalsYet")}
                     </p>
                   )}
                 </div>
 
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">
-                    Recommended next moves
+                    {t("strategy.recommendedNextMoves")}
                   </h3>
 
                   {frenchRecommendations.length > 0 ? (
@@ -530,7 +641,7 @@ export default function StrategyPage() {
                     </ul>
                   ) : (
                     <p className="mt-3 text-sm text-slate-500">
-                      No French-language recommendations available yet.
+                      {t("strategy.noFrenchRecommendationsYet")}
                     </p>
                   )}
                 </div>
@@ -539,16 +650,14 @@ export default function StrategyPage() {
               {!isPremium && (
                 <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4">
                   <p className="text-sm font-semibold text-amber-900">
-                    Premium can go deeper here
+                    {t("strategy.premiumGoDeeperTitle")}
                   </p>
                   <p className="mt-1 text-sm text-amber-800">
-                    Unlock deeper strategy interpretation, province targeting,
-                    and advanced planning tied to your broader immigration
-                    profile.
+                    {t("strategy.premiumGoDeeperBody")}
                   </p>
                   <div className="mt-3">
                     <Button onClick={() => navigate("/pricing")}>
-                      Upgrade to Premium
+                      {t("strategy.upgradeNow")}
                     </Button>
                   </div>
                 </div>
@@ -559,10 +668,10 @@ export default function StrategyPage() {
           <div className="grid gap-6 xl:grid-cols-2">
             <Card className="p-6">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Strength analysis
+                {t("strategy.strengthEyebrow")}
               </p>
               <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                Strengths
+                {t("strategy.strengthsTitle")}
               </h2>
 
               {strengths.length > 0 ? (
@@ -577,16 +686,18 @@ export default function StrategyPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-4 text-sm text-slate-500">No strengths yet.</p>
+                <p className="mt-4 text-sm text-slate-500">
+                  {t("strategy.noStrengthsYet")}
+                </p>
               )}
             </Card>
 
             <Card className="p-6">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Improvement areas
+                {t("strategy.weaknessEyebrow")}
               </p>
               <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                Weaknesses
+                {t("strategy.weaknessesTitle")}
               </h2>
 
               {weaknesses.length > 0 ? (
@@ -604,22 +715,21 @@ export default function StrategyPage() {
                 </ul>
               ) : (
                 <p className="mt-4 text-sm text-slate-500">
-                  No weaknesses yet.
+                  {t("strategy.noWeaknessesYet")}
                 </p>
               )}
 
               {!isPremium && (
                 <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4">
                   <p className="text-sm font-semibold text-amber-900">
-                    Weakness analysis is premium
+                    {t("strategy.weaknessPremiumTitle")}
                   </p>
                   <p className="mt-1 text-sm text-amber-800">
-                    Unlock the blockers that may reduce your score or delay your
-                    pathway.
+                    {t("strategy.weaknessPremiumBody")}
                   </p>
                   <div className="mt-3">
                     <Button onClick={() => navigate("/pricing")}>
-                      Upgrade to Unlock
+                      {t("strategy.upgradeNow")}
                     </Button>
                   </div>
                 </div>
@@ -629,10 +739,10 @@ export default function StrategyPage() {
 
           <Card className="p-6">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Advisor summary
+              {t("strategy.advisorEyebrow")}
             </p>
             <h2 className="mt-2 text-xl font-semibold text-slate-900">
-              Strategic Overview
+              {t("strategy.strategicOverviewTitle")}
             </h2>
 
             <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -641,55 +751,62 @@ export default function StrategyPage() {
                   !isPremium ? "blur-[2px] select-none" : ""
                 }`}
               >
-                {advisorSummary || "No strategic summary available yet."}
+                {advisorSummary || t("strategy.noStrategicSummary")}
               </p>
             </div>
 
             {!isPremium && (
               <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4">
                 <p className="text-sm font-semibold text-amber-900">
-                  Full advisor summary available on Premium
+                  {t("strategy.advisorPremiumTitle")}
                 </p>
                 <p className="mt-1 text-sm text-amber-800">
-                  Unlock the complete AI-generated guidance tailored to your
-                  profile.
+                  {t("strategy.advisorPremiumBody")}
                 </p>
                 <div className="mt-3">
                   <Button onClick={() => navigate("/pricing")}>
-                    View Pricing
+                    {t("strategy.upgradeNow")}
                   </Button>
                 </div>
               </div>
             )}
           </Card>
 
-          <PremiumSection isPremium={isPremium}>
+          <PremiumSection
+            isPremium={isPremium}
+            buttonText={t("strategy.upgradeNow")}
+            title={t("strategy.unlockFullInsightsTitle")}
+            body={t("strategy.unlockFullInsightsBody")}
+          >
             <>
               <div className="grid gap-6 xl:grid-cols-3">
                 <Card className="p-6">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Forecast
+                    {t("strategy.forecastEyebrow")}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                    Probability
+                    {t("strategy.probabilityTitle")}
                   </h2>
 
                   <div className="mt-5 space-y-4">
                     <MiniMetric
-                      label="Express Entry"
+                      label={t("strategy.expressEntry")}
                       value={expressEntryChance}
                     />
-                    <MiniMetric label="PNP" value={pnpChance} />
-                    <MiniMetric label="12 Months" value={twelveMonthChance} />
+                    <MiniMetric label={t("strategy.pnp")} value={pnpChance} />
+                    <MiniMetric
+                      label={t("strategy.twelveMonths")}
+                      value={twelveMonthChance}
+                    />
                   </div>
                 </Card>
 
                 <Card className="p-6 xl:col-span-2">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Advanced planning
+                    {t("strategy.advancedPlanningEyebrow")}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                    Roadmap
+                    {t("strategy.roadmapTitle")}
                   </h2>
 
                   {roadmap.length > 0 ? (
@@ -700,7 +817,8 @@ export default function StrategyPage() {
                           className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                         >
                           <p className="font-semibold text-slate-900">
-                            Step {index + 1}: {step.title}
+                            {t("strategy.stepLabel", { index: index + 1 })}:{" "}
+                            {step.title}
                           </p>
                           <p className="mt-1 text-sm text-slate-600">
                             {step.reason}
@@ -710,7 +828,7 @@ export default function StrategyPage() {
                     </div>
                   ) : (
                     <p className="mt-4 text-sm text-slate-500">
-                      No roadmap available.
+                      {t("strategy.noRoadmapAvailable")}
                     </p>
                   )}
                 </Card>
@@ -719,10 +837,10 @@ export default function StrategyPage() {
               {provinceRecommendations.length > 0 && (
                 <Card className="p-6">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Regional fit
+                    {t("strategy.regionalFitEyebrow")}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                    Province Recommendations
+                    {t("strategy.provinceRecommendationsTitle")}
                   </h2>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -732,7 +850,7 @@ export default function StrategyPage() {
                         className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                       >
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Rank {index + 1}
+                          {t("strategy.rankLabel", { index: index + 1 })}
                         </p>
                         <p className="mt-2 text-lg font-semibold text-slate-900">
                           {item.province}
@@ -749,10 +867,10 @@ export default function StrategyPage() {
               {improvementScenarios.length > 0 && (
                 <Card className="p-6">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Opportunity modeling
+                    {t("strategy.opportunityModelingEyebrow")}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                    Improvement Scenarios
+                    {t("strategy.improvementScenariosTitle")}
                   </h2>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -762,13 +880,13 @@ export default function StrategyPage() {
                         className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                       >
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Scenario {index + 1}
+                          {t("strategy.scenarioLabel", { index: index + 1 })}
                         </p>
                         <p className="mt-2 text-sm text-slate-900">
                           {item.change}
                         </p>
                         <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Projected CRS
+                          {t("strategy.projectedCrs")}
                         </p>
                         <p className="mt-1 text-2xl font-bold text-blue-900">
                           {item.new_crs}
@@ -782,27 +900,27 @@ export default function StrategyPage() {
               {drawPrediction?.predicted_draw_type && (
                 <Card className="p-6">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Market outlook
+                    {t("strategy.marketOutlookEyebrow")}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                    Draw Outlook
+                    {t("strategy.drawOutlookTitle")}
                   </h2>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-3 xl:grid-cols-4">
                     <MiniMetric
-                      label="Draw Type"
+                      label={t("strategy.drawType")}
                       value={drawPrediction.predicted_draw_type || "—"}
                     />
                     <MiniMetric
-                      label="Likelihood"
+                      label={t("strategy.likelihood")}
                       value={drawPrediction.likelihood || "—"}
                     />
                     <MiniMetric
-                      label="Time Window"
+                      label={t("strategy.timeWindow")}
                       value={drawPrediction.estimated_time_window || "—"}
                     />
                     <MiniMetric
-                      label="Cutoff Range"
+                      label={t("strategy.cutoffRange")}
                       value={
                         typeof drawPrediction.predicted_cutoff_min ===
                           "number" &&
@@ -818,10 +936,10 @@ export default function StrategyPage() {
               {aiStrategy && (
                 <Card className="p-6">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    AI advisor
+                    {t("strategy.aiAdvisorEyebrow")}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                    AI Strategy
+                    {t("strategy.aiStrategyTitle")}
                   </h2>
 
                   <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
@@ -841,15 +959,14 @@ export default function StrategyPage() {
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-blue-900">
-                    Ready to unlock your full strategy?
+                    {t("strategy.readyUnlockTitle")}
                   </p>
                   <p className="mt-1 text-sm text-blue-800">
-                    Upgrade to Premium to access forecasts, province analysis,
-                    improvement scenarios, AI strategy, and report export.
+                    {t("strategy.readyUnlockBody")}
                   </p>
                 </div>
                 <Button onClick={() => navigate("/pricing")}>
-                  Go to Pricing
+                  {t("pricing.pageLabel")}
                 </Button>
               </div>
             </Card>
@@ -860,7 +977,7 @@ export default function StrategyPage() {
   );
 }
 
-function PremiumSection({ isPremium, children }) {
+function PremiumSection({ isPremium, children, title, body, buttonText }) {
   if (isPremium) return children;
 
   return (
@@ -871,26 +988,17 @@ function PremiumSection({ isPremium, children }) {
 
       <div className="absolute inset-0 flex items-center justify-center bg-white/40 p-6 backdrop-blur-[1px]">
         <div className="max-w-md rounded-3xl border border-amber-200 bg-white p-6 text-center shadow-xl">
-          <p className="text-sm font-semibold text-slate-900">
-            Unlock full strategy insights
-          </p>
-          <p className="mt-2 text-sm text-slate-600">
-            Access roadmap, predictions, advanced scenarios, province analysis,
-            and AI-powered guidance.
-          </p>
+          <p className="text-sm font-semibold text-slate-900">{title}</p>
+          <p className="mt-2 text-sm text-slate-600">{body}</p>
           <div className="mt-4">
-            <Button onClick={() => navigateToPricing()}>
-              Upgrade to Premium
+            <Button onClick={() => (window.location.href = "/pricing")}>
+              {buttonText}
             </Button>
           </div>
         </div>
       </div>
     </div>
   );
-}
-
-function navigateToPricing() {
-  window.location.href = "/pricing";
 }
 
 function MetricCard({ label, value, description, locked = false }) {

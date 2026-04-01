@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useMemo, useState, useEffect } from "react";
 import { getCurrentUserLocal, logoutUser } from "../api";
 import Button from "../components/ui/Button";
 
@@ -8,9 +9,46 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
-  const currentUser = getCurrentUserLocal();
+  const [currentUser, setCurrentUser] = useState(getCurrentUserLocal());
+
+  useEffect(() => {
+  const handleUserUpdate = () => {
+    setCurrentUser(getCurrentUserLocal());
+  };
+
+  // Trigger when localStorage changes (cross-tab)
+  window.addEventListener("storage", handleUserUpdate);
+
+  // 🔥 ALSO trigger manually (same tab)
+  window.addEventListener("userUpdated", handleUserUpdate);
+
+  return () => {
+    window.removeEventListener("storage", handleUserUpdate);
+    window.removeEventListener("userUpdated", handleUserUpdate);
+  };
+}, []);
+  const [toolsOpen, setToolsOpen] = useState(false);
+
   const isAgentWorkspace =
     currentUser?.role === "agent" || currentUser?.role === "admin";
+
+  const language = i18n.language === "fr" ? "fr" : "en";
+
+  const displayName = useMemo(() => {
+    const firstName =
+      currentUser?.first_name?.trim() ||
+      currentUser?.profile?.first_name?.trim() ||
+      "";
+
+    const lastName =
+      currentUser?.last_name?.trim() ||
+      currentUser?.profile?.last_name?.trim() ||
+      "";
+
+    if (firstName && lastName) return `${firstName} ${lastName}`;
+    if (firstName) return firstName;
+    return currentUser?.email || t("common.unknown");
+  }, [currentUser, t]);
 
   const primaryNavItems = isAgentWorkspace
     ? [
@@ -18,14 +56,36 @@ export default function Layout({ children }) {
         { label: t("nav.clients"), path: "/clients" },
         { label: t("nav.matters"), path: "/matters" },
         { label: t("nav.strategy"), path: "/strategy" },
-        { label: t("nav.billing"), path: "/billing" },
       ]
     : [
         { label: t("nav.dashboard"), path: "/dashboard" },
         { label: t("layout.myApplication"), path: "/self/application" },
-        { label: t("layout.myDocuments"), path: "/self/documents" },
         { label: t("nav.strategy"), path: "/strategy" },
+        { label: t("layout.myDocuments"), path: "/self/documents" },
+      ];
+
+  const toolItems = isAgentWorkspace
+    ? [
         { label: t("nav.profile"), path: "/profile" },
+        { label: t("nav.billing"), path: "/billing" },
+      ]
+    : [
+        {
+          label:
+            language === "fr"
+              ? "Générateur de documents"
+              : "Document Generator",
+          path: "/documents/generator",
+        },
+        {
+          label:
+            language === "fr"
+              ? "Révision de documents"
+              : "Document Review",
+          path: "/documents/review",
+        },
+        { label: t("nav.profile"), path: "/profile" },
+        { label: t("nav.billing"), path: "/billing" },
       ];
 
   function handleLogout() {
@@ -42,7 +102,15 @@ export default function Layout({ children }) {
     if (path === "/dashboard") {
       return location.pathname === "/dashboard" || location.pathname === "/";
     }
-    return location.pathname === path || location.pathname.startsWith(path + "/");
+    return (
+      location.pathname === path ||
+      location.pathname.startsWith(path + "/")
+    );
+  }
+
+  function goTo(path) {
+    setToolsOpen(false);
+    navigate(path);
   }
 
   return (
@@ -86,6 +154,39 @@ export default function Layout({ children }) {
                   </Link>
                 );
               })}
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setToolsOpen((prev) => !prev)}
+                  className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                    toolItems.some((item) => isActive(item.path))
+                      ? "bg-blue-100 text-blue-900 ring-1 ring-blue-200"
+                      : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  {language === "fr" ? "Outils" : "Tools"} ▾
+                </button>
+
+                {toolsOpen && (
+                  <div className="absolute left-0 top-12 z-50 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                    {toolItems.map((item) => (
+                      <button
+                        key={item.path}
+                        type="button"
+                        onClick={() => goTo(item.path)}
+                        className={`block w-full rounded-xl px-3 py-2 text-left text-sm transition ${
+                          isActive(item.path)
+                            ? "bg-blue-50 text-blue-900"
+                            : "text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </nav>
           </div>
 
@@ -125,13 +226,13 @@ export default function Layout({ children }) {
 
             <div className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 md:flex">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-900 text-xs font-semibold text-white">
-                {(currentUser?.email || "U").slice(0, 1).toUpperCase()}
+                {displayName?.slice(0, 1).toUpperCase()}
               </div>
               <div className="max-w-[160px]">
                 <p className="truncate text-sm font-medium text-slate-900">
-                  {currentUser?.email || t("common.unknown")}
+                  {displayName}
                 </p>
-                <p className="text-xs capitalize text-slate-500">
+                <p className="truncate text-xs capitalize text-slate-500">
                   {currentUser?.role || t("common.unknown")}
                 </p>
               </div>
@@ -150,6 +251,24 @@ export default function Layout({ children }) {
         <div className="border-t border-slate-100 bg-white lg:hidden">
           <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
             {primaryNavItems.map((item) => {
+              const active = isActive(item.path);
+
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium ${
+                    active
+                      ? "bg-blue-100 text-blue-900 ring-1 ring-blue-200"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+
+            {toolItems.map((item) => {
               const active = isActive(item.path);
 
               return (

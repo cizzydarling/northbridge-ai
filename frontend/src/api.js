@@ -1,31 +1,11 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000",
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    "http://127.0.0.1:8000",
 });
-
-/* =========================
-   DISCLOSURE
-========================= */
-
-export const acceptDisclosure = (payload) =>
-  api.post("/disclosures/accept", payload);
-
-export const getLatestDisclosureAcceptance = ({
-  disclosure_type,
-  client_id,
-  matter_id,
-}) =>
-  api.get("/disclosures/latest", {
-    params: {
-      disclosure_type,
-      client_id,
-      matter_id,
-    },
-  });
-
-export const getMyDisclosures = (params = {}) =>
-  api.get("/disclosures/mine", { params });
 
 /* =========================
    TOKEN + USER HELPERS
@@ -42,16 +22,19 @@ export const removeToken = () => {
 };
 
 export const getCurrentUserLocal = () => {
-  const raw = localStorage.getItem("current_user");
+  const raw =
+    localStorage.getItem("current_user") || localStorage.getItem("user");
   return raw ? JSON.parse(raw) : null;
 };
 
 export const setCurrentUserLocal = (user) => {
   localStorage.setItem("current_user", JSON.stringify(user));
+  localStorage.setItem("user", JSON.stringify(user));
 };
 
 export const removeCurrentUserLocal = () => {
   localStorage.removeItem("current_user");
+  localStorage.removeItem("user");
 };
 
 export const logoutUser = () => {
@@ -60,7 +43,11 @@ export const logoutUser = () => {
 };
 
 export const getLanguage = () => {
-  return localStorage.getItem("language") || "en";
+  const raw =
+    localStorage.getItem("i18nextLng") ||
+    localStorage.getItem("language") ||
+    "en";
+  return raw.toLowerCase().startsWith("fr") ? "fr" : "en";
 };
 
 /* =========================
@@ -97,6 +84,29 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+/* =========================
+   DISCLOSURE
+========================= */
+
+export const acceptDisclosure = (payload) =>
+  api.post("/disclosures/accept", payload);
+
+export const getLatestDisclosureAcceptance = ({
+  disclosure_type,
+  client_id,
+  matter_id,
+}) =>
+  api.get("/disclosures/latest", {
+    params: {
+      disclosure_type,
+      client_id,
+      matter_id,
+    },
+  });
+
+export const getMyDisclosures = (params = {}) =>
+  api.get("/disclosures/mine", { params });
 
 /* =========================
    AUTH
@@ -147,8 +157,13 @@ export const createBillingPortalSession = () =>
 ========================= */
 
 export const getMyProfile = () => api.get("/profiles/me");
+
 export const createProfile = (payload) => api.post("/profiles/create", payload);
+
+export const saveMyProfile = (payload) => api.post("/profiles/create", payload);
+
 export const updateMyProfile = (payload) => api.put("/profiles/me", payload);
+
 export const getSelfApplicationContext = () => api.get("/self/application");
 
 export const runSelfEligibility = (payload) =>
@@ -162,11 +177,15 @@ export const runSelfChecklist = (payload) =>
 
 export const runSelfWorkspace = (payload, language = getLanguage()) =>
   api.post("/self/workspace", payload, {
-    params: { language },
+    params: { lang: language },
   });
 
 export const getSavedSelfApplication = () =>
   api.get("/self/application/saved");
+
+/* =========================
+   SELF DOCUMENTS
+========================= */
 
 export const getSelfDocuments = (matterType) =>
   api.get("/self-documents", {
@@ -202,17 +221,17 @@ export const removeSelfDocumentFile = (documentId) =>
 
 export const getMyStrategy = (language = getLanguage()) =>
   api.get("/strategy/me", {
-    params: { language },
+    params: { lang: language },
   });
 
 export const refreshStrategy = (language = getLanguage()) =>
   api.get("/strategy/me", {
-    params: { language },
+    params: { lang: language },
   });
 
 export const downloadStrategyReport = (language = getLanguage()) =>
-  api.get("/strategy/report", {
-    params: { language },
+  api.get("/strategy/me/report", {
+    params: { lang: language },
     responseType: "blob",
     headers: {
       Accept: "application/pdf,text/html,application/json,text/plain",
@@ -242,17 +261,59 @@ export const sendAIMessage = ({
     chat_history,
     language: language === "fr" ? "fr" : "en",
   });
-  
+
+/* =========================
+   AI DOCUMENT GENERATOR
+========================= */
+
+export const generateAIDocument = (payload) =>
+  api.post("/ai/generate-document", payload);
+
+export const downloadAIDocumentDocx = (payload) =>
+  api.post("/ai/generate-document/docx", payload, {
+    responseType: "blob",
+  });
+
+/* =========================
+   DOCUMENT REVIEW AI
+========================= */
+
+export const reviewAIDocument = (payload) =>
+  api.post("/document-review/review", payload);
+
+/* =========================
+   SAVED GENERATED DOCUMENTS
+========================= */
+
+export const getSavedDocuments = () => api.get("/documents");
+
+export const getDocument = (id) => api.get(`/documents/${id}`);
+
+export const createDocument = (payload) => api.post("/documents", payload);
+
+export const updateDocument = (id, payload) =>
+  api.put(`/documents/${id}`, payload);
+
+export const duplicateDocument = (id) =>
+  api.post(`/documents/${id}/duplicate`);
+
+export const deleteDocument = (id) => api.delete(`/documents/${id}`);
+
 /* =========================
    CLIENTS
 ========================= */
 
 export const getClients = () => api.get("/clients/");
+
 export const getClientById = (clientId) => api.get(`/clients/${clientId}`);
+
 export const createClient = (payload) => api.post("/clients/", payload);
+
 export const updateClient = (clientId, payload) =>
   api.put(`/clients/${clientId}`, payload);
+
 export const deleteClient = (clientId) => api.delete(`/clients/${clientId}`);
+
 export const getClientOverview = (clientId) =>
   api.get(`/clients/${clientId}/overview`);
 
@@ -372,7 +433,7 @@ export const downloadSimulationComparisonReport = (clientId, payload) =>
   });
 
 /* =========================
-   CLIENT HELPERS
+   CLIENT MATTERS
 ========================= */
 
 export const getClientMatters = (clientId) =>

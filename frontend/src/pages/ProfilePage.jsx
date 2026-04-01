@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import {
   createProfile,
@@ -8,6 +7,7 @@ import {
   updateMyProfile,
   logoutUser,
   getToken,
+  refreshCurrentUser,
 } from "../api";
 
 import Input from "../components/ui/Input";
@@ -15,6 +15,16 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 
 const defaultForm = {
+  first_name: "",
+  last_name: "",
+  nationality: "",
+  current_country: "",
+  current_city: "",
+  phone_number: "",
+  date_of_birth: "",
+  marital_status: "",
+  preferred_language: "en",
+
   age: 30,
   education: "master",
   language_score: 8,
@@ -29,7 +39,6 @@ const defaultForm = {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
 
   const [form, setForm] = useState(defaultForm);
   const [message, setMessage] = useState("");
@@ -51,16 +60,8 @@ export default function ProfilePage() {
         const data = response.data;
 
         setForm({
-          age: data.age ?? 30,
-          education: data.education ?? "master",
-          language_score: data.language_score ?? 8,
-          experience_years: data.experience_years ?? 5,
-          has_job_offer: data.has_job_offer ?? false,
-          has_canadian_experience: data.has_canadian_experience ?? false,
-          studied_in_canada: data.studied_in_canada ?? false,
-          occupation: data.occupation ?? "",
-          noc_code: data.noc_code ?? "",
-          preferred_province: data.preferred_province ?? "",
+          ...defaultForm,
+          ...data,
         });
 
         setProfileExists(true);
@@ -74,12 +75,7 @@ export default function ProfilePage() {
           navigate("/auth");
           return;
         } else {
-          setMessage(
-            err.response?.data?.detail ||
-              t("profile.loadError", {
-                defaultValue: "Could not load profile.",
-              })
-          );
+          setMessage("Could not load profile.");
         }
       } finally {
         setPageLoading(false);
@@ -87,7 +83,7 @@ export default function ProfilePage() {
     };
 
     fetchProfile();
-  }, [navigate, t]);
+  }, [navigate]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -109,6 +105,15 @@ export default function ProfilePage() {
         age: Number(form.age),
         language_score: Number(form.language_score),
         experience_years: Number(form.experience_years),
+        first_name: form.first_name?.trim() || null,
+        last_name: form.last_name?.trim() || null,
+        nationality: form.nationality?.trim() || null,
+        current_country: form.current_country?.trim() || null,
+        current_city: form.current_city?.trim() || null,
+        phone_number: form.phone_number?.trim() || null,
+        date_of_birth: form.date_of_birth || null,
+        marital_status: form.marital_status || null,
+        preferred_language: form.preferred_language || "en",
         occupation: form.occupation?.trim() || null,
         noc_code: form.noc_code?.trim() || null,
         preferred_province: form.preferred_province || null,
@@ -121,6 +126,23 @@ export default function ProfilePage() {
         setProfileExists(true);
       }
 
+      const currentUser =
+        JSON.parse(localStorage.getItem("current_user") || "null") ||
+        JSON.parse(localStorage.getItem("user") || "null") ||
+        {};
+
+      const patchedUser = {
+        ...currentUser,
+        first_name: payload.first_name,
+        last_name: payload.last_name,
+      };
+
+      localStorage.setItem("current_user", JSON.stringify(patchedUser));
+      localStorage.setItem("user", JSON.stringify(patchedUser));
+
+      window.dispatchEvent(new Event("userUpdated"));
+
+      await refreshCurrentUser();
       navigate("/strategy");
     } catch (err) {
       console.error(err);
@@ -131,12 +153,7 @@ export default function ProfilePage() {
         return;
       }
 
-      setMessage(
-        err.response?.data?.detail ||
-          t("profile.saveError", {
-            defaultValue: "Failed to save profile.",
-          })
-      );
+      setMessage(err.response?.data?.detail || "Failed to save profile.");
     } finally {
       setLoading(false);
     }
@@ -154,27 +171,118 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-8">
-          <p className="text-sm font-semibold">{t("app.name")}</p>
-          <h1 className="text-3xl font-bold">{t("profile.title")}</h1>
-          <p className="text-slate-600">{t("profile.subtitle")}</p>
+      <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Your Profile</h1>
+          <p className="text-slate-600">
+            Complete your profile to improve your immigration strategy and
+            personalize your experience.
+          </p>
         </div>
 
-        <Card className="p-6 space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Card className="space-y-4 p-6">
+            <h2 className="text-xl font-semibold">Personal Information</h2>
+
             <div className="grid gap-4 md:grid-cols-2">
               <Input
-                label={t("profile.age")}
+                name="first_name"
+                label="First Name"
+                value={form.first_name}
+                onChange={handleChange}
+              />
+              <Input
+                name="last_name"
+                label="Last Name"
+                value={form.last_name}
+                onChange={handleChange}
+              />
+
+              <Input
+                name="nationality"
+                label="Nationality"
+                value={form.nationality}
+                onChange={handleChange}
+              />
+              <Input
+                name="current_country"
+                label="Country"
+                value={form.current_country}
+                onChange={handleChange}
+              />
+
+              <Input
+                name="current_city"
+                label="City"
+                value={form.current_city}
+                onChange={handleChange}
+              />
+              <Input
+                name="phone_number"
+                label="Phone"
+                value={form.phone_number}
+                onChange={handleChange}
+              />
+
+              <Input
+                name="date_of_birth"
+                label="Date of Birth"
+                type="date"
+                value={form.date_of_birth}
+                onChange={handleChange}
+              />
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Marital Status
+                </label>
+                <select
+                  name="marital_status"
+                  value={form.marital_status}
+                  onChange={handleChange}
+                  className="input"
+                >
+                  <option value="">Select</option>
+                  <option value="single">Single</option>
+                  <option value="married">Married</option>
+                  <option value="common-law">Common-law</option>
+                  <option value="divorced">Divorced</option>
+                  <option value="widowed">Widowed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Preferred Language
+                </label>
+                <select
+                  name="preferred_language"
+                  value={form.preferred_language}
+                  onChange={handleChange}
+                  className="input"
+                >
+                  <option value="en">English</option>
+                  <option value="fr">French</option>
+                </select>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="space-y-4 p-6">
+            <h2 className="text-xl font-semibold">Immigration Profile</h2>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Input
                 name="age"
                 type="number"
+                label="Age"
                 value={form.age}
                 onChange={handleChange}
               />
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {t("profile.education")}
+                  Education
                 </label>
                 <select
                   name="education"
@@ -191,38 +299,38 @@ export default function ProfilePage() {
               </div>
 
               <Input
-                label={t("profile.languageScore")}
                 name="language_score"
                 type="number"
+                label="Language Score"
                 value={form.language_score}
                 onChange={handleChange}
               />
 
               <Input
-                label={t("profile.experienceYears")}
                 name="experience_years"
                 type="number"
+                label="Experience Years"
                 value={form.experience_years}
                 onChange={handleChange}
               />
 
               <Input
-                label={t("profile.occupation")}
                 name="occupation"
+                label="Occupation"
                 value={form.occupation}
                 onChange={handleChange}
               />
 
               <Input
-                label={t("profile.nocCode")}
                 name="noc_code"
+                label="NOC Code"
                 value={form.noc_code}
                 onChange={handleChange}
               />
 
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {t("profile.province")}
+                  Preferred Province
                 </label>
                 <select
                   name="preferred_province"
@@ -233,31 +341,71 @@ export default function ProfilePage() {
                   <option value="">Select a province</option>
                   <option value="Ontario">Ontario</option>
                   <option value="Quebec">Quebec</option>
+                  <option value="British Columbia">British Columbia</option>
+                  <option value="Alberta">Alberta</option>
+                  <option value="Manitoba">Manitoba</option>
+                  <option value="Saskatchewan">Saskatchewan</option>
+                  <option value="Nova Scotia">Nova Scotia</option>
+                  <option value="New Brunswick">New Brunswick</option>
+                  <option value="Prince Edward Island">
+                    Prince Edward Island
+                  </option>
+                  <option value="Newfoundland and Labrador">
+                    Newfoundland and Labrador
+                  </option>
                 </select>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <Button type="submit" disabled={loading} className="flex-1">
-                {loading ? "Saving..." : "Save Profile"}
-              </Button>
+            <div className="grid gap-3 md:grid-cols-3">
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  name="has_job_offer"
+                  checked={form.has_job_offer}
+                  onChange={handleChange}
+                />
+                Has job offer
+              </label>
 
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={() => navigate("/strategy")}
-              >
-                View Strategy
-              </Button>
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  name="has_canadian_experience"
+                  checked={form.has_canadian_experience}
+                  onChange={handleChange}
+                />
+                Has Canadian experience
+              </label>
+
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  name="studied_in_canada"
+                  checked={form.studied_in_canada}
+                  onChange={handleChange}
+                />
+                Studied in Canada
+              </label>
             </div>
+          </Card>
 
-            {message && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-600">
-                {message}
-              </div>
-            )}
-          </form>
-        </Card>
+          <div className="flex gap-4">
+            <Button type="submit" className="flex-1" disabled={loading}>
+              {loading ? "Saving..." : "Save Profile"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => navigate("/strategy")}
+            >
+              Continue
+            </Button>
+          </div>
+
+          {message && <div className="text-red-500">{message}</div>}
+        </form>
       </div>
     </Layout>
   );

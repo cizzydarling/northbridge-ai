@@ -1,7 +1,8 @@
+import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import "./i18n";
-import { getCurrentUserLocal } from "./api";
+import { getCurrentUserLocal, getMyProfile, logoutUser } from "./api";
 
 // Public
 import LandingPage from "./pages/LandingPage";
@@ -16,6 +17,9 @@ import ChatPage from "./pages/ChatPage";
 import SelfApplicationPage from "./pages/SelfApplicationPage";
 import SelfDocumentsPage from "./pages/SelfDocumentsPage";
 import DisclosureAcceptancePage from "./pages/DisclosureAcceptancePage";
+import DocumentGeneratorPage from "./pages/DocumentGeneratorPage";
+import DocumentReviewPage from "./pages/DocumentReviewPage";
+import OnboardingPage from "./pages/OnboardingPage";
 
 // Client flow
 import ClientsPage from "./pages/ClientsPage";
@@ -26,9 +30,6 @@ import ClientSimulationPage from "./pages/ClientSimulationPage";
 import ClientDocumentsPage from "./pages/ClientDocumentsPage";
 import ClientMattersPage from "./pages/ClientMattersPage";
 
-/**
- * Public-only routes
- */
 function PublicOnlyRoute({ children }) {
   const user = getCurrentUserLocal();
 
@@ -42,9 +43,6 @@ function PublicOnlyRoute({ children }) {
   return children;
 }
 
-/**
- * Protected routes
- */
 function ProtectedRoute({ children }) {
   const user = getCurrentUserLocal();
   const location = useLocation();
@@ -54,6 +52,91 @@ function ProtectedRoute({ children }) {
   }
 
   return children;
+}
+
+function OnboardingGate({ children }) {
+  const user = getCurrentUserLocal();
+  const location = useLocation();
+
+  const [loading, setLoading] = useState(true);
+  const [hasProfile, setHasProfile] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkProfile() {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      // Agents skip self onboarding
+      if (user.role === "agent" || user.plan === "agent_pro") {
+        if (mounted) {
+          setHasProfile(true);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        await getMyProfile();
+        if (mounted) {
+          setHasProfile(true);
+        }
+      } catch (err) {
+        if (err?.response?.status === 404) {
+          if (mounted) {
+            setHasProfile(false);
+          }
+        } else if (err?.response?.status === 401) {
+          logoutUser();
+        } else {
+          if (mounted) {
+            setHasProfile(false);
+          }
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    checkProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user, location.pathname]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-slate-600">Loading...</p>
+      </div>
+    );
+  }
+
+  if (user?.role !== "agent" && user?.plan !== "agent_pro") {
+    if (!hasProfile && location.pathname !== "/onboarding") {
+      return <Navigate to="/onboarding" replace />;
+    }
+
+    if (hasProfile && location.pathname === "/onboarding") {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  return children;
+}
+
+function ProtectedAppRoute({ children }) {
+  return (
+    <ProtectedRoute>
+      <OnboardingGate>{children}</OnboardingGate>
+    </ProtectedRoute>
+  );
 }
 
 export default function App() {
@@ -87,67 +170,95 @@ export default function App() {
         }
       />
 
+      {/* ONBOARDING */}
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedAppRoute>
+            <OnboardingPage />
+          </ProtectedAppRoute>
+        }
+      />
+
       {/* SELF FLOW */}
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <SelfDashboardPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/profile"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <ProfilePage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/strategy"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <StrategyPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/chat"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <ChatPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/self/application"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <SelfApplicationPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/self/documents"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <SelfDocumentsPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/documents/generator"
+        element={
+          <ProtectedAppRoute>
+            <DocumentGeneratorPage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/documents/review"
+        element={
+          <ProtectedAppRoute>
+            <DocumentReviewPage />
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/legal/disclosure"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <DisclosureAcceptancePage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
@@ -155,67 +266,66 @@ export default function App() {
       <Route
         path="/clients"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <ClientsPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/clients/:clientId"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <ClientOverviewPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/clients/:clientId/profile"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <ClientProfilePage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/clients/:clientId/strategy"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <ClientStrategyPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/clients/:clientId/simulations"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <ClientSimulationPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/clients/:clientId/documents"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <ClientDocumentsPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
       <Route
         path="/clients/:clientId/matters"
         element={
-          <ProtectedRoute>
+          <ProtectedAppRoute>
             <ClientMattersPage />
-          </ProtectedRoute>
+          </ProtectedAppRoute>
         }
       />
 
-      {/* FALLBACK */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

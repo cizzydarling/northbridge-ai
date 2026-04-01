@@ -4,10 +4,12 @@ import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import AICopilotCard from "../components/AICopilotCard";
 
 export default function SelfDashboardPage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language === "fr" ? "fr" : "en";
 
   const quickActions = useMemo(
     () => [
@@ -203,6 +205,30 @@ export default function SelfDashboardPage() {
             </div>
           </div>
         </section>
+
+        <AICopilotCard
+          title={
+            language === "fr"
+              ? "Copilote IA du tableau de bord"
+              : "Dashboard AI Copilot"
+          }
+          description={
+            language === "fr"
+              ? "Obtenez une recommandation claire sur votre meilleure prochaine action."
+              : "Get a clear recommendation on your best next action."
+          }
+          buttonLabel={
+            language === "fr"
+              ? "Que dois-je faire maintenant ?"
+              : "What should I do next?"
+          }
+          language={language}
+          prompt={
+            language === "fr"
+              ? "À partir de mon profil et de ma stratégie, quelle est ma meilleure prochaine action maintenant ? Retournez une réponse claire et 3 suggested_next_actions courtes avec verbes d’action."
+              : "Based on my profile and strategy, what is my best next action right now? Return a clear answer and 3 short suggested_next_actions with action verbs."
+          }
+        />
 
         <section>
           <div className="mb-5">

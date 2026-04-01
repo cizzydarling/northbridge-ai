@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import AICopilotCard from "../components/AICopilotCard";
 import {
   getSavedSelfApplication,
   getSelfDocuments,
@@ -14,7 +15,8 @@ import {
 } from "../api";
 
 export default function SelfDocumentsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language === "fr" ? "fr" : "en";
   const apiBaseUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
   const [loading, setLoading] = useState(true);
@@ -60,7 +62,10 @@ export default function SelfDocumentsPage() {
     }
   }
 
-  async function syncDocumentsFromApplication(savedApplication, showMessage = false) {
+  async function syncDocumentsFromApplication(
+    savedApplication,
+    showMessage = false
+  ) {
     try {
       setSyncing(true);
       setError("");
@@ -294,6 +299,30 @@ export default function SelfDocumentsPage() {
           </div>
         </section>
 
+        <AICopilotCard
+          title={
+            language === "fr"
+              ? "Copilote IA des documents"
+              : "Documents AI Copilot"
+          }
+          description={
+            language === "fr"
+              ? "Obtenez une recommandation claire sur le document à préparer en premier."
+              : "Get a clear recommendation on which document to prepare first."
+          }
+          buttonLabel={
+            language === "fr"
+              ? "Quel document préparer d’abord ?"
+              : "Which document should I prepare first?"
+          }
+          language={language}
+          prompt={
+            language === "fr"
+              ? "En tenant compte de mon profil, de ma stratégie et de mes documents, quel document dois-je préparer en premier ? Retournez aussi 3 suggested_next_actions courtes et concrètes."
+              : "Taking into account my profile, strategy, and documents, which document should I prepare first? Also return 3 short and concrete suggested_next_actions."
+          }
+        />
+
         {message ? (
           <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
             {message}
@@ -308,7 +337,9 @@ export default function SelfDocumentsPage() {
 
         {!application ? (
           <Card variant="soft" padding="lg">
-            <p className="text-sm text-slate-700">{t("selfDocuments.noApplication")}</p>
+            <p className="text-sm text-slate-700">
+              {t("selfDocuments.noApplication")}
+            </p>
           </Card>
         ) : (
           <>
@@ -357,12 +388,16 @@ export default function SelfDocumentsPage() {
 
               {documents.length === 0 ? (
                 <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                  <p className="text-sm text-slate-600">{t("selfDocuments.empty")}</p>
+                  <p className="text-sm text-slate-600">
+                    {t("selfDocuments.empty")}
+                  </p>
                 </div>
               ) : (
                 <div className="mt-6 space-y-4">
                   {documents.map((doc) => {
-                    const fileUrl = buildFileUrl(doc.file_url || doc.file_path || "");
+                    const fileUrl = buildFileUrl(
+                      doc.file_url || doc.file_path || ""
+                    );
                     const isUploading = uploadingDocumentId === doc.id;
                     const isToggling = togglingDocumentId === doc.id;
                     const isRemovingFile = removingFileDocumentId === doc.id;
@@ -377,7 +412,8 @@ export default function SelfDocumentsPage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="text-base font-semibold text-slate-900">
-                                {doc.document_name || t("selfDocuments.documentFallback")}
+                                {doc.document_name ||
+                                  t("selfDocuments.documentFallback")}
                               </h3>
 
                               <PriorityBadge priority={doc.priority} t={t} />
@@ -415,7 +451,9 @@ export default function SelfDocumentsPage() {
                               {doc.updated_at ? (
                                 <div>
                                   {t("selfDocuments.savedAt", {
-                                    date: new Date(doc.updated_at).toLocaleString(),
+                                    date: new Date(
+                                      doc.updated_at
+                                    ).toLocaleString(),
                                   })}
                                 </div>
                               ) : null}
@@ -501,8 +539,7 @@ function MetricCard({ label, value }) {
 function PriorityBadge({ priority, t }) {
   const normalized = String(priority || "").toLowerCase();
 
-  let className =
-    "border-blue-200 bg-blue-50 text-blue-700";
+  let className = "border-blue-200 bg-blue-50 text-blue-700";
   let text = t("selfDocuments.priority.info");
 
   if (normalized === "required" || normalized === "obligatoire") {
