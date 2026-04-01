@@ -16,10 +16,7 @@ from app.schemas.document_generator_schema import (
     DocumentGeneratorRequest,
     DocumentGeneratorResponse,
 )
-
-# ✅ NEW: Orchestrator
 from app.services.ai_orchestrator import ask_self_user_copilot
-
 from app.services.decision_engine import build_user_decision_context
 from app.services.document_generator_service import (
     document_filename,
@@ -64,9 +61,6 @@ def _build_document_preview(result: dict, language: str) -> dict:
     }
 
 
-# =========================
-# ✅ UPDATED CHAT (ORCHESTRATOR)
-# =========================
 @router.post("/chat", response_model=AIChatResponse)
 def chat_with_ai(
     payload: AIChatRequest,
@@ -82,7 +76,7 @@ def chat_with_ai(
             message=payload.message,
             language=language,
             chat_history=payload.chat_history,
-            fail_silently=True,  # safer for production
+            fail_silently=True,
         )
 
         return AIChatResponse(
@@ -100,9 +94,6 @@ def chat_with_ai(
         raise HTTPException(status_code=500, detail="AI service error")
 
 
-# =========================
-# DOCUMENT GENERATOR (UNCHANGED)
-# =========================
 @router.post("/generate-document", response_model=DocumentGeneratorResponse)
 def generate_document(
     payload: DocumentGeneratorRequest,
@@ -169,9 +160,6 @@ def generate_document(
     return _build_document_preview(result, language)
 
 
-# =========================
-# DOCX DOWNLOAD (UNCHANGED)
-# =========================
 @router.post("/generate-document/docx")
 def generate_document_docx(
     payload: DocumentGeneratorRequest,
