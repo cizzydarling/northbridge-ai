@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import AICopilotCard from "../components/AICopilotCard";
 import {
   getMyProfile,
   getSavedSelfApplication,
@@ -78,6 +79,13 @@ export default function SelfApplicationPage() {
     setIntake((prev) => ({
       ...prev,
       [field]: value,
+    }));
+  }
+
+  function applyIntakePreset(entries) {
+    setIntake((prev) => ({
+      ...prev,
+      ...entries,
     }));
   }
 
@@ -166,6 +174,188 @@ export default function SelfApplicationPage() {
     decision?.upgrade_reason || t("decision.upgradeBody");
   const decisionIsPremium = Boolean(decision?.is_premium);
 
+  const pageText = useMemo(() => {
+    if (language === "fr") {
+      return {
+        brand: t("app.name"),
+        title: t("layout.myApplication"),
+        subtitle: t("selfApplication.subtitle"),
+        inputEyebrow: t("selfApplication.intakeTitle"),
+        inputHelp: t("selfApplication.intakeHelp"),
+        applicationType: t("selfApplication.applicationType"),
+        quickFill: "Remplissage rapide",
+        quickFillHelp:
+          "Utilisez ces raccourcis pour préremplir quelques éléments courants, puis ajustez selon votre situation réelle.",
+        guidanceTitle: "Conseils pratiques",
+        guidanceBody:
+          "Générez votre guidance après avoir ajouté les informations les plus importantes. Ensuite, utilisez la stratégie, les documents et le générateur pour avancer plus vite.",
+        openStrategy: "Voir ma stratégie",
+        openDocuments: "Voir mes documents",
+        openGenerator: "Ouvrir le générateur",
+        decisionCopilotTitle: "Copilote IA de décision",
+        decisionCopilotDesc:
+          "Comprenez clairement votre meilleure prochaine action à partir de votre guidance actuelle.",
+        decisionCopilotButton: "Expliquer ma prochaine action",
+        intakeCopilotTitle: "Copilote IA de demande",
+        intakeCopilotDesc:
+          "Comprenez ce qu’il manque, ce qu’il faut clarifier, et comment renforcer votre dossier.",
+        intakeCopilotButton: "Que dois-je compléter ?",
+      };
+    }
+
+    return {
+      brand: t("app.name"),
+      title: t("layout.myApplication"),
+      subtitle: t("selfApplication.subtitle"),
+      inputEyebrow: t("selfApplication.intakeTitle"),
+      inputHelp: t("selfApplication.intakeHelp"),
+      applicationType: t("selfApplication.applicationType"),
+      quickFill: "Quick fill",
+      quickFillHelp:
+        "Use these shortcuts to prefill a few common details, then adjust them to match your real situation.",
+      guidanceTitle: "Practical guidance",
+      guidanceBody:
+        "Generate your guidance after adding the most important details. Then use strategy, documents, and the generator to move faster.",
+      openStrategy: "View my strategy",
+      openDocuments: "View my documents",
+      openGenerator: "Open generator",
+      decisionCopilotTitle: "Decision AI Copilot",
+      decisionCopilotDesc:
+        "Understand your clearest next action based on your current guidance.",
+      decisionCopilotButton: "Explain my next action",
+      intakeCopilotTitle: "Application AI Copilot",
+      intakeCopilotDesc:
+        "Understand what is missing, what needs clarification, and how to strengthen your file.",
+      intakeCopilotButton: "What should I complete?",
+    };
+  }, [language, t]);
+
+  const quickFillPresets = useMemo(() => {
+    if (matterType === "study_permit") {
+      return language === "fr"
+        ? [
+            {
+              label: "Cas solide d’études",
+              values: {
+                proof_of_funds_available: true,
+                sds_eligible: true,
+                previous_refusal: false,
+                accompanying_family: false,
+                passport_valid: true,
+              },
+            },
+            {
+              label: "Avec famille accompagnante",
+              values: {
+                accompanying_family: true,
+                proof_of_funds_available: true,
+                passport_valid: true,
+              },
+            },
+          ]
+        : [
+            {
+              label: "Strong study case",
+              values: {
+                proof_of_funds_available: true,
+                sds_eligible: true,
+                previous_refusal: false,
+                accompanying_family: false,
+                passport_valid: true,
+              },
+            },
+            {
+              label: "With accompanying family",
+              values: {
+                accompanying_family: true,
+                proof_of_funds_available: true,
+                passport_valid: true,
+              },
+            },
+          ];
+    }
+
+    if (matterType === "work_permit") {
+      return language === "fr"
+        ? [
+            {
+              label: "Permis avec employeur",
+              values: {
+                lmia_available: true,
+                accompanying_family: false,
+              },
+            },
+            {
+              label: "Permis avec famille",
+              values: {
+                accompanying_family: true,
+              },
+            },
+          ]
+        : [
+            {
+              label: "Employer-backed permit",
+              values: {
+                lmia_available: true,
+                accompanying_family: false,
+              },
+            },
+            {
+              label: "Permit with family",
+              values: {
+                accompanying_family: true,
+              },
+            },
+          ];
+    }
+
+    if (matterType === "spousal_sponsorship") {
+      return language === "fr"
+        ? [
+            {
+              label: "Dossier relation stable",
+              values: {
+                cohabiting: true,
+                dependent_children: false,
+                previous_marriage_or_sponsorship: false,
+                police_certificates_ready: true,
+                medicals_ready: true,
+              },
+            },
+            {
+              label: "Avec enfants à charge",
+              values: {
+                dependent_children: true,
+                police_certificates_ready: true,
+                medicals_ready: true,
+              },
+            },
+          ]
+        : [
+            {
+              label: "Stable relationship case",
+              values: {
+                cohabiting: true,
+                dependent_children: false,
+                previous_marriage_or_sponsorship: false,
+                police_certificates_ready: true,
+                medicals_ready: true,
+              },
+            },
+            {
+              label: "With dependent children",
+              values: {
+                dependent_children: true,
+                police_certificates_ready: true,
+                medicals_ready: true,
+              },
+            },
+          ];
+    }
+
+    return [];
+  }, [language, matterType]);
+
   if (loading) {
     return (
       <Layout>
@@ -185,14 +375,43 @@ export default function SelfApplicationPage() {
       )}
 
       <div className="mb-8">
-        <p className="text-sm font-semibold text-blue-600">{t("app.name")}</p>
+        <p className="text-sm font-semibold text-blue-600">{pageText.brand}</p>
         <h1 className="mt-1 text-3xl font-bold text-slate-900">
-          {t("layout.myApplication")}
+          {pageText.title}
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600">
-          {t("selfApplication.subtitle")}
+          {pageText.subtitle}
         </p>
       </div>
+
+      <AICopilotCard
+        title={pageText.intakeCopilotTitle}
+        description={pageText.intakeCopilotDesc}
+        buttonLabel={pageText.intakeCopilotButton}
+        language={language}
+        prompt={
+          language === "fr"
+            ? `Agis comme un copilote de demande d’immigration.
+
+Je prépare actuellement ce type de demande: ${matterLabel}.
+
+Explique:
+1. les informations les plus importantes à compléter
+2. les risques ou zones floues les plus fréquents
+3. les documents ou preuves à préparer tôt
+4. retourne 3 suggested_next_actions courtes et concrètes`
+            : `Act as an immigration application copilot.
+
+I am currently preparing this application type: ${matterLabel}.
+
+Explain:
+1. the most important information I should complete
+2. the most common risks or unclear areas
+3. the documents or evidence I should prepare early
+4. return 3 short concrete suggested_next_actions`
+        }
+        className="mb-6"
+      />
 
       {!profile && (
         <Card className="mb-6 border border-amber-200 bg-amber-50 p-6">
@@ -206,148 +425,173 @@ export default function SelfApplicationPage() {
       )}
 
       {decision && (
-        <Card className="mb-6 border border-blue-200 bg-blue-50 p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-700">
-                  {t("decision.title")}
-                </p>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    decisionIsPremium
-                      ? "border border-green-200 bg-green-50 text-green-700"
-                      : "border border-amber-200 bg-amber-50 text-amber-700"
-                  }`}
-                >
-                  {decisionIsPremium
-                    ? t("decision.premiumBadge")
-                    : t("decision.previewBadge")}
-                </span>
-              </div>
+        <>
+          <Card className="mb-6 border border-blue-200 bg-blue-50 p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-700">
+                    {t("decision.title")}
+                  </p>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      decisionIsPremium
+                        ? "border border-green-200 bg-green-50 text-green-700"
+                        : "border border-amber-200 bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {decisionIsPremium
+                      ? t("decision.premiumBadge")
+                      : t("decision.previewBadge")}
+                  </span>
+                </div>
 
-              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-                {decision.priority_label || t("decision.nextBestMove")}
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
-                {decision.priority_reason}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {decision.readiness && (
-                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                  {t("selfApplication.readinessLabel")}: {decision.readiness}
-                </span>
-              )}
-              {decision.confidence_label && (
-                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                  {t("decision.confidence")}: {decision.confidence_label}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {decision.primary_recommendation && (
-            <div className="mt-5 rounded-2xl border border-blue-200 bg-white p-4">
-              <p className="text-sm font-semibold text-slate-900">
-                {t("decision.primaryRecommendation")}
-              </p>
-              <p className="mt-2 text-sm text-slate-700">
-                {decision.primary_recommendation}
-              </p>
-            </div>
-          )}
-
-          <div className="mt-5 grid gap-6 lg:grid-cols-2">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {t("decision.recommendedActions")}
-              </p>
-              {decisionActions.length > 0 ? (
-                <ul className="mt-3 space-y-2">
-                  {decisionActions.map((item, index) => (
-                    <li
-                      key={index}
-                      className={`rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 ${
-                        decisionLocked && index > 0 ? "blur-[2px] select-none" : ""
-                      }`}
-                    >
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-3 text-sm text-slate-500">
-                  {t("decision.noActions")}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {t("decision.topPathways")}
-              </p>
-              {decisionPathways.length > 0 ? (
-                <ul className="mt-3 space-y-2">
-                  {decisionPathways.map((item, index) => (
-                    <li
-                      key={index}
-                      className={`rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 ${
-                        decisionLocked && index > 0 ? "blur-[2px] select-none" : ""
-                      }`}
-                    >
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-3 text-sm text-slate-500">
-                  {t("decision.noPathways")}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {(decision.missing_fields_count > 0 ||
-            decision.remaining_required_documents > 0) && (
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t("decision.missingFields")}
-                </p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">
-                  {decision.missing_fields_count ?? 0}
+                <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                  {decision.priority_label || t("decision.nextBestMove")}
+                </h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                  {decision.priority_reason}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t("decision.remainingDocuments")}
-                </p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">
-                  {decision.remaining_required_documents ?? 0}
-                </p>
+              <div className="flex flex-wrap gap-2">
+                {decision.readiness && (
+                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                    {t("selfApplication.readinessLabel")}: {decision.readiness}
+                  </span>
+                )}
+                {decision.confidence_label && (
+                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                    {t("decision.confidence")}: {decision.confidence_label}
+                  </span>
+                )}
               </div>
             </div>
-          )}
 
-          {decisionLocked && (
-            <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5">
-              <p className="text-sm font-semibold text-amber-900">
-                {t("decision.upgradeTitle")}
-              </p>
-              <p className="mt-2 text-sm text-amber-800">
-                {decisionUpgradeReason}
-              </p>
-              <div className="mt-4">
-                <Button onClick={() => navigate("/pricing")}>
-                  {t("decision.upgradeButton")}
-                </Button>
+            {decision.primary_recommendation && (
+              <div className="mt-5 rounded-2xl border border-blue-200 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-900">
+                  {t("decision.primaryRecommendation")}
+                </p>
+                <p className="mt-2 text-sm text-slate-700">
+                  {decision.primary_recommendation}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-5 grid gap-6 lg:grid-cols-2">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {t("decision.recommendedActions")}
+                </p>
+                {decisionActions.length > 0 ? (
+                  <ul className="mt-3 space-y-2">
+                    {decisionActions.map((item, index) => (
+                      <li
+                        key={index}
+                        className={`rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 ${
+                          decisionLocked && index > 0 ? "blur-[2px] select-none" : ""
+                        }`}
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-500">
+                    {t("decision.noActions")}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {t("decision.topPathways")}
+                </p>
+                {decisionPathways.length > 0 ? (
+                  <ul className="mt-3 space-y-2">
+                    {decisionPathways.map((item, index) => (
+                      <li
+                        key={index}
+                        className={`rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 ${
+                          decisionLocked && index > 0 ? "blur-[2px] select-none" : ""
+                        }`}
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-slate-500">
+                    {t("decision.noPathways")}
+                  </p>
+                )}
               </div>
             </div>
-          )}
-        </Card>
+
+            {(decision.missing_fields_count > 0 ||
+              decision.remaining_required_documents > 0) && (
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {t("decision.missingFields")}
+                  </p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {decision.missing_fields_count ?? 0}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {t("decision.remainingDocuments")}
+                  </p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {decision.remaining_required_documents ?? 0}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {decisionLocked && (
+              <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5">
+                <p className="text-sm font-semibold text-amber-900">
+                  {t("decision.upgradeTitle")}
+                </p>
+                <p className="mt-2 text-sm text-amber-800">
+                  {decisionUpgradeReason}
+                </p>
+                <div className="mt-4">
+                  <Button onClick={() => navigate("/pricing")}>
+                    {t("decision.upgradeButton")}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <AICopilotCard
+            title={pageText.decisionCopilotTitle}
+            description={pageText.decisionCopilotDesc}
+            buttonLabel={pageText.decisionCopilotButton}
+            language={language}
+            prompt={
+              language === "fr"
+                ? `À partir de ma guidance actuelle pour ${matterLabel}, explique clairement:
+
+1. pourquoi cette action est prioritaire
+2. ce qui bloque le plus mon dossier
+3. ce que je devrais faire ensuite
+4. retourne 3 suggested_next_actions courtes liées à des actions concrètes`
+                : `Based on my current guidance for ${matterLabel}, clearly explain:
+
+1. why this action is prioritized
+2. what is blocking my file the most
+3. what I should do next
+4. return 3 short suggested_next_actions tied to concrete actions`
+            }
+            className="mb-6"
+          />
+        </>
       )}
 
       {frenchStrategicValue !== "low" && (
@@ -408,285 +652,337 @@ export default function SelfApplicationPage() {
       )}
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Card className="p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-            {t("selfApplication.intakeTitle")}
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-900">
-            {matterLabel}
-          </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            {t("selfApplication.intakeHelp")}
-          </p>
+        <div className="space-y-6">
+          <Card className="p-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+              {pageText.inputEyebrow}
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-900">
+              {matterLabel}
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              {pageText.inputHelp}
+            </p>
 
-          <div className="mt-5 space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                {t("selfApplication.applicationType")}
-              </label>
-              <select
-                value={matterType}
-                onChange={(e) => setMatterType(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
-              >
-                {MATTER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {t(option.labelKey)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {matterType === "study_permit" && (
-              <>
-                <InputField
-                  label={t("selfApplication.fields.schoolName")}
-                  value={intake.school_name || ""}
-                  onChange={(value) => updateIntakeField("school_name", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.dliName")}
-                  value={intake.dli_name || ""}
-                  onChange={(value) => updateIntakeField("dli_name", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.programName")}
-                  value={intake.program_name || ""}
-                  onChange={(value) => updateIntakeField("program_name", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.intakeTerm")}
-                  value={intake.intake_term || ""}
-                  onChange={(value) => updateIntakeField("intake_term", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.tuitionAmount")}
-                  value={intake.tuition_amount || ""}
-                  onChange={(value) => updateIntakeField("tuition_amount", value)}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.proofOfFunds")}
-                  value={Boolean(intake.proof_of_funds_available)}
-                  onChange={(value) =>
-                    updateIntakeField("proof_of_funds_available", value)
-                  }
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.sdsEligible")}
-                  value={Boolean(intake.sds_eligible)}
-                  onChange={(value) => updateIntakeField("sds_eligible", value)}
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.previousRefusal")}
-                  value={Boolean(intake.previous_refusal)}
-                  onChange={(value) => updateIntakeField("previous_refusal", value)}
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.accompanyingFamily")}
-                  value={Boolean(intake.accompanying_family)}
-                  onChange={(value) =>
-                    updateIntakeField("accompanying_family", value)
-                  }
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.passportValid")}
-                  value={Boolean(intake.passport_valid)}
-                  onChange={(value) => updateIntakeField("passport_valid", value)}
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <TextAreaField
-                  label={t("selfApplication.fields.gapExplanation")}
-                  value={intake.gap_in_studies_explanation || ""}
-                  onChange={(value) =>
-                    updateIntakeField("gap_in_studies_explanation", value)
-                  }
-                />
-              </>
-            )}
-
-            {matterType === "work_permit" && (
-              <>
-                <InputField
-                  label={t("selfApplication.fields.permitType")}
-                  value={intake.permit_type || ""}
-                  onChange={(value) => updateIntakeField("permit_type", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.employerName")}
-                  value={intake.employer_name || ""}
-                  onChange={(value) => updateIntakeField("employer_name", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.jobTitle")}
-                  value={intake.job_title || ""}
-                  onChange={(value) => updateIntakeField("job_title", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.nocCode")}
-                  value={intake.noc_code || ""}
-                  onChange={(value) => updateIntakeField("noc_code", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.wage")}
-                  value={intake.wage || ""}
-                  onChange={(value) => updateIntakeField("wage", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.provinceOfWork")}
-                  value={intake.province_of_work || ""}
-                  onChange={(value) =>
-                    updateIntakeField("province_of_work", value)
-                  }
-                />
-                <InputField
-                  label={t("selfApplication.fields.openWorkPermitBasis")}
-                  value={intake.open_work_permit_basis || ""}
-                  onChange={(value) =>
-                    updateIntakeField("open_work_permit_basis", value)
-                  }
-                />
-                <InputField
-                  label={t("selfApplication.fields.currentStatusInCanada")}
-                  value={intake.current_status_in_canada || ""}
-                  onChange={(value) =>
-                    updateIntakeField("current_status_in_canada", value)
-                  }
-                />
-                <InputField
-                  label={t("selfApplication.fields.expiresOn")}
-                  value={intake.expires_on || ""}
-                  onChange={(value) => updateIntakeField("expires_on", value)}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.lmiaAvailable")}
-                  value={Boolean(intake.lmia_available)}
-                  onChange={(value) => updateIntakeField("lmia_available", value)}
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.accompanyingFamily")}
-                  value={Boolean(intake.accompanying_family)}
-                  onChange={(value) =>
-                    updateIntakeField("accompanying_family", value)
-                  }
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-              </>
-            )}
-
-            {matterType === "spousal_sponsorship" && (
-              <>
-                <InputField
-                  label={t("selfApplication.fields.sponsorStatus")}
-                  value={intake.sponsor_status || ""}
-                  onChange={(value) => updateIntakeField("sponsor_status", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.relationshipType")}
-                  value={intake.relationship_type || ""}
-                  onChange={(value) =>
-                    updateIntakeField("relationship_type", value)
-                  }
-                />
-                <InputField
-                  label={t("selfApplication.fields.relationshipStartDate")}
-                  value={intake.relationship_start_date || ""}
-                  onChange={(value) =>
-                    updateIntakeField("relationship_start_date", value)
-                  }
-                />
-                <InputField
-                  label={t("selfApplication.fields.marriageDate")}
-                  value={intake.marriage_date || ""}
-                  onChange={(value) => updateIntakeField("marriage_date", value)}
-                />
-                <InputField
-                  label={t("selfApplication.fields.principalApplicantCountry")}
-                  value={intake.principal_applicant_country || ""}
-                  onChange={(value) =>
-                    updateIntakeField("principal_applicant_country", value)
-                  }
-                />
-                <TextAreaField
-                  label={t("selfApplication.fields.proofOfRelationshipNotes")}
-                  value={intake.proof_of_relationship_notes || ""}
-                  onChange={(value) =>
-                    updateIntakeField("proof_of_relationship_notes", value)
-                  }
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.cohabiting")}
-                  value={Boolean(intake.cohabiting)}
-                  onChange={(value) => updateIntakeField("cohabiting", value)}
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.dependentChildren")}
-                  value={Boolean(intake.dependent_children)}
-                  onChange={(value) =>
-                    updateIntakeField("dependent_children", value)
-                  }
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.previousMarriageOrSponsorship")}
-                  value={Boolean(intake.previous_marriage_or_sponsorship)}
-                  onChange={(value) =>
-                    updateIntakeField("previous_marriage_or_sponsorship", value)
-                  }
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.policeCertificatesReady")}
-                  value={Boolean(intake.police_certificates_ready)}
-                  onChange={(value) =>
-                    updateIntakeField("police_certificates_ready", value)
-                  }
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-                <ToggleField
-                  label={t("selfApplication.fields.medicalsReady")}
-                  value={Boolean(intake.medicals_ready)}
-                  onChange={(value) => updateIntakeField("medicals_ready", value)}
-                  yesLabel={t("common.yes")}
-                  noLabel={t("common.no")}
-                />
-              </>
-            )}
-
-            {matterType === "permanent_residence" && (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-blue-900">
-                  {t("selfApplication.prNoticeTitle")}
+            {quickFillPresets.length > 0 && (
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900">
+                  {pageText.quickFill}
                 </p>
-                <p className="mt-2 text-sm leading-6 text-blue-800">
-                  {t("selfApplication.prNoticeBody")}
+                <p className="mt-2 text-sm text-slate-600">
+                  {pageText.quickFillHelp}
                 </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {quickFillPresets.map((preset, index) => (
+                    <button
+                      key={`${preset.label}-${index}`}
+                      type="button"
+                      onClick={() => applyIntakePreset(preset.values)}
+                      className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div className="pt-2">
-              <Button onClick={handleGenerateWorkspace} disabled={running}>
-                {running ? t("common.loading") : t("selfApplication.generateGuidance")}
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  {pageText.applicationType}
+                </label>
+                <select
+                  value={matterType}
+                  onChange={(e) => setMatterType(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                >
+                  {MATTER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {t(option.labelKey)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {matterType === "study_permit" && (
+                <>
+                  <InputField
+                    label={t("selfApplication.fields.schoolName")}
+                    value={intake.school_name || ""}
+                    onChange={(value) => updateIntakeField("school_name", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.dliName")}
+                    value={intake.dli_name || ""}
+                    onChange={(value) => updateIntakeField("dli_name", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.programName")}
+                    value={intake.program_name || ""}
+                    onChange={(value) => updateIntakeField("program_name", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.intakeTerm")}
+                    value={intake.intake_term || ""}
+                    onChange={(value) => updateIntakeField("intake_term", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.tuitionAmount")}
+                    value={intake.tuition_amount || ""}
+                    onChange={(value) => updateIntakeField("tuition_amount", value)}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.proofOfFunds")}
+                    value={Boolean(intake.proof_of_funds_available)}
+                    onChange={(value) =>
+                      updateIntakeField("proof_of_funds_available", value)
+                    }
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.sdsEligible")}
+                    value={Boolean(intake.sds_eligible)}
+                    onChange={(value) => updateIntakeField("sds_eligible", value)}
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.previousRefusal")}
+                    value={Boolean(intake.previous_refusal)}
+                    onChange={(value) => updateIntakeField("previous_refusal", value)}
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.accompanyingFamily")}
+                    value={Boolean(intake.accompanying_family)}
+                    onChange={(value) =>
+                      updateIntakeField("accompanying_family", value)
+                    }
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.passportValid")}
+                    value={Boolean(intake.passport_valid)}
+                    onChange={(value) => updateIntakeField("passport_valid", value)}
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <TextAreaField
+                    label={t("selfApplication.fields.gapExplanation")}
+                    value={intake.gap_in_studies_explanation || ""}
+                    onChange={(value) =>
+                      updateIntakeField("gap_in_studies_explanation", value)
+                    }
+                  />
+                </>
+              )}
+
+              {matterType === "work_permit" && (
+                <>
+                  <InputField
+                    label={t("selfApplication.fields.permitType")}
+                    value={intake.permit_type || ""}
+                    onChange={(value) => updateIntakeField("permit_type", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.employerName")}
+                    value={intake.employer_name || ""}
+                    onChange={(value) => updateIntakeField("employer_name", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.jobTitle")}
+                    value={intake.job_title || ""}
+                    onChange={(value) => updateIntakeField("job_title", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.nocCode")}
+                    value={intake.noc_code || ""}
+                    onChange={(value) => updateIntakeField("noc_code", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.wage")}
+                    value={intake.wage || ""}
+                    onChange={(value) => updateIntakeField("wage", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.provinceOfWork")}
+                    value={intake.province_of_work || ""}
+                    onChange={(value) =>
+                      updateIntakeField("province_of_work", value)
+                    }
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.openWorkPermitBasis")}
+                    value={intake.open_work_permit_basis || ""}
+                    onChange={(value) =>
+                      updateIntakeField("open_work_permit_basis", value)
+                    }
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.currentStatusInCanada")}
+                    value={intake.current_status_in_canada || ""}
+                    onChange={(value) =>
+                      updateIntakeField("current_status_in_canada", value)
+                    }
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.expiresOn")}
+                    value={intake.expires_on || ""}
+                    onChange={(value) => updateIntakeField("expires_on", value)}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.lmiaAvailable")}
+                    value={Boolean(intake.lmia_available)}
+                    onChange={(value) => updateIntakeField("lmia_available", value)}
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.accompanyingFamily")}
+                    value={Boolean(intake.accompanying_family)}
+                    onChange={(value) =>
+                      updateIntakeField("accompanying_family", value)
+                    }
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                </>
+              )}
+
+              {matterType === "spousal_sponsorship" && (
+                <>
+                  <InputField
+                    label={t("selfApplication.fields.sponsorStatus")}
+                    value={intake.sponsor_status || ""}
+                    onChange={(value) => updateIntakeField("sponsor_status", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.relationshipType")}
+                    value={intake.relationship_type || ""}
+                    onChange={(value) =>
+                      updateIntakeField("relationship_type", value)
+                    }
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.relationshipStartDate")}
+                    value={intake.relationship_start_date || ""}
+                    onChange={(value) =>
+                      updateIntakeField("relationship_start_date", value)
+                    }
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.marriageDate")}
+                    value={intake.marriage_date || ""}
+                    onChange={(value) => updateIntakeField("marriage_date", value)}
+                  />
+                  <InputField
+                    label={t("selfApplication.fields.principalApplicantCountry")}
+                    value={intake.principal_applicant_country || ""}
+                    onChange={(value) =>
+                      updateIntakeField("principal_applicant_country", value)
+                    }
+                  />
+                  <TextAreaField
+                    label={t("selfApplication.fields.proofOfRelationshipNotes")}
+                    value={intake.proof_of_relationship_notes || ""}
+                    onChange={(value) =>
+                      updateIntakeField("proof_of_relationship_notes", value)
+                    }
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.cohabiting")}
+                    value={Boolean(intake.cohabiting)}
+                    onChange={(value) => updateIntakeField("cohabiting", value)}
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.dependentChildren")}
+                    value={Boolean(intake.dependent_children)}
+                    onChange={(value) =>
+                      updateIntakeField("dependent_children", value)
+                    }
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.previousMarriageOrSponsorship")}
+                    value={Boolean(intake.previous_marriage_or_sponsorship)}
+                    onChange={(value) =>
+                      updateIntakeField("previous_marriage_or_sponsorship", value)
+                    }
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.policeCertificatesReady")}
+                    value={Boolean(intake.police_certificates_ready)}
+                    onChange={(value) =>
+                      updateIntakeField("police_certificates_ready", value)
+                    }
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                  <ToggleField
+                    label={t("selfApplication.fields.medicalsReady")}
+                    value={Boolean(intake.medicals_ready)}
+                    onChange={(value) => updateIntakeField("medicals_ready", value)}
+                    yesLabel={t("common.yes")}
+                    noLabel={t("common.no")}
+                  />
+                </>
+              )}
+
+              {matterType === "permanent_residence" && (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="text-sm font-semibold text-blue-900">
+                    {t("selfApplication.prNoticeTitle")}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-blue-800">
+                    {t("selfApplication.prNoticeBody")}
+                  </p>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <Button onClick={handleGenerateWorkspace} disabled={running}>
+                  {running ? t("common.loading") : t("selfApplication.generateGuidance")}
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+              {pageText.guidanceTitle}
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-900">
+              {matterLabel}
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-600">
+              {pageText.guidanceBody}
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button variant="secondary" onClick={() => navigate("/strategy")}>
+                {pageText.openStrategy}
+              </Button>
+              <Button variant="secondary" onClick={() => navigate("/self/documents")}>
+                {pageText.openDocuments}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => navigate("/documents/generator")}
+              >
+                {pageText.openGenerator}
               </Button>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
 
         <div className="space-y-6">
           <Card className="p-6">

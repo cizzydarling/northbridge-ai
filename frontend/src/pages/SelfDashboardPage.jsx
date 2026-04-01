@@ -214,19 +214,33 @@ export default function SelfDashboardPage() {
           }
           description={
             language === "fr"
-              ? "Obtenez une recommandation claire sur votre meilleure prochaine action."
-              : "Get a clear recommendation on your best next action."
+              ? "Comprenez exactement où vous en êtes et quelle est votre meilleure prochaine action."
+              : "Understand exactly where you stand and what your best next action is."
           }
           buttonLabel={
             language === "fr"
-              ? "Que dois-je faire maintenant ?"
-              : "What should I do next?"
+              ? "Analyser ma situation"
+              : "Analyze my situation"
           }
           language={language}
           prompt={
             language === "fr"
-              ? "À partir de mon profil et de ma stratégie, quelle est ma meilleure prochaine action maintenant ? Retournez une réponse claire et 3 suggested_next_actions courtes avec verbes d’action."
-              : "Based on my profile and strategy, what is my best next action right now? Return a clear answer and 3 short suggested_next_actions with action verbs."
+              ? `Agis comme un copilote d'immigration.
+
+Analyse mon profil, ma stratégie et mon avancement.
+
+1. Résume ma situation en 2 phrases maximum
+2. Identifie mon plus grand point faible
+3. Donne UNE action prioritaire immédiate
+4. Retourne 3 suggested_next_actions très courtes avec verbes d’action`
+              : `Act as an immigration copilot.
+
+Analyze my profile, strategy, and progress.
+
+1. Summarize my situation in 2 sentences max
+2. Identify my biggest weakness
+3. Give ONE immediate priority action
+4. Return 3 very short suggested_next_actions with action verbs`
           }
         />
 
@@ -243,6 +257,52 @@ export default function SelfDashboardPage() {
                   "Everything you need is organized into clear actions so you always know where to go next.",
               })}
             </p>
+          </div>
+
+          <div className="mb-6">
+            <AICopilotCard
+              title={
+                language === "fr"
+                  ? "Quel chemin dois-je suivre ?"
+                  : "Which path should I follow?"
+              }
+              description={
+                language === "fr"
+                  ? "Obtenez une recommandation ciblée parmi les actions disponibles ci-dessous."
+                  : "Get a targeted recommendation from the actions below."
+              }
+              buttonLabel={language === "fr" ? "Me guider" : "Guide me"}
+              language={language}
+              prompt={
+                language === "fr"
+                  ? `Voici mes options: profil, stratégie, assistant IA, application, documents, disclosure.
+
+En fonction de ma situation, quelle est la meilleure action à choisir maintenant ?
+
+Retourne:
+- 1 recommandation principale
+- 3 suggested_next_actions correspondant EXACTEMENT aux routes suivantes:
+  /profile
+  /strategy
+  /chat
+  /self/application
+  /self/documents
+  /legal/disclosure`
+                  : `Here are my available actions: profile, strategy, AI assistant, application, documents, disclosure.
+
+Based on my situation, what is the best action to take now?
+
+Return:
+- 1 main recommendation
+- 3 suggested_next_actions matching EXACTLY these routes:
+  /profile
+  /strategy
+  /chat
+  /self/application
+  /self/documents
+  /legal/disclosure`
+              }
+            />
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">

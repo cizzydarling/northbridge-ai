@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import AICopilotCard from "../components/AICopilotCard";
 import {
   deleteDocument,
   downloadAIDocumentDocx,
@@ -93,9 +94,7 @@ export default function DocumentGeneratorPage() {
       await loadDrafts();
 
       setMessage(
-        language === "fr"
-          ? "Document généré."
-          : "Document generated."
+        language === "fr" ? "Document généré." : "Document generated."
       );
     } catch (err) {
       console.error(err);
@@ -181,11 +180,7 @@ export default function DocumentGeneratorPage() {
         locked: false,
       });
 
-      setMessage(
-        language === "fr"
-          ? "Brouillon chargé."
-          : "Draft loaded."
-      );
+      setMessage(language === "fr" ? "Brouillon chargé." : "Draft loaded.");
     } catch (err) {
       console.error(err);
       setMessage(
@@ -244,11 +239,7 @@ export default function DocumentGeneratorPage() {
       await loadDrafts();
       await handleOpenDraft(res.data.id);
 
-      setMessage(
-        language === "fr"
-          ? "Brouillon dupliqué."
-          : "Draft duplicated."
-      );
+      setMessage(language === "fr" ? "Brouillon dupliqué." : "Draft duplicated.");
     } catch (err) {
       console.error(err);
       setMessage(
@@ -275,11 +266,7 @@ export default function DocumentGeneratorPage() {
       setSelectedDraftId(null);
       setResult(null);
 
-      setMessage(
-        language === "fr"
-          ? "Brouillon supprimé."
-          : "Draft deleted."
-      );
+      setMessage(language === "fr" ? "Brouillon supprimé." : "Draft deleted.");
     } catch (err) {
       console.error(err);
       setMessage(
@@ -293,6 +280,22 @@ export default function DocumentGeneratorPage() {
     }
   }
 
+  function applyInstructionPreset(text) {
+    setAdditionalInstructions((prev) => {
+      const current = String(prev || "").trim();
+      if (!current) return text;
+      if (current.includes(text)) return current;
+      return `${current}\n\n${text}`;
+    });
+  }
+
+  const selectedDocumentMeta =
+    DOCUMENT_TYPES.find((item) => item.value === documentType) ||
+    DOCUMENT_TYPES[0];
+
+  const documentTypeLabel =
+    language === "fr" ? selectedDocumentMeta.fr : selectedDocumentMeta.en;
+
   const locked = Boolean(result?.locked);
   const isPremium = Boolean(result?.is_premium);
   const upgradeReason =
@@ -300,6 +303,124 @@ export default function DocumentGeneratorPage() {
     (language === "fr"
       ? "Passez à Premium pour débloquer le brouillon complet et le téléchargement Word."
       : "Upgrade to Premium to unlock the full draft and Word download.");
+
+  const instructionPresets = useMemo(() => {
+    if (language === "fr") {
+      return [
+        "Utilisez un ton clair, crédible et rassurant.",
+        "Mettez l’accent sur la cohérence du dossier.",
+        "Expliquez les faits de manière chronologique.",
+        "Soulignez les liens avec mon objectif principal.",
+      ];
+    }
+
+    return [
+      "Use a clear, credible, and reassuring tone.",
+      "Emphasize the consistency of my file.",
+      "Explain the facts in chronological order.",
+      "Highlight how the facts support my main objective.",
+    ];
+  }, [language]);
+
+  const pageText = useMemo(() => {
+    if (language === "fr") {
+      return {
+        brand: "NorthBridgeAI",
+        title: "Générateur de documents",
+        subtitle:
+          "Générez un brouillon personnalisé à partir de votre profil, de votre stratégie et de votre contexte de demande.",
+        settings: "Paramètres",
+        preview: "Aperçu",
+        myDrafts: "Mes brouillons",
+        output: "Résultat",
+        noDocument: "Aucun document généré",
+        documentType: "Type de document",
+        tone: "Ton",
+        professional: "Professionnel",
+        formal: "Formel",
+        clear: "Clair",
+        additionalInstructions: "Instructions supplémentaires",
+        additionalInstructionsPlaceholder:
+          "Ajoutez ici des détails à inclure dans le document.",
+        smartPrompts: "Instructions rapides",
+        generate: "Générer le document",
+        generating: "Génération...",
+        downloadWord: "Télécharger Word",
+        downloading: "Téléchargement...",
+        copy: "Copier",
+        save: "Enregistrer",
+        saving: "Enregistrement...",
+        duplicate: "Dupliquer",
+        duplicating: "Duplication...",
+        delete: "Supprimer",
+        deleting: "Suppression...",
+        noDrafts: "Aucun brouillon enregistré pour le moment.",
+        documentWillAppear: "Le document apparaîtra ici après génération.",
+        unlockTitle: "Débloquez le brouillon complet",
+        upgrade: "Passer à Premium",
+        helperEyebrow: "Conseil IA",
+        helperTitle: "Rédigez un document plus fort",
+        helperBody:
+          "Utilisez le copilote pour savoir quoi inclure, quoi clarifier et quel ton adopter avant de générer votre brouillon.",
+        draftTipsEyebrow: "Bonnes pratiques",
+        draftTipsTitle: "Avant de générer",
+        draftTips: [
+          "Choisissez le bon type de document selon votre situation.",
+          "Ajoutez des instructions précises pour personnaliser le brouillon.",
+          "Utilisez ensuite la révision IA ou l’export Word si nécessaire.",
+        ],
+        loadedOn: "Créé le",
+      };
+    }
+
+    return {
+      brand: "NorthBridgeAI",
+      title: "Document Generator",
+      subtitle:
+        "Generate a personalized draft from your profile, strategy, and application context.",
+      settings: "Settings",
+      preview: "Preview",
+      myDrafts: "My Drafts",
+      output: "Output",
+      noDocument: "No document generated",
+      documentType: "Document type",
+      tone: "Tone",
+      professional: "Professional",
+      formal: "Formal",
+      clear: "Clear",
+      additionalInstructions: "Additional instructions",
+      additionalInstructionsPlaceholder:
+        "Add details here that should be reflected in the document.",
+      smartPrompts: "Quick instruction ideas",
+      generate: "Generate document",
+      generating: "Generating...",
+      downloadWord: "Download Word",
+      downloading: "Downloading...",
+      copy: "Copy",
+      save: "Save",
+      saving: "Saving...",
+      duplicate: "Duplicate",
+      duplicating: "Duplicating...",
+      delete: "Delete",
+      deleting: "Deleting...",
+      noDrafts: "No saved drafts yet.",
+      documentWillAppear: "Your document will appear here after generation.",
+      unlockTitle: "Unlock the full draft",
+      upgrade: "Upgrade to Premium",
+      helperEyebrow: "AI guidance",
+      helperTitle: "Create a stronger document",
+      helperBody:
+        "Use the copilot to understand what to include, what to clarify, and what tone to use before generating your draft.",
+      draftTipsEyebrow: "Best practices",
+      draftTipsTitle: "Before you generate",
+      draftTips: [
+        "Choose the right document type for your situation.",
+        "Add precise instructions to personalize the draft.",
+        "Then use AI review or Word export if needed.",
+      ],
+      loadedOn: "Created on",
+    };
+  }, [language]);
 
   return (
     <Layout>
@@ -310,23 +431,60 @@ export default function DocumentGeneratorPage() {
       )}
 
       <div className="mb-8">
-        <p className="text-sm font-semibold text-blue-600">NorthBridgeAI</p>
+        <p className="text-sm font-semibold text-blue-600">{pageText.brand}</p>
         <h1 className="mt-1 text-3xl font-bold text-slate-900">
-          {language === "fr" ? "Générateur de documents" : "Document Generator"}
+          {pageText.title}
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600">
-          {language === "fr"
-            ? "Générez un brouillon personnalisé à partir de votre profil, de votre stratégie et de votre contexte de demande."
-            : "Generate a personalized draft from your profile, strategy, and application context."}
+          {pageText.subtitle}
         </p>
       </div>
+
+      <AICopilotCard
+        title={
+          language === "fr"
+            ? "Copilote IA du document"
+            : "Document AI Copilot"
+        }
+        description={pageText.helperBody}
+        buttonLabel={
+          language === "fr"
+            ? "Que dois-je inclure ?"
+            : "What should I include?"
+        }
+        language={language}
+        prompt={
+          language === "fr"
+            ? `Agis comme un copilote de préparation documentaire.
+
+Je travaille actuellement sur ce type de document: ${documentTypeLabel}.
+Le ton choisi est: ${tone}.
+
+Explique:
+1. les éléments que je devrais absolument inclure
+2. les points à clarifier pour rendre le document plus crédible
+3. le ton le plus approprié
+4. retourne 3 suggested_next_actions courtes et concrètes`
+            : `Act as a document-preparation copilot.
+
+I am currently working on this document type: ${documentTypeLabel}.
+The selected tone is: ${tone}.
+
+Explain:
+1. the points I should absolutely include
+2. what I should clarify to make the document more credible
+3. the most appropriate tone
+4. return 3 short concrete suggested_next_actions`
+        }
+        className="mb-6"
+      />
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-6">
           <Card className="p-6">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {language === "fr" ? "Paramètres" : "Settings"}
+                {pageText.settings}
               </p>
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -335,18 +493,14 @@ export default function DocumentGeneratorPage() {
                     : "border border-amber-200 bg-amber-50 text-amber-700"
                 }`}
               >
-                {isPremium
-                  ? "Premium"
-                  : language === "fr"
-                  ? "Aperçu"
-                  : "Preview"}
+                {isPremium ? "Premium" : pageText.preview}
               </span>
             </div>
 
             <div className="mt-5 space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {language === "fr" ? "Type de document" : "Document type"}
+                  {pageText.documentType}
                 </label>
                 <select
                   value={documentType}
@@ -363,53 +517,53 @@ export default function DocumentGeneratorPage() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {language === "fr" ? "Ton" : "Tone"}
+                  {pageText.tone}
                 </label>
                 <select
                   value={tone}
                   onChange={(e) => setTone(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
                 >
-                  <option value="professional">
-                    {language === "fr" ? "Professionnel" : "Professional"}
-                  </option>
-                  <option value="formal">
-                    {language === "fr" ? "Formel" : "Formal"}
-                  </option>
-                  <option value="clear">
-                    {language === "fr" ? "Clair" : "Clear"}
-                  </option>
+                  <option value="professional">{pageText.professional}</option>
+                  <option value="formal">{pageText.formal}</option>
+                  <option value="clear">{pageText.clear}</option>
                 </select>
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {language === "fr"
-                    ? "Instructions supplémentaires"
-                    : "Additional instructions"}
+                  {pageText.additionalInstructions}
                 </label>
                 <textarea
                   rows={8}
                   value={additionalInstructions}
                   onChange={(e) => setAdditionalInstructions(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"
-                  placeholder={
-                    language === "fr"
-                      ? "Ajoutez ici des détails à inclure dans le document."
-                      : "Add details here that should be reflected in the document."
-                  }
+                  placeholder={pageText.additionalInstructionsPlaceholder}
                 />
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-700">
+                  {pageText.smartPrompts}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {instructionPresets.map((preset, index) => (
+                    <button
+                      key={`${preset}-${index}`}
+                      type="button"
+                      onClick={() => applyInstructionPreset(preset)}
+                      className="rounded-full border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-3">
                 <Button onClick={handleGenerate} disabled={loading}>
-                  {loading
-                    ? language === "fr"
-                      ? "Génération..."
-                      : "Generating..."
-                    : language === "fr"
-                    ? "Générer le document"
-                    : "Generate document"}
+                  {loading ? pageText.generating : pageText.generate}
                 </Button>
 
                 <Button
@@ -417,13 +571,7 @@ export default function DocumentGeneratorPage() {
                   onClick={handleDownloadWord}
                   disabled={downloading || !isPremium}
                 >
-                  {downloading
-                    ? language === "fr"
-                      ? "Téléchargement..."
-                      : "Downloading..."
-                    : language === "fr"
-                    ? "Télécharger Word"
-                    : "Download Word"}
+                  {downloading ? pageText.downloading : pageText.downloadWord}
                 </Button>
               </div>
             </div>
@@ -431,7 +579,7 @@ export default function DocumentGeneratorPage() {
 
           <Card className="p-6">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-              {language === "fr" ? "Mes brouillons" : "My Drafts"}
+              {pageText.myDrafts}
             </p>
 
             <div className="mt-4 space-y-2">
@@ -451,17 +599,48 @@ export default function DocumentGeneratorPage() {
                       {doc.title}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
+                      {pageText.loadedOn}{" "}
                       {new Date(doc.created_at).toLocaleDateString()}
                     </p>
                   </button>
                 ))
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                  {language === "fr"
-                    ? "Aucun brouillon enregistré pour le moment."
-                    : "No saved drafts yet."}
+                  {pageText.noDrafts}
                 </div>
               )}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+              {pageText.draftTipsEyebrow}
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-900">
+              {pageText.draftTipsTitle}
+            </h2>
+
+            <div className="mt-5 space-y-3">
+              {pageText.draftTips.map((tip, index) => (
+                <div
+                  key={index}
+                  className="flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-900 text-sm font-semibold text-white">
+                    {index + 1}
+                  </div>
+                  <p className="text-sm text-slate-700">{tip}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button variant="secondary" onClick={() => navigate("/documents/review")}>
+                {language === "fr" ? "Ouvrir la révision IA" : "Open AI review"}
+              </Button>
+              <Button variant="secondary" onClick={() => navigate("/self/documents")}>
+                {language === "fr" ? "Voir mes documents" : "View my documents"}
+              </Button>
             </div>
           </Card>
         </div>
@@ -470,20 +649,17 @@ export default function DocumentGeneratorPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {language === "fr" ? "Résultat" : "Output"}
+                {pageText.output}
               </p>
               <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                {result?.title ||
-                  (language === "fr"
-                    ? "Aucun document généré"
-                    : "No document generated")}
+                {result?.title || pageText.noDocument}
               </h2>
             </div>
 
             <div className="flex flex-wrap gap-2">
               {result?.content && (
                 <Button variant="secondary" onClick={handleCopy}>
-                  {language === "fr" ? "Copier" : "Copy"}
+                  {pageText.copy}
                 </Button>
               )}
 
@@ -494,13 +670,7 @@ export default function DocumentGeneratorPage() {
                     onClick={handleSaveDraft}
                     disabled={savingDraft}
                   >
-                    {savingDraft
-                      ? language === "fr"
-                        ? "Enregistrement..."
-                        : "Saving..."
-                      : language === "fr"
-                      ? "Enregistrer"
-                      : "Save"}
+                    {savingDraft ? pageText.saving : pageText.save}
                   </Button>
 
                   <Button
@@ -508,13 +678,7 @@ export default function DocumentGeneratorPage() {
                     onClick={handleDuplicateDraft}
                     disabled={duplicatingDraft}
                   >
-                    {duplicatingDraft
-                      ? language === "fr"
-                        ? "Duplication..."
-                        : "Duplicating..."
-                      : language === "fr"
-                      ? "Dupliquer"
-                      : "Duplicate"}
+                    {duplicatingDraft ? pageText.duplicating : pageText.duplicate}
                   </Button>
 
                   <Button
@@ -522,13 +686,7 @@ export default function DocumentGeneratorPage() {
                     onClick={handleDeleteDraft}
                     disabled={deletingDraft}
                   >
-                    {deletingDraft
-                      ? language === "fr"
-                        ? "Suppression..."
-                        : "Deleting..."
-                      : language === "fr"
-                      ? "Supprimer"
-                      : "Delete"}
+                    {deletingDraft ? pageText.deleting : pageText.delete}
                   </Button>
                 </>
               )}
@@ -563,18 +721,12 @@ export default function DocumentGeneratorPage() {
               {locked && (
                 <div className="mt-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5">
                   <p className="text-sm font-semibold text-amber-900">
-                    {language === "fr"
-                      ? "Débloquez le brouillon complet"
-                      : "Unlock the full draft"}
+                    {pageText.unlockTitle}
                   </p>
-                  <p className="mt-2 text-sm text-amber-800">
-                    {upgradeReason}
-                  </p>
+                  <p className="mt-2 text-sm text-amber-800">{upgradeReason}</p>
                   <div className="mt-4">
                     <Button onClick={() => navigate("/pricing")}>
-                      {language === "fr"
-                        ? "Passer à Premium"
-                        : "Upgrade to Premium"}
+                      {pageText.upgrade}
                     </Button>
                   </div>
                 </div>
@@ -582,9 +734,7 @@ export default function DocumentGeneratorPage() {
             </>
           ) : (
             <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-              {language === "fr"
-                ? "Le document apparaîtra ici après génération."
-                : "Your document will appear here after generation."}
+              {pageText.documentWillAppear}
             </div>
           )}
         </Card>

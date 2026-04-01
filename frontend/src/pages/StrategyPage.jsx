@@ -353,19 +353,35 @@ export default function StrategyPage() {
             }
             description={
               language === "fr"
-                ? "Obtenez une explication claire de votre stratégie actuelle et de vos prochaines priorités."
-                : "Get a clear explanation of your current strategy and next priorities."
+                ? "Obtenez une lecture claire de votre stratégie actuelle, de votre plus grand blocage, et de votre prochaine priorité."
+                : "Get a clear reading of your current strategy, biggest blocker, and next priority."
             }
             buttonLabel={
               language === "fr"
-                ? "Expliquez ma stratégie"
-                : "Explain my strategy"
+                ? "Analyser ma stratégie"
+                : "Analyze my strategy"
             }
             language={language}
             prompt={
               language === "fr"
-                ? "Expliquez ma stratégie actuelle simplement. Retournez aussi 3 suggested_next_actions courtes, chacune liée à une page ou une action concrète."
-                : "Explain my current strategy simply. Also return 3 short suggested_next_actions, each tied to a concrete page or next action."
+                ? `Agis comme un copilote stratégique en immigration.
+
+Analyse ma stratégie actuelle.
+
+1. Résume ma situation en 2 phrases maximum
+2. Explique pourquoi mon programme principal est prioritaire
+3. Identifie mon plus grand point faible
+4. Donne UNE action prioritaire immédiate
+5. Retourne 3 suggested_next_actions très courtes avec verbes d’action`
+                : `Act as an immigration strategy copilot.
+
+Analyze my current strategy.
+
+1. Summarize my situation in 2 sentences max
+2. Explain why my top pathway is prioritized
+3. Identify my biggest weakness
+4. Give ONE immediate priority action
+5. Return 3 very short suggested_next_actions with action verbs`
             }
           />
 
@@ -569,6 +585,40 @@ export default function StrategyPage() {
               )}
             </Card>
           </div>
+
+          <AICopilotCard
+            title={
+              language === "fr"
+                ? "Que dois-je faire ensuite ?"
+                : "What should I do next?"
+            }
+            description={
+              language === "fr"
+                ? "Obtenez une recommandation claire basée sur vos prochaines étapes et votre programme principal."
+                : "Get a clear recommendation based on your next steps and top pathway."
+            }
+            buttonLabel={
+              language === "fr"
+                ? "Prioriser mes actions"
+                : "Prioritize my actions"
+            }
+            language={language}
+            prompt={
+              language === "fr"
+                ? `À partir de ma stratégie actuelle, de mon programme principal et de mes prochaines étapes, dis-moi ce que je dois prioriser maintenant.
+
+Retourne:
+1. une recommandation principale claire
+2. la raison en 2 phrases maximum
+3. 3 suggested_next_actions courtes liées à des actions concrètes`
+                : `Based on my current strategy, top pathway, and next steps, tell me what I should prioritize now.
+
+Return:
+1. one clear main recommendation
+2. the reason in 2 sentences max
+3. 3 short suggested_next_actions tied to concrete actions`
+            }
+          />
 
           {hasFrenchAdvantage && (
             <Card className="p-6">
@@ -779,6 +829,41 @@ export default function StrategyPage() {
             body={t("strategy.unlockFullInsightsBody")}
           >
             <>
+              <AICopilotCard
+                title={
+                  language === "fr"
+                    ? "Copilote IA des insights avancés"
+                    : "Advanced Insights AI Copilot"
+                }
+                description={
+                  language === "fr"
+                    ? "Interprétez vos probabilités, votre feuille de route et vos scénarios d’amélioration."
+                    : "Interpret your probabilities, roadmap, and improvement scenarios."
+                }
+                buttonLabel={
+                  language === "fr"
+                    ? "Interpréter mes insights"
+                    : "Interpret my insights"
+                }
+                language={language}
+                prompt={
+                  language === "fr"
+                    ? `À partir de mes insights avancés, explique:
+
+1. ce que mes probabilités disent vraiment
+2. ce que ma feuille de route suggère
+3. quel scénario d’amélioration semble le plus utile
+4. retourne 3 suggested_next_actions courtes et concrètes`
+                    : `Based on my advanced insights, explain:
+
+1. what my probabilities really mean
+2. what my roadmap suggests
+3. which improvement scenario seems most useful
+4. return 3 short concrete suggested_next_actions`
+                }
+                className="mb-6"
+              />
+
               <div className="grid gap-6 xl:grid-cols-3">
                 <Card className="p-6">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">

@@ -16,7 +16,10 @@ from app.schemas.document_generator_schema import (
     DocumentGeneratorRequest,
     DocumentGeneratorResponse,
 )
-import app.services.ai_advisor as ai_advisor
+
+# ✅ NEW: Orchestrator
+from app.services.ai_orchestrator import ask_self_user_copilot
+
 from app.services.decision_engine import build_user_decision_context
 from app.services.document_generator_service import (
     document_filename,
@@ -35,74 +38,6 @@ def _normalize_language(language: str | None) -> str:
 
 def _t(en: str, fr: str, language: str) -> str:
     return fr if _normalize_language(language) == "fr" else en
-
-
-def _build_chat_fallback(message: str, language: str) -> dict:
-    language = _normalize_language(language)
-
-    if language == "fr":
-        return {
-            "reply": (
-                "J’ai bien reçu votre message. Le service de conversation IA n’est "
-                "pas entièrement configuré pour le moment, mais vous pouvez continuer "
-                "à utiliser la stratégie, le moteur de décision et le générateur de documents."
-            ),
-            "suggested_next_actions": [],
-        }
-
-    return {
-        "reply": (
-            "I received your message. The AI chat service is not fully configured at "
-            "the moment, but you can continue using strategy, the decision engine, "
-            "and the document generator."
-        ),
-        "suggested_next_actions": [],
-    }
-
-
-def _call_chat_service(
-    *,
-    message: str,
-    language: str,
-    profile,
-    strategy,
-    chat_history,
-) -> dict:
-    print("🧠 _call_chat_service triggered")
-
-    # 🔍 Ensure function exists
-    fn = getattr(ai_advisor, "generate_ai_chat_reply", None)
-
-    if not callable(fn):
-        error_msg = "generate_ai_chat_reply not found in ai_advisor"
-        print("❌", error_msg)
-        raise Exception(error_msg)
-
-    try:
-        print("🔥 Calling AI advisor...")
-        print("📨 Message:", message)
-        print("🌐 Language:", language)
-        print("📊 Profile exists:", bool(profile))
-        print("📈 Strategy exists:", bool(strategy))
-
-        result = fn(
-            message=message,
-            language=language,
-            profile=profile,
-            strategy=strategy,
-            chat_history=chat_history,
-        )
-
-        print("✅ AI advisor returned:", result)
-
-        if isinstance(result, dict):
-            return result
-
-        raise Exception("AI advisor returned invalid format (not dict)")
-
-    except Exception as e:
-        print("❌ AI ERROR:", str(e))
-        raise e  # 🚨 CRITICAL: do NOT fallback silently
 
 
 def _build_document_preview(result: dict, language: str) -> dict:
@@ -129,6 +64,9 @@ def _build_document_preview(result: dict, language: str) -> dict:
     }
 
 
+# =========================
+# ✅ UPDATED CHAT (ORCHESTRATOR)
+# =========================
 @router.post("/chat", response_model=AIChatResponse)
 def chat_with_ai(
     payload: AIChatRequest,
@@ -137,28 +75,34 @@ def chat_with_ai(
 ):
     language = _normalize_language(payload.language)
 
-    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-    strategy = build_strategy(profile, language=language) if profile else None
+    try:
+        result = ask_self_user_copilot(
+            db=db,
+            current_user=current_user,
+            message=payload.message,
+            language=language,
+            chat_history=payload.chat_history,
+            fail_silently=True,  # safer for production
+        )
 
-    result = _call_chat_service(
-        message=payload.message,
-        language=language,
-        profile=profile,
-        strategy=strategy,
-        chat_history=[m.model_dump() for m in (payload.chat_history or [])],
-    )
+        return AIChatResponse(
+            reply=result.get("reply", ""),
+            profile_found=result.get("profile_found", False),
+            strategy_loaded=result.get("strategy_loaded", False),
+            language=language,
+            suggested_next_actions=result.get("suggested_next_actions", []),
+            pathways=result.get("pathways", []),
+            french_advantage=result.get("french_advantage", {}),
+        )
 
-    return AIChatResponse(
-        reply=result.get("reply", ""),
-        profile_found=bool(profile),
-        strategy_loaded=bool(strategy),
-        language=language,
-        suggested_next_actions=result.get("suggested_next_actions", []),
-        pathways=(strategy.get("recommended_programs") if strategy else []),
-        french_advantage=(strategy.get("french_advantage") if strategy else {}),
-    )
+    except Exception as e:
+        print("❌ AI CHAT ERROR:", str(e))
+        raise HTTPException(status_code=500, detail="AI service error")
 
 
+# =========================
+# DOCUMENT GENERATOR (UNCHANGED)
+# =========================
 @router.post("/generate-document", response_model=DocumentGeneratorResponse)
 def generate_document(
     payload: DocumentGeneratorRequest,
@@ -225,6 +169,9 @@ def generate_document(
     return _build_document_preview(result, language)
 
 
+# =========================
+# DOCX DOWNLOAD (UNCHANGED)
+# =========================
 @router.post("/generate-document/docx")
 def generate_document_docx(
     payload: DocumentGeneratorRequest,
