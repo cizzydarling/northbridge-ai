@@ -1,333 +1,391 @@
 import json
 import os
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 
-_client = None
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-def get_openai_client():
-    global _client
-    if _client is None:
-        _client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    return _client
+def _normalize_language(language: Optional[str]) -> str:
+    value = (language or "en").strip().lower()
+    return "fr" if value == "fr" else "en"
 
 
-def _safe_text(value: Any) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, str):
-        return value.strip()
-    try:
-        return json.dumps(value, ensure_ascii=False, default=str)
-    except Exception:
-        return str(value).strip()
+def _safe_join(items: List[str]) -> str:
+    cleaned = [str(item).strip() for item in items if str(item).strip()]
+    return ", ".join(cleaned) if cleaned else "none"
 
 
-def serialize_profile(profile) -> str:
+def _extract_profile_context(profile: Any, language: str) -> str:
     if not profile:
-        return "No profile found."
+        return (
+            "No profile available."
+            if language == "en"
+            else "Aucun profil disponible."
+        )
 
-    fields = [
-        "first_name",
-        "last_name",
-        "age",
-        "education",
-        "language_score",
-        "experience_years",
-        "has_job_offer",
-        "has_canadian_experience",
-        "studied_in_canada",
-        "occupation",
-        "noc_code",
-        "preferred_province",
-    ]
+    fields = {
+        "first_name": getattr(profile, "first_name", None),
+        "nationality": getattr(profile, "nationality", None),
+        "current_country": getattr(profile, "current_country", None),
+        "current_city": getattr(profile, "current_city", None),
+        "marital_status": getattr(profile, "marital_status", None),
+        "preferred_language": getattr(profile, "preferred_language", None),
+        "age": getattr(profile, "age", None),
+        "education": getattr(profile, "education", None),
+        "language_score": getattr(profile, "language_score", None),
+        "experience_years": getattr(profile, "experience_years", None),
+        "has_job_offer": getattr(profile, "has_job_offer", None),
+        "has_canadian_experience": getattr(profile, "has_canadian_experience", None),
+        "studied_in_canada": getattr(profile, "studied_in_canada", None),
+        "occupation": getattr(profile, "occupation", None),
+        "noc_code": getattr(profile, "noc_code", None),
+        "preferred_province": getattr(profile, "preferred_province", None),
+    }
 
-    lines = []
-    for field in fields:
-        value = getattr(profile, field, None)
-        if value is not None:
-            lines.append(f"- {field}: {value}")
+    non_empty = []
+    for key, value in fields.items():
+        if value is None or value == "":
+            continue
+        non_empty.append(f"{key}: {value}")
 
-    return "\n".join(lines) if lines else "Profile exists but has limited visible fields."
+    if not non_empty:
+        return (
+            "Profile exists but contains very little information."
+            if language == "en"
+            else "Le profil existe mais contient très peu d’informations."
+        )
+
+    return "\n".join(non_empty)
 
 
-def serialize_strategy(strategy) -> str:
+def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str) -> str:
     if not strategy:
-        return "No strategy found."
+        return (
+            "No strategy available."
+            if language == "en"
+            else "Aucune stratégie disponible."
+        )
 
-    safe_keys = [
-        "crs_score",
-        "advisor_summary",
-        "recommended_programs",
-        "strengths",
-        "weaknesses",
-        "next_steps",
-        "timeline_estimate",
-        "probability_estimate",
-        "french_advantage",
-        "roadmap",
-        "province_recommendations",
-        "improvement_scenarios",
-        "draw_prediction",
+    recommended_programs = strategy.get("recommended_programs") or []
+    strengths = strategy.get("strengths") or []
+    weaknesses = strategy.get("weaknesses") or []
+    next_steps = strategy.get("next_steps") or []
+    roadmap = strategy.get("roadmap") or []
+    french_advantage = strategy.get("french_advantage") or {}
+    advisor_summary = strategy.get("advisor_summary")
+    crs_score = strategy.get("crs_score")
+
+    roadmap_titles = [
+        step.get("title")
+        for step in roadmap
+        if isinstance(step, dict) and step.get("title")
     ]
 
-    lines = []
-    for key in safe_keys:
-        value = strategy.get(key)
-        if value is not None:
-            lines.append(f"- {key}: {_safe_text(value)}")
+    parts = [
+        f"crs_score: {crs_score}",
+        f"recommended_programs: {_safe_join(recommended_programs)}",
+        f"strengths: {_safe_join(strengths[:5])}",
+        f"weaknesses: {_safe_join(weaknesses[:5])}",
+        f"next_steps: {_safe_join(next_steps[:5])}",
+        f"roadmap: {_safe_join(roadmap_titles[:5])}",
+        f"french_strategic_value: {french_advantage.get('strategic_value', 'low')}",
+    ]
 
-    return "\n".join(lines) if lines else "Strategy exists but no summarized fields were available."
+    if advisor_summary:
+        parts.append(f"advisor_summary: {advisor_summary}")
+
+    return "\n".join(parts)
 
 
-def build_chat_system_prompt(profile, strategy, language: str) -> str:
-    profile_text = serialize_profile(profile)
-    strategy_text = serialize_strategy(strategy)
+def _extract_chat_history(chat_history: Optional[List[Dict[str, Any]]]) -> List[Dict[str, str]]:
+    normalized: List[Dict[str, str]] = []
+
+    for item in chat_history or []:
+        if not isinstance(item, dict):
+            continue
+
+        role = str(item.get("role", "")).strip()
+        content = str(item.get("content", "")).strip()
+
+        if role not in {"user", "assistant", "system"}:
+            continue
+        if not content:
+            continue
+
+        normalized.append({"role": role, "content": content})
+
+    return normalized[-6:]
+
+
+def _build_system_prompt(language: str) -> str:
+    if language == "fr":
+        return """
+Tu es NorthBridgeAI, un copilote d’immigration canadienne pour utilisateurs individuels.
+
+Ton rôle:
+- expliquer la situation de l’utilisateur de façon simple
+- identifier les points forts et les blocages
+- recommander les meilleures prochaines étapes
+- rester concret, rassurant, structuré et utile
+
+Règles:
+- ne donne pas d’avis juridique définitif
+- ne prétends pas garantir un résultat
+- base-toi sur le profil et la stratégie fournis
+- si le contexte est incomplet, indique clairement ce qui manque
+- suggère des actions courtes et pratiques
+
+Tu DOIS retourner uniquement du JSON valide avec cette structure:
+{
+  "reply": "réponse claire en texte",
+  "suggested_next_actions": [
+    {"label": "Action courte", "route": "/strategy"}
+  ],
+  "insights": [
+    "insight court 1",
+    "insight court 2"
+  ]
+}
+
+Contraintes:
+- "reply" doit être clair, humain, et utile
+- "suggested_next_actions" doit contenir 0 à 3 actions
+- chaque action doit avoir un "label" court
+- utilise seulement ces routes quand pertinent:
+  /profile
+  /strategy
+  /chat
+  /self/application
+  /self/documents
+  /documents/generator
+  /documents/review
+  /legal/disclosure
+  /pricing
+- "insights" doit contenir 0 à 3 points courts
+"""
+    return """
+You are NorthBridgeAI, a Canadian immigration copilot for individual users.
+
+Your role:
+- explain the user's situation simply
+- identify strengths and blockers
+- recommend the best next steps
+- stay concrete, calm, structured, and useful
+
+Rules:
+- do not give definitive legal advice
+- do not claim guaranteed outcomes
+- base your answer on the supplied profile and strategy
+- if context is incomplete, clearly say what is missing
+- suggest short, practical actions
+
+You MUST return only valid JSON with this structure:
+{
+  "reply": "clear text response",
+  "suggested_next_actions": [
+    {"label": "Short action", "route": "/strategy"}
+  ],
+  "insights": [
+    "short insight 1",
+    "short insight 2"
+  ]
+}
+
+Constraints:
+- "reply" should be clear, human, and useful
+- "suggested_next_actions" must contain 0 to 3 actions
+- each action must have a short "label"
+- only use these routes when relevant:
+  /profile
+  /strategy
+  /chat
+  /self/application
+  /self/documents
+  /documents/generator
+  /documents/review
+  /legal/disclosure
+  /pricing
+- "insights" must contain 0 to 3 short points
+"""
+
+
+def _build_user_prompt(
+    *,
+    message: str,
+    language: str,
+    profile: Any,
+    strategy: Optional[Dict[str, Any]],
+) -> str:
+    profile_context = _extract_profile_context(profile, language)
+    strategy_context = _extract_strategy_context(strategy, language)
 
     if language == "fr":
         return f"""
-Tu es NorthBridgeAI, un copilote d’immigration canadienne clair, stratégique et pratique.
+Message utilisateur:
+{message}
 
-Ton rôle :
-- analyser la situation de l’utilisateur en profondeur
-- guider l’utilisateur étape par étape
-- agir comme un conseiller professionnel et structuré
-- éviter les réponses génériques
-- ne pas prétendre être un avocat ni donner un avis juridique définitif
+Contexte profil:
+{profile_context}
 
-Contexte du profil utilisateur :
-{profile_text}
+Contexte stratégie:
+{strategy_context}
 
-Contexte de la stratégie utilisateur :
-{strategy_text}
-
-Tu dois répondre en JSON valide avec cette structure exacte :
-{{
-  "reply": "réponse claire et utile en français",
-  "suggested_next_actions": [
-    "action courte 1",
-    "action courte 2",
-    "action courte 3"
-  ]
-}}
-
-Consignes pour le contenu de "reply" :
-- Structure la réponse avec ces sections claires :
-  1. Situation
-  2. Points clés
-  3. Stratégie recommandée
-  4. Prochaines étapes
-- Sois concise, pratique et orientée action
-- Utilise des puces ou des étapes numérotées quand utile
-- Explique la logique simplement
-- Adapte la réponse au profil et à la stratégie fournis
-- Évite le jargon inutile
-
-Règles :
-- suggested_next_actions doit contenir 0 à 3 actions courtes
-- chaque action doit être concrète et orientée vers une étape
-- ne retourne aucun texte hors du JSON
+Réponds en français.
 """
     return f"""
-You are NorthBridgeAI, a Canadian immigration copilot that is clear, strategic, and practical.
+User message:
+{message}
 
-Your role:
-- analyze the user's situation deeply
-- guide the user step by step
-- act like a professional advisor
-- avoid generic answers
-- do not claim to be a lawyer or provide definitive legal advice
+Profile context:
+{profile_context}
 
-User profile context:
-{profile_text}
+Strategy context:
+{strategy_context}
 
-User strategy context:
-{strategy_text}
-
-You must respond in valid JSON with this exact structure:
-{{
-  "reply": "clear and useful answer in English",
-  "suggested_next_actions": [
-    "short action 1",
-    "short action 2",
-    "short action 3"
-  ]
-}}
-
-Instructions for the "reply" content:
-- Structure the answer using these clear sections:
-  1. Situation
-  2. Key Insights
-  3. Recommended Strategy
-  4. Next Steps
-- Be concise, practical, and action-oriented
-- Use bullets or numbered steps when helpful
-- Explain the reasoning simply
-- Tailor the response to the provided profile and strategy
-- Avoid unnecessary jargon
-
-Rules:
-- suggested_next_actions must contain 0 to 3 short actions
-- each action must be concrete and next-step oriented
-- return no text outside JSON
+Respond in English.
 """
+
+
+def _default_actions(language: str) -> List[Dict[str, str]]:
+    if language == "fr":
+        return [
+            {"label": "Voir ma stratégie", "route": "/strategy"},
+            {"label": "Mettre à jour mon profil", "route": "/profile"},
+            {"label": "Ouvrir ma demande", "route": "/self/application"},
+        ]
+    return [
+        {"label": "View my strategy", "route": "/strategy"},
+        {"label": "Update my profile", "route": "/profile"},
+        {"label": "Open my application", "route": "/self/application"},
+    ]
+
+
+def _fallback_response(language: str) -> Dict[str, Any]:
+    if language == "fr":
+        return {
+            "reply": (
+                "Je peux déjà vous aider à comprendre votre stratégie et vos prochaines étapes, "
+                "mais la réponse IA complète n’est pas disponible pour le moment."
+            ),
+            "suggested_next_actions": _default_actions(language),
+            "insights": [],
+        }
+    return {
+        "reply": (
+            "I can still help explain your strategy and next steps, "
+            "but the full AI response is not available right now."
+        ),
+        "suggested_next_actions": _default_actions(language),
+        "insights": [],
+    }
+
+
+def _normalize_action(action: Any) -> Optional[Dict[str, str]]:
+    if isinstance(action, str):
+        label = action.strip()
+        if not label:
+            return None
+        return {"label": label, "route": ""}
+
+    if not isinstance(action, dict):
+        return None
+
+    label = str(action.get("label", "")).strip()
+    route = str(action.get("route", "")).strip()
+
+    if not label:
+        return None
+
+    return {"label": label, "route": route}
+
+
+def _normalize_response(payload: Any, language: str) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        return _fallback_response(language)
+
+    reply = str(payload.get("reply", "")).strip()
+    if not reply:
+        reply = _fallback_response(language)["reply"]
+
+    actions_raw = payload.get("suggested_next_actions", [])
+    insights_raw = payload.get("insights", [])
+
+    actions: List[Dict[str, str]] = []
+    if isinstance(actions_raw, list):
+        for item in actions_raw[:3]:
+            normalized = _normalize_action(item)
+            if normalized:
+                actions.append(normalized)
+
+    insights: List[str] = []
+    if isinstance(insights_raw, list):
+        for item in insights_raw[:3]:
+            text = str(item).strip()
+            if text:
+                insights.append(text)
+
+    return {
+        "reply": reply,
+        "suggested_next_actions": actions,
+        "insights": insights,
+    }
 
 
 def generate_ai_chat_reply(
-    message,
-    language="en",
-    profile=None,
-    strategy=None,
-    chat_history=None,
-):
-    client = get_openai_client()
-    system_prompt = build_chat_system_prompt(profile, strategy, language)
+    *,
+    message: str,
+    language: str,
+    profile: Any,
+    strategy: Optional[Dict[str, Any]],
+    chat_history: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    language = _normalize_language(language)
 
-    messages = [{"role": "system", "content": system_prompt}]
-
-    for msg in chat_history or []:
-        role = msg.get("role", "user")
-        content = (msg.get("content") or "").strip()
-        if content:
-            messages.append({"role": role, "content": content})
-
-    messages.append({"role": "user", "content": message})
+    if not os.getenv("OPENAI_API_KEY"):
+        return _fallback_response(language)
 
     try:
+        messages: List[Dict[str, str]] = [
+            {"role": "system", "content": _build_system_prompt(language)}
+        ]
+
+        history = _extract_chat_history(chat_history)
+        messages.extend(history)
+
+        messages.append(
+            {
+                "role": "user",
+                "content": _build_user_prompt(
+                    message=message,
+                    language=language,
+                    profile=profile,
+                    strategy=strategy,
+                ),
+            }
+        )
+
         response = client.chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-            temperature=0.4,
-            response_format={"type": "json_object"},
             messages=messages,
+            temperature=0.3,
+            response_format={"type": "json_object"},
         )
 
-        raw = response.choices[0].message.content or "{}"
-        parsed = json.loads(raw)
+        raw_content = response.choices[0].message.content or "{}"
 
-        reply = (parsed.get("reply") or "").strip()
-        suggested_next_actions = parsed.get("suggested_next_actions") or []
+        try:
+            parsed = json.loads(raw_content)
+        except json.JSONDecodeError:
+            return {
+                "reply": raw_content.strip() or _fallback_response(language)["reply"],
+                "suggested_next_actions": _default_actions(language),
+                "insights": [],
+            }
 
-        if not isinstance(suggested_next_actions, list):
-            suggested_next_actions = []
-
-        suggested_next_actions = [
-            str(item).strip()
-            for item in suggested_next_actions
-            if str(item).strip()
-        ][:3]
-
-        if not reply:
-            reply = (
-                "Situation\n- I’m here to help with your immigration strategy.\n\n"
-                "Key Insights\n- Your profile and strategy can be used to guide the next steps.\n\n"
-                "Recommended Strategy\n- Focus on the strongest pathway shown in your strategy.\n\n"
-                "Next Steps\n1. Review your strategy\n2. Update missing profile details\n3. Organize your documents."
-                if language != "fr"
-                else "Situation\n- Je suis là pour vous aider avec votre stratégie d’immigration.\n\n"
-                "Points clés\n- Votre profil et votre stratégie peuvent guider les prochaines étapes.\n\n"
-                "Stratégie recommandée\n- Concentrez-vous sur la voie la plus forte indiquée dans votre stratégie.\n\n"
-                "Prochaines étapes\n1. Revoyez votre stratégie\n2. Mettez à jour les éléments manquants du profil\n3. Organisez vos documents."
-            )
-
-        return {
-            "reply": reply,
-            "suggested_next_actions": suggested_next_actions,
-        }
+        return _normalize_response(parsed, language)
 
     except Exception as e:
-        return {
-            "reply": (
-                f"AI error: {str(e)}"
-                if language != "fr"
-                else f"Erreur IA : {str(e)}"
-            ),
-            "suggested_next_actions": [],
-        }
-
-
-def _strategy_prompt(profile, strategy_data: dict, language: str) -> str:
-    profile_text = serialize_profile(profile)
-    strategy_text = serialize_strategy(strategy_data)
-
-    if language == "fr":
-        return f"""
-Tu es NorthBridgeAI, un stratège d’immigration canadienne.
-
-À partir du profil et des données de stratégie ci-dessous, rédige une analyse stratégique utile, claire et professionnelle en français.
-
-Profil :
-{profile_text}
-
-Données de stratégie :
-{strategy_text}
-
-Consignes :
-- explique la situation actuelle
-- résume les meilleures voies
-- souligne les forces
-- souligne les faiblesses ou risques
-- propose les prochaines étapes concrètes
-- reste pratique, structurée et concise
-- ne retourne que le texte final, pas de JSON
-"""
-    return f"""
-You are NorthBridgeAI, a Canadian immigration strategist.
-
-Using the profile and strategy data below, write a clear, useful, professional strategy analysis in English.
-
-Profile:
-{profile_text}
-
-Strategy data:
-{strategy_text}
-
-Instructions:
-- explain the current situation
-- summarize the best-fit pathways
-- highlight strengths
-- highlight weaknesses or risks
-- propose concrete next steps
-- stay practical, structured, and concise
-- return only the final text, not JSON
-"""
-
-
-def generate_ai_strategy(profile=None, strategy_data=None, language="en") -> str:
-    client = get_openai_client()
-    prompt = _strategy_prompt(profile, strategy_data or {}, language)
-
-    try:
-        response = client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-            temperature=0.5,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a clear and practical immigration strategy writer."
-                        if language != "fr"
-                        else "Tu es un rédacteur stratégique clair et pratique en immigration."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-        )
-
-        content = (response.choices[0].message.content or "").strip()
-        if content:
-            return content
-
-    except Exception as e:
-        return (
-            f"AI strategy unavailable: {str(e)}"
-            if language != "fr"
-            else f"Stratégie IA indisponible : {str(e)}"
-        )
-
-    return (
-        "AI strategy unavailable at the moment."
-        if language != "fr"
-        else "La stratégie IA est indisponible pour le moment."
-    )
+        print("AI ERROR:", str(e))
+        return _fallback_response(language)
