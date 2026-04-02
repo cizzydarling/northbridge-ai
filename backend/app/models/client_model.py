@@ -24,13 +24,6 @@ class Client(Base):
         nullable=False,
     )
 
-    profile = relationship(
-        "Profile",
-        back_populates="client",
-        uselist=False,
-        cascade="all, delete-orphan",
-    )
-
     documents = relationship(
         "ClientDocument",
         back_populates="client",
