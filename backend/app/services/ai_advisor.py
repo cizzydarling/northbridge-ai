@@ -4,17 +4,22 @@ from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 
 def _normalize_language(language: Optional[str]) -> str:
     value = (language or "en").strip().lower()
     return "fr" if value == "fr" else "en"
 
 
-def _safe_join(items: List[str]) -> str:
+def _get_openai_client() -> Optional[OpenAI]:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
+
+
+def _safe_join(items: List[str], empty_value: str) -> str:
     cleaned = [str(item).strip() for item in items if str(item).strip()]
-    return ", ".join(cleaned) if cleaned else "none"
+    return ", ".join(cleaned) if cleaned else empty_value
 
 
 def _extract_profile_context(profile: Any, language: str) -> str:
@@ -68,6 +73,8 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
             else "Aucune stratégie disponible."
         )
 
+    empty_word = "none" if language == "en" else "aucun"
+
     recommended_programs = strategy.get("recommended_programs") or []
     strengths = strategy.get("strengths") or []
     weaknesses = strategy.get("weaknesses") or []
@@ -85,11 +92,11 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
 
     parts = [
         f"crs_score: {crs_score}",
-        f"recommended_programs: {_safe_join(recommended_programs)}",
-        f"strengths: {_safe_join(strengths[:5])}",
-        f"weaknesses: {_safe_join(weaknesses[:5])}",
-        f"next_steps: {_safe_join(next_steps[:5])}",
-        f"roadmap: {_safe_join(roadmap_titles[:5])}",
+        f"recommended_programs: {_safe_join(recommended_programs, empty_word)}",
+        f"strengths: {_safe_join(strengths[:5], empty_word)}",
+        f"weaknesses: {_safe_join(weaknesses[:5], empty_word)}",
+        f"next_steps: {_safe_join(next_steps[:5], empty_word)}",
+        f"roadmap: {_safe_join(roadmap_titles[:5], empty_word)}",
         f"french_strategic_value: {french_advantage.get('strategic_value', 'low')}",
     ]
 
@@ -99,7 +106,9 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
     return "\n".join(parts)
 
 
-def _extract_chat_history(chat_history: Optional[List[Dict[str, Any]]]) -> List[Dict[str, str]]:
+def _extract_chat_history(
+    chat_history: Optional[List[Dict[str, Any]]],
+) -> List[Dict[str, str]]:
     normalized: List[Dict[str, str]] = []
 
     for item in chat_history or []:
@@ -342,8 +351,9 @@ def generate_ai_chat_reply(
     chat_history: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     language = _normalize_language(language)
+    openai_client = _get_openai_client()
 
-    if not os.getenv("OPENAI_API_KEY"):
+    if openai_client is None:
         return _fallback_response(language)
 
     try:
@@ -366,7 +376,7 @@ def generate_ai_chat_reply(
             }
         )
 
-        response = client.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=messages,
             temperature=0.3,
