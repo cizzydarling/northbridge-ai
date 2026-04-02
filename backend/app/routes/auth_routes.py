@@ -63,16 +63,15 @@ def get_user_by_email(db: Session, email: str) -> User | None:
     return db.query(User).filter(User.email == email).first()
 
 
-# ✅ FIXED HERE
 def serialize_user(user: User) -> dict:
     return {
         "id": user.id,
         "email": user.email,
         "role": user.role,
-        "plan": user.plan,
-        "subscription_status": user.subscription_status,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
+        "plan": getattr(user, "plan", "free"),
+        "subscription_status": getattr(user, "subscription_status", None),
+        "first_name": getattr(user, "first_name", None),
+        "last_name": getattr(user, "last_name", None),
     }
 
 
@@ -112,26 +111,31 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    user = get_user_by_email(db, form_data.username)
+    try:
+        user = get_user_by_email(db, form_data.username)
 
-    if not user or not verify_password(form_data.password, user.password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+        if not user or not verify_password(form_data.password, user.password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
+
+        access_token = create_access_token(
+            {
+                "sub": user.email,
+                "role": user.role,
+            }
         )
 
-    access_token = create_access_token(
-        {
-            "sub": user.email,
-            "role": user.role,
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": serialize_user(user),
         }
-    )
-
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": serialize_user(user),
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 
 def get_current_user(
