@@ -17,6 +17,14 @@ def _get_openai_client() -> Optional[OpenAI]:
     return OpenAI(api_key=api_key)
 
 
+def get_openai_client() -> Optional[OpenAI]:
+    """
+    Public wrapper kept for compatibility with services that import
+    get_openai_client directly.
+    """
+    return _get_openai_client()
+
+
 def _safe_join(items: List[Any], empty_value: str) -> str:
     cleaned = [str(item).strip() for item in items if str(item).strip()]
     return ", ".join(cleaned) if cleaned else empty_value
@@ -556,9 +564,11 @@ def generate_ai_strategy(
         try:
             parsed = json.loads(raw_content)
         except json.JSONDecodeError:
+            fallback = _fallback_strategy_response(language)
+            plain = raw_content.strip()
             return {
-                "advisor_summary": raw_content.strip() or _fallback_strategy_response(language)["advisor_summary"],
-                "ai_strategy": raw_content.strip() or _fallback_strategy_response(language)["ai_strategy"],
+                "advisor_summary": plain or fallback["advisor_summary"],
+                "ai_strategy": plain or fallback["ai_strategy"],
             }
 
         return _normalize_strategy_response(parsed, language)
