@@ -17,7 +17,7 @@ def _get_openai_client() -> Optional[OpenAI]:
     return OpenAI(api_key=api_key)
 
 
-def _safe_join(items: List[str], empty_value: str) -> str:
+def _safe_join(items: List[Any], empty_value: str) -> str:
     cleaned = [str(item).strip() for item in items if str(item).strip()]
     return ", ".join(cleaned) if cleaned else empty_value
 
@@ -32,6 +32,7 @@ def _extract_profile_context(profile: Any, language: str) -> str:
 
     fields = {
         "first_name": getattr(profile, "first_name", None),
+        "last_name": getattr(profile, "last_name", None),
         "nationality": getattr(profile, "nationality", None),
         "current_country": getattr(profile, "current_country", None),
         "current_city": getattr(profile, "current_city", None),
@@ -80,6 +81,8 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
     weaknesses = strategy.get("weaknesses") or []
     next_steps = strategy.get("next_steps") or []
     roadmap = strategy.get("roadmap") or []
+    improvement_scenarios = strategy.get("improvement_scenarios") or []
+    province_recommendations = strategy.get("province_recommendations") or []
     french_advantage = strategy.get("french_advantage") or {}
     advisor_summary = strategy.get("advisor_summary")
     crs_score = strategy.get("crs_score")
@@ -90,6 +93,18 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
         if isinstance(step, dict) and step.get("title")
     ]
 
+    scenario_labels = [
+        item.get("change")
+        for item in improvement_scenarios
+        if isinstance(item, dict) and item.get("change")
+    ]
+
+    province_labels = [
+        item.get("province")
+        for item in province_recommendations
+        if isinstance(item, dict) and item.get("province")
+    ]
+
     parts = [
         f"crs_score: {crs_score}",
         f"recommended_programs: {_safe_join(recommended_programs, empty_word)}",
@@ -97,6 +112,8 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
         f"weaknesses: {_safe_join(weaknesses[:5], empty_word)}",
         f"next_steps: {_safe_join(next_steps[:5], empty_word)}",
         f"roadmap: {_safe_join(roadmap_titles[:5], empty_word)}",
+        f"improvement_scenarios: {_safe_join(scenario_labels[:5], empty_word)}",
+        f"province_recommendations: {_safe_join(province_labels[:5], empty_word)}",
         f"french_strategic_value: {french_advantage.get('strategic_value', 'low')}",
     ]
 
@@ -128,7 +145,7 @@ def _extract_chat_history(
     return normalized[-6:]
 
 
-def _build_system_prompt(language: str) -> str:
+def _build_chat_system_prompt(language: str) -> str:
     if language == "fr":
         return """
 Tu es NorthBridgeAI, un copilote d’immigration canadienne pour utilisateurs individuels.
@@ -220,6 +237,50 @@ Constraints:
 """
 
 
+def _build_strategy_system_prompt(language: str) -> str:
+    if language == "fr":
+        return """
+Tu es NorthBridgeAI, un conseiller stratégique en immigration canadienne.
+
+Tu reçois un profil structuré et dois produire une synthèse stratégique claire,
+utile et concise pour un utilisateur individuel.
+
+Retourne uniquement du JSON valide avec cette structure:
+{
+  "advisor_summary": "résumé clair de la situation",
+  "ai_strategy": "analyse stratégique plus détaillée en markdown"
+}
+
+Contraintes:
+- advisor_summary: 2 à 5 phrases, claires et concrètes
+- ai_strategy: format markdown, structuré avec courts sous-titres et puces
+- explique les parcours prioritaires
+- explique les principaux leviers d’amélioration
+- mentionne les risques ou limites s’il y en a
+- ne donne pas d’avis juridique définitif
+"""
+    return """
+You are NorthBridgeAI, a Canadian immigration strategy advisor.
+
+You receive a structured profile and must produce a clear,
+useful, concise strategic summary for an individual user.
+
+Return only valid JSON with this structure:
+{
+  "advisor_summary": "clear summary of the situation",
+  "ai_strategy": "more detailed strategic analysis in markdown"
+}
+
+Constraints:
+- advisor_summary: 2 to 5 sentences, clear and concrete
+- ai_strategy: markdown format, structured with short headings and bullet points
+- explain the priority pathways
+- explain the main improvement levers
+- mention risks or limits where relevant
+- do not provide definitive legal advice
+"""
+
+
 def _build_user_prompt(
     *,
     message: str,
@@ -257,6 +318,28 @@ Respond in English.
 """
 
 
+def _build_strategy_prompt(profile: Any, language: str) -> str:
+    profile_context = _extract_profile_context(profile, language)
+
+    if language == "fr":
+        return f"""
+Analyse ce profil d’immigration et produis une synthèse stratégique.
+
+Contexte profil:
+{profile_context}
+
+Réponds en français.
+"""
+    return f"""
+Analyze this immigration profile and produce a strategic summary.
+
+Profile context:
+{profile_context}
+
+Respond in English.
+"""
+
+
 def _default_actions(language: str) -> List[Dict[str, str]]:
     if language == "fr":
         return [
@@ -271,7 +354,7 @@ def _default_actions(language: str) -> List[Dict[str, str]]:
     ]
 
 
-def _fallback_response(language: str) -> Dict[str, Any]:
+def _fallback_chat_response(language: str) -> Dict[str, Any]:
     if language == "fr":
         return {
             "reply": (
@@ -288,6 +371,34 @@ def _fallback_response(language: str) -> Dict[str, Any]:
         ),
         "suggested_next_actions": _default_actions(language),
         "insights": [],
+    }
+
+
+def _fallback_strategy_response(language: str) -> Dict[str, str]:
+    if language == "fr":
+        return {
+            "advisor_summary": (
+                "Votre stratégie initiale est disponible. Complétez ou améliorez votre profil "
+                "pour obtenir une analyse IA plus approfondie."
+            ),
+            "ai_strategy": (
+                "## Analyse stratégique\n\n"
+                "- Complétez votre profil si certaines informations sont manquantes.\n"
+                "- Vérifiez vos scores linguistiques, votre expérience et votre province cible.\n"
+                "- Utilisez l’assistant IA pour comprendre vos prochaines priorités."
+            ),
+        }
+    return {
+        "advisor_summary": (
+            "Your initial strategy is available. Complete or improve your profile "
+            "to unlock a deeper AI analysis."
+        ),
+        "ai_strategy": (
+            "## Strategic analysis\n\n"
+            "- Complete your profile if some information is missing.\n"
+            "- Review language scores, work experience, and target province.\n"
+            "- Use the AI assistant to understand your next priorities."
+        ),
     }
 
 
@@ -310,13 +421,13 @@ def _normalize_action(action: Any) -> Optional[Dict[str, str]]:
     return {"label": label, "route": route}
 
 
-def _normalize_response(payload: Any, language: str) -> Dict[str, Any]:
+def _normalize_chat_response(payload: Any, language: str) -> Dict[str, Any]:
     if not isinstance(payload, dict):
-        return _fallback_response(language)
+        return _fallback_chat_response(language)
 
     reply = str(payload.get("reply", "")).strip()
     if not reply:
-        reply = _fallback_response(language)["reply"]
+        reply = _fallback_chat_response(language)["reply"]
 
     actions_raw = payload.get("suggested_next_actions", [])
     insights_raw = payload.get("insights", [])
@@ -342,6 +453,21 @@ def _normalize_response(payload: Any, language: str) -> Dict[str, Any]:
     }
 
 
+def _normalize_strategy_response(payload: Any, language: str) -> Dict[str, str]:
+    if not isinstance(payload, dict):
+        return _fallback_strategy_response(language)
+
+    advisor_summary = str(payload.get("advisor_summary", "")).strip()
+    ai_strategy = str(payload.get("ai_strategy", "")).strip()
+
+    fallback = _fallback_strategy_response(language)
+
+    return {
+        "advisor_summary": advisor_summary or fallback["advisor_summary"],
+        "ai_strategy": ai_strategy or fallback["ai_strategy"],
+    }
+
+
 def generate_ai_chat_reply(
     *,
     message: str,
@@ -354,11 +480,11 @@ def generate_ai_chat_reply(
     openai_client = _get_openai_client()
 
     if openai_client is None:
-        return _fallback_response(language)
+        return _fallback_chat_response(language)
 
     try:
         messages: List[Dict[str, str]] = [
-            {"role": "system", "content": _build_system_prompt(language)}
+            {"role": "system", "content": _build_chat_system_prompt(language)}
         ]
 
         history = _extract_chat_history(chat_history)
@@ -389,13 +515,54 @@ def generate_ai_chat_reply(
             parsed = json.loads(raw_content)
         except json.JSONDecodeError:
             return {
-                "reply": raw_content.strip() or _fallback_response(language)["reply"],
+                "reply": raw_content.strip() or _fallback_chat_response(language)["reply"],
                 "suggested_next_actions": _default_actions(language),
                 "insights": [],
             }
 
-        return _normalize_response(parsed, language)
+        return _normalize_chat_response(parsed, language)
 
     except Exception as e:
-        print("AI ERROR:", str(e))
-        return _fallback_response(language)
+        print("AI CHAT ERROR:", str(e))
+        return _fallback_chat_response(language)
+
+
+def generate_ai_strategy(
+    *,
+    profile: Any,
+    language: str = "en",
+) -> Dict[str, str]:
+    language = _normalize_language(language)
+    openai_client = _get_openai_client()
+
+    if openai_client is None:
+        return _fallback_strategy_response(language)
+
+    try:
+        messages: List[Dict[str, str]] = [
+            {"role": "system", "content": _build_strategy_system_prompt(language)},
+            {"role": "user", "content": _build_strategy_prompt(profile, language)},
+        ]
+
+        response = openai_client.chat.completions.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            messages=messages,
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+
+        raw_content = response.choices[0].message.content or "{}"
+
+        try:
+            parsed = json.loads(raw_content)
+        except json.JSONDecodeError:
+            return {
+                "advisor_summary": raw_content.strip() or _fallback_strategy_response(language)["advisor_summary"],
+                "ai_strategy": raw_content.strip() or _fallback_strategy_response(language)["ai_strategy"],
+            }
+
+        return _normalize_strategy_response(parsed, language)
+
+    except Exception as e:
+        print("AI STRATEGY ERROR:", str(e))
+        return _fallback_strategy_response(language)
