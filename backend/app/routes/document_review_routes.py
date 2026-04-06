@@ -15,7 +15,7 @@ from app.services.decision_engine import build_user_decision_context
 from app.services.document_review_service import review_document_with_ai
 from app.services.strategy_service import build_strategy
 
-router = APIRouter(prefix="/document-review", tags=["Document Review"])
+router = APIRouter(prefix="/documents", tags=["Document Review"])
 
 
 def _normalize_language(language: str | None) -> str:
@@ -89,6 +89,7 @@ def review_document(
             **result,
             "is_premium": True,
             "locked": False,
+            "upgrade_reason": None,
         }
 
     return _build_preview(result, language)

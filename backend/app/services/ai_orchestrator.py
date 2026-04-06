@@ -23,10 +23,6 @@ def _t(en: str, fr: str, language: str) -> str:
 
 
 def _safe_model_dump(value: Any) -> Any:
-    """
-    Safely convert Pydantic objects to plain dicts when needed.
-    Leaves primitive Python values untouched.
-    """
     if value is None:
         return None
 
@@ -38,10 +34,6 @@ def _safe_model_dump(value: Any) -> Any:
 
 
 def _serialize_chat_history(chat_history: Optional[List[Any]]) -> List[Dict[str, Any]]:
-    """
-    Normalize chat history into a list of dicts.
-    Supports plain dicts and Pydantic models.
-    """
     output: List[Dict[str, Any]] = []
 
     for item in chat_history or []:
@@ -56,52 +48,326 @@ def _serialize_chat_history(chat_history: Optional[List[Any]]) -> List[Dict[str,
     return output
 
 
-def _build_chat_fallback(language: str) -> Dict[str, Any]:
-    language = _normalize_language(language)
+def _resolve_ai_plan(current_user: User) -> str:
+    plan_value = (getattr(current_user, "plan", None) or "").strip().lower()
 
-    if language == "fr":
+    if plan_value == "premium":
+        return "premium"
+
+    if has_individual_pro(current_user):
+        return "pro"
+
+    return "free"
+
+
+def _build_profile_snapshot(profile: Optional[Profile]) -> Dict[str, Any]:
+    if not profile:
+        return {}
+
+    return {
+        "age": profile.age,
+        "education": profile.education,
+        "language_score": profile.language_score,
+        "experience_years": profile.experience_years,
+        "has_job_offer": profile.has_job_offer,
+        "has_canadian_experience": profile.has_canadian_experience,
+        "studied_in_canada": profile.studied_in_canada,
+        "occupation": profile.occupation,
+        "noc_code": profile.noc_code,
+        "preferred_province": profile.preferred_province,
+        "nationality": profile.nationality,
+        "current_country": profile.current_country,
+        "marital_status": profile.marital_status,
+        "preferred_language": profile.preferred_language,
+    }
+
+
+def _build_application_snapshot(application: Optional[SelfApplication]) -> Dict[str, Any]:
+    if not application:
+        return {}
+
+    return {
+        "matter_type": application.matter_type,
+        "intake_payload": application.intake_payload or {},
+        "eligibility_result": application.eligibility_result or {},
+        "forms_result": application.forms_result or {},
+        "checklist_result": application.checklist_result or [],
+    }
+
+
+def build_user_context(
+    *,
+    profile: Optional[Profile] = None,
+    strategy: Optional[Dict[str, Any]] = None,
+    application: Optional[SelfApplication] = None,
+    decision: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    application_snapshot = _build_application_snapshot(application)
+    forms_result = application_snapshot.get("forms_result") or {}
+
+    return {
+        "profile": _build_profile_snapshot(profile),
+        "strategy": strategy or {},
+        "decision": decision or {},
+        "application": {
+          "matter_type": application_snapshot.get("matter_type"),
+          "checklist": application_snapshot.get("checklist_result", []),
+          "missing_fields": forms_result.get("missing_fields", []) or [],
+          "recommended_forms": forms_result.get("recommended_forms", []) or [],
+          "intake_payload": application_snapshot.get("intake_payload", {}) or {},
+        },
+    }
+
+
+def _extract_actions(text: str, language: str) -> List[Dict[str, Any]]:
+    language = _normalize_language(language)
+    lines = [line.strip(" -•\t") for line in (text or "").splitlines()]
+    candidates: List[str] = []
+
+    for line in lines:
+        if not line:
+            continue
+
+        lowered = line.lower()
+        if lowered.startswith(("1.", "2.", "3.", "4.", "5.")):
+            candidates.append(line)
+            continue
+
+        triggers = (
+            ["should", "next", "prepare", "review", "update", "complete", "gather"]
+            if language == "en"
+            else ["devriez", "prochaine", "préparer", "réviser", "mettre", "compléter", "rassembler"]
+        )
+        if any(trigger in lowered for trigger in triggers):
+            candidates.append(line)
+
+    output: List[Dict[str, Any]] = []
+    for item in candidates[:3]:
+        output.append({"label": item, "route": None})
+
+    return output
+
+
+def _extract_insights(text: str) -> List[str]:
+    if not text:
+        return []
+
+    sentences = [segment.strip() for segment in text.replace("\n", " ").split(".")]
+    insights = [s for s in sentences if len(s) >= 40]
+
+    seen: set[str] = set()
+    output: List[str] = []
+    for item in insights:
+        if item not in seen:
+            seen.add(item)
+            output.append(item + ".")
+        if len(output) >= 3:
+            break
+
+    return output
+
+
+def _extract_risks(text: str, language: str) -> List[str]:
+    if not text:
+        return []
+
+    tokens = (
+        ["risk", "weak", "concern", "issue", "blocker", "gap"]
+        if _normalize_language(language) == "en"
+        else ["risque", "faible", "préoccupation", "problème", "blocage", "écart"]
+    )
+
+    sentences = [segment.strip() for segment in text.replace("\n", " ").split(".")]
+    output: List[str] = []
+    for sentence in sentences:
+        lowered = sentence.lower()
+        if any(token in lowered for token in tokens) and len(sentence) >= 20:
+            output.append(sentence + ".")
+        if len(output) >= 3:
+            break
+
+    return output
+
+
+def _extract_optimizations(text: str, language: str) -> List[str]:
+    if not text:
+        return []
+
+    tokens = (
+        ["improve", "increase", "strengthen", "optimize", "better", "enhance"]
+        if _normalize_language(language) == "en"
+        else ["amélior", "augment", "renfor", "optim", "mieux"]
+    )
+
+    sentences = [segment.strip() for segment in text.replace("\n", " ").split(".")]
+    output: List[str] = []
+    for sentence in sentences:
+        lowered = sentence.lower()
+        if any(token in lowered for token in tokens) and len(sentence) >= 20:
+            output.append(sentence + ".")
+        if len(output) >= 3:
+            break
+
+    return output
+
+
+def _build_free_upgrade_payload(language: str) -> Dict[str, Any]:
+    return {
+        "locked": True,
+        "plan": "free",
+        "upgrade_reason": _t(
+            "Upgrade to Pro to unlock deeper AI guidance, stronger next steps, and more tailored recommendations.",
+            "Passez à Pro pour débloquer une guidance IA plus approfondie, de meilleures prochaines étapes et des recommandations plus personnalisées.",
+            language,
+        ),
+        "upgrade_title": _t(
+            "Unlock deeper AI guidance",
+            "Débloquez une guidance IA plus approfondie",
+            language,
+        ),
+        "pricing_route": "/pricing",
+    }
+
+
+def _inject_monetization_actions(
+    *,
+    plan: str,
+    language: str,
+    actions: List[Dict[str, Any]],
+    reply: str,
+    strategy: Optional[Dict[str, Any]] = None,
+    application: Optional[SelfApplication] = None,
+) -> List[Dict[str, Any]]:
+    normalized_actions = actions[:]
+
+    if plan != "free":
+        return normalized_actions[:3]
+
+    strategy = strategy or {}
+    recommended_programs = strategy.get("recommended_programs") or []
+    next_steps = strategy.get("next_steps") or []
+    matter_type = getattr(application, "matter_type", None) if application else None
+
+    if not normalized_actions:
+        normalized_actions.append(
+            {
+                "label": _t("View pricing", "Voir les tarifs", language),
+                "route": "/pricing",
+            }
+        )
+
+    if matter_type or next_steps:
+        normalized_actions.insert(
+            0,
+            {
+                "label": _t("Open my documents", "Ouvrir mes documents", language),
+                "route": "/self/documents",
+            },
+        )
+
+    if recommended_programs:
+        normalized_actions.insert(
+            0,
+            {
+                "label": _t("Open my strategy", "Ouvrir ma stratégie", language),
+                "route": "/strategy",
+            },
+        )
+
+    deduped: List[Dict[str, Any]] = []
+    seen = set()
+    for item in normalized_actions:
+        label = str(item.get("label", "")).strip()
+        route = str(item.get("route", "")).strip()
+        key = (label, route)
+        if not label or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+
+    if not any(item.get("route") == "/pricing" for item in deduped):
+        deduped.append(
+            {
+                "label": _t("Unlock more", "Débloquer plus", language),
+                "route": "/pricing",
+            }
+        )
+
+    return deduped[:3]
+
+
+def format_ai_response(
+    *,
+    raw_text: str,
+    language: str,
+    plan: str,
+    strategy: Optional[Dict[str, Any]] = None,
+    application: Optional[SelfApplication] = None,
+    suggested_next_actions: Optional[List[Any]] = None,
+    insights: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    language = _normalize_language(language)
+    clean_text = (raw_text or "").strip()
+
+    provided_actions = suggested_next_actions or []
+    normalized_actions: List[Dict[str, Any]] = []
+
+    for item in provided_actions:
+        if isinstance(item, dict):
+            normalized_actions.append(
+                {
+                    "label": item.get("label") or item.get("text") or "",
+                    "route": item.get("route"),
+                }
+            )
+        elif isinstance(item, str) and item.strip():
+            normalized_actions.append({"label": item.strip(), "route": None})
+
+    if not normalized_actions:
+        normalized_actions = _extract_actions(clean_text, language)
+
+    derived_insights = insights or _extract_insights(clean_text)
+
+    if plan == "free":
+        max_length = 420
+        preview = clean_text[:max_length].rstrip()
+        if clean_text and len(clean_text) > max_length:
+            preview += "..."
+
+        free_upgrade = _build_free_upgrade_payload(language)
+        free_actions = _inject_monetization_actions(
+            plan=plan,
+            language=language,
+            actions=normalized_actions,
+            reply=preview,
+            strategy=strategy,
+            application=application,
+        )
+
         return {
-            "reply": (
-                "J’ai bien reçu votre message. Je peux déjà vous aider à comprendre "
-                "votre stratégie, vos prochaines étapes et vos documents, mais "
-                "certaines fonctions IA avancées ne sont pas encore entièrement configurées."
-            ),
-            "suggested_next_actions": [
-                {
-                    "label": "Voir ma stratégie",
-                    "route": "/strategy",
-                },
-                {
-                    "label": "Mettre à jour mon profil",
-                    "route": "/profile",
-                },
-                {
-                    "label": "Ouvrir mes documents",
-                    "route": "/self/documents",
-                },
-            ],
+            "reply": preview,
+            "suggested_next_actions": free_actions,
+            "insights": derived_insights[:2],
+            **free_upgrade,
+        }
+
+    if plan == "premium":
+        return {
+            "reply": clean_text,
+            "suggested_next_actions": normalized_actions[:3],
+            "insights": derived_insights[:3],
+            "risk_analysis": _extract_risks(clean_text, language),
+            "optimization_tips": _extract_optimizations(clean_text, language),
+            "locked": False,
+            "plan": "premium",
         }
 
     return {
-        "reply": (
-            "I received your message. I can already help explain your strategy, "
-            "next steps, and documents, but some advanced AI capabilities are "
-            "not fully configured yet."
-        ),
-        "suggested_next_actions": [
-            {
-                "label": "View my strategy",
-                "route": "/strategy",
-            },
-            {
-                "label": "Update my profile",
-                "route": "/profile",
-            },
-            {
-                "label": "Open my documents",
-                "route": "/self/documents",
-            },
-        ],
+        "reply": clean_text,
+        "suggested_next_actions": normalized_actions[:3],
+        "insights": derived_insights[:3],
+        "locked": False,
+        "plan": "pro",
     }
 
 
@@ -124,21 +390,12 @@ def build_self_user_ai_context(
     current_user: User,
     language: str = "en",
 ) -> Dict[str, Any]:
-    """
-    Build a single reusable AI context for self users.
-
-    This context is intended to power:
-    - dashboard AI summaries
-    - strategy copilots
-    - chat
-    - self-application guidance
-    - document generation / review helpers
-    """
     language = _normalize_language(language)
 
     profile = get_self_profile(db, current_user.id)
     application = get_latest_self_application(db, current_user.id)
-    is_premium = has_individual_pro(current_user)
+    ai_plan = _resolve_ai_plan(current_user)
+    is_premium = ai_plan in {"pro", "premium"}
 
     strategy = build_strategy(profile, language=language) if profile else None
 
@@ -150,14 +407,23 @@ def build_self_user_ai_context(
         language=language,
     )
 
+    ai_context = build_user_context(
+        profile=profile,
+        strategy=strategy,
+        application=application,
+        decision=decision,
+    )
+
     return {
         "user": current_user,
         "language": language,
+        "ai_plan": ai_plan,
         "is_premium": is_premium,
         "profile": profile,
         "application": application,
         "strategy": strategy,
         "decision": decision,
+        "ai_context": ai_context,
         "profile_found": bool(profile),
         "application_found": bool(application),
         "strategy_loaded": bool(strategy),
@@ -165,10 +431,6 @@ def build_self_user_ai_context(
 
 
 def build_self_user_summary_cards(context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Returns lightweight AI-ready summary data that frontend pages can use
-    without needing to understand backend internals.
-    """
     language = _normalize_language(context.get("language"))
     strategy = context.get("strategy") or {}
     decision = context.get("decision") or {}
@@ -189,9 +451,7 @@ def build_self_user_summary_cards(context: Dict[str, Any]) -> Dict[str, Any]:
             if strategy
             else "Complétez votre profil pour générer votre stratégie."
         )
-        status = (
-            "Premium actif" if is_premium else "Version gratuite active"
-        )
+        status = "Premium actif" if is_premium else "Version gratuite active"
     else:
         headline = (
             "Your strategy is ready."
@@ -222,12 +482,6 @@ def ask_self_user_copilot(
     chat_history: Optional[List[Any]] = None,
     fail_silently: bool = False,
 ) -> Dict[str, Any]:
-    """
-    Main self-user chat/copilot entry point.
-
-    Uses the centralized self-user AI context so dashboard, strategy,
-    application pages, and chat all rely on the same source context.
-    """
     language = _normalize_language(language)
     context = build_self_user_ai_context(
         db=db,
@@ -237,12 +491,42 @@ def ask_self_user_copilot(
 
     fn = getattr(ai_advisor, "generate_ai_chat_reply", None)
     if not callable(fn):
+        fallback = {
+            "reply": _t(
+                "I received your message, but the AI assistant is not fully available right now.",
+                "J’ai bien reçu votre message, mais l’assistant IA n’est pas encore entièrement disponible.",
+                language,
+            ),
+            "suggested_next_actions": [
+                {
+                    "label": _t("Open my strategy", "Ouvrir ma stratégie", language),
+                    "route": "/strategy",
+                },
+                {
+                    "label": _t("Open my documents", "Ouvrir mes documents", language),
+                    "route": "/self/documents",
+                },
+                {
+                    "label": _t("View pricing", "Voir les tarifs", language),
+                    "route": "/pricing",
+                }
+                if context["ai_plan"] == "free"
+                else {
+                    "label": _t("Open my application", "Ouvrir ma demande", language),
+                    "route": "/self/application",
+                },
+            ],
+            "insights": [],
+            "locked": context["ai_plan"] == "free",
+            "plan": context["ai_plan"],
+        }
+
         if fail_silently:
-            fallback = _build_chat_fallback(language)
             return {
                 **fallback,
                 "profile_found": context["profile_found"],
                 "strategy_loaded": context["strategy_loaded"],
+                "application_found": context["application_found"],
                 "language": language,
                 "pathways": (
                     context["strategy"].get("recommended_programs", [])
@@ -254,48 +538,91 @@ def ask_self_user_copilot(
                     if context["strategy"]
                     else {}
                 ),
+                "decision": context.get("decision") or {},
+                "matter_type": (
+                    getattr(context.get("application"), "matter_type", None)
+                    if context.get("application")
+                    else None
+                ),
             }
         raise RuntimeError("generate_ai_chat_reply not found in ai_advisor")
 
     try:
+        ai_context = context.get("ai_context") or {}
+        strategy = context.get("strategy") or {}
+        application = context.get("application")
+        decision = context.get("decision") or {}
+        plan = context.get("ai_plan", "free")
+
         result = fn(
             message=(message or "").strip(),
             language=language,
             profile=context["profile"],
-            strategy=context["strategy"],
+            strategy=strategy,
             chat_history=_serialize_chat_history(chat_history),
+            application_context=ai_context.get("application", {}),
+            decision_context=decision,
+            plan=plan,
         )
 
         if not isinstance(result, dict):
             raise ValueError("AI advisor returned invalid format.")
 
+        raw_reply = (result.get("reply") or "").strip()
+        formatted = format_ai_response(
+            raw_text=raw_reply,
+            language=language,
+            plan=plan,
+            strategy=strategy,
+            application=application,
+            suggested_next_actions=result.get("suggested_next_actions", []),
+            insights=result.get("insights", []),
+        )
+
         return {
-            "reply": result.get("reply", ""),
-            "suggested_next_actions": result.get("suggested_next_actions", []),
+            **formatted,
             "profile_found": context["profile_found"],
             "strategy_loaded": context["strategy_loaded"],
+            "application_found": context["application_found"],
             "language": language,
-            "pathways": (
-                context["strategy"].get("recommended_programs", [])
-                if context["strategy"]
-                else []
-            ),
-            "french_advantage": (
-                context["strategy"].get("french_advantage", {})
-                if context["strategy"]
-                else {}
-            ),
+            "pathways": strategy.get("recommended_programs", []) if strategy else [],
+            "french_advantage": strategy.get("french_advantage", {}) if strategy else {},
+            "decision": decision,
+            "matter_type": getattr(application, "matter_type", None) if application else None,
         }
 
     except Exception:
         if not fail_silently:
             raise
 
-        fallback = _build_chat_fallback(language)
+        fallback = format_ai_response(
+            raw_text=_t(
+                "Your strategy and application context are available. The next best step is to continue executing your strongest documents and review your priority items.",
+                "Votre stratégie et votre contexte de demande sont disponibles. La prochaine meilleure étape est de continuer l’exécution de vos documents prioritaires et de réviser les éléments les plus importants.",
+                language,
+            ),
+            language=language,
+            plan=context["ai_plan"],
+            strategy=context.get("strategy") or {},
+            application=context.get("application"),
+            suggested_next_actions=[
+                {
+                    "label": _t("Open my documents", "Ouvrir mes documents", language),
+                    "route": "/self/documents",
+                },
+                {
+                    "label": _t("Open my strategy", "Ouvrir ma stratégie", language),
+                    "route": "/strategy",
+                },
+            ],
+            insights=[],
+        )
+
         return {
             **fallback,
             "profile_found": context["profile_found"],
             "strategy_loaded": context["strategy_loaded"],
+            "application_found": context["application_found"],
             "language": language,
             "pathways": (
                 context["strategy"].get("recommended_programs", [])
@@ -307,14 +634,16 @@ def ask_self_user_copilot(
                 if context["strategy"]
                 else {}
             ),
+            "decision": context.get("decision") or {},
+            "matter_type": (
+                getattr(context.get("application"), "matter_type", None)
+                if context.get("application")
+                else None
+            ),
         }
 
 
 def build_dashboard_copilot_prompt(context: Dict[str, Any]) -> str:
-    """
-    Generates a consistent prompt for dashboard-level AI summaries.
-    Useful if you want a dedicated dashboard copilot endpoint later.
-    """
     language = _normalize_language(context.get("language"))
     strategy = context.get("strategy") or {}
     summary = build_self_user_summary_cards(context)
@@ -347,9 +676,6 @@ def build_dashboard_copilot_prompt(context: Dict[str, Any]) -> str:
 
 
 def build_strategy_copilot_prompt(context: Dict[str, Any]) -> str:
-    """
-    Generates a consistent prompt for strategy-page copilots.
-    """
     language = _normalize_language(context.get("language"))
     strategy = context.get("strategy") or {}
     french_advantage = strategy.get("french_advantage") or {}
@@ -380,9 +706,6 @@ def build_strategy_copilot_prompt(context: Dict[str, Any]) -> str:
 
 
 def build_documents_copilot_prompt(context: Dict[str, Any]) -> str:
-    """
-    Generates a reusable prompt for self-documents/document-generator pages.
-    """
     language = _normalize_language(context.get("language"))
     application = context.get("application")
     strategy = context.get("strategy") or {}
@@ -418,24 +741,22 @@ def build_self_user_access_payload(
     locked: bool = False,
     upgrade_reason: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Standardized access payload for self-user endpoints.
-    Useful for keeping premium UX consistent across pages.
-    """
     language = _normalize_language(language)
-    is_premium = has_individual_pro(current_user)
+    ai_plan = _resolve_ai_plan(current_user)
+    is_premium = ai_plan in {"pro", "premium"}
 
     reason = upgrade_reason
     if locked and not reason:
         reason = _t(
-            "Upgrade to Premium to unlock this feature.",
-            "Passez à Premium pour débloquer cette fonctionnalité.",
+            "Upgrade to Pro to unlock this AI feature.",
+            "Passez à Pro pour débloquer cette fonctionnalité IA.",
             language,
         )
 
     return {
         "access": {
             "is_premium": is_premium,
+            "ai_plan": ai_plan,
             "locked": bool(locked),
             "upgrade_reason": reason,
         }

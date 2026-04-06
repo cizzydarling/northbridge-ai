@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.core.access_control import get_current_user, has_individual_pro
+from app.core.access_control import (
+    get_current_user,
+    has_individual_pro,
+    has_premium_access,
+)
 from app.data.db import get_db
 from app.models.profile_model import Profile
 from app.models.self_application_model import SelfApplication
@@ -15,6 +20,7 @@ from app.services.checklist_engine import build_checklist
 from app.services.decision_engine import build_user_decision_context
 from app.services.eligibility_engine import evaluate_matter_eligibility
 from app.services.forms_assistant import build_forms_assistant
+from app.services.pdf_service import generate_strategy_pdf
 from app.services.strategy_service import build_strategy
 
 router = APIRouter(prefix="/self", tags=["Self"])
@@ -23,10 +29,10 @@ PERMANENT_RESIDENCE_MATTER_TYPE = "permanent_residence"
 
 
 def require_self_user(current_user=Depends(get_current_user)):
-    is_agent = (
-        getattr(current_user, "plan", None) == "agent"
-        or getattr(current_user, "role", None) == "agent"
-    )
+    raw_plan = str(getattr(current_user, "plan", "") or "").strip().lower()
+    role = str(getattr(current_user, "role", "") or "").strip().lower()
+
+    is_agent = raw_plan == "agent_pro" or role == "agent"
 
     if is_agent:
         raise HTTPException(
@@ -352,13 +358,13 @@ def build_pr_checklist_from_strategy(strategy: dict, language: str) -> list[dict
     return checklist
 
 
-def build_premium_decision_payload(
+def build_decision_payload(
     decision: dict,
     *,
-    is_premium: bool,
+    is_pro: bool,
     language: str,
 ) -> dict:
-    if is_premium:
+    if is_pro:
         return {
             **decision,
             "locked": False,
@@ -368,7 +374,7 @@ def build_premium_decision_payload(
     recommended_actions = list(decision.get("recommended_actions") or [])
     top_pathways = list(decision.get("top_pathways") or [])
 
-    preview = {
+    return {
         "priority_label": decision.get("priority_label"),
         "priority_reason": decision.get("priority_reason"),
         "primary_recommendation": decision.get("primary_recommendation"),
@@ -382,12 +388,56 @@ def build_premium_decision_payload(
         "locked": True,
         "is_premium": False,
         "upgrade_reason": t(
-            "Upgrade to Premium to unlock the full decision engine, deeper actions, and full pathway ranking.",
-            "Passez à Premium pour débloquer le moteur de décision complet, des actions plus approfondies et le classement complet des voies.",
+            "Upgrade to Pro to unlock the full decision engine, deeper actions, and full pathway ranking.",
+            "Passez à Pro pour débloquer le moteur de décision complet, des actions plus approfondies et le classement complet des voies.",
             language,
         ),
     }
-    return preview
+
+
+def build_strategy_payload(
+    strategy: dict,
+    *,
+    is_pro: bool,
+    is_premium: bool,
+    language: str,
+) -> dict:
+    strategy = dict(strategy or {})
+
+    if is_pro:
+        strategy["locked"] = False
+        strategy["is_premium"] = is_premium
+        strategy["can_export_pdf"] = is_premium
+        strategy["export_upgrade_reason"] = None if is_premium else t(
+            "Upgrade to Premium to unlock PDF export.",
+            "Passez à Premium pour débloquer l’export PDF.",
+            language,
+        )
+        return strategy
+
+    return {
+        "crs_score": strategy.get("crs_score"),
+        "recommended_programs": list(strategy.get("recommended_programs") or [])[:2],
+        "strengths": list(strategy.get("strengths") or [])[:2],
+        "weaknesses": list(strategy.get("weaknesses") or [])[:2],
+        "next_steps": list(strategy.get("next_steps") or [])[:2],
+        "advisor_summary": strategy.get("advisor_summary"),
+        "noc_summary": strategy.get("noc_summary") or {},
+        "french_advantage": strategy.get("french_advantage") or {},
+        "locked": True,
+        "is_premium": False,
+        "can_export_pdf": False,
+        "upgrade_reason": t(
+            "Upgrade to Pro to unlock the full strategy and deeper guidance.",
+            "Passez à Pro pour débloquer la stratégie complète et une guidance plus approfondie.",
+            language,
+        ),
+        "export_upgrade_reason": t(
+            "Upgrade to Premium to unlock PDF export.",
+            "Passez à Premium pour débloquer l’export PDF.",
+            language,
+        ),
+    }
 
 
 def run_permanent_residence_workspace(
@@ -469,7 +519,9 @@ def run_self_workspace(
     matter_type = payload.matter_type
     intake = payload.intake or {}
     language = normalize_language(language)
-    is_premium = has_individual_pro(current_user)
+
+    is_pro = has_individual_pro(current_user)
+    is_premium = has_premium_access(current_user)
 
     strategy = None
 
@@ -479,7 +531,13 @@ def run_self_workspace(
             current_user=current_user,
             language=language,
         )
-        strategy = pr_workspace["strategy"]
+        raw_strategy = pr_workspace["strategy"]
+        strategy = build_strategy_payload(
+            raw_strategy,
+            is_pro=is_pro,
+            is_premium=is_premium,
+            language=language,
+        )
         eligibility = pr_workspace["eligibility"]
         forms_assistant = pr_workspace["forms_assistant"]
         checklist = pr_workspace["checklist"]
@@ -508,9 +566,9 @@ def run_self_workspace(
             language=language,
         )
 
-    decision = build_premium_decision_payload(
+    decision = build_decision_payload(
         raw_decision,
-        is_premium=is_premium,
+        is_pro=is_pro,
         language=language,
     )
 
@@ -557,3 +615,50 @@ def run_self_workspace(
         response_payload["french_advantage"] = strategy.get("french_advantage", {})
 
     return response_payload
+
+
+@router.get("/strategy/export-pdf")
+def export_strategy_pdf(
+    language: str = Query(default="en"),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_self_user),
+):
+    language = normalize_language(language)
+
+    if not has_premium_access(current_user):
+        raise HTTPException(
+            status_code=403,
+            detail=t(
+                "Upgrade to Premium to unlock PDF export.",
+                "Passez à Premium pour débloquer l’export PDF.",
+                language,
+            ),
+        )
+
+    profile = get_profile_for_user(db, current_user.id)
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail=t(
+                "Complete your profile first to export your strategy.",
+                "Complétez d’abord votre profil pour exporter votre stratégie.",
+                language,
+            ),
+        )
+
+    strategy = build_strategy(profile, language=language)
+    pdf_buffer = generate_strategy_pdf(strategy)
+
+    filename = (
+        "northbridgeai_strategy_report.pdf"
+        if language == "en"
+        else "rapport_strategie_northbridgeai.pdf"
+    )
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
+    )

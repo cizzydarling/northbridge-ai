@@ -13,8 +13,12 @@ const api = axios.create({
 
 export const getToken = () => localStorage.getItem("token");
 
-export const setToken = (token) => {
+export const saveToken = (token) => {
   localStorage.setItem("token", token);
+};
+
+export const setToken = (token) => {
+  saveToken(token);
 };
 
 export const removeToken = () => {
@@ -27,9 +31,14 @@ export const getCurrentUserLocal = () => {
   return raw ? JSON.parse(raw) : null;
 };
 
-export const setCurrentUserLocal = (user) => {
+export const saveCurrentUser = (user) => {
   localStorage.setItem("current_user", JSON.stringify(user));
   localStorage.setItem("user", JSON.stringify(user));
+  window.dispatchEvent(new Event("userUpdated"));
+};
+
+export const setCurrentUserLocal = (user) => {
+  saveCurrentUser(user);
 };
 
 export const removeCurrentUserLocal = () => {
@@ -86,11 +95,120 @@ api.interceptors.response.use(
 export default api;
 
 /* =========================
+   BILLING ACCESS NORMALIZATION
+========================= */
+
+function normalizeAccess(raw) {
+  const plan = raw?.plan || "free";
+  const features = raw?.features || {};
+
+  const isPro =
+    Boolean(raw?.is_pro) || plan === "pro" || plan === "premium";
+  const isPremium =
+    Boolean(raw?.is_premium) || plan === "premium";
+
+  return {
+    ...raw,
+    plan,
+    features,
+
+    is_free: raw?.is_free ?? (!isPro && !isPremium),
+    is_pro: isPro,
+    is_premium: isPremium,
+
+    can_view_basic_strategy:
+      raw?.can_view_basic_strategy ?? true,
+    can_view_full_strategy:
+      raw?.can_view_full_strategy ?? features?.full_strategy ?? isPro,
+
+    can_preview_forms:
+      raw?.can_preview_forms ?? features?.forms_preview ?? true,
+    can_download_forms:
+      raw?.can_download_forms ?? features?.forms_download ?? isPro,
+    can_use_forms_ai_assistant:
+      raw?.can_use_forms_ai_assistant ??
+      features?.forms_ai_assistant ??
+      isPro,
+
+    can_preview_document_generator:
+      raw?.can_preview_document_generator ??
+      features?.document_generator_preview ??
+      true,
+    can_generate_documents_full:
+      raw?.can_generate_documents_full ??
+      features?.document_generator_full ??
+      isPro,
+    can_download_document_docx:
+      raw?.can_download_document_docx ??
+      features?.document_docx_download ??
+      isPro,
+
+    can_preview_document_review:
+      raw?.can_preview_document_review ??
+      features?.document_review_preview ??
+      true,
+    can_review_documents_full:
+      raw?.can_review_documents_full ??
+      features?.document_review_full ??
+      isPro,
+
+    can_use_basic_ai:
+      raw?.can_use_basic_ai ?? features?.basic_ai ?? true,
+    can_use_advanced_ai:
+      raw?.can_use_advanced_ai ??
+      features?.advanced_ai ??
+      isPro,
+    can_use_priority_ai:
+      raw?.can_use_priority_ai ??
+      features?.priority_ai ??
+      isPremium,
+
+    can_export_pdf:
+      raw?.can_export_pdf ?? features?.pdf_export ?? isPremium,
+    can_access_self_workspace:
+      raw?.can_access_self_workspace ??
+      features?.self_workspace ??
+      isPro,
+    can_access_simulations:
+      raw?.can_access_simulations ??
+      features?.simulation_access ??
+      isPro,
+  };
+}
+
+export const getBillingAccess = async () => {
+  try {
+    const res = await api.get("/billing/access");
+    return { data: normalizeAccess(res.data) };
+  } catch (err) {
+    console.warn("Billing access fallback triggered", err);
+
+    return {
+      data: normalizeAccess({
+        plan: "free",
+        is_free: true,
+        is_pro: false,
+        is_premium: false,
+        features: {},
+      }),
+    };
+  }
+};
+
+export const getMyAccess = getBillingAccess;
+
+/* =========================
    DISCLOSURE
 ========================= */
 
 export const acceptDisclosure = (payload) =>
   api.post("/disclosures/accept", payload);
+
+export const getDisclosureRequirements = () =>
+  api.get("/disclosures/requirements");
+
+export const getMyDisclosures = (params = {}) =>
+  api.get("/disclosures/mine", { params });
 
 export const getLatestDisclosureAcceptance = ({
   disclosure_type,
@@ -105,9 +223,6 @@ export const getLatestDisclosureAcceptance = ({
     },
   });
 
-export const getMyDisclosures = (params = {}) =>
-  api.get("/disclosures/mine", { params });
-
 /* =========================
    AUTH
 ========================= */
@@ -119,11 +234,21 @@ export const loginUser = async ({ email, password }) => {
   formData.append("username", email);
   formData.append("password", password);
 
-  return api.post("/auth/login", formData, {
+  const res = await api.post("/auth/login", formData, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
   });
+
+  if (res.data?.access_token) {
+    saveToken(res.data.access_token);
+  }
+
+  if (res.data?.user) {
+    saveCurrentUser(res.data.user);
+  }
+
+  return res;
 };
 
 export const getMe = () => api.get("/auth/me");
@@ -131,26 +256,44 @@ export const getMe = () => api.get("/auth/me");
 export const refreshCurrentUser = async () => {
   const response = await getMe();
   const user = response.data;
-  setCurrentUserLocal(user);
-  return user;
+  saveCurrentUser(user);
+  return response;
 };
 
 /* =========================
    BILLING
 ========================= */
 
+export const getBillingPlans = () => api.get("/billing/plans");
+export const getAvailablePlans = getBillingPlans;
+
 export const getBillingStatus = () => api.get("/billing/me");
 
-export const getAvailablePlans = () => api.get("/billing/plans");
+export const devSetPlan = (planOrPayload, subscription_status = "active") => {
+  const payload =
+    typeof planOrPayload === "object" && planOrPayload !== null
+      ? planOrPayload
+      : { plan: planOrPayload, subscription_status };
 
-export const devSetPlan = (plan, subscription_status = "active") =>
-  api.post("/billing/dev/set-plan", { plan, subscription_status });
+  return api.post("/billing/dev/set-plan", payload);
+};
 
-export const createCheckoutSession = (plan) =>
-  api.post("/billing/create-checkout-session", { plan });
+export const setMyPlanForTesting = (plan) =>
+  api.post("/billing/dev/set-plan", { plan });
 
-export const createBillingPortalSession = () =>
+export const createCheckoutSession = (planOrPayload) => {
+  const payload =
+    typeof planOrPayload === "object" && planOrPayload !== null
+      ? planOrPayload
+      : { plan: planOrPayload };
+
+  return api.post("/billing/create-checkout-session", payload);
+};
+
+export const createPortalSession = () =>
   api.post("/billing/create-portal-session");
+
+export const createBillingPortalSession = createPortalSession;
 
 /* =========================
    PERSONAL PROFILE
@@ -158,11 +301,13 @@ export const createBillingPortalSession = () =>
 
 export const getMyProfile = () => api.get("/profiles/me");
 
-export const createProfile = (payload) => api.post("/profiles/create", payload);
-
-export const saveMyProfile = (payload) => api.post("/profiles/create", payload);
-
+export const createProfile = (payload) => api.post("/profiles/me", payload);
+export const saveMyProfile = (payload) => api.post("/profiles/me", payload);
 export const updateMyProfile = (payload) => api.put("/profiles/me", payload);
+
+/* =========================
+   SELF WORKSPACE
+========================= */
 
 export const getSelfApplicationContext = () => api.get("/self/application");
 
@@ -176,12 +321,35 @@ export const runSelfChecklist = (payload) =>
   api.post("/self/checklist", payload);
 
 export const runSelfWorkspace = (payload, language = getLanguage()) =>
-  api.post("/self/workspace", payload, {
-    params: { lang: language },
-  });
+  api.post(`/self/workspace?language=${language}`, payload);
 
 export const getSavedSelfApplication = () =>
   api.get("/self/application/saved");
+
+export async function saveSelfApplication(
+  payload,
+  language = getLanguage()
+) {
+  const inferredMatterType =
+    payload?.matter_type ||
+    payload?.application_type ||
+    payload?.intake_payload?.application_type ||
+    "permanent_residence";
+
+  const intake =
+    payload?.intake ||
+    payload?.intake_payload ||
+    payload ||
+    {};
+
+  return runSelfWorkspace(
+    {
+      matter_type: inferredMatterType,
+      intake,
+    },
+    language
+  );
+}
 
 /* =========================
    SELF DOCUMENTS
@@ -220,26 +388,26 @@ export const removeSelfDocumentFile = (documentId) =>
 ========================= */
 
 export const getMyStrategy = (language = getLanguage()) =>
-  api.get("/strategy/me", {
-    params: { lang: language },
+  api.post(`/self/workspace?language=${language}`, {
+    matter_type: "permanent_residence",
+    intake: {},
   });
 
 export const refreshStrategy = (language = getLanguage()) =>
-  api.get("/strategy/me", {
-    params: { lang: language },
+  api.post(`/self/workspace?language=${language}`, {
+    matter_type: "permanent_residence",
+    intake: {},
   });
 
-export const downloadStrategyReport = (language = getLanguage()) =>
-  api.get("/strategy/me/report", {
-    params: { lang: language },
+export const exportMyStrategyPdf = (language = getLanguage()) =>
+  api.get(`/self/strategy/export-pdf?language=${language}`, {
     responseType: "blob",
-    headers: {
-      Accept: "application/pdf,text/html,application/json,text/plain",
-    },
   });
+
+export const downloadStrategyReport = exportMyStrategyPdf;
 
 /* =========================
-   GPS / JOURNEY ENGINE
+   JOURNEY
 ========================= */
 
 export const getMyJourney = (language = getLanguage()) =>
@@ -278,8 +446,14 @@ export const downloadAIDocumentDocx = (payload) =>
    DOCUMENT REVIEW AI
 ========================= */
 
-export const reviewAIDocument = (payload) =>
-  api.post("/document-review/review", payload);
+export const reviewAIDocument = async (payload) => {
+  try {
+    return await api.post("/documents/review", payload);
+  } catch (err) {
+    console.error("Document review failed", err);
+    throw err;
+  }
+};
 
 /* =========================
    SAVED GENERATED DOCUMENTS
@@ -298,6 +472,29 @@ export const duplicateDocument = (id) =>
   api.post(`/documents/${id}/duplicate`);
 
 export const deleteDocument = (id) => api.delete(`/documents/${id}`);
+
+/* =========================
+   FORMS STUDIO
+========================= */
+
+export const getFormsApplicationTypes = (language = getLanguage()) =>
+  api.get(`/forms/application-types?language=${language}`);
+
+export const previewFormsPackage = (payload) =>
+  api.post("/forms/package/preview", payload);
+
+export const downloadFormsPackage = (payload) =>
+  api.post("/forms/package/download", payload, {
+    responseType: "blob",
+  });
+
+/* =========================
+   NOC
+========================= */
+
+export const suggestNOC = (payload) => api.post("/noc/suggest", payload);
+
+export const getNOCDetails = (nocCode) => api.get(`/noc/${nocCode}`);
 
 /* =========================
    CLIENTS

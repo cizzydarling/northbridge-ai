@@ -1,564 +1,513 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import AICopilotCard from "../components/AICopilotCard";
-import {
-  getSavedSelfApplication,
-  getSelfDocuments,
-  createSelfDocument,
-  updateSelfDocument,
-  deleteSelfDocument,
-  uploadSelfDocumentFile,
-  removeSelfDocumentFile,
-} from "../api";
+import UpgradePrompt from "../components/UpgradePrompt";
+import { getBillingAccess } from "../api";
+
+const COMPLETION_STORAGE_KEY = "nbai_document_completion_engine_v1";
+
+const DOCUMENT_LIBRARY = [
+  {
+    id: "passport_identity",
+    category: "identity",
+    title: {
+      en: "Passport / Identity Documents",
+      fr: "Passeport / Pièces d’identité",
+    },
+    description: {
+      en: "Core identity documents used across most immigration applications.",
+      fr: "Documents d’identité de base utilisés dans la plupart des demandes d’immigration.",
+    },
+  },
+  {
+    id: "education_records",
+    category: "education",
+    title: {
+      en: "Education Records",
+      fr: "Preuves d’études",
+    },
+    description: {
+      en: "Diplomas, transcripts, and supporting study documents.",
+      fr: "Diplômes, relevés de notes et documents d’études pertinents.",
+    },
+  },
+  {
+    id: "language_results",
+    category: "language",
+    title: {
+      en: "Language Test Results",
+      fr: "Résultats de tests linguistiques",
+    },
+    description: {
+      en: "IELTS, CELPIP, TEF, TCF, and related proof.",
+      fr: "IELTS, CELPIP, TEF, TCF et preuves connexes.",
+    },
+  },
+  {
+    id: "work_experience_records",
+    category: "employment",
+    title: {
+      en: "Work Experience Proof",
+      fr: "Preuves d’expérience professionnelle",
+    },
+    description: {
+      en: "Reference letters, pay records, and job evidence aligned to your NOC.",
+      fr: "Lettres de référence, fiches de paie et preuves d’emploi alignées à votre CNP.",
+    },
+  },
+  {
+    id: "proof_of_funds",
+    category: "financial",
+    title: {
+      en: "Proof of Funds",
+      fr: "Preuve de fonds",
+    },
+    description: {
+      en: "Bank statements, financial letters, and supporting explanations.",
+      fr: "Relevés bancaires, lettres financières et explications de soutien.",
+    },
+  },
+  {
+    id: "relationship_evidence",
+    category: "family",
+    title: {
+      en: "Relationship Evidence",
+      fr: "Preuves de relation",
+    },
+    description: {
+      en: "Useful for family-based and sponsorship-related applications.",
+      fr: "Utile pour les demandes familiales et les parrainages.",
+    },
+  },
+  {
+    id: "travel_history",
+    category: "travel",
+    title: {
+      en: "Travel History Support",
+      fr: "Justificatifs d’historique de voyage",
+    },
+    description: {
+      en: "Travel explanations, prior visas, entry stamps, and related support.",
+      fr: "Explications de voyage, visas antérieurs, tampons d’entrée et pièces connexes.",
+    },
+  },
+];
+
+function readCompletionEngine() {
+  try {
+    return JSON.parse(localStorage.getItem(COMPLETION_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeCompletionEngine(value) {
+  localStorage.setItem(COMPLETION_STORAGE_KEY, JSON.stringify(value || {}));
+  window.dispatchEvent(new Event("nbai-document-engine-updated"));
+}
+
+function getDocumentState(engine, id) {
+  return (
+    engine?.[id] || {
+      drafted: false,
+      reviewed: false,
+      completed: false,
+    }
+  );
+}
+
+function getCategoryOrder() {
+  return [
+    "identity",
+    "education",
+    "language",
+    "employment",
+    "financial",
+    "family",
+    "travel",
+  ];
+}
+
+function getCategoryLabel(category, language) {
+  const labels = {
+    identity: {
+      en: "Identity",
+      fr: "Identité",
+    },
+    education: {
+      en: "Education",
+      fr: "Études",
+    },
+    language: {
+      en: "Language",
+      fr: "Langues",
+    },
+    employment: {
+      en: "Employment",
+      fr: "Emploi",
+    },
+    financial: {
+      en: "Financial",
+      fr: "Financier",
+    },
+    family: {
+      en: "Family",
+      fr: "Famille",
+    },
+    travel: {
+      en: "Travel",
+      fr: "Voyage",
+    },
+  };
+
+  return labels?.[category]?.[language] || category;
+}
+
+function StatPill({ active, children }) {
+  return (
+    <span
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+        active
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-slate-200 bg-slate-50 text-slate-500"
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
 
 export default function SelfDocumentsPage() {
-  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
-  const apiBaseUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [uploadingDocumentId, setUploadingDocumentId] = useState(null);
-  const [togglingDocumentId, setTogglingDocumentId] = useState(null);
-  const [removingFileDocumentId, setRemovingFileDocumentId] = useState(null);
-  const [clearingDocumentId, setClearingDocumentId] = useState(null);
-
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
-  const [application, setApplication] = useState(null);
-  const [documents, setDocuments] = useState([]);
+  const [engineVersion, setEngineVersion] = useState(0);
+  const [access, setAccess] = useState(null);
 
   useEffect(() => {
-    loadPage();
+    loadAccess();
+
+    function handleEngineUpdate() {
+      setEngineVersion((prev) => prev + 1);
+    }
+
+    window.addEventListener("nbai-document-engine-updated", handleEngineUpdate);
+
+    return () => {
+      window.removeEventListener(
+        "nbai-document-engine-updated",
+        handleEngineUpdate
+      );
+    };
   }, []);
 
-  async function loadPage() {
+  async function loadAccess() {
     try {
-      setLoading(true);
-      setError("");
-      setMessage("");
-
-      const savedAppRes = await getSavedSelfApplication();
-      const savedApplication = savedAppRes.data;
-      setApplication(savedApplication);
-
-      await syncDocumentsFromApplication(savedApplication);
+      const res = await getBillingAccess();
+      setAccess(res.data);
     } catch (err) {
       console.error(err);
-
-      if (err.response?.status === 404) {
-        setApplication(null);
-        setDocuments([]);
-        setError(t("selfDocuments.errors.noApplication"));
-      } else {
-        setError(err.response?.data?.detail || t("selfDocuments.errors.load"));
-      }
-    } finally {
-      setLoading(false);
+      setAccess(null);
     }
   }
 
-  async function syncDocumentsFromApplication(
-    savedApplication,
-    showMessage = false
-  ) {
-    try {
-      setSyncing(true);
-      setError("");
-      if (showMessage) setMessage("");
+  const isPro = Boolean(access?.is_pro);
+  const isPremium = Boolean(access?.is_premium);
 
-      const matterType = savedApplication?.matter_type;
-      const checklist = Array.isArray(savedApplication?.checklist_result)
-        ? savedApplication.checklist_result
-        : [];
-
-      const existingRes = await getSelfDocuments(matterType);
-      const existingDocs = Array.isArray(existingRes.data) ? existingRes.data : [];
-
-      const existingByKey = new Map(
-        existingDocs.map((doc) => [String(doc.document_key), doc])
-      );
-
-      for (const item of checklist) {
-        const key = String(item.id || "");
-        if (!key) continue;
-
-        const existing = existingByKey.get(key);
-
-        if (!existing) {
-          const createRes = await createSelfDocument({
-            matter_type: matterType,
-            document_key: key,
-            document_name: item.name || t("selfDocuments.documentFallback"),
-            priority: item.status || "Required",
-            required: item.status === "Required",
-            notes: item.reason || null,
-          });
-          existingByKey.set(key, createRes.data);
-        } else {
-          const needsUpdate =
-            existing.document_name !==
-              (item.name || t("selfDocuments.documentFallback")) ||
-            existing.priority !== (item.status || "Required") ||
-            Boolean(existing.required) !== Boolean(item.status === "Required") ||
-            (existing.notes || "") !== (item.reason || "");
-
-          if (needsUpdate) {
-            const updateRes = await updateSelfDocument(existing.id, {
-              document_name: item.name || t("selfDocuments.documentFallback"),
-              priority: item.status || "Required",
-              required: item.status === "Required",
-              notes: item.reason || null,
-            });
-            existingByKey.set(key, updateRes.data);
-          }
-        }
-      }
-
-      const refreshedRes = await getSelfDocuments(matterType);
-      setDocuments(Array.isArray(refreshedRes.data) ? refreshedRes.data : []);
-
-      if (showMessage) {
-        setMessage(t("selfDocuments.messages.synced"));
-      }
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.detail || t("selfDocuments.errors.sync"));
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  async function handleUploadFile(documentId, file) {
-    if (!file) return;
-
-    try {
-      setUploadingDocumentId(documentId);
-      setError("");
-      setMessage("");
-
-      const res = await uploadSelfDocumentFile(documentId, file);
-
-      setDocuments((prev) =>
-        prev.map((doc) => (doc.id === documentId ? res.data : doc))
-      );
-
-      setMessage(t("selfDocuments.messages.uploaded"));
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.detail || t("selfDocuments.errors.upload"));
-    } finally {
-      setUploadingDocumentId(null);
-    }
-  }
-
-  async function handleToggleComplete(document) {
-    try {
-      setTogglingDocumentId(document.id);
-      setError("");
-      setMessage("");
-
-      const res = await updateSelfDocument(document.id, {
-        completed: !document.completed,
-      });
-
-      setDocuments((prev) =>
-        prev.map((doc) => (doc.id === document.id ? res.data : doc))
-      );
-
-      setMessage(
-        res.data.completed
-          ? t("selfDocuments.messages.markedComplete")
-          : t("selfDocuments.messages.markedIncomplete")
-      );
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.detail || t("selfDocuments.errors.update"));
-    } finally {
-      setTogglingDocumentId(null);
-    }
-  }
-
-  async function handleRemoveFile(documentId) {
-    try {
-      setRemovingFileDocumentId(documentId);
-      setError("");
-      setMessage("");
-
-      const res = await removeSelfDocumentFile(documentId);
-
-      setDocuments((prev) =>
-        prev.map((doc) => (doc.id === documentId ? res.data : doc))
-      );
-
-      setMessage(t("selfDocuments.messages.fileRemoved"));
-    } catch (err) {
-      console.error(err);
-      setError(
-        err.response?.data?.detail || t("selfDocuments.errors.removeFile")
-      );
-    } finally {
-      setRemovingFileDocumentId(null);
-    }
-  }
-
-  async function handleClearDocument(documentId) {
-    try {
-      setClearingDocumentId(documentId);
-      setError("");
-      setMessage("");
-
-      await deleteSelfDocument(documentId);
-
-      setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
-      setMessage(t("selfDocuments.messages.cleared"));
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.detail || t("selfDocuments.errors.clear"));
-    } finally {
-      setClearingDocumentId(null);
-    }
-  }
+  const engine = useMemo(() => readCompletionEngine(), [engineVersion]);
 
   const stats = useMemo(() => {
-    const totalItems = documents.length;
-    const requiredItems = documents.filter((doc) => Boolean(doc.required)).length;
-    const completedRequired = documents.filter(
-      (doc) => Boolean(doc.required) && Boolean(doc.completed)
-    ).length;
-    const progress = requiredItems
-      ? Math.round((completedRequired / requiredItems) * 100)
-      : 0;
+    const states = DOCUMENT_LIBRARY.map((doc) => getDocumentState(engine, doc.id));
 
     return {
-      totalItems,
-      requiredItems,
-      completedRequired,
-      progress,
+      total: DOCUMENT_LIBRARY.length,
+      drafted: states.filter((item) => item.drafted).length,
+      reviewed: states.filter((item) => item.reviewed).length,
+      completed: states.filter((item) => item.completed).length,
     };
-  }, [documents]);
+  }, [engine]);
 
-  function buildFileUrl(path) {
-    if (!path) return null;
-    if (path.startsWith("http://") || path.startsWith("https://")) return path;
-    return `${apiBaseUrl}${path}`;
+  function handleOpenGenerator(id) {
+    if (!isPro) {
+      navigate("/pricing");
+      return;
+    }
+
+    navigate(`/documents/generator?checklist_id=${id}`);
   }
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center py-16">
-          <p className="text-slate-600">{t("selfDocuments.loading")}</p>
-        </div>
-      </Layout>
-    );
+  function handleOpenReview(id) {
+    if (!isPro) {
+      navigate("/pricing");
+      return;
+    }
+
+    navigate(`/documents/review?checklist_id=${id}`);
   }
+
+  function updateDocument(id, patch) {
+    const current = readCompletionEngine();
+    const existing = current[id] || {
+      drafted: false,
+      reviewed: false,
+      completed: false,
+    };
+
+    const next = {
+      ...current,
+      [id]: {
+        ...existing,
+        ...patch,
+        updated_at: new Date().toISOString(),
+      },
+    };
+
+    writeCompletionEngine(next);
+  }
+
+  function resetDocument(id) {
+    const current = readCompletionEngine();
+    const next = { ...current };
+    delete next[id];
+    writeCompletionEngine(next);
+  }
+
+  function handleMarkDraft(id) {
+    updateDocument(id, { drafted: true });
+  }
+
+  function handleMarkReviewed(id) {
+    updateDocument(id, { drafted: true, reviewed: true });
+  }
+
+  function handleMarkCompleted(id) {
+    updateDocument(id, {
+      drafted: true,
+      reviewed: true,
+      completed: true,
+    });
+  }
+
+  const text = useMemo(() => {
+    if (language === "fr") {
+      return {
+        brand: "NorthBridgeAI",
+        title: "Mes documents",
+        subtitle:
+          "Suivez votre progression documentaire, préparez vos brouillons et passez à la révision lorsque vous êtes prêt.",
+        copilotTitle: "Copilote IA Documents",
+        copilotDesc:
+          "Obtenez une recommandation sur les documents à prioriser.",
+        copilotButton: "Prioriser mes documents",
+        upgradeTitle: "Débloquez la génération de documents",
+        upgradeBody:
+          "Passez à Pro pour générer et réviser vos documents avec l’IA.",
+        featureLocked: "Fonction verrouillée",
+        featureLockedBody: "Passez à Pro pour générer et réviser ce document.",
+        generate: "Générer",
+        review: "Réviser",
+        markDraft: "Brouillon",
+        markReviewed: "Révisé",
+        markCompleted: "Complété",
+        reset: "Réinitialiser",
+        drafted: "Brouillons",
+        reviewed: "Révisés",
+        completed: "Complétés",
+        total: "Total",
+      };
+    }
+
+    return {
+      brand: "NorthBridgeAI",
+      title: "My Documents",
+      subtitle:
+        "Track your document progress, prepare drafts, and move into review when you are ready.",
+      copilotTitle: "Documents AI Copilot",
+      copilotDesc:
+        "Get recommendations on which documents to prioritize.",
+      copilotButton: "Prioritize my documents",
+      upgradeTitle: "Unlock document generation",
+      upgradeBody:
+        "Upgrade to Pro to generate and review your documents with AI.",
+      featureLocked: "Feature locked",
+      featureLockedBody: "Upgrade to Pro to generate and review this document.",
+      generate: "Generate",
+      review: "Review",
+      markDraft: "Draft",
+      markReviewed: "Reviewed",
+      markCompleted: "Completed",
+      reset: "Reset",
+      drafted: "Drafted",
+      reviewed: "Reviewed",
+      completed: "Completed",
+      total: "Total",
+    };
+  }, [language]);
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <section className="rounded-3xl bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 px-6 py-8 text-white shadow-xl md:px-8 md:py-10">
-          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-200">
-                {t("app.name")}
-              </p>
-              <h1 className="mt-2 text-3xl font-bold">
-                {t("selfDocuments.workspaceTitle")}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">
-                {t("selfDocuments.subtitle")}
-              </p>
+      <div className="mb-8 max-w-3xl">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+          {text.brand}
+        </p>
+        <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+          {text.title}
+        </h1>
+        <p className="mt-3 text-base leading-7 text-slate-600">
+          {text.subtitle}
+        </p>
+      </div>
 
-              {application?.matter_type ? (
-                <p className="mt-4 text-sm text-blue-100">
-                  <span className="font-semibold">
-                    {t("selfDocuments.savedApplicationType")}
-                  </span>{" "}
-                  {application.matter_type}
-                </p>
-              ) : null}
-            </div>
+      <AICopilotCard
+        title={text.copilotTitle}
+        description={text.copilotDesc}
+        buttonLabel={text.copilotButton}
+        language={language}
+        prompt={
+          language === "fr"
+            ? "Analyse ma progression documentaire et dis-moi quoi prioriser."
+            : "Analyze my document progress and tell me what to prioritize."
+        }
+        className="mb-6"
+      />
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                variant="white"
-                className="h-12"
-                onClick={() => syncDocumentsFromApplication(application, true)}
-                disabled={!application || syncing}
-              >
-                {syncing
-                  ? t("selfDocuments.syncing")
-                  : t("selfDocuments.syncButton")}
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        <AICopilotCard
-          title={
-            language === "fr"
-              ? "Copilote IA des documents"
-              : "Documents AI Copilot"
-          }
-          description={
-            language === "fr"
-              ? "Obtenez une recommandation claire sur le document à préparer en premier."
-              : "Get a clear recommendation on which document to prepare first."
-          }
-          buttonLabel={
-            language === "fr"
-              ? "Quel document préparer d’abord ?"
-              : "Which document should I prepare first?"
-          }
-          language={language}
-          prompt={
-            language === "fr"
-              ? "En tenant compte de mon profil, de ma stratégie et de mes documents, quel document dois-je préparer en premier ? Retournez aussi 3 suggested_next_actions courtes et concrètes."
-              : "Taking into account my profile, strategy, and documents, which document should I prepare first? Also return 3 short and concrete suggested_next_actions."
-          }
+      {!isPro && (
+        <UpgradePrompt
+          className="mb-6"
+          title={text.upgradeTitle}
+          body={text.upgradeBody}
         />
+      )}
 
-        {message ? (
-          <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-            {message}
-          </div>
-        ) : null}
+      <div className="mb-8 grid gap-4 md:grid-cols-4">
+        <Card padding="lg">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+            {text.total}
+          </p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+            {stats.total}
+          </p>
+        </Card>
 
-        {error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
+        <Card padding="lg">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+            {text.drafted}
+          </p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+            {stats.drafted}
+          </p>
+        </Card>
 
-        {!application ? (
-          <Card variant="soft" padding="lg">
-            <p className="text-sm text-slate-700">
-              {t("selfDocuments.noApplication")}
-            </p>
-          </Card>
-        ) : (
-          <>
-            <div className="grid gap-4 md:grid-cols-4">
-              <MetricCard
-                label={t("selfDocuments.stats.totalItems")}
-                value={stats.totalItems}
-              />
-              <MetricCard
-                label={t("selfDocuments.stats.requiredItems")}
-                value={stats.requiredItems}
-              />
-              <MetricCard
-                label={t("selfDocuments.stats.completedRequired")}
-                value={stats.completedRequired}
-              />
-              <MetricCard
-                label={t("selfDocuments.stats.progress")}
-                value={`${stats.progress}%`}
-              />
-            </div>
+        <Card padding="lg">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+            {text.reviewed}
+          </p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+            {stats.reviewed}
+          </p>
+        </Card>
 
-            <Card variant="elevated" padding="lg">
-              <h2 className="text-xl font-semibold text-slate-900">
-                {t("selfDocuments.progressTitle")}
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                {t("selfDocuments.progressSubtitle", {
-                  completed: stats.completedRequired,
-                  required: stats.requiredItems,
-                })}
-              </p>
+        <Card padding="lg">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+            {text.completed}
+          </p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+            {stats.completed}
+          </p>
+        </Card>
+      </div>
 
-              <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="h-full rounded-full bg-blue-600 transition-all"
-                  style={{ width: `${stats.progress}%` }}
-                />
+      <div className="space-y-10">
+        {getCategoryOrder().map((category) => {
+          const docs = DOCUMENT_LIBRARY.filter((d) => d.category === category);
+
+          if (!docs.length) return null;
+
+          return (
+            <section key={category}>
+              <div className="mb-4">
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+                  {getCategoryLabel(category, language)}
+                </h2>
               </div>
-            </Card>
 
-            <Card variant="elevated" padding="lg">
-              <h2 className="text-xl font-semibold text-slate-900">
-                {t("selfDocuments.checklistTitle")}
-              </h2>
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {docs.map((doc) => {
+                  const state = getDocumentState(engine, doc.id);
 
-              {documents.length === 0 ? (
-                <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                  <p className="text-sm text-slate-600">
-                    {t("selfDocuments.empty")}
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-6 space-y-4">
-                  {documents.map((doc) => {
-                    const fileUrl = buildFileUrl(
-                      doc.file_url || doc.file_path || ""
-                    );
-                    const isUploading = uploadingDocumentId === doc.id;
-                    const isToggling = togglingDocumentId === doc.id;
-                    const isRemovingFile = removingFileDocumentId === doc.id;
-                    const isClearing = clearingDocumentId === doc.id;
+                  return (
+                    <Card key={doc.id} padding="lg">
+                      <h3 className="mb-2 text-lg font-semibold text-slate-900">
+                        {doc.title[language]}
+                      </h3>
 
-                    return (
-                      <div
-                        key={doc.id}
-                        className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
-                      >
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-base font-semibold text-slate-900">
-                                {doc.document_name ||
-                                  t("selfDocuments.documentFallback")}
-                              </h3>
+                      <p className="mb-4 text-sm leading-7 text-slate-600">
+                        {doc.description[language]}
+                      </p>
 
-                              <PriorityBadge priority={doc.priority} t={t} />
-
-                              {doc.completed ? (
-                                <span className="rounded-full border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
-                                  {t("selfDocuments.complete")}
-                                </span>
-                              ) : null}
-                            </div>
-
-                            <p className="mt-3 text-sm leading-6 text-slate-600">
-                              {doc.notes || t("selfDocuments.noNotes")}
-                            </p>
-
-                            <div className="mt-4 space-y-2 text-sm text-slate-600">
-                              {fileUrl ? (
-                                <div>
-                                  <span className="font-medium">
-                                    {t("selfDocuments.uploadedFile")}
-                                  </span>{" "}
-                                  <a
-                                    href={fileUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-blue-700 underline"
-                                  >
-                                    {t("selfDocuments.openFile")}
-                                  </a>
-                                </div>
-                              ) : (
-                                <div>{t("selfDocuments.noFile")}</div>
-                              )}
-
-                              {doc.updated_at ? (
-                                <div>
-                                  {t("selfDocuments.savedAt", {
-                                    date: new Date(
-                                      doc.updated_at
-                                    ).toLocaleString(),
-                                  })}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-
-                          <div className="flex w-full flex-col gap-2 sm:w-auto">
-                            <label className="inline-flex">
-                              <input
-                                type="file"
-                                className="hidden"
-                                onChange={(e) =>
-                                  handleUploadFile(doc.id, e.target.files?.[0])
-                                }
-                              />
-                              <span className="inline-flex min-h-[44px] cursor-pointer items-center justify-center whitespace-nowrap rounded-xl border border-slate-300 bg-white px-5 text-sm font-medium text-slate-800 transition duration-200 hover:bg-slate-50">
-                                {isUploading
-                                  ? t("selfDocuments.uploading")
-                                  : t("common.upload")}
-                              </span>
-                            </label>
-
-                            <Button
-                              variant="secondary"
-                              className="h-11"
-                              onClick={() => handleToggleComplete(doc)}
-                              disabled={isToggling}
-                            >
-                              {isToggling
-                                ? t("selfDocuments.updating")
-                                : doc.completed
-                                ? t("selfDocuments.markIncomplete")
-                                : t("selfDocuments.markComplete")}
-                            </Button>
-
-                            {fileUrl ? (
-                              <Button
-                                variant="secondary"
-                                className="h-11"
-                                onClick={() => handleRemoveFile(doc.id)}
-                                disabled={isRemovingFile}
-                              >
-                                {isRemovingFile
-                                  ? t("selfDocuments.removingFile")
-                                  : t("selfDocuments.removeFile")}
-                              </Button>
-                            ) : null}
-
-                            <Button
-                              variant="danger"
-                              className="h-11"
-                              onClick={() => handleClearDocument(doc.id)}
-                              disabled={isClearing}
-                            >
-                              {isClearing
-                                ? t("selfDocuments.clearing")
-                                : t("selfDocuments.clearEntry")}
-                            </Button>
-                          </div>
-                        </div>
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        <StatPill active={state.drafted}>{text.markDraft}</StatPill>
+                        <StatPill active={state.reviewed}>{text.markReviewed}</StatPill>
+                        <StatPill active={state.completed}>{text.markCompleted}</StatPill>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-          </>
-        )}
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="secondary"
+                          onClick={() => handleOpenGenerator(doc.id)}
+                        >
+                          {text.generate}
+                        </Button>
+
+                        <Button
+                          variant="secondary"
+                          onClick={() => handleOpenReview(doc.id)}
+                        >
+                          {text.review}
+                        </Button>
+
+                        <Button onClick={() => handleMarkDraft(doc.id)}>
+                          {text.markDraft}
+                        </Button>
+
+                        <Button onClick={() => handleMarkReviewed(doc.id)}>
+                          {text.markReviewed}
+                        </Button>
+
+                        <Button onClick={() => handleMarkCompleted(doc.id)}>
+                          {text.markCompleted}
+                        </Button>
+
+                        <Button
+                          variant="secondary"
+                          onClick={() => resetDocument(doc.id)}
+                        >
+                          {text.reset}
+                        </Button>
+                      </div>
+
+                      {!isPro && (
+                        <div className="mt-4">
+                          <UpgradePrompt
+                            compact
+                            title={text.featureLocked}
+                            body={text.featureLockedBody}
+                          />
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </Layout>
-  );
-}
-
-function MetricCard({ label, value }) {
-  return (
-    <Card variant="default" padding="md">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
-    </Card>
-  );
-}
-
-function PriorityBadge({ priority, t }) {
-  const normalized = String(priority || "").toLowerCase();
-
-  let className = "border-blue-200 bg-blue-50 text-blue-700";
-  let text = t("selfDocuments.priority.info");
-
-  if (normalized === "required" || normalized === "obligatoire") {
-    className = "border-red-200 bg-red-50 text-red-700";
-    text = t("selfDocuments.priority.required");
-  } else if (
-    normalized === "recommended" ||
-    normalized === "recommandé" ||
-    normalized === "recommande"
-  ) {
-    className = "border-amber-200 bg-amber-50 text-amber-700";
-    text = t("selfDocuments.priority.recommended");
-  }
-
-  return (
-    <span
-      className={`rounded-full border px-2 py-1 text-xs font-medium ${className}`}
-    >
-      {text}
-    </span>
   );
 }

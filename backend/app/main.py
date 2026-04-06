@@ -23,6 +23,7 @@ from app.routes import (
     generated_document_routes,
     journey_routes,
     matter_routes,
+    noc_routes,
     profile_routes,
     program_routes,
     recommendation_routes,
@@ -30,6 +31,7 @@ from app.routes import (
     self_routes,
     simulation_scenarios_routes,
     strategy_routes,
+    forms_routes,
 )
 
 import app.models.disclosure_acceptance_model
@@ -104,6 +106,8 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(self_routes.router)
     app.include_router(self_document_routes.router)
     app.include_router(generated_document_routes.router)
+    app.include_router(noc_routes.router)
+    app.include_router(forms_routes.router)
 
 
 def create_app() -> FastAPI:

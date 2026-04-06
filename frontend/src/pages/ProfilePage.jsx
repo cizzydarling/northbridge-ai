@@ -9,6 +9,7 @@ import {
   logoutUser,
   getToken,
   refreshCurrentUser,
+  suggestNOC,
 } from "../api";
 
 import Input from "../components/ui/Input";
@@ -52,9 +53,23 @@ const PROVINCES = [
   "Newfoundland and Labrador",
 ];
 
+function SectionIntro({ eyebrow, title, body }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
+        {eyebrow}
+      </p>
+      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        {title}
+      </h2>
+      {body ? <p className="mt-2 text-sm leading-7 text-slate-600">{body}</p> : null}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const [form, setForm] = useState(defaultForm);
@@ -62,6 +77,11 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [profileExists, setProfileExists] = useState(false);
+
+  const [nocDescription, setNocDescription] = useState("");
+  const [nocDutyInput, setNocDutyInput] = useState("");
+  const [nocResult, setNocResult] = useState(null);
+  const [nocLoading, setNocLoading] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -112,7 +132,7 @@ export default function ProfilePage() {
         loading: "Chargement du profil...",
         title: "Votre profil",
         subtitle:
-          "Complétez votre profil pour améliorer votre stratégie d’immigration et personnaliser votre expérience.",
+          "Complétez votre profil pour améliorer votre stratégie d’immigration, vos recommandations IA et votre espace de demande.",
         personalInfo: "Informations personnelles",
         immigrationProfile: "Profil d’immigration",
         firstName: "Prénom",
@@ -128,7 +148,7 @@ export default function ProfilePage() {
         single: "Célibataire",
         married: "Marié(e)",
         commonLaw: "Conjoint(e) de fait",
-        divorced: "Divorcé(e)",
+        divorced: "Divorced",
         widowed: "Veuf / veuve",
         english: "Anglais",
         french: "Français",
@@ -159,10 +179,35 @@ export default function ProfilePage() {
           "Les champs les plus utiles sont généralement le score linguistique, l’expérience, la profession, le code CNP, la province visée et les indicateurs comme l’offre d’emploi ou l’expérience canadienne.",
         openStrategy: "Voir ma stratégie",
         openApplication: "Ouvrir ma demande",
+        openAssistant: "Ouvrir l’assistant IA",
+        openDocuments: "Voir mes documents",
         copilotTitle: "Copilote IA du profil",
         copilotDesc:
           "Comprenez quelles informations sont les plus importantes à compléter pour améliorer votre stratégie.",
         copilotButton: "Que devrais-je compléter ?",
+        decisionCopilotTitle: "Quel champ aura le plus d’impact ?",
+        decisionCopilotDesc:
+          "Obtenez une recommandation pratique sur l’élément de profil à améliorer en priorité.",
+        decisionCopilotButton: "Prioriser mon profil",
+        nocTitle: "Assistant CNP",
+        nocDesc:
+          "Décrivez brièvement votre travail pour obtenir une suggestion de code CNP plus précise.",
+        nocDescription: "Description du poste",
+        nocDescriptionPlaceholder:
+          "Ex.: Je développe des applications web, j’écris du code, je corrige des bogues et je collabore avec l’équipe produit.",
+        nocDuties: "Responsabilités clés",
+        nocDutiesPlaceholder:
+          "Une responsabilité par ligne. Ex.: Développer des API\nCorriger des bogues\nÉcrire des tests",
+        suggestNoc: "Suggérer un CNP",
+        suggestingNoc: "Analyse du CNP...",
+        suggestedNoc: "CNP suggéré",
+        confidence: "Confiance",
+        teer: "TEER",
+        category: "Catégorie",
+        whyMatched: "Pourquoi ce CNP correspond",
+        alternatives: "Autres options",
+        useThisNoc: "Utiliser ce CNP",
+        noAlternatives: "Aucune autre option disponible.",
       };
     }
 
@@ -170,7 +215,7 @@ export default function ProfilePage() {
       loading: "Loading profile...",
       title: "Your Profile",
       subtitle:
-        "Complete your profile to improve your immigration strategy and personalize your experience.",
+        "Complete your profile to improve your immigration strategy, AI guidance, and application workspace.",
       personalInfo: "Personal Information",
       immigrationProfile: "Immigration Profile",
       firstName: "First Name",
@@ -217,10 +262,35 @@ export default function ProfilePage() {
         "The most useful fields are usually language score, work experience, occupation, NOC code, target province, and signals like a job offer or Canadian experience.",
       openStrategy: "View my strategy",
       openApplication: "Open my application",
+      openAssistant: "Open AI assistant",
+      openDocuments: "View my documents",
       copilotTitle: "Profile AI Copilot",
       copilotDesc:
         "Understand which profile details matter most for improving your strategy.",
       copilotButton: "What should I complete?",
+      decisionCopilotTitle: "Which field will move the needle most?",
+      decisionCopilotDesc:
+        "Get a practical recommendation on the single profile element to improve first.",
+      decisionCopilotButton: "Prioritize my profile",
+      nocTitle: "NOC Assistant",
+      nocDesc:
+        "Briefly describe your real job so the system can suggest a more accurate NOC code.",
+      nocDescription: "Job description",
+      nocDescriptionPlaceholder:
+        "Example: I build web applications, write code, fix bugs, and work with the product team.",
+      nocDuties: "Key responsibilities",
+      nocDutiesPlaceholder:
+        "One responsibility per line. Example: Build APIs\nFix bugs\nWrite tests",
+      suggestNoc: "Suggest NOC",
+      suggestingNoc: "Analyzing NOC...",
+      suggestedNoc: "Suggested NOC",
+      confidence: "Confidence",
+      teer: "TEER",
+      category: "Category",
+      whyMatched: "Why this matched",
+      alternatives: "Other likely options",
+      useThisNoc: "Use this NOC",
+      noAlternatives: "No alternative options available.",
     };
   }, [language]);
 
@@ -316,6 +386,63 @@ export default function ProfilePage() {
     }));
   };
 
+  const handleSuggestNoc = async () => {
+    const duties = nocDutyInput
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (!form.occupation?.trim()) {
+      setMessage(
+        language === "fr"
+          ? "Ajoutez d’abord votre profession avant de suggérer un CNP."
+          : "Add your occupation first before suggesting a NOC."
+      );
+      return;
+    }
+
+    try {
+      setNocLoading(true);
+      setMessage("");
+      setNocResult(null);
+
+      const res = await suggestNOC({
+        occupation: form.occupation,
+        job_description: nocDescription,
+        duties,
+        top_k: 3,
+      });
+
+      setNocResult(res.data);
+      setMessage(
+        language === "fr"
+          ? "Suggestion de CNP générée."
+          : "NOC suggestion generated."
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        err?.response?.data?.detail ||
+          (language === "fr"
+            ? "Impossible de suggérer un CNP."
+            : "Unable to suggest a NOC.")
+      );
+    } finally {
+      setNocLoading(false);
+    }
+  };
+
+  const applySuggestedNoc = (noc) => {
+    if (!noc) return;
+    setForm((prev) => ({
+      ...prev,
+      noc_code: noc,
+    }));
+    setMessage(
+      language === "fr" ? "CNP appliqué au profil." : "NOC applied to profile."
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
@@ -365,6 +492,13 @@ export default function ProfilePage() {
       window.dispatchEvent(new Event("userUpdated"));
 
       await refreshCurrentUser();
+
+      setMessage(
+        language === "fr"
+          ? "Profil enregistré avec succès."
+          : "Profile saved successfully."
+      );
+
       navigate("/strategy");
     } catch (err) {
       console.error(err);
@@ -389,8 +523,10 @@ export default function ProfilePage() {
   if (pageLoading) {
     return (
       <Layout>
-        <div className="flex justify-center py-10">
-          <p className="text-slate-600">{pageText.loading}</p>
+        <div className="flex justify-center py-24">
+          <div className="rounded-[28px] border border-slate-200 bg-white px-10 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+            <p className="text-lg font-medium text-slate-700">{pageText.loading}</p>
+          </div>
         </div>
       </Layout>
     );
@@ -398,39 +534,89 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
-        <div>
-          <h1 className="text-3xl font-bold">{pageText.title}</h1>
-          <p className="text-slate-600">{pageText.subtitle}</p>
+      <div className="mx-auto max-w-5xl space-y-10 px-4 py-10">
+        {message && (
+          <div className="rounded-[24px] border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
+            {message}
+          </div>
+        )}
+
+        <div className="max-w-3xl">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+            NorthBridgeAI
+          </p>
+          <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+            {pageText.title}
+          </h1>
+          <p className="mt-3 text-base leading-7 text-slate-600">
+            {pageText.subtitle}
+          </p>
         </div>
 
-        <AICopilotCard
-          title={pageText.copilotTitle}
-          description={pageText.copilotDesc}
-          buttonLabel={pageText.copilotButton}
-          language={language}
-          prompt={
-            language === "fr"
-              ? `Agis comme un copilote de profil d’immigration.
+        <div className="grid gap-6">
+          <AICopilotCard
+            title={pageText.copilotTitle}
+            description={pageText.copilotDesc}
+            buttonLabel={pageText.copilotButton}
+            language={language}
+            prompt={
+              language === "fr"
+                ? `Agis comme un copilote de profil d’immigration.
 
 Explique:
 1. quelles informations de profil ont le plus d’impact sur ma stratégie
 2. quels champs je devrais compléter ou clarifier en priorité
 3. quels éléments peuvent améliorer ma compétitivité
-4. retourne 3 suggested_next_actions courtes et concrètes`
-              : `Act as an immigration profile copilot.
+4. retourne 3 suggested_next_actions courtes et concrètes
+5. retourne 2 ou 3 insights courts`
+                : `Act as an immigration profile copilot.
 
 Explain:
 1. which profile details have the biggest impact on my strategy
 2. which fields I should complete or clarify first
 3. what factors can improve my competitiveness
-4. return 3 short concrete suggested_next_actions`
-          }
-        />
+4. return 3 short concrete suggested_next_actions
+5. return 2 or 3 short insights`
+            }
+          />
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Card className="space-y-4 p-6">
-            <h2 className="text-xl font-semibold">{pageText.personalInfo}</h2>
+          <AICopilotCard
+            title={pageText.decisionCopilotTitle}
+            description={pageText.decisionCopilotDesc}
+            buttonLabel={pageText.decisionCopilotButton}
+            language={language}
+            prompt={
+              language === "fr"
+                ? `À partir de mon profil d’immigration, dis-moi quel champ aura probablement le plus d’impact si je l’améliore maintenant.
+
+Retourne:
+1. une recommandation principale
+2. une explication courte
+3. 3 suggested_next_actions correspondant si possible à:
+   /profile
+   /strategy
+   /chat
+4. 2 insights courts`
+                : `Based on my immigration profile, tell me which field is most likely to have the biggest impact if I improve it now.
+
+Return:
+1. one main recommendation
+2. a short explanation
+3. 3 suggested_next_actions matching if possible:
+   /profile
+   /strategy
+   /chat
+4. 2 short insights`
+            }
+          />
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-10">
+          <Card variant="default" padding="lg" className="space-y-6">
+            <SectionIntro
+              eyebrow={pageText.personalInfo}
+              title={pageText.personalInfo}
+            />
 
             <div className="grid gap-4 md:grid-cols-2">
               <Input
@@ -445,7 +631,6 @@ Explain:
                 value={form.last_name}
                 onChange={handleChange}
               />
-
               <Input
                 name="nationality"
                 label={pageText.nationality}
@@ -458,7 +643,6 @@ Explain:
                 value={form.current_country}
                 onChange={handleChange}
               />
-
               <Input
                 name="current_city"
                 label={pageText.city}
@@ -471,7 +655,6 @@ Explain:
                 value={form.phone_number}
                 onChange={handleChange}
               />
-
               <Input
                 name="date_of_birth"
                 label={pageText.dateOfBirth}
@@ -516,27 +699,31 @@ Explain:
             </div>
           </Card>
 
-          <Card className="space-y-4 p-6">
-            <h2 className="text-xl font-semibold">{pageText.immigrationProfile}</h2>
+          <Card variant="default" padding="lg" className="space-y-6">
+            <SectionIntro
+              eyebrow={pageText.immigrationProfile}
+              title={pageText.immigrationProfile}
+            />
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-5">
               <p className="text-sm font-semibold text-slate-900">
                 {pageText.quickFill}
               </p>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm leading-7 text-slate-600">
                 {pageText.quickFillHelp}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {quickFillPresets.map((preset, index) => (
-                  <button
+                  <Button
                     key={`${preset.label}-${index}`}
                     type="button"
+                    size="sm"
+                    variant="subtle"
                     onClick={() => applyQuickFill(preset.values)}
-                    className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
                   >
                     {preset.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -619,7 +806,7 @@ Explain:
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   name="has_job_offer"
@@ -629,7 +816,7 @@ Explain:
                 {pageText.hasJobOffer}
               </label>
 
-              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   name="has_canadian_experience"
@@ -639,7 +826,7 @@ Explain:
                 {pageText.hasCanadianExperience}
               </label>
 
-              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   name="studied_in_canada"
@@ -651,15 +838,153 @@ Explain:
             </div>
           </Card>
 
-          <Card className="p-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-              {pageText.guidanceTitle}
-            </p>
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              {pageText.guidanceBody}
-            </p>
+          <Card variant="premium" padding="lg" className="space-y-6">
+            <SectionIntro
+              eyebrow={pageText.nocTitle}
+              title={pageText.nocTitle}
+              body={pageText.nocDesc}
+            />
 
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="grid gap-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  {pageText.nocDescription}
+                </label>
+                <textarea
+                  rows={5}
+                  value={nocDescription}
+                  onChange={(e) => setNocDescription(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                  placeholder={pageText.nocDescriptionPlaceholder}
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  {pageText.nocDuties}
+                </label>
+                <textarea
+                  rows={5}
+                  value={nocDutyInput}
+                  onChange={(e) => setNocDutyInput(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                  placeholder={pageText.nocDutiesPlaceholder}
+                />
+              </div>
+
+              <div>
+                <Button
+                  type="button"
+                  variant="premium"
+                  onClick={handleSuggestNoc}
+                  disabled={nocLoading}
+                  loading={nocLoading}
+                >
+                  {nocLoading ? pageText.suggestingNoc : pageText.suggestNoc}
+                </Button>
+              </div>
+            </div>
+
+            {nocResult && (
+              <div className="space-y-5 rounded-[24px] border border-blue-200 bg-blue-50 p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {pageText.suggestedNoc}
+                    </p>
+                    <h3 className="mt-2 text-2xl font-semibold tracking-tight text-blue-900">
+                      {nocResult.suggested_noc} — {nocResult.suggested_title}
+                    </h3>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                        {pageText.teer}: {nocResult.teer}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                        {pageText.confidence}:{" "}
+                        {Math.round((nocResult.confidence || 0) * 100)}%
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                        {pageText.category}: {nocResult.broad_category}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Button
+                      type="button"
+                      onClick={() => applySuggestedNoc(nocResult.suggested_noc)}
+                    >
+                      {pageText.useThisNoc}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {pageText.whyMatched}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {(nocResult.why_matched || []).map((item, index) => (
+                      <div
+                        key={`${item}-${index}`}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {pageText.alternatives}
+                  </p>
+
+                  {Array.isArray(nocResult.alternatives) &&
+                  nocResult.alternatives.length > 0 ? (
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      {nocResult.alternatives.map((alt) => (
+                        <div
+                          key={alt.noc}
+                          className="rounded-2xl border border-slate-200 bg-white p-4"
+                        >
+                          <p className="text-sm font-semibold text-slate-900">
+                            {alt.noc} — {alt.title}
+                          </p>
+                          <p className="mt-2 text-xs text-slate-500">
+                            {pageText.teer}: {alt.teer} · {pageText.confidence}:{" "}
+                            {Math.round((alt.confidence || 0) * 100)}%
+                          </p>
+                          <div className="mt-4">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() => applySuggestedNoc(alt.noc)}
+                            >
+                              {pageText.useThisNoc}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-500">
+                      {pageText.noAlternatives}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <Card variant="soft" padding="lg" className="space-y-6">
+            <SectionIntro
+              eyebrow={pageText.guidanceTitle}
+              title={pageText.guidanceTitle}
+              body={pageText.guidanceBody}
+            />
+
+            <div className="flex flex-wrap gap-3">
               <Button variant="secondary" onClick={() => navigate("/strategy")}>
                 {pageText.openStrategy}
               </Button>
@@ -669,24 +994,38 @@ Explain:
               >
                 {pageText.openApplication}
               </Button>
+              <Button variant="secondary" onClick={() => navigate("/chat")}>
+                {pageText.openAssistant}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => navigate("/self/documents")}
+              >
+                {pageText.openDocuments}
+              </Button>
             </div>
           </Card>
 
-          <div className="flex gap-4">
-            <Button type="submit" className="flex-1" disabled={loading}>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button
+              type="submit"
+              variant="premium"
+              className="flex-1"
+              disabled={loading}
+              loading={loading}
+            >
               {loading ? pageText.saving : pageText.saveProfile}
             </Button>
 
             <Button
               type="button"
               variant="secondary"
+              className="sm:min-w-[180px]"
               onClick={() => navigate("/strategy")}
             >
               {pageText.continue}
             </Button>
           </div>
-
-          {message && <div className="text-red-500">{message}</div>}
         </form>
       </div>
     </Layout>

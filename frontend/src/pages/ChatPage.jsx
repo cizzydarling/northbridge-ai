@@ -23,11 +23,7 @@ function mapActionToRoute(action) {
 
   if (!value) return null;
 
-  if (
-    value === "/profile" ||
-    value.includes("profile") ||
-    value.includes("profil")
-  ) {
+  if (value === "/profile" || value.includes("profile") || value.includes("profil")) {
     return "/profile";
   }
 
@@ -39,11 +35,7 @@ function mapActionToRoute(action) {
     return "/strategy";
   }
 
-  if (
-    value === "/chat" ||
-    value.includes("assistant") ||
-    value.includes("chat")
-  ) {
+  if (value === "/chat" || value.includes("assistant") || value.includes("chat")) {
     return "/chat";
   }
 
@@ -88,6 +80,10 @@ function mapActionToRoute(action) {
     return "/legal/disclosure";
   }
 
+  if (value === "/pricing" || value.includes("pricing") || value.includes("tarif")) {
+    return "/pricing";
+  }
+
   return null;
 }
 
@@ -121,6 +117,14 @@ function normalizeSuggestedAction(action, language) {
   };
 }
 
+function normalizeInsights(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
 export default function ChatPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -131,6 +135,7 @@ export default function ChatPage() {
   const [profile, setProfile] = useState(null);
   const [messages, setMessages] = useState([]);
   const [lastSuggestedActions, setLastSuggestedActions] = useState([]);
+  const [lastInsights, setLastInsights] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
@@ -184,6 +189,7 @@ export default function ChatPage() {
         loadingAssistant: "Chargement de l’assistant...",
         thinking: "Réflexion en cours...",
         suggestedActions: "Actions suggérées",
+        insightsTitle: "Insights clés",
         textareaPlaceholder: `Posez une question précise, ${firstName}...`,
         send: "Envoyer",
         errorReply:
@@ -195,6 +201,8 @@ export default function ChatPage() {
         noMessages:
           "Commencez une conversation pour obtenir un accompagnement personnalisé.",
         useThisPrompt: "Utiliser",
+        quickNav: "Navigation rapide",
+        quickNavTitle: "Aller directement à une section",
       };
     }
 
@@ -207,7 +215,8 @@ export default function ChatPage() {
       starterTitle: "Try one of these",
       loadingAssistant: "Loading assistant...",
       thinking: "Thinking...",
-      suggestedActions: "Suggested next actions",
+      suggestedActions: "Suggested actions",
+      insightsTitle: "Key insights",
       textareaPlaceholder: `Ask something specific, ${firstName}...`,
       send: "Send",
       errorReply:
@@ -219,12 +228,14 @@ export default function ChatPage() {
       noMessages:
         "Start a conversation to get personalized guidance.",
       useThisPrompt: "Use this prompt",
+      quickNav: "Quick navigation",
+      quickNavTitle: "Jump directly to a section",
     };
   }, [firstName, language]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading, lastSuggestedActions]);
+  }, [messages, loading, lastSuggestedActions, lastInsights]);
 
   useEffect(() => {
     let mounted = true;
@@ -276,6 +287,7 @@ export default function ChatPage() {
     setInput("");
     setLoading(true);
     setLastSuggestedActions([]);
+    setLastInsights([]);
 
     try {
       const historyPayload = nextMessages
@@ -309,6 +321,8 @@ export default function ChatPage() {
         .filter(Boolean)
         .slice(0, 3);
 
+      const normalizedInsights = normalizeInsights(res.data?.insights);
+
       setMessages((prev) => [
         ...prev,
         {
@@ -318,6 +332,7 @@ export default function ChatPage() {
       ]);
 
       setLastSuggestedActions(normalizedActions);
+      setLastInsights(normalizedInsights);
     } catch (err) {
       console.error(err);
       setMessages((prev) => [
@@ -328,6 +343,7 @@ export default function ChatPage() {
         },
       ]);
       setLastSuggestedActions([]);
+      setLastInsights([]);
     } finally {
       setLoading(false);
     }
@@ -454,24 +470,46 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {lastSuggestedActions.length > 0 && (
+            {(lastInsights.length > 0 || lastSuggestedActions.length > 0) && (
               <div className="border-t border-slate-200 bg-white px-4 py-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {ui.suggestedActions}
-                </p>
+                {lastInsights.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {ui.insightsTitle}
+                    </p>
+                    <div className="space-y-2">
+                      {lastInsights.map((insight, index) => (
+                        <div
+                          key={`${insight}-${index}`}
+                          className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                        >
+                          {insight}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                <div className="flex flex-wrap gap-2">
-                  {lastSuggestedActions.map((action, index) => (
-                    <button
-                      key={`${action.label}-${index}`}
-                      type="button"
-                      onClick={() => handleActionClick(action)}
-                      className="rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                    >
-                      {action.label}
-                    </button>
-                  ))}
-                </div>
+                {lastSuggestedActions.length > 0 && (
+                  <div>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {ui.suggestedActions}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2">
+                      {lastSuggestedActions.map((action, index) => (
+                        <button
+                          key={`${action.label}-${index}`}
+                          type="button"
+                          onClick={() => handleActionClick(action)}
+                          className="rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -530,12 +568,10 @@ export default function ChatPage() {
 
             <Card className="p-6">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {language === "fr" ? "Navigation rapide" : "Quick navigation"}
+                {ui.quickNav}
               </p>
               <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                {language === "fr"
-                  ? "Aller directement à une section"
-                  : "Jump directly to a section"}
+                {ui.quickNavTitle}
               </h2>
 
               <div className="mt-5 flex flex-col gap-3">

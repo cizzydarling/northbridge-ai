@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.access_control import (
+    ensure_document_generator_full,
+    get_current_user,
+    has_individual_pro,
+    has_premium_access,
+)
 from app.data.db import get_db
 from app.models.generated_document_model import GeneratedDocument
 from app.models.user_models import User
-from app.routes.auth_routes import get_current_user
 from app.schemas.generated_document_schema import (
     GeneratedDocumentCreate,
     GeneratedDocumentListItem,
@@ -13,6 +18,48 @@ from app.schemas.generated_document_schema import (
 )
 
 router = APIRouter(prefix="/documents", tags=["Generated Documents"])
+
+
+def _get_owned_document_or_404(
+    db: Session,
+    doc_id: int,
+    user_id: int,
+) -> GeneratedDocument:
+    doc = (
+        db.query(GeneratedDocument)
+        .filter(
+            GeneratedDocument.id == doc_id,
+            GeneratedDocument.user_id == user_id,
+        )
+        .first()
+    )
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    return doc
+
+
+def _build_document_response(doc: GeneratedDocument, current_user: User) -> GeneratedDocument:
+    """
+    Keep DB model unchanged but expose launch-aligned access flags
+    through response-compatible attributes.
+    """
+    is_pro = has_individual_pro(current_user)
+    is_premium = has_premium_access(current_user)
+
+    # Full document access for Pro/Premium
+    doc.locked = not is_pro
+    doc.is_premium = is_premium
+
+    if not is_pro:
+        doc.upgrade_reason = (
+            "Upgrade to Pro to unlock the full draft and document workflow."
+        )
+    else:
+        doc.upgrade_reason = None
+
+    return doc
 
 
 @router.get("/", response_model=list[GeneratedDocumentListItem])
@@ -35,19 +82,8 @@ def get_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    doc = (
-        db.query(GeneratedDocument)
-        .filter(
-            GeneratedDocument.id == doc_id,
-            GeneratedDocument.user_id == current_user.id,
-        )
-        .first()
-    )
-
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found.")
-
-    return doc
+    doc = _get_owned_document_or_404(db, doc_id, current_user.id)
+    return _build_document_response(doc, current_user)
 
 
 @router.post("/", response_model=GeneratedDocumentResponse)
@@ -56,6 +92,8 @@ def create_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Keep creation available so free users can still enter the funnel,
+    # but downstream full usage is gated.
     doc = GeneratedDocument(
         user_id=current_user.id,
         document_type=payload.document_type,
@@ -69,7 +107,7 @@ def create_document(
     db.commit()
     db.refresh(doc)
 
-    return doc
+    return _build_document_response(doc, current_user)
 
 
 @router.put("/{doc_id}", response_model=GeneratedDocumentResponse)
@@ -79,17 +117,9 @@ def update_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    doc = (
-        db.query(GeneratedDocument)
-        .filter(
-            GeneratedDocument.id == doc_id,
-            GeneratedDocument.user_id == current_user.id,
-        )
-        .first()
-    )
+    ensure_document_generator_full(current_user)
 
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found.")
+    doc = _get_owned_document_or_404(db, doc_id, current_user.id)
 
     doc.content = payload.content
 
@@ -102,7 +132,7 @@ def update_document(
     db.commit()
     db.refresh(doc)
 
-    return doc
+    return _build_document_response(doc, current_user)
 
 
 @router.post("/{doc_id}/duplicate", response_model=GeneratedDocumentResponse)
@@ -111,17 +141,9 @@ def duplicate_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    original = (
-        db.query(GeneratedDocument)
-        .filter(
-            GeneratedDocument.id == doc_id,
-            GeneratedDocument.user_id == current_user.id,
-        )
-        .first()
-    )
+    ensure_document_generator_full(current_user)
 
-    if not original:
-        raise HTTPException(status_code=404, detail="Document not found.")
+    original = _get_owned_document_or_404(db, doc_id, current_user.id)
 
     duplicate = GeneratedDocument(
         user_id=current_user.id,
@@ -136,7 +158,7 @@ def duplicate_document(
     db.commit()
     db.refresh(duplicate)
 
-    return duplicate
+    return _build_document_response(duplicate, current_user)
 
 
 @router.delete("/{doc_id}")
@@ -145,17 +167,9 @@ def delete_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    doc = (
-        db.query(GeneratedDocument)
-        .filter(
-            GeneratedDocument.id == doc_id,
-            GeneratedDocument.user_id == current_user.id,
-        )
-        .first()
-    )
+    ensure_document_generator_full(current_user)
 
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found.")
+    doc = _get_owned_document_or_404(db, doc_id, current_user.id)
 
     db.delete(doc)
     db.commit()

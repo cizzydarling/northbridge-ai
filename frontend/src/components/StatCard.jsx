@@ -1,27 +1,31 @@
-// src/components/StatCard.jsx
 export default function StatCard({
   label,
   value,
   description,
   badge,
-  valueClassName = "text-4xl",
+  valueClassName = "text-5xl",
+  className = "",
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+    <div
+      className={`rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_18px_60px_rgba(15,23,42,0.09)] ${className}`}
+    >
       <p className="text-sm font-medium text-slate-500">{label}</p>
 
-      <h2 className={`mt-3 font-bold text-slate-900 ${valueClassName}`}>
+      <h2
+        className={`mt-4 font-semibold tracking-tight text-slate-900 ${valueClassName}`}
+      >
         {value}
       </h2>
 
       {badge && (
-        <p className="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+        <p className="mt-4 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">
           {badge}
         </p>
       )}
 
       {description && (
-        <p className="mt-3 text-sm text-slate-500">{description}</p>
+        <p className="mt-4 text-sm leading-7 text-slate-600">{description}</p>
       )}
     </div>
   );

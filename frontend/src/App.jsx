@@ -8,6 +8,7 @@ import { getCurrentUserLocal, getMyProfile, logoutUser } from "./api";
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
 import PricingPage from "./pages/PricingPage";
+import BillingSuccessPage from "./pages/BillingSuccessPage";
 
 // Self flow
 import SelfDashboardPage from "./pages/SelfDashboardPage";
@@ -19,6 +20,7 @@ import SelfDocumentsPage from "./pages/SelfDocumentsPage";
 import DisclosureAcceptancePage from "./pages/DisclosureAcceptancePage";
 import DocumentGeneratorPage from "./pages/DocumentGeneratorPage";
 import DocumentReviewPage from "./pages/DocumentReviewPage";
+import FormsPage from "./pages/FormsPage";
 import OnboardingPage from "./pages/OnboardingPage";
 
 // Client flow
@@ -141,6 +143,7 @@ function ProtectedAppRoute({ children }) {
 export default function App() {
   return (
     <Routes>
+      {/* PUBLIC */}
       <Route
         path="/"
         element={
@@ -159,15 +162,20 @@ export default function App() {
         }
       />
 
+      {/* Pricing must be available both before and after login */}
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/billing" element={<PricingPage />} />
+
       <Route
-        path="/pricing"
+        path="/billing/success"
         element={
-          <PublicOnlyRoute>
-            <PricingPage />
-          </PublicOnlyRoute>
+          <ProtectedAppRoute>
+            <BillingSuccessPage />
+          </ProtectedAppRoute>
         }
       />
 
+      {/* ONBOARDING */}
       <Route
         path="/onboarding"
         element={
@@ -177,6 +185,7 @@ export default function App() {
         }
       />
 
+      {/* SELF FLOW */}
       <Route
         path="/dashboard"
         element={
@@ -209,6 +218,15 @@ export default function App() {
         element={
           <ProtectedAppRoute>
             <ChatPage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/forms"
+        element={
+          <ProtectedAppRoute>
+            <FormsPage />
           </ProtectedAppRoute>
         }
       />
@@ -258,6 +276,7 @@ export default function App() {
         }
       />
 
+      {/* CLIENT FLOW */}
       <Route
         path="/clients"
         element={
@@ -321,6 +340,7 @@ export default function App() {
         }
       />
 
+      {/* FALLBACK */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

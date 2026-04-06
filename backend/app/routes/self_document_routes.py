@@ -6,9 +6,9 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.access_control import get_current_user
 from app.data.db import get_db
 from app.models.self_document_model import SelfDocument
+from app.routes.auth_routes import get_current_user
 from app.schemas.self_document_schema import (
     SelfDocumentCreate,
     SelfDocumentResponse,
@@ -22,10 +22,10 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def require_self_user(current_user=Depends(get_current_user)):
-    is_agent = (
-        getattr(current_user, "plan", None) == "agent"
-        or getattr(current_user, "role", None) == "agent"
-    )
+    raw_plan = str(getattr(current_user, "plan", "") or "").strip().lower()
+    role = str(getattr(current_user, "role", "") or "").strip().lower()
+
+    is_agent = raw_plan == "agent_pro" or role == "agent"
 
     if is_agent:
         raise HTTPException(
@@ -36,7 +36,11 @@ def require_self_user(current_user=Depends(get_current_user)):
     return current_user
 
 
-def get_owned_self_document_or_404(db: Session, document_id: int, user_id: int) -> SelfDocument:
+def get_owned_self_document_or_404(
+    db: Session,
+    document_id: int,
+    user_id: int,
+) -> SelfDocument:
     document = (
         db.query(SelfDocument)
         .filter(
@@ -152,7 +156,7 @@ def delete_self_document(
 
     if document.file_path:
         old_path = Path(document.file_path)
-        if old_path.exists():
+        if old_path.exists() and old_path.is_file():
             old_path.unlink()
 
     db.delete(document)
@@ -183,7 +187,7 @@ async def upload_self_document_file(
 
     if document.file_path:
         old_path = Path(document.file_path)
-        if old_path.exists():
+        if old_path.exists() and old_path.is_file():
             old_path.unlink()
 
     document.file_name = file.filename
@@ -207,7 +211,7 @@ def remove_self_document_file(
 
     if document.file_path:
         old_path = Path(document.file_path)
-        if old_path.exists():
+        if old_path.exists() and old_path.is_file():
             old_path.unlink()
 
     document.file_name = None

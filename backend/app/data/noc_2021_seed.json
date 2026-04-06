@@ -1,0 +1,302 @@
+[
+  {
+    "noc": "21232",
+    "title": "Software developers and programmers",
+    "teer": 1,
+    "broad_category": "Natural and applied sciences and related occupations",
+    "example_titles": [
+      "software developer",
+      "software programmer",
+      "application developer",
+      "backend developer",
+      "frontend developer",
+      "full stack developer",
+      "web application developer",
+      "mobile application developer"
+    ],
+    "keywords": [
+      "software",
+      "programming",
+      "developer",
+      "develop",
+      "code",
+      "coding",
+      "application",
+      "apps",
+      "api",
+      "backend",
+      "frontend",
+      "full stack",
+      "javascript",
+      "typescript",
+      "python",
+      "java",
+      "react",
+      "node",
+      "testing",
+      "debugging"
+    ],
+    "main_duties": [
+      "Write, modify, integrate and test software code",
+      "Maintain existing computer programs by making modifications",
+      "Identify and communicate technical problems, processes and solutions",
+      "Prepare reports, manuals and documentation on the status, operation and maintenance of software",
+      "Assist in the collection and documentation of user's requirements"
+    ],
+    "immigration_category_tags": ["stem"],
+    "express_entry_skilled_work": true
+  },
+  {
+    "noc": "21231",
+    "title": "Software engineers and designers",
+    "teer": 1,
+    "broad_category": "Natural and applied sciences and related occupations",
+    "example_titles": [
+      "software engineer",
+      "systems designer",
+      "software architect",
+      "applications architect"
+    ],
+    "keywords": [
+      "software engineer",
+      "architecture",
+      "system design",
+      "design",
+      "scalability",
+      "distributed systems",
+      "engineering",
+      "requirements",
+      "architecture review"
+    ],
+    "main_duties": [
+      "Collect and document users' requirements and develop logical and physical specifications",
+      "Research, evaluate and synthesize technical information to design, develop and test computer-based systems",
+      "Develop data, process and network models to optimize architecture"
+    ],
+    "immigration_category_tags": ["stem"],
+    "express_entry_skilled_work": true
+  },
+  {
+    "noc": "21234",
+    "title": "Web developers and programmers",
+    "teer": 1,
+    "broad_category": "Natural and applied sciences and related occupations",
+    "example_titles": [
+      "web developer",
+      "web programmer",
+      "website developer",
+      "wordpress developer"
+    ],
+    "keywords": [
+      "web",
+      "website",
+      "html",
+      "css",
+      "frontend",
+      "react",
+      "vue",
+      "angular",
+      "javascript",
+      "web programming"
+    ],
+    "main_duties": [
+      "Write, modify, integrate and test website related code",
+      "Prepare mock-ups and storyboards",
+      "Create and optimize web content and architecture"
+    ],
+    "immigration_category_tags": ["stem"],
+    "express_entry_skilled_work": true
+  },
+  {
+    "noc": "13110",
+    "title": "Administrative assistants",
+    "teer": 3,
+    "broad_category": "Business, finance and administration occupations",
+    "example_titles": [
+      "administrative assistant",
+      "office assistant",
+      "executive assistant"
+    ],
+    "keywords": [
+      "administrative",
+      "assistant",
+      "calendar",
+      "scheduling",
+      "meeting coordination",
+      "filing",
+      "office support",
+      "email management"
+    ],
+    "main_duties": [
+      "Prepare, key in, edit and proofread correspondence and documents",
+      "Open and distribute mail and other materials",
+      "Schedule and confirm appointments and meetings",
+      "Answer telephone and electronic enquiries"
+    ],
+    "immigration_category_tags": [],
+    "express_entry_skilled_work": true
+  },
+  {
+    "noc": "12200",
+    "title": "Accounting technicians and bookkeepers",
+    "teer": 2,
+    "broad_category": "Business, finance and administration occupations",
+    "example_titles": [
+      "bookkeeper",
+      "accounting technician",
+      "accounts payable clerk",
+      "accounts receivable clerk"
+    ],
+    "keywords": [
+      "bookkeeping",
+      "bookkeeper",
+      "accounting",
+      "reconciliation",
+      "payroll",
+      "accounts payable",
+      "accounts receivable",
+      "general ledger",
+      "quickbooks"
+    ],
+    "main_duties": [
+      "Keep financial records and establish, maintain and balance various accounts",
+      "Post journal entries and reconcile accounts",
+      "Prepare trial balance and bookkeeping reports"
+    ],
+    "immigration_category_tags": [],
+    "express_entry_skilled_work": true
+  },
+  {
+    "noc": "33102",
+    "title": "Nurse aides, orderlies and patient service associates",
+    "teer": 3,
+    "broad_category": "Health occupations",
+    "example_titles": [
+      "nurse aide",
+      "patient service associate",
+      "orderly",
+      "personal support worker"
+    ],
+    "keywords": [
+      "patient care",
+      "nursing aide",
+      "psw",
+      "personal support worker",
+      "mobility assistance",
+      "bedside care"
+    ],
+    "main_duties": [
+      "Serve meal trays and feed patients",
+      "Transport patients",
+      "Take patients' blood pressure, temperature and pulse"
+    ],
+    "immigration_category_tags": ["healthcare"],
+    "express_entry_skilled_work": true
+  },
+  {
+    "noc": "31301",
+    "title": "Registered nurses and registered psychiatric nurses",
+    "teer": 1,
+    "broad_category": "Health occupations",
+    "example_titles": [
+      "registered nurse",
+      "rn",
+      "psychiatric nurse"
+    ],
+    "keywords": [
+      "registered nurse",
+      "rn",
+      "patient assessment",
+      "care plan",
+      "clinical",
+      "medication administration"
+    ],
+    "main_duties": [
+      "Assess patients to identify appropriate nursing interventions",
+      "Collaborate with members of an interdisciplinary health team",
+      "Administer medications and treatments"
+    ],
+    "immigration_category_tags": ["healthcare"],
+    "express_entry_skilled_work": true
+  },
+  {
+    "noc": "42202",
+    "title": "Early childhood educators and assistants",
+    "teer": 2,
+    "broad_category": "Education, law and social, community and government services",
+    "example_titles": [
+      "early childhood educator",
+      "ece",
+      "daycare educator",
+      "childcare assistant"
+    ],
+    "keywords": [
+      "early childhood",
+      "ece",
+      "childcare",
+      "daycare",
+      "learning activities",
+      "child development"
+    ],
+    "main_duties": [
+      "Develop and implement child-care programs",
+      "Lead activities by telling stories, teaching songs and preparing crafts",
+      "Observe children and discuss progress with supervisors and parents"
+    ],
+    "immigration_category_tags": ["education"],
+    "express_entry_skilled_work": true
+  },
+  {
+    "noc": "72106",
+    "title": "Welders and related machine operators",
+    "teer": 2,
+    "broad_category": "Trades, transport and equipment operators and related occupations",
+    "example_titles": [
+      "welder",
+      "mig welder",
+      "tig welder"
+    ],
+    "keywords": [
+      "welder",
+      "welding",
+      "mig",
+      "tig",
+      "metal fabrication",
+      "blueprints",
+      "cutting torch"
+    ],
+    "main_duties": [
+      "Operate manual or semi-automatic welding equipment",
+      "Read and interpret welding blueprints",
+      "Examine welds and ensure they meet standards"
+    ],
+    "immigration_category_tags": ["trades"],
+    "express_entry_skilled_work": true
+  },
+  {
+    "noc": "73300",
+    "title": "Transport truck drivers",
+    "teer": 3,
+    "broad_category": "Trades, transport and equipment operators and related occupations",
+    "example_titles": [
+      "truck driver",
+      "transport driver",
+      "long haul driver"
+    ],
+    "keywords": [
+      "truck driver",
+      "transport",
+      "delivery route",
+      "commercial driving",
+      "tractor trailer",
+      "log book"
+    ],
+    "main_duties": [
+      "Operate and drive straight or articulated trucks",
+      "Plan trip logistics and obtain required documentation",
+      "Perform pre-trip inspections"
+    ],
+    "immigration_category_tags": ["transport"],
+    "express_entry_skilled_work": true
+  }
+]
