@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { createProfile, getMyProfile, updateMyProfile } from "../api";
+import { Country, City } from "country-state-city";
+import {
+  createProfile,
+  getMyProfile,
+  suggestNOC,
+  updateMyProfile,
+} from "../api";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
@@ -55,6 +61,65 @@ export default function OnboardingPage() {
   const [message, setMessage] = useState("");
   const [step, setStep] = useState(1);
 
+  const [suggestedNocs, setSuggestedNocs] = useState([]);
+  const [suggestingNoc, setSuggestingNoc] = useState(false);
+
+  const [countryQuery, setCountryQuery] = useState("");
+  const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
+
+  const [cityQuery, setCityQuery] = useState("");
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+
+  const countryFieldRef = useRef(null);
+  const cityFieldRef = useRef(null);
+
+  const countries = useMemo(() => {
+    return Country.getAllCountries()
+      .map((country) => ({
+        name: country.name,
+        isoCode: country.isoCode,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
+
+  const filteredCountries = useMemo(() => {
+    const query = String(countryQuery || "").trim().toLowerCase();
+
+    if (!query) return countries.slice(0, 12);
+
+    return countries
+      .filter((country) => country.name.toLowerCase().includes(query))
+      .slice(0, 12);
+  }, [countries, countryQuery]);
+
+  const selectedCountry = useMemo(() => {
+    return countries.find((country) => country.name === form.current_country) || null;
+  }, [countries, form.current_country]);
+
+  const availableCities = useMemo(() => {
+    if (!selectedCountry?.isoCode) return [];
+
+    return City.getCitiesOfCountry(selectedCountry.isoCode)
+      .map((city) => city.name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }, [selectedCountry]);
+
+  const filteredCities = useMemo(() => {
+    if (!availableCities.length) return [];
+    const query = String(cityQuery || "").trim().toLowerCase();
+
+    if (!query) return availableCities.slice(0, 10);
+
+    return availableCities
+      .filter((city) => city.toLowerCase().includes(query))
+      .slice(0, 10);
+  }, [availableCities, cityQuery]);
+
+  const showManualCityInput = useMemo(() => {
+    return !form.current_country || availableCities.length === 0;
+  }, [form.current_country, availableCities]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -63,10 +128,14 @@ export default function OnboardingPage() {
         const res = await getMyProfile();
         if (!mounted) return;
 
-        setForm({
+        const merged = {
           ...defaultForm,
           ...res.data,
-        });
+        };
+
+        setForm(merged);
+        setCountryQuery(merged.current_country || "");
+        setCityQuery(merged.current_city || "");
         setProfileExists(true);
       } catch (err) {
         if (err?.response?.status === 404) {
@@ -91,6 +160,26 @@ export default function OnboardingPage() {
       mounted = false;
     };
   }, [language]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        countryFieldRef.current &&
+        !countryFieldRef.current.contains(event.target)
+      ) {
+        setShowCountrySuggestions(false);
+      }
+
+      if (cityFieldRef.current && !cityFieldRef.current.contains(event.target)) {
+        setShowCitySuggestions(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const progress = useMemo(() => {
     return step === 1 ? 50 : 100;
@@ -121,6 +210,13 @@ export default function OnboardingPage() {
         dateOfBirth: "Date de naissance",
         maritalStatus: "État civil",
         preferredLanguage: "Langue préférée",
+        searchCountry: "Recherchez ou entrez votre pays",
+        searchCity: "Recherchez ou entrez votre ville",
+        typeCity: "Entrez votre ville",
+        noCountryMatch:
+          "Aucune suggestion exacte — vous pouvez entrer votre pays manuellement.",
+        noCityMatch:
+          "Aucune suggestion exacte — vous pouvez entrer votre ville manuellement.",
         select: "Sélectionner",
         single: "Célibataire",
         married: "Marié(e)",
@@ -159,6 +255,15 @@ export default function OnboardingPage() {
         helperTitle: "Pourquoi cela compte",
         helperBody:
           "Un meilleur profil donne une meilleure stratégie, une meilleure guidance, et des documents plus pertinents.",
+        suggestNoc: "Suggérer le code CNP",
+        suggestingNoc: "Suggestion...",
+        suggestedNocs: "Suggestions de CNP",
+        nocHelper:
+          "Choisissez la suggestion la plus proche de votre profession pour améliorer la qualité de votre stratégie.",
+        onboardingSaveError:
+          "Échec de l’enregistrement des informations d’onboarding.",
+        nocSuggestionError:
+          "Impossible de suggérer un code CNP pour le moment.",
       };
     }
 
@@ -185,6 +290,13 @@ export default function OnboardingPage() {
       dateOfBirth: "Date of Birth",
       maritalStatus: "Marital Status",
       preferredLanguage: "Preferred Language",
+      searchCountry: "Search or enter your country",
+      searchCity: "Search or enter your city",
+      typeCity: "Enter your city",
+      noCountryMatch:
+        "No exact match — you can still enter your country manually.",
+      noCityMatch:
+        "No exact match — you can still enter your city manually.",
       select: "Select",
       single: "Single",
       married: "Married",
@@ -223,6 +335,13 @@ export default function OnboardingPage() {
       helperTitle: "Why this matters",
       helperBody:
         "A better profile leads to a better strategy, stronger guidance, and more relevant documents.",
+      suggestNoc: "Suggest NOC code",
+      suggestingNoc: "Suggesting...",
+      suggestedNocs: "Suggested NOCs",
+      nocHelper:
+        "Choose the closest suggestion to improve the quality of your strategy.",
+      onboardingSaveError: "Failed to save onboarding details.",
+      nocSuggestionError: "Unable to suggest a NOC code right now.",
     };
   }, [language]);
 
@@ -305,10 +424,58 @@ export default function OnboardingPage() {
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
 
+    if (name === "occupation") {
+      setSuggestedNocs([]);
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  }
+
+  function handleCountryInputChange(e) {
+    const value = e.target.value;
+    setCountryQuery(value);
+    setForm((prev) => ({
+      ...prev,
+      current_country: value,
+      current_city: "",
+    }));
+    setCityQuery("");
+    setShowCountrySuggestions(true);
+    setShowCitySuggestions(false);
+  }
+
+  function handleSelectCountry(countryName) {
+    setCountryQuery(countryName);
+    setForm((prev) => ({
+      ...prev,
+      current_country: countryName,
+      current_city: "",
+    }));
+    setCityQuery("");
+    setShowCountrySuggestions(false);
+    setShowCitySuggestions(false);
+  }
+
+  function handleCityInputChange(e) {
+    const value = e.target.value;
+    setCityQuery(value);
+    setForm((prev) => ({
+      ...prev,
+      current_city: value,
+    }));
+    setShowCitySuggestions(true);
+  }
+
+  function handleSelectCity(city) {
+    setCityQuery(city);
+    setForm((prev) => ({
+      ...prev,
+      current_city: city,
+    }));
+    setShowCitySuggestions(false);
   }
 
   function applyQuickFill(values) {
@@ -326,6 +493,51 @@ export default function OnboardingPage() {
   function previousStep() {
     setStep(1);
     setMessage("");
+  }
+
+  async function handleSuggestNOC() {
+    if (!form.occupation?.trim()) {
+      return;
+    }
+
+    try {
+      setSuggestingNoc(true);
+      setMessage("");
+
+      const res = await suggestNOC({
+        occupation: form.occupation.trim(),
+        language,
+      });
+
+      const matches =
+        res?.data?.matches ||
+        res?.data?.suggestions ||
+        res?.data?.results ||
+        [];
+
+      setSuggestedNocs(Array.isArray(matches) ? matches : []);
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        err?.response?.data?.detail || pageText.nocSuggestionError
+      );
+      setSuggestedNocs([]);
+    } finally {
+      setSuggestingNoc(false);
+    }
+  }
+
+  function handleSelectNoc(noc) {
+    const selectedCode =
+      noc?.noc_code || noc?.code || noc?.id || "";
+    const selectedTitle =
+      noc?.title || noc?.name || noc?.occupation || "";
+
+    setForm((prev) => ({
+      ...prev,
+      noc_code: selectedCode || prev.noc_code,
+      occupation: selectedTitle || prev.occupation,
+    }));
   }
 
   async function handleSubmit(e) {
@@ -353,20 +565,22 @@ export default function OnboardingPage() {
         preferred_language: form.preferred_language || "en",
       };
 
-      if (profileExists) {
+      try {
         await updateMyProfile(payload);
-      } else {
-        await createProfile(payload);
         setProfileExists(true);
+      } catch (err) {
+        if (err?.response?.status === 404) {
+          await createProfile(payload);
+          setProfileExists(true);
+        } else {
+          throw err;
+        }
       }
 
       navigate("/dashboard");
     } catch (err) {
       setMessage(
-        err?.response?.data?.detail ||
-          (language === "fr"
-            ? "Échec de l’enregistrement des informations d’onboarding."
-            : "Failed to save onboarding details.")
+        err?.response?.data?.detail || pageText.onboardingSaveError
       );
     } finally {
       setLoading(false);
@@ -468,19 +682,91 @@ Explain:
                     onChange={handleChange}
                   />
 
-                  <Input
-                    label={pageText.countryOfResidence}
-                    name="current_country"
-                    value={form.current_country}
-                    onChange={handleChange}
-                  />
+                  <div className="relative" ref={countryFieldRef}>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">
+                      {pageText.countryOfResidence}
+                    </label>
+                    <input
+                      type="text"
+                      value={countryQuery}
+                      onChange={handleCountryInputChange}
+                      onFocus={() => setShowCountrySuggestions(true)}
+                      className="input"
+                      placeholder={pageText.searchCountry}
+                      autoComplete="off"
+                    />
 
-                  <Input
-                    label={pageText.city}
-                    name="current_city"
-                    value={form.current_city}
-                    onChange={handleChange}
-                  />
+                    {showCountrySuggestions && filteredCountries.length > 0 && (
+                      <div className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg">
+                        {filteredCountries.map((country) => (
+                          <button
+                            key={country.isoCode}
+                            type="button"
+                            onClick={() => handleSelectCountry(country.name)}
+                            className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-slate-700 hover:bg-blue-50 last:border-b-0"
+                          >
+                            {country.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {showCountrySuggestions &&
+                      countryQuery.trim() &&
+                      filteredCountries.length === 0 && (
+                        <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                          {pageText.noCountryMatch}
+                        </div>
+                      )}
+                  </div>
+
+                  {showManualCityInput ? (
+                    <Input
+                      label={pageText.city}
+                      name="current_city"
+                      value={form.current_city}
+                      onChange={handleChange}
+                      placeholder={pageText.typeCity}
+                    />
+                  ) : (
+                    <div className="relative" ref={cityFieldRef}>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        {pageText.city}
+                      </label>
+                      <input
+                        type="text"
+                        value={cityQuery}
+                        onChange={handleCityInputChange}
+                        onFocus={() => setShowCitySuggestions(true)}
+                        className="input"
+                        placeholder={pageText.searchCity}
+                        autoComplete="off"
+                      />
+
+                      {showCitySuggestions && filteredCities.length > 0 && (
+                        <div className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg">
+                          {filteredCities.map((city) => (
+                            <button
+                              key={city}
+                              type="button"
+                              onClick={() => handleSelectCity(city)}
+                              className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-slate-700 hover:bg-blue-50 last:border-b-0"
+                            >
+                              {city}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {showCitySuggestions &&
+                        cityQuery.trim() &&
+                        filteredCities.length === 0 && (
+                          <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                            {pageText.noCityMatch}
+                          </div>
+                        )}
+                    </div>
+                  )}
 
                   <Input
                     label={pageText.phoneNumber}
@@ -625,12 +911,60 @@ Explain:
                     onChange={handleChange}
                   />
 
-                  <Input
-                    label={pageText.occupation}
-                    name="occupation"
-                    value={form.occupation}
-                    onChange={handleChange}
-                  />
+                  <div>
+                    <Input
+                      label={pageText.occupation}
+                      name="occupation"
+                      value={form.occupation}
+                      onChange={handleChange}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={handleSuggestNOC}
+                      disabled={suggestingNoc || !form.occupation?.trim()}
+                      className="mt-2 text-xs font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {suggestingNoc
+                        ? pageText.suggestingNoc
+                        : pageText.suggestNoc}
+                    </button>
+
+                    {suggestedNocs.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          {pageText.suggestedNocs}
+                        </p>
+
+                        {suggestedNocs.map((noc, index) => {
+                          const code =
+                            noc?.noc_code || noc?.code || noc?.id || "";
+                          const title =
+                            noc?.title || noc?.name || noc?.occupation || "";
+
+                          return (
+                            <button
+                              key={`${code}-${index}`}
+                              type="button"
+                              onClick={() => handleSelectNoc(noc)}
+                              className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm transition hover:border-blue-300 hover:bg-blue-50"
+                            >
+                              <span className="font-semibold text-slate-900">
+                                {code}
+                              </span>
+                              {title ? (
+                                <span className="text-slate-700"> — {title}</span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+
+                        <p className="text-xs text-slate-500">
+                          {pageText.nocHelper}
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
                   <Input
                     label={pageText.nocCode}

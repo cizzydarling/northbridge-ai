@@ -1031,13 +1031,57 @@ export default function FormsPage() {
             </div>
           </Card>
 
-          {shouldShowUpgradePrompt && (
-            <UpgradePrompt
-              title={pageText.upgradeTitle}
-              body={pageText.upgradeBody}
-              buttonLabel={pageText.viewPricing}
-            />
-          )}
+          {preview && (
+            <div className="space-y-4">
+                {/* 🔒 FREE USER → UPGRADE */}
+                {!canDownloadForms && (
+                    <UpgradePrompt
+                      title={pageText.upgradeTitle}
+                      body={pageText.upgradeBody}
+                      buttonLabel={pageText.viewPricing}
+                    />
+                )}
+
+                {/* 🚀 PRO / PREMIUM → NEXT STEP */}
+                {canDownloadForms && (
+                    <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
+                        <h3 className="text-lg font-semibold text-emerald-900">
+                            {language === "fr"
+                             ? "Votre dossier est prêt"
+                             : "Your forms package is ready"}
+                        </h3>
+
+                        <p className="mt-2 text-sm text-emerald-800">
+                            {language === "fr"
+                             ? "Passez à la génération de documents pour préparer vos lettres et compléter votre dossier."
+                             : "Move to document generation to prepare your letters and complete your application."}
+                        </p>
+
+                        <div className="mt-4 flex gap-3">
+                            <Button
+                              onClick={() => window.location.href = "/documents/generator"}
+                            >
+                              {language === "fr"
+                                ? "Continuer vers les documents"
+                                : "Continue to Document Generator"}  
+                            </Button>
+
+                            {!access?.is_premium && (
+                                <Button
+                                  variant="secondary"
+                                  onClick={()=> window.location.href = "/pricing"}
+                                >
+                                    {language === "fr"
+                                      ? "Débloquer PDF (Premium)"
+                                      : "Unlock PDF (Premium)"}
+                                </Button>
+                            )}
+                          </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
 
           <div className="text-xs leading-6 text-slate-500">{pageText.disclaimer}</div>
         </div>

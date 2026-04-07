@@ -12,6 +12,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
     "axios": "^1.13.6",
+    "country-state-city": "^3.2.1",
     "i18next": "^25.8.18",
     "jspdf": "^4.2.1",
     "react": "^19.2.0",

@@ -1,3 +1,5 @@
+// frontend/src/pages/Dashboard.jsx
+
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -17,13 +19,11 @@ function hasPaidPlan(user, billingPlan) {
   if (!user) return false;
   if (user.role === "admin") return true;
   const effectivePlan = billingPlan || user.plan;
-  return ["individual_pro", "agent_pro"].includes(effectivePlan);
+  return ["individual_pro", "agent_pro", "individual_premium"].includes(effectivePlan);
 }
 
-function hasAgentWorkspaceAccess(user, billingPlan) {
-  if (!user) return false;
-  if (user.role === "admin") return true;
-  return user.role === "agent" && billingPlan === "agent_pro";
+function isPremiumPlan(plan) {
+  return plan === "individual_premium";
 }
 
 export default function Dashboard() {
@@ -33,163 +33,92 @@ export default function Dashboard() {
   const [profile, setProfile] = useState(null);
   const [strategy, setStrategy] = useState(null);
   const [billing, setBilling] = useState(null);
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(getCurrentUserLocal());
 
-  const role = currentUser?.role || "individual";
-  const isAgent = role === "agent" || role === "admin";
   const currentPlan = billing?.plan || currentUser?.plan || "free";
-  const subscriptionStatus =
-    billing?.subscription_status ||
-    currentUser?.subscription_status ||
-    "not subscribed";
   const paidAccess = hasPaidPlan(currentUser, currentPlan);
-  const hasAgentPlan = hasAgentWorkspaceAccess(currentUser, currentPlan);
+  const isPremium = isPremiumPlan(currentPlan);
 
   useEffect(() => {
-    const loadDashboard = async () => {
+    const load = async () => {
       const token = getToken();
-
       if (!token) {
         navigate("/auth");
         return;
       }
 
-      setLoading(true);
-      setMessage("");
-
       try {
-        try {
-          const refreshedUser = await refreshCurrentUser();
-          setCurrentUser(refreshedUser);
-        } catch (err) {
-          console.error(err);
-        }
+        const refreshed = await refreshCurrentUser();
+        setCurrentUser(refreshed);
+      } catch {}
 
-        const [profileRes, strategyRes, billingRes] = await Promise.allSettled([
-          getMyProfile(),
-          getMyStrategy(),
-          getBillingStatus(),
-        ]);
+      const [profileRes, strategyRes, billingRes] = await Promise.allSettled([
+        getMyProfile(),
+        getMyStrategy(),
+        getBillingStatus(),
+      ]);
 
-        if (profileRes.status === "fulfilled") {
-          setProfile(profileRes.value.data);
-        } else {
-          const status = profileRes.reason?.response?.status;
-          if (status === 401) {
-            logoutUser();
-            navigate("/auth");
-            return;
-          }
-        }
+      if (profileRes.status === "fulfilled") setProfile(profileRes.value.data);
+      if (strategyRes.status === "fulfilled") setStrategy(strategyRes.value.data);
+      if (billingRes.status === "fulfilled") setBilling(billingRes.value.data);
 
-        if (strategyRes.status === "fulfilled") {
-          setStrategy(strategyRes.value.data);
-        } else {
-          const status = strategyRes.reason?.response?.status;
-          if (status === 401) {
-            logoutUser();
-            navigate("/auth");
-            return;
-          }
-          if (status !== 403 && status !== 404) {
-            console.error(strategyRes.reason);
-          }
-        }
-
-        if (billingRes.status === "fulfilled") {
-          setBilling(billingRes.value.data);
-        } else {
-          const status = billingRes.reason?.response?.status;
-          if (status === 401) {
-            logoutUser();
-            navigate("/auth");
-            return;
-          }
-        }
-      } catch (err) {
-        console.error(err);
-        setMessage(t("dashboard.loadError", { defaultValue: "Could not load dashboard data." }));
-      } finally {
-        setLoading(false);
-      }
+      setLoading(false);
     };
 
-    loadDashboard();
-  }, [navigate, t]);
+    load();
+  }, [navigate]);
 
-  const profileCompletion = useMemo(() => {
-    if (!profile) return 0;
-
-    const fields = [
-      profile.age,
-      profile.education,
-      profile.language_score,
-      profile.experience_years,
-      profile.occupation,
-      profile.noc_code,
-      profile.preferred_province,
-    ];
-
-    const filled = fields.filter(
-      (value) => value !== null && value !== undefined && value !== ""
-    ).length;
-
-    return Math.round((filled / fields.length) * 100);
-  }, [profile]);
-
-  const topProgram =
-    strategy?.recommended_programs?.[0] || t("strategy.noStrategyAvailable");
-
-  const crsScore = strategy?.crs_score ?? "--";
-
-  const topScenario =
-    strategy?.improvement_scenarios?.[0]?.change ||
-    t("dashboard.noStrategyYet", { defaultValue: "No strategy available yet." });
-
-  const premiumStatusLabel = paidAccess
-    ? t("strategy.unlocked")
-    : t("strategy.locked");
-
-  const planDisplay = useMemo(() => {
-    if (currentPlan === "individual_pro") {
-      return t("dashboard.plans.individualPro", { defaultValue: "Individual Pro" });
+  // -------------------------
+  // 🔥 CORE FUNNEL LOGIC
+  // -------------------------
+  const nextAction = useMemo(() => {
+    if (!profile) {
+      return {
+        label: "Complete Profile",
+        path: "/onboarding",
+      };
     }
-    if (currentPlan === "agent_pro") {
-      return t("dashboard.plans.agentPro", { defaultValue: "Agent Pro" });
-    }
-    if (currentPlan === "free") {
-      return t("dashboard.plans.free", { defaultValue: "Free" });
-    }
-    return currentPlan;
-  }, [currentPlan, t]);
 
-  const statusDisplay = useMemo(() => {
-    if (subscriptionStatus === "active") {
-      return t("billing.active", { defaultValue: "Active" });
+    if (!strategy) {
+      return {
+        label: "Build My Strategy",
+        path: "/strategy",
+      };
     }
-    if (subscriptionStatus === "trialing") {
-      return t("billing.trialing", { defaultValue: "Trialing" });
+
+    if (!paidAccess) {
+      return {
+        label: "Unlock Forms & Documents",
+        path: "/pricing",
+      };
     }
-    if (subscriptionStatus === "canceled") {
-      return t("billing.canceled", { defaultValue: "Canceled" });
+
+    if (paidAccess && !isPremium) {
+      return {
+        label: "Finalize with PDF Export",
+        path: "/pricing",
+      };
     }
-    if (subscriptionStatus === "past_due") {
-      return t("billing.pastDue", { defaultValue: "Past Due" });
-    }
-    return subscriptionStatus;
-  }, [subscriptionStatus, t]);
+
+    return {
+      label: "Continue My Application",
+      path: "/documents",
+    };
+  }, [profile, strategy, paidAccess, isPremium]);
+
+  const secondaryAction = useMemo(() => {
+    if (!profile) return { label: "View Pricing", path: "/pricing" };
+    if (!strategy) return { label: "Complete Profile", path: "/profile" };
+    if (!paidAccess) return { label: "View Strategy", path: "/strategy" };
+    return { label: "Open Forms Studio", path: "/forms" };
+  }, [profile, strategy, paidAccess]);
 
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center">
-          <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 shadow-xl">
-            <p className="text-lg font-medium text-slate-700">
-              {t("common.loading")}
-            </p>
-          </div>
+        <div className="flex justify-center py-24">
+          <p className="text-lg">Loading...</p>
         </div>
       </Layout>
     );
@@ -197,316 +126,73 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">
-            {t("dashboard.title")}
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {t("dashboard.subtitle")}
-          </p>
-        </div>
+      {/* HERO */}
+      <div className="mb-10 rounded-3xl bg-gradient-to-br from-blue-900 to-blue-600 p-8 text-white shadow-xl">
+        <h1 className="text-4xl font-bold">
+          Your guided immigration workspace
+        </h1>
 
-        <div className="flex flex-wrap gap-3">
+        <p className="mt-4 max-w-2xl text-sm text-blue-100">
+          Move from uncertainty to action with a clearer profile, stronger strategy,
+          and a more organized application workflow.
+        </p>
+
+        <div className="mt-6 flex gap-3">
           <button
-            onClick={() => navigate("/billing")}
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={() => navigate(nextAction.path)}
+            className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-blue-900"
           >
-            {t("common.pricing")}
+            {nextAction.label}
           </button>
 
-          {isAgent && hasAgentPlan && (
-            <button
-              onClick={() => navigate("/clients")}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              {t("dashboard.openClientWorkspace")}
-            </button>
-          )}
+          <button
+            onClick={() => navigate(secondaryAction.path)}
+            className="rounded-xl border border-white px-5 py-3 text-sm"
+          >
+            {secondaryAction.label}
+          </button>
         </div>
       </div>
 
-      {message && (
-        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-          {message}
+      {/* 🔥 PREMIUM PUSH */}
+      {paidAccess && !isPremium && (
+        <div className="mb-6 rounded-2xl border border-purple-200 bg-purple-50 p-5">
+          <p className="text-sm text-purple-800">
+            You're one step away from finishing your application.
+            Unlock PDF export and finalize everything cleanly.
+          </p>
+
+          <button
+            onClick={() => navigate("/pricing")}
+            className="mt-3 rounded-xl bg-purple-600 px-4 py-2 text-sm text-white"
+          >
+            Upgrade to Premium
+          </button>
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-          <p className="text-sm font-medium text-slate-500">
-            {t("dashboard.currentPlan")}
-          </p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{planDisplay}</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-          <p className="text-sm font-medium text-slate-500">
-            {t("dashboard.subscriptionStatus")}
-          </p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{statusDisplay}</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-          <p className="text-sm font-medium text-slate-500">
-            {t("strategy.premiumAccess")}
-          </p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">
-            {premiumStatusLabel}
-          </p>
-        </div>
+      {/* STATS */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <StatCard label="Profile" value={profile ? "Completed" : "Missing"} />
+        <StatCard label="Strategy" value={strategy ? "Ready" : "Not started"} />
+        <StatCard label="Plan" value={currentPlan} />
+        <StatCard label="Access" value={paidAccess ? "Unlocked" : "Locked"} />
       </div>
 
-      {!profile && (
-        <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 text-blue-800">
-          {t("dashboard.startProfile")}
-        </div>
-      )}
+      {/* NEXT ACTION CARD */}
+      <div className="mt-6 rounded-2xl border bg-white p-6 shadow">
+        <h3 className="text-xl font-semibold">Your next step</h3>
 
-      {role === "individual" && currentPlan === "free" && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-800">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p>{t("dashboard.freePlanNotice")}</p>
-            <button
-              onClick={() => navigate("/billing")}
-              className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-            >
-              {t("strategy.upgradeNow")}
-            </button>
-          </div>
-        </div>
-      )}
+        <p className="mt-2 text-sm text-slate-600">
+          Follow the guided flow to move forward.
+        </p>
 
-      {isAgent && !hasAgentPlan && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-800">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p>{t("dashboard.agentPlanNotice")}</p>
-            <button
-              onClick={() => navigate("/billing")}
-              className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-            >
-              {t("strategy.upgradeNow")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label={t("dashboard.profileCompletion")}
-          value={`${profileCompletion}%`}
-          description={t("dashboard.completeProfiles")}
-          valueClassName="text-4xl"
-        />
-
-        <StatCard
-          label={t("dashboard.currentCrsScore")}
-          value={crsScore}
-          description={t("dashboard.latestStrategy")}
-          valueClassName="text-4xl"
-        />
-
-        <StatCard
-          label={t("dashboard.bestPathway")}
-          value={topProgram}
-          description={t("dashboard.bestImmigrationOption")}
-          valueClassName="text-2xl"
-        />
-
-        <StatCard
-          label={t("dashboard.topImprovement")}
-          value={topScenario}
-          description={t("dashboard.improvementDescription")}
-          valueClassName="text-xl"
-        />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-          <h3 className="text-xl font-semibold text-slate-900">
-            {t("dashboard.nextSteps")}
-          </h3>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <button
-              onClick={() => navigate("/profile")}
-              className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white"
-            >
-              {profile ? t("dashboard.updateProfile") : t("dashboard.createProfile")}
-            </button>
-
-            <button
-              onClick={() => navigate("/strategy")}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700"
-            >
-              {t("dashboard.openStrategy")}
-            </button>
-
-            <button
-              onClick={() => navigate("/billing")}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700"
-            >
-              {t("dashboard.managePlan")}
-            </button>
-
-            {isAgent ? (
-              <button
-                onClick={() => navigate("/clients")}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700"
-              >
-                {t("dashboard.openClientWorkspace")}
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-          <h3 className="text-xl font-semibold text-slate-900">
-            {t("dashboard.strategySnapshot")}
-          </h3>
-
-          {strategy ? (
-            <div className="mt-5 space-y-3">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t("dashboard.recommendedPrograms")}
-                </p>
-                <p className="mt-1 text-slate-900">
-                  {strategy.recommended_programs?.length
-                    ? strategy.recommended_programs.join(", ")
-                    : t("dashboard.noProgramsAvailable")}
-                </p>
-              </div>
-
-              {strategy.advisor_summary ? (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                    {t("strategy.strategySummary")}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-700">
-                    {strategy.advisor_summary}
-                  </p>
-                </div>
-              ) : null}
-
-              <button
-                onClick={() => navigate("/strategy")}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-              >
-                {t("dashboard.openStrategy")}
-              </button>
-            </div>
-          ) : (
-            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-600">{t("dashboard.noStrategyYet")}</p>
-              {!paidAccess ? (
-                <button
-                  onClick={() => navigate("/billing")}
-                  className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-                >
-                  {t("strategy.upgradeNow")}
-                </button>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-          <h3 className="text-xl font-semibold text-slate-900">
-            {t("dashboard.accountSummary")}
-          </h3>
-
-          <div className="mt-5 space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t("dashboard.email")}
-              </p>
-              <p className="mt-1 text-slate-900">{currentUser?.email || "--"}</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t("dashboard.role")}
-              </p>
-              <p className="mt-1 text-slate-900">{role}</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t("dashboard.access")}
-              </p>
-              <p className="mt-1 text-slate-900">
-                {paidAccess
-                  ? t("dashboard.premiumEnabled")
-                  : t("dashboard.freeOnly")}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-          <h3 className="text-xl font-semibold text-slate-900">
-            {t("dashboard.recommendedAction")}
-          </h3>
-
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            {!profile ? (
-              <>
-                <p className="text-sm text-slate-700">
-                  {t("dashboard.actionCompleteProfile")}
-                </p>
-                <button
-                  onClick={() => navigate("/profile")}
-                  className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-                >
-                  {t("dashboard.createProfile")}
-                </button>
-              </>
-            ) : !paidAccess ? (
-              <>
-                <p className="text-sm text-slate-700">
-                  {t("dashboard.actionUpgrade")}
-                </p>
-                <button
-                  onClick={() => navigate("/billing")}
-                  className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-                >
-                  {t("strategy.upgradeNow")}
-                </button>
-              </>
-            ) : isAgent && !hasAgentPlan ? (
-              <>
-                <p className="text-sm text-slate-700">
-                  {t("dashboard.actionUpgradeAgent")}
-                </p>
-                <button
-                  onClick={() => navigate("/billing")}
-                  className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-                >
-                  {t("strategy.upgradeNow")}
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-slate-700">
-                  {t("dashboard.actionContinue")}
-                </p>
-                <button
-                  onClick={() =>
-                    navigate(isAgent && hasAgentPlan ? "/clients" : "/strategy")
-                  }
-                  className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-                >
-                  {isAgent && hasAgentPlan
-                    ? t("dashboard.openClientWorkspace")
-                    : t("dashboard.openStrategy")}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+        <button
+          onClick={() => navigate(nextAction.path)}
+          className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-white"
+        >
+          {nextAction.label}
+        </button>
       </div>
     </Layout>
   );

@@ -1124,12 +1124,21 @@ export default function DocumentReviewPage() {
                 )}
 
                 <div className="mt-5 flex flex-wrap gap-3">
+                  {/* 🔁 LOOP BACK TO GENERATOR */}
                   <Button variant="secondary" onClick={handleApplyImprovements}>
                     {pageText.applyImprovements}
                   </Button>
 
+                  {/* ✅ MARK STEP */}
                   <Button variant="secondary" onClick={handleMarkReviewed}>
                     {pageText.markReviewed}
+                  </Button>
+
+                  {/* 🚀 PRIMARY NEXT STEP */}
+                  <Button onClick={() => navigate("/documents/generator")}>
+                    {language === "fr"
+                      ? "Finaliser le document"
+                      : "Finalize Document"}
                   </Button>
                 </div>
               </Card>
@@ -1177,6 +1186,36 @@ export default function DocumentReviewPage() {
                   </div>
                 </Card>
               ) : null}
+
+              {!locked && result?.reviewed_document_preview && (
+                <div className="mt-6 rounded-[28px] border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-6">
+                  <h3 className="text-xl font-semibold text-slate-900">
+                    {language === "fr"
+                      ? "Votre document est prêt"
+                      : "Your document is ready"}
+                  </h3>
+
+                  <p className="mt-2 text-sm text-slate-600">
+                    {language === "fr"
+                      ? "Passez à Premium pour exporter un PDF propre, prêt à être soumis."
+                      : "Upgrade to Premium to export a clean, submission-ready PDF."}
+                  </p>
+
+                  <div className="mt-4 flex gap-3">
+                    <Button onClick={() => navigate("/pricing")}>
+                      {language === "fr"
+                        ? "Passer à Premium"
+                        : "Upgrade to Premium"}
+                    </Button>
+
+                    <Button variant="secondary" onClick={handleApplyImprovements}>
+                      {language === "fr"
+                        ? "Améliorer encore"
+                        : "Improve further"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <Card variant="soft" padding="lg">

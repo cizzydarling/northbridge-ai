@@ -1598,13 +1598,51 @@ export default function DocumentGeneratorPage() {
                     </>
                   ) : null}
 
-                  <Button
-                    onClick={handleOpenReview}
-                    disabled={!canReviewDocumentsFull}
-                  >
-                    {pageText.openReview}
-                  </Button>
-                </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Button variant="secondary" onClick={handleCopy}>
+                      {pageText.copy}
+                    </Button>
+
+                    {selectedDraftId ? (
+                      <>
+                        <Button onClick={handleSaveDraft} disabled={savingDraft}>
+                          {savingDraft ? pageText.saving : pageText.save}
+                        </Button>
+
+                        <Button
+                          variant="secondary"
+                          onClick={handleDuplicateDraft}
+                          disabled={duplicatingDraft}
+                        >
+                          {duplicatingDraft ? pageText.duplicating : pageText.duplicate}
+                        </Button>
+
+                        <Button
+                          variant="danger"
+                          onClick={handleDeleteDraft}
+                          disabled={deletingDraft}
+                        >
+                          {deletingDraft ? pageText.deleting : pageText.delete}
+                        </Button>  
+                      </>
+                    ) : null}
+
+                    {/* 🔥 PRIMARY FUNNEL CTA */}
+                    {canReviewDocumentsFull ? (
+                      <Button onClick={handleOpenReview}>
+                        {language === "fr"
+                          ? "Continuer vers la révision IA"
+                          : "Continue to AI Review"}
+                      </Button>
+                    ) : (
+                      <Button onClick={() => navigate("/pricing")}>
+                        {language === "fr"
+                          ? "Débloquer la révision IA"
+                          : "Unlock AI Review"}
+                      </Button>
+                    )}
+                  </div>
+                   
 
                 {!canReviewDocumentsFull && (
                   <div className="mt-5">
@@ -1616,15 +1654,33 @@ export default function DocumentGeneratorPage() {
                   </div>
                 )}
 
-                {canGenerateDocumentsFull && !canExportPdf && (
-                  <div className="mt-5">
-                    <UpgradePrompt
-                      title={pageText.finalPremiumTitle}
-                      body={pageText.finalPremiumBody}
-                      buttonLabel={
-                        language === "fr" ? "Passer à Premium" : "Upgrade to Premium"
-                      }
-                    />
+                {result?.content && canGenerateDocumentsFull && !canExportPdf && (
+                  <div className="mt-5 rounded-[24px] border border-purple-200 bg-purple-50 p-5">
+                    <h3 className="text-lg font-semibold text-purple-900">
+                      {language === "fr"
+                        ? "Votre document est prêt à être finalisé"
+                        : "Your document is ready to be finalized"}
+                    </h3>
+
+                    <p className="mt-2 text-sm text-purple-800">
+                      {language === "fr"
+                        ? "Exportez un PDF propre et prêt à soumettre."
+                        : "Export a clean, submission-ready PDF."}
+                    </p>
+
+                    <div className="mt-4 flex gap-3">
+                      <Button onClick={() => navigate("/pricing")}>
+                        {language === "fr"
+                          ? "Passer à Premium"
+                          : "Upgrade to Premium"}
+                      </Button>
+
+                      <Button variant="secondary" onClick={handleOpenReview}>
+                        {language === "fr"
+                          ? "Améliorer avant export"
+                          : "Improve before export"}
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -1641,6 +1697,7 @@ export default function DocumentGeneratorPage() {
                     />
                   </div>
                 )}
+                </div>
               </>
             ) : (
               <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
