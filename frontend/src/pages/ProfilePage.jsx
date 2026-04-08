@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import {
-  createProfile,
   getMyProfile,
   updateMyProfile,
   logoutUser,
@@ -83,6 +82,15 @@ export default function ProfilePage() {
   const [nocResult, setNocResult] = useState(null);
   const [nocLoading, setNocLoading] = useState(false);
 
+  const isOnboarding = useMemo(() => {
+    return (
+      !form.first_name ||
+      !form.occupation ||
+      !form.noc_code ||
+      !form.preferred_province
+    );
+  }, [form]);
+
   useEffect(() => {
     const fetchProfile = async () => {
       const token = getToken();
@@ -107,6 +115,11 @@ export default function ProfilePage() {
 
         if (err.response?.status === 404) {
           setProfileExists(false);
+          setMessage(
+            language === "fr"
+              ? "Votre profil n’est pas encore prêt. Veuillez finaliser votre configuration."
+              : "Your profile is not ready yet. Please complete your setup."
+          );
         } else if (err.response?.status === 401) {
           logoutUser();
           navigate("/auth");
@@ -130,9 +143,10 @@ export default function ProfilePage() {
     if (language === "fr") {
       return {
         loading: "Chargement du profil...",
-        title: "Votre profil",
-        subtitle:
-          "Complétez votre profil pour améliorer votre stratégie d’immigration, vos recommandations IA et votre espace de demande.",
+        title: isOnboarding ? "Complétez votre profil" : "Votre profil",
+        subtitle: isOnboarding
+          ? "Complétez votre profil pour débloquer votre stratégie d’immigration personnalisée, vos recommandations IA et votre espace de demande."
+          : "Mettez à jour votre profil pour améliorer votre stratégie d’immigration, vos recommandations IA et votre espace de demande.",
         personalInfo: "Informations personnelles",
         immigrationProfile: "Profil d’immigration",
         firstName: "Prénom",
@@ -148,7 +162,7 @@ export default function ProfilePage() {
         single: "Célibataire",
         married: "Marié(e)",
         commonLaw: "Conjoint(e) de fait",
-        divorced: "Divorced",
+        divorced: "Divorcé(e)",
         widowed: "Veuf / veuve",
         english: "Anglais",
         french: "Français",
@@ -169,6 +183,7 @@ export default function ProfilePage() {
         hasCanadianExperience: "A de l’expérience canadienne",
         studiedInCanada: "A étudié au Canada",
         saveProfile: "Enregistrer le profil",
+        finishSetup: "Terminer la configuration",
         saving: "Enregistrement...",
         continue: "Continuer",
         quickFill: "Remplissage rapide",
@@ -208,14 +223,17 @@ export default function ProfilePage() {
         alternatives: "Autres options",
         useThisNoc: "Utiliser ce CNP",
         noAlternatives: "Aucune autre option disponible.",
+        onboardingBanner:
+          "Complétez votre profil pour débloquer votre stratégie personnalisée.",
       };
     }
 
     return {
       loading: "Loading profile...",
-      title: "Your Profile",
-      subtitle:
-        "Complete your profile to improve your immigration strategy, AI guidance, and application workspace.",
+      title: isOnboarding ? "Complete your profile" : "Your Profile",
+      subtitle: isOnboarding
+        ? "Complete your profile to unlock your personalized immigration strategy, AI guidance, and application workspace."
+        : "Update your profile to improve your immigration strategy, AI guidance, and application workspace.",
       personalInfo: "Personal Information",
       immigrationProfile: "Immigration Profile",
       firstName: "First Name",
@@ -252,6 +270,7 @@ export default function ProfilePage() {
       hasCanadianExperience: "Has Canadian experience",
       studiedInCanada: "Studied in Canada",
       saveProfile: "Save Profile",
+      finishSetup: "Finish setup",
       saving: "Saving...",
       continue: "Continue",
       quickFill: "Quick fill",
@@ -291,8 +310,10 @@ export default function ProfilePage() {
       alternatives: "Other likely options",
       useThisNoc: "Use this NOC",
       noAlternatives: "No alternative options available.",
+      onboardingBanner:
+        "Complete your profile to unlock your personalized strategy.",
     };
-  }, [language]);
+  }, [language, isOnboarding]);
 
   const quickFillPresets = useMemo(() => {
     if (language === "fr") {
@@ -468,12 +489,7 @@ export default function ProfilePage() {
         preferred_province: form.preferred_province || null,
       };
 
-      if (profileExists) {
-        await updateMyProfile(payload);
-      } else {
-        await createProfile(payload);
-        setProfileExists(true);
-      }
+      await updateMyProfile(payload);
 
       const currentUser =
         JSON.parse(localStorage.getItem("current_user") || "null") ||
@@ -499,7 +515,11 @@ export default function ProfilePage() {
           : "Profile saved successfully."
       );
 
-      navigate("/strategy");
+      if (isOnboarding) {
+        navigate("/dashboard");
+      } else {
+        navigate("/strategy");
+      }
     } catch (err) {
       console.error(err);
 
@@ -535,6 +555,12 @@ export default function ProfilePage() {
   return (
     <Layout>
       <div className="mx-auto max-w-5xl space-y-10 px-4 py-10">
+        {isOnboarding && (
+          <div className="rounded-[24px] border border-indigo-200 bg-indigo-50 px-5 py-4 text-sm text-indigo-800">
+            {pageText.onboardingBanner}
+          </div>
+        )}
+
         {message && (
           <div className="rounded-[24px] border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
             {message}
@@ -1014,7 +1040,11 @@ Return:
               disabled={loading}
               loading={loading}
             >
-              {loading ? pageText.saving : pageText.saveProfile}
+              {loading
+                ? pageText.saving
+                : isOnboarding
+                ? pageText.finishSetup
+                : pageText.saveProfile}
             </Button>
 
             <Button

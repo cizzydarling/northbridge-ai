@@ -331,6 +331,36 @@ function PlanChip({ active = false, children }) {
   );
 }
 
+function BlurredSection({ children, title, body, onUpgrade }) {
+  return (
+    <div className="relative">
+      {/* BLURRED CONTENT */}
+      <div className="pointer-events-none blur-[3px] select-none">
+        {children}
+      </div>
+
+      {/* OVERLAY CTA */}
+      <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
+        <div className="max-w-sm rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center shadow-sm">
+          <p className="text-base font-semibold text-amber-900">
+            {title}
+          </p>
+          <p className="mt-2 text-sm text-amber-800">
+            {body}
+          </p>
+
+          <button
+            onClick={onUpgrade}
+            className="mt-4 rounded-xl bg-amber-600 px-5 py-2 text-sm text-white"
+          >
+            Unlock Now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StrategyPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
@@ -934,26 +964,77 @@ export default function StrategyPage() {
         </div>
 
         <div className="space-y-6">
-          <ListCard
-            title={text.programs}
-            items={strategy?.recommended_programs}
-            emptyLabel={text.noItems}
-          />
+             {hasFullStrategy ? (
+           <ListCard
+             title={text.programs}
+             items={strategy?.recommended_programs}
+             emptyLabel={text.noItems}
+            />
+          ) : (
+            <BlurredSection
+             title="Unlock your best immigration pathways"
+             body="See exactly which programs you qualify for and why."
+             onUpgrade={() => navigate("/pricing")}
+  >
+            <ListCard
+             title={text.programs}
+             items={strategy?.recommended_programs || ["Express Entry", "PNP", "Work Permit"]}
+            />
+            </BlurredSection>
+          )}
           <ListCard
             title={text.strengths}
             items={strategy?.strengths}
             emptyLabel={text.noItems}
           />
+          {hasFullStrategy ? (
           <ListCard
             title={text.weaknesses}
             items={strategy?.weaknesses}
             emptyLabel={text.noItems}
           />
+        ) : (
+          <BlurredSection
+            title="See what’s holding your application back"
+            body="Identify your biggest risks and how to fix them."
+            onUpgrade={() => navigate("/pricing")}
+         >
+          <ListCard
+            title={text.weaknesses}
+            items={strategy?.weaknesses || ["Language score gap", "Experience mismatch"]}
+          />
+          </BlurredSection>
+        )}
+          {hasFullStrategy ? (
           <ListCard
             title={text.nextSteps}
             items={strategy?.next_steps}
             emptyLabel={text.noItems}
           />
+        ) : (
+          <div>
+            {/* Show 1 real step */}
+            <ListCard
+              title={text.nextSteps}
+              items={strategy?.next_steps?.slice(0, 1)}
+              emptyLabel={text.noItems}
+            />
+
+            {/* Blur the rest */}
+            <div className="mt-4">
+              <BlurredSection
+                title="Unlock your full action plan"
+                body="Get step-by-step guidance tailored to your profile."
+                onUpgrade={() => navigate("/pricing")}
+              >
+                <ListCard
+                  title=""
+                  items={["Improve CRS score", "Prepare documents", "Apply strategically"]}
+                />
+              </BlurredSection>
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </Layout>
