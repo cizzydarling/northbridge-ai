@@ -10,7 +10,9 @@ from app.schemas.profile_schema import ProfileCreate, ProfileResponse, ProfileUp
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
 
-def _sync_user_identity_from_profile(user: User, payload: ProfileCreate | ProfileUpdate) -> None:
+def _sync_user_identity_from_profile(
+    user: User, payload: ProfileCreate | ProfileUpdate
+) -> None:
     if payload.first_name is not None:
         user.first_name = payload.first_name.strip() or None
 
@@ -18,30 +20,8 @@ def _sync_user_identity_from_profile(user: User, payload: ProfileCreate | Profil
         user.last_name = payload.last_name.strip() or None
 
 
-@router.get("/me", response_model=ProfileResponse)
-def get_my_profile(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found.")
-
-    return profile
-
-
-@router.post("/create", response_model=ProfileResponse)
-def create_profile(
-    payload: ProfileCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    existing_profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-    if existing_profile:
-        raise HTTPException(status_code=400, detail="Profile already exists.")
-
-    profile = Profile(
+def _build_profile_from_payload(current_user: User, payload: ProfileCreate) -> Profile:
+    return Profile(
         user_id=current_user.id,
         first_name=payload.first_name,
         last_name=payload.last_name,
@@ -64,6 +44,19 @@ def create_profile(
         preferred_province=payload.preferred_province,
     )
 
+
+def _create_profile_impl(
+    payload: ProfileCreate,
+    db: Session,
+    current_user: User,
+) -> Profile:
+    existing_profile = (
+        db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    )
+    if existing_profile:
+        raise HTTPException(status_code=400, detail="Profile already exists.")
+
+    profile = _build_profile_from_payload(current_user, payload)
     _sync_user_identity_from_profile(current_user, payload)
 
     db.add(profile)
@@ -71,6 +64,37 @@ def create_profile(
     db.refresh(profile)
 
     return profile
+
+
+@router.get("/me", response_model=ProfileResponse)
+def get_my_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found.")
+
+    return profile
+
+
+@router.post("/me", response_model=ProfileResponse)
+def create_my_profile(
+    payload: ProfileCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return _create_profile_impl(payload, db, current_user)
+
+
+@router.post("/create", response_model=ProfileResponse)
+def create_profile(
+    payload: ProfileCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return _create_profile_impl(payload, db, current_user)
 
 
 @router.put("/me", response_model=ProfileResponse)

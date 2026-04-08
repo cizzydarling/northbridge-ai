@@ -93,7 +93,9 @@ export default function OnboardingPage() {
   }, [countries, countryQuery]);
 
   const selectedCountry = useMemo(() => {
-    return countries.find((country) => country.name === form.current_country) || null;
+    return (
+      countries.find((country) => country.name === form.current_country) || null
+    );
   }, [countries, form.current_country]);
 
   const availableCities = useMemo(() => {
@@ -139,8 +141,11 @@ export default function OnboardingPage() {
         setProfileExists(true);
       } catch (err) {
         if (err?.response?.status === 404) {
+          if (!mounted) return;
           setProfileExists(false);
         } else {
+          console.error("Onboarding profile load failed:", err);
+          if (!mounted) return;
           setMessage(
             language === "fr"
               ? "Impossible de charger les informations d’onboarding."
@@ -170,7 +175,10 @@ export default function OnboardingPage() {
         setShowCountrySuggestions(false);
       }
 
-      if (cityFieldRef.current && !cityFieldRef.current.contains(event.target)) {
+      if (
+        cityFieldRef.current &&
+        !cityFieldRef.current.contains(event.target)
+      ) {
         setShowCitySuggestions(false);
       }
     }
@@ -258,6 +266,7 @@ export default function OnboardingPage() {
         suggestNoc: "Suggérer le code CNP",
         suggestingNoc: "Suggestion...",
         suggestedNocs: "Suggestions de CNP",
+        noNocFound: "Aucune suggestion CNP trouvée pour cette profession.",
         nocHelper:
           "Choisissez la suggestion la plus proche de votre profession pour améliorer la qualité de votre stratégie.",
         onboardingSaveError:
@@ -338,6 +347,7 @@ export default function OnboardingPage() {
       suggestNoc: "Suggest NOC code",
       suggestingNoc: "Suggesting...",
       suggestedNocs: "Suggested NOCs",
+      noNocFound: "No NOC suggestions found for this occupation.",
       nocHelper:
         "Choose the closest suggestion to improve the quality of your strategy.",
       onboardingSaveError: "Failed to save onboarding details.",
@@ -426,6 +436,9 @@ export default function OnboardingPage() {
 
     if (name === "occupation") {
       setSuggestedNocs([]);
+      if (message === pageText.noNocFound) {
+        setMessage("");
+      }
     }
 
     setForm((prev) => ({
@@ -503,21 +516,58 @@ export default function OnboardingPage() {
     try {
       setSuggestingNoc(true);
       setMessage("");
+      setSuggestedNocs([]);
 
-      const res = await suggestNOC({
+      const payload = {
         occupation: form.occupation.trim(),
-        language,
-      });
+        top_k: 3,
+      };
 
-      const matches =
-        res?.data?.matches ||
-        res?.data?.suggestions ||
-        res?.data?.results ||
-        [];
+      console.log("Suggest NOC request payload:", payload);
 
-      setSuggestedNocs(Array.isArray(matches) ? matches : []);
+      const res = await suggestNOC(payload);
+
+      console.log("Suggest NOC raw response:", res?.data);
+
+      const data = res?.data;
+
+      let normalizedMatches = [];
+
+      if (Array.isArray(data?.matches) && data.matches.length > 0) {
+        normalizedMatches = data.matches;
+      } else if (data?.suggested_noc || data?.suggested_title) {
+        normalizedMatches = [
+          {
+            noc: data.suggested_noc,
+            title: data.suggested_title,
+            teer: data.teer,
+            confidence: data.confidence,
+            broad_category: data.broad_category,
+            immigration_category_tags:
+              data?.immigration_flags?.category_tags || [],
+            express_entry_skilled_work:
+              data?.immigration_flags?.express_entry_skilled_work || false,
+          },
+          ...(Array.isArray(data?.alternatives) ? data.alternatives : []),
+        ].filter((item) => item?.noc || item?.title);
+      } else if (
+        Array.isArray(data?.alternatives) &&
+        data.alternatives.length > 0
+      ) {
+        normalizedMatches = data.alternatives;
+      }
+
+      console.log("Suggest NOC parsed matches:", normalizedMatches);
+
+      setSuggestedNocs(normalizedMatches);
+
+      if (normalizedMatches.length === 0) {
+        setMessage(pageText.noNocFound);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Suggest NOC failed:", err);
+      console.error("Suggest NOC response body:", err?.response?.data);
+
       setMessage(
         err?.response?.data?.detail || pageText.nocSuggestionError
       );
@@ -529,7 +579,7 @@ export default function OnboardingPage() {
 
   function handleSelectNoc(noc) {
     const selectedCode =
-      noc?.noc_code || noc?.code || noc?.id || "";
+      noc?.noc || noc?.noc_code || noc?.code || noc?.id || "";
     const selectedTitle =
       noc?.title || noc?.name || noc?.occupation || "";
 
@@ -538,6 +588,34 @@ export default function OnboardingPage() {
       noc_code: selectedCode || prev.noc_code,
       occupation: selectedTitle || prev.occupation,
     }));
+    setMessage("");
+  }
+
+  async function saveProfileWithFallbacks(payload) {
+    try {
+      const res = await updateMyProfile(payload);
+      return res;
+    } catch (updateErr) {
+      const updateStatus = updateErr?.response?.status;
+
+      if (updateStatus !== 404 && updateStatus !== 405) {
+        throw updateErr;
+      }
+
+      try {
+        const res = await createProfile(payload);
+        return res;
+      } catch (createErr) {
+        const createStatus = createErr?.response?.status;
+
+        if (createStatus !== 404 && createStatus !== 405) {
+          throw createErr;
+        }
+
+        const finalRes = await updateMyProfile(payload);
+        return finalRes;
+      }
+    }
   }
 
   async function handleSubmit(e) {
@@ -565,20 +643,16 @@ export default function OnboardingPage() {
         preferred_language: form.preferred_language || "en",
       };
 
-      try {
-        await updateMyProfile(payload);
-        setProfileExists(true);
-      } catch (err) {
-        if (err?.response?.status === 404) {
-          await createProfile(payload);
-          setProfileExists(true);
-        } else {
-          throw err;
-        }
-      }
+      console.log("Onboarding save payload:", payload);
+
+      await saveProfileWithFallbacks(payload);
+      setProfileExists(true);
 
       navigate("/dashboard");
     } catch (err) {
+      console.error("Onboarding save failed:", err);
+      console.error("Onboarding save response:", err?.response?.data);
+
       setMessage(
         err?.response?.data?.detail || pageText.onboardingSaveError
       );
@@ -938,7 +1012,7 @@ Explain:
 
                         {suggestedNocs.map((noc, index) => {
                           const code =
-                            noc?.noc_code || noc?.code || noc?.id || "";
+                            noc?.noc || noc?.noc_code || noc?.code || noc?.id || "";
                           const title =
                             noc?.title || noc?.name || noc?.occupation || "";
 

@@ -40,6 +40,78 @@ def _tokenize(value: Optional[str]) -> List[str]:
     return [part for part in text.split(" ") if part]
 
 
+def _expand_occupation_variants(value: Optional[str]) -> List[str]:
+    normalized = _normalize_text(value)
+    if not normalized:
+        return []
+
+    variants = {normalized}
+
+    replacements = {
+        "software developer": [
+            "software engineer",
+            "developer",
+            "programmer",
+            "computer programmer",
+            "application developer",
+            "applications developer",
+            "full stack developer",
+            "full-stack developer",
+            "web developer",
+        ],
+        "software engineer": [
+            "software developer",
+            "developer",
+            "programmer",
+            "computer programmer",
+            "application developer",
+            "applications developer",
+            "full stack developer",
+            "full-stack developer",
+        ],
+        "developer": [
+            "software developer",
+            "software engineer",
+            "programmer",
+            "computer programmer",
+            "web developer",
+            "application developer",
+        ],
+        "programmer": [
+            "software developer",
+            "software engineer",
+            "developer",
+            "computer programmer",
+        ],
+        "web developer": [
+            "developer",
+            "software developer",
+            "software engineer",
+            "front end developer",
+            "frontend developer",
+            "back end developer",
+            "backend developer",
+        ],
+        "nurse": [
+            "registered nurse",
+            "licensed practical nurse",
+            "registered psychiatric nurse",
+            "nursing",
+        ],
+    }
+
+    for key, extra in replacements.items():
+        if normalized == key or key in normalized:
+            variants.update(_normalize_text(item) for item in extra)
+
+    tokens = normalized.split()
+    if len(tokens) > 1:
+        variants.add(" ".join(tokens[:-1]))
+        variants.add(tokens[-1])
+
+    return [item for item in variants if item]
+
+
 @lru_cache(maxsize=1)
 def load_noc_dataset() -> List[Dict[str, Any]]:
     with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -55,6 +127,44 @@ def _build_search_blob(record: Dict[str, Any]) -> str:
     return _normalize_text(" ".join(parts))
 
 
+def _starts_with_same_core(occupation_variants: List[str], record_title: str) -> bool:
+    title_tokens = _tokenize(record_title)
+    if not title_tokens:
+        return False
+
+    for variant in occupation_variants:
+        variant_tokens = _tokenize(variant)
+        if not variant_tokens:
+            continue
+        if variant_tokens[0] == title_tokens[0]:
+            return True
+
+    return False
+
+
+def _is_weakly_related(
+    *,
+    occupation_tokens: set[str],
+    variant_tokens: set[str],
+    blob_tokens: set[str],
+    title: str,
+    score: float,
+) -> bool:
+    overlap = occupation_tokens.intersection(blob_tokens)
+    variant_overlap = variant_tokens.intersection(blob_tokens)
+
+    if score >= 35:
+        return False
+
+    if len(overlap) >= 2 or len(variant_overlap) >= 3:
+        return False
+
+    if _starts_with_same_core(list(variant_tokens), title):
+        return False
+
+    return True
+
+
 def _score_record(
     record: Dict[str, Any],
     *,
@@ -63,6 +173,7 @@ def _score_record(
     duties: List[str],
 ) -> NocMatch:
     occupation_norm = _normalize_text(occupation)
+    occupation_variants = _expand_occupation_variants(occupation)
     job_description_norm = _normalize_text(job_description)
     duties_text = _normalize_text(" ".join(duties))
     combined_user_text = _normalize_text(
@@ -80,25 +191,54 @@ def _score_record(
     why: List[str] = []
 
     if occupation_norm and occupation_norm == title:
-        score += 40
+        score += 55
         why.append("Exact occupation title match.")
 
     if occupation_norm and occupation_norm in example_titles:
-        score += 34
+        score += 48
         why.append("Exact example title match.")
+
+    for variant in occupation_variants:
+        if variant and variant == title and variant != occupation_norm:
+            score += 34
+            why.append("Close occupation title match.")
+            break
+
+    for variant in occupation_variants:
+        if variant and variant in example_titles and variant != occupation_norm:
+            score += 30
+            why.append("Close example title match.")
+            break
 
     if occupation_norm and occupation_norm in blob:
         score += 18
         why.append("Occupation title appears in NOC profile.")
 
-    occ_tokens = set(_tokenize(occupation_norm))
+    for variant in occupation_variants:
+        if variant and variant in blob and variant != occupation_norm:
+            score += 12
+            why.append("Related occupation wording appears in NOC profile.")
+            break
+
+    occupation_tokens = set(_tokenize(occupation_norm))
+    variant_tokens = set()
+    for variant in occupation_variants:
+        variant_tokens.update(_tokenize(variant))
+
     blob_tokens = set(_tokenize(blob))
-    overlap = occ_tokens.intersection(blob_tokens)
+    overlap = occupation_tokens.intersection(blob_tokens)
+    variant_overlap = variant_tokens.intersection(blob_tokens)
 
     if overlap:
-        token_points = min(len(overlap) * 4, 20)
+        token_points = min(len(overlap) * 5, 24)
         score += token_points
         why.append(f"Occupation keywords overlap: {', '.join(sorted(overlap)[:5])}.")
+    elif variant_overlap:
+        token_points = min(len(variant_overlap) * 3.5, 18)
+        score += token_points
+        why.append(
+            f"Related keywords overlap: {', '.join(sorted(variant_overlap)[:5])}."
+        )
 
     for keyword in keywords:
         if keyword and keyword in combined_user_text:
@@ -106,7 +246,8 @@ def _score_record(
 
     duty_hits = 0
     for duty in main_duties:
-        if duty and any(fragment in combined_user_text for fragment in _tokenize(duty)[:4]):
+        duty_tokens = _tokenize(duty)[:4]
+        if duty and any(fragment in combined_user_text for fragment in duty_tokens):
             duty_hits += 1
 
     if duty_hits:
@@ -120,19 +261,31 @@ def _score_record(
             score += min(len(jd_overlap) * 1.5, 12)
             why.append("Job description aligns with NOC keywords.")
 
-    score = round(score, 2)
+    if _is_weakly_related(
+        occupation_tokens=occupation_tokens,
+        variant_tokens=variant_tokens,
+        blob_tokens=blob_tokens,
+        title=title,
+        score=score,
+    ):
+        score -= 18
+        why.append("Weak overall occupation alignment penalty.")
 
-    confidence = 0.15
-    if score >= 70:
-        confidence = 0.94
+    score = round(max(score, 0), 2)
+
+    confidence = 0.12
+    if score >= 85:
+        confidence = 0.97
+    elif score >= 70:
+        confidence = 0.92
     elif score >= 55:
-        confidence = 0.86
+        confidence = 0.84
     elif score >= 40:
-        confidence = 0.74
+        confidence = 0.72
     elif score >= 28:
-        confidence = 0.61
+        confidence = 0.58
     elif score >= 18:
-        confidence = 0.47
+        confidence = 0.42
 
     if not why:
         why.append("General keyword alignment.")
@@ -176,10 +329,41 @@ def suggest_noc_matches(
         reverse=True,
     )
 
-    top = ranked[: max(1, top_k)]
-    best = top[0]
+    if not ranked:
+        return {
+            "occupation_input": occupation,
+            "job_description_input": job_description,
+            "duties_input": duties,
+            "suggested_noc": "",
+            "suggested_title": "",
+            "teer": 0,
+            "confidence": 0.0,
+            "broad_category": "",
+            "why_matched": ["No match available."],
+            "alternatives": [],
+            "matches": [],
+            "immigration_flags": {
+                "express_entry_skilled_work": False,
+                "category_tags": [],
+            },
+        }
 
-    alternatives = [
+    best = ranked[0]
+
+    min_score_threshold = 24
+    relative_threshold = max(best.score * 0.45, min_score_threshold)
+
+    filtered = [
+        item
+        for item in ranked
+        if item.score >= relative_threshold
+    ]
+
+    top = filtered[: max(1, top_k)]
+    if not top:
+        top = [best]
+
+    serialized_top = [
         {
             "noc": item.noc,
             "title": item.title,
@@ -189,8 +373,10 @@ def suggest_noc_matches(
             "immigration_category_tags": item.immigration_category_tags,
             "express_entry_skilled_work": item.express_entry_skilled_work,
         }
-        for item in top[1:]
+        for item in top
     ]
+
+    alternatives = serialized_top[1:]
 
     return {
         "occupation_input": occupation,
@@ -203,6 +389,7 @@ def suggest_noc_matches(
         "broad_category": best.broad_category,
         "why_matched": best.why_matched,
         "alternatives": alternatives,
+        "matches": serialized_top,
         "immigration_flags": {
             "express_entry_skilled_work": best.express_entry_skilled_work,
             "category_tags": best.immigration_category_tags,
