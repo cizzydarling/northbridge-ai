@@ -301,9 +301,16 @@ export const createBillingPortalSession = createPortalSession;
 
 export const getMyProfile = () => api.get("/profiles/me");
 
-export const createProfile = (payload) => api.post("/profiles/me", payload);
-export const saveMyProfile = (payload) => api.post("/profiles/me", payload);
-export const updateMyProfile = (payload) => api.put("/profiles/me", payload);
+// 🔥 FIX: use correct backend route
+export const createProfile = (payload) =>
+  api.post("/profiles/create", payload);
+
+// keep alias consistent
+export const saveMyProfile = (payload) =>
+  api.post("/profiles/create", payload);
+
+export const updateMyProfile = (payload) =>
+  api.put("/profiles/me", payload);
 
 /* =========================
    SELF WORKSPACE
