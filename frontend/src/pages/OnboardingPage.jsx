@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Country, City } from "country-state-city";
 import {
-  createProfile,
   getMyProfile,
   suggestNOC,
   updateMyProfile,
@@ -55,7 +54,6 @@ export default function OnboardingPage() {
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const [form, setForm] = useState(defaultForm);
-  const [profileExists, setProfileExists] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -138,20 +136,16 @@ export default function OnboardingPage() {
         setForm(merged);
         setCountryQuery(merged.current_country || "");
         setCityQuery(merged.current_city || "");
-        setProfileExists(true);
       } catch (err) {
-        if (err?.response?.status === 404) {
-          if (!mounted) return;
-          setProfileExists(false);
-        } else {
-          console.error("Onboarding profile load failed:", err);
-          if (!mounted) return;
-          setMessage(
-            language === "fr"
+        console.error("Onboarding profile load failed:", err);
+        if (!mounted) return;
+
+        setMessage(
+          err?.response?.data?.detail ||
+            (language === "fr"
               ? "Impossible de charger les informations d’onboarding."
-              : "Unable to load onboarding information."
-          );
-        }
+              : "Unable to load onboarding information.")
+        );
       } finally {
         if (mounted) {
           setPageLoading(false);
@@ -591,33 +585,6 @@ export default function OnboardingPage() {
     setMessage("");
   }
 
-  async function saveProfileWithFallbacks(payload) {
-    try {
-      const res = await updateMyProfile(payload);
-      return res;
-    } catch (updateErr) {
-      const updateStatus = updateErr?.response?.status;
-
-      if (updateStatus !== 404 && updateStatus !== 405) {
-        throw updateErr;
-      }
-
-      try {
-        const res = await createProfile(payload);
-        return res;
-      } catch (createErr) {
-        const createStatus = createErr?.response?.status;
-
-        if (createStatus !== 404 && createStatus !== 405) {
-          throw createErr;
-        }
-
-        const finalRes = await updateMyProfile(payload);
-        return finalRes;
-      }
-    }
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
@@ -645,9 +612,7 @@ export default function OnboardingPage() {
 
       console.log("Onboarding save payload:", payload);
 
-      await saveProfileWithFallbacks(payload);
-      setProfileExists(true);
-
+      await updateMyProfile(payload);
       navigate("/dashboard");
     } catch (err) {
       console.error("Onboarding save failed:", err);

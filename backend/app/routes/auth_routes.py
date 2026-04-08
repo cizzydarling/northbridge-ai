@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 
 from app.data.db import get_db
+from app.models.profile_model import Profile
 from app.models.user_models import User
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -75,6 +76,39 @@ def serialize_user(user: User) -> dict:
     }
 
 
+def create_default_profile_for_user(db: Session, user: User) -> Profile:
+    existing_profile = db.query(Profile).filter(Profile.user_id == user.id).first()
+    if existing_profile:
+        return existing_profile
+
+    profile = Profile(
+        user_id=user.id,
+        first_name=None,
+        last_name=None,
+        nationality=None,
+        current_country=None,
+        current_city=None,
+        phone_number=None,
+        date_of_birth=None,
+        marital_status=None,
+        preferred_language="en",
+        age=30,
+        education="master",
+        language_score=8,
+        experience_years=5,
+        has_job_offer=False,
+        has_canadian_experience=False,
+        studied_in_canada=False,
+        occupation=None,
+        noc_code=None,
+        preferred_province=None,
+    )
+
+    db.add(profile)
+    db.flush()
+    return profile
+
+
 @router.post("/register")
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     existing_user = get_user_by_email(db, data.email)
@@ -90,6 +124,10 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         )
 
         db.add(new_user)
+        db.flush()
+
+        create_default_profile_for_user(db, new_user)
+
         db.commit()
         db.refresh(new_user)
 
@@ -120,6 +158,9 @@ def login(
                 detail="Invalid email or password",
             )
 
+        create_default_profile_for_user(db, user)
+        db.commit()
+
         access_token = create_access_token(
             {
                 "sub": user.email,
@@ -135,6 +176,7 @@ def login(
     except HTTPException:
         raise
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 
