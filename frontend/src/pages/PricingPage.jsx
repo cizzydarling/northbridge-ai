@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import Button from "../components/ui/Button";
 import {
@@ -83,6 +83,12 @@ function PlanCard({
         </div>
       )}
 
+      {plan.badge ? (
+        <div className="mb-4 inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-800">
+          {plan.badge}
+        </div>
+      ) : null}
+
       <div className="mb-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           {plan.audience}
@@ -93,7 +99,9 @@ function PlanCard({
         <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
           {plan.price}
         </p>
-        <p className="mt-3 text-sm leading-7 text-slate-600">{plan.description}</p>
+        <p className="mt-3 text-sm leading-7 text-slate-600">
+          {plan.description}
+        </p>
       </div>
 
       <div className="mb-6">
@@ -140,6 +148,7 @@ function PlanCard({
 export default function PricingPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const language = normalizeLanguage(i18n.language);
 
   const [billingStatus, setBillingStatus] = useState(null);
@@ -150,16 +159,68 @@ export default function PricingPage() {
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState("");
   const [portalLoading, setPortalLoading] = useState(false);
   const [devSwitchLoading, setDevSwitchLoading] = useState("");
+  const [successRefreshing, setSuccessRefreshing] = useState(false);
+
+  const successFlag = searchParams.get("success");
+  const cancelledFlag = searchParams.get("cancelled");
 
   useEffect(() => {
     loadBillingPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const handleStripeReturn = async () => {
+      if (successFlag !== "true") return;
+
+      try {
+        setSuccessRefreshing(true);
+        setMessage("");
+
+        await refreshCurrentUser();
+        await loadBillingPage();
+
+        setMessage(
+          language === "fr"
+            ? "Paiement confirmé. Votre abonnement a été actualisé."
+            : "Payment confirmed. Your subscription has been refreshed."
+        );
+
+        const next = new URLSearchParams(searchParams);
+        next.delete("success");
+        setSearchParams(next, { replace: true });
+      } catch (err) {
+        console.error(err);
+        setMessage(
+          language === "fr"
+            ? "Le paiement a réussi, mais l’actualisation du compte a échoué. Rechargez la page dans quelques secondes."
+            : "Payment succeeded, but account refresh failed. Reload the page in a few seconds."
+        );
+      } finally {
+        setSuccessRefreshing(false);
+      }
+    };
+
+    handleStripeReturn();
+  }, [successFlag, language, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (cancelledFlag !== "true") return;
+
+    setMessage(
+      language === "fr"
+        ? "Paiement annulé."
+        : "Checkout cancelled."
+    );
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("cancelled");
+    setSearchParams(next, { replace: true });
+  }, [cancelledFlag, language, searchParams, setSearchParams]);
+
   async function loadBillingPage() {
     try {
       setLoading(true);
-      setMessage("");
 
       const [statusRes, accessRes, plansRes] = await Promise.allSettled([
         getBillingStatus(),
@@ -315,7 +376,7 @@ export default function PricingPage() {
         proDesc:
           "Pour les utilisateurs prêts à avancer maintenant, télécharger leurs dossiers et utiliser les outils essentiels de préparation.",
         premiumDesc:
-          "Pour les utilisateurs qui veulent plus de temps, plus de confort et un espace plus complet pour préparer leur demande.",
+          "Pour les utilisateurs qui préparent un dossier complet et veulent plus de temps, l’export PDF et un contrôle plus fort sur leur processus.",
         comparisonTitle: "Comparaison rapide",
         strategy: "Stratégie complète",
         forms: "Téléchargement des formulaires",
@@ -349,6 +410,18 @@ export default function PricingPage() {
           "La plupart des utilisateurs restent en Gratuit pour explorer, passent à Pro lorsqu’ils sont prêts à agir, puis choisissent Premium lorsqu’ils veulent plus de temps pour préparer un dossier complet.",
         summaryTitle: "Votre abonnement en un coup d’œil",
         premiumBadge: "Meilleure valeur",
+        whyNowTitle: "Pourquoi passer à un plan payant maintenant",
+        whyNowLine1:
+          "Vous avez déjà une stratégie. La prochaine étape est d’agir dessus.",
+        whyNowLine2:
+          "Les utilisateurs passent à Pro lorsqu’ils veulent avancer rapidement avec les bons documents et formulaires.",
+        whyNowLine3:
+          "Ils passent à Premium lorsqu’ils veulent préparer un dossier complet avec plus de temps et de contrôle.",
+        paymentConfirmed: "Paiement confirmé",
+        paymentConfirmedBody:
+          "Votre accès vient d’être actualisé. Vous pouvez maintenant retourner au tableau de bord ou ouvrir votre stratégie.",
+        openDashboard: "Ouvrir le tableau de bord",
+        openStrategy: "Ouvrir ma stratégie",
       };
     }
 
@@ -384,7 +457,7 @@ export default function PricingPage() {
       proDesc:
         "For users ready to move now, download their packages, and use the essential preparation tools.",
       premiumDesc:
-        "For users who want more time, more comfort, and a more complete workspace to prepare their application.",
+        "For users preparing a complete application who want more time, PDF export, and full control over their process.",
       comparisonTitle: "Quick comparison",
       strategy: "Full strategy",
       forms: "Forms download",
@@ -418,6 +491,17 @@ export default function PricingPage() {
         "Most users stay on Free to explore, move to Pro when they are ready to act, and choose Premium when they want more time to prepare a fuller case.",
       summaryTitle: "Your subscription at a glance",
       premiumBadge: "Best value",
+      whyNowTitle: "Why upgrade now",
+      whyNowLine1: "You already have a strategy. The next step is acting on it.",
+      whyNowLine2:
+        "Users upgrade to Pro when they want to move forward quickly with the right documents and forms.",
+      whyNowLine3:
+        "They move to Premium when they want more time and control to prepare a complete application.",
+      paymentConfirmed: "Payment confirmed",
+      paymentConfirmedBody:
+        "Your access has just been refreshed. You can now go back to the dashboard or open your strategy.",
+      openDashboard: "Open dashboard",
+      openStrategy: "Open my strategy",
     };
   }, [language]);
 
@@ -566,6 +650,42 @@ export default function PricingPage() {
         </div>
       )}
 
+      {successRefreshing ? (
+        <SurfaceCard className="mb-6 border-green-200 bg-gradient-to-br from-green-50 to-white">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-green-700">
+            {text.paymentConfirmed}
+          </p>
+          <p className="mt-3 text-sm leading-7 text-slate-700">
+            {language === "fr"
+              ? "Actualisation de votre accès..."
+              : "Refreshing your access..."}
+          </p>
+        </SurfaceCard>
+      ) : null}
+
+      {successFlag !== "true" && (subscriptionStatus === "active" || currentPlan !== "free") ? (
+        <SurfaceCard className="mb-6 border-green-200 bg-gradient-to-br from-green-50 to-white">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-green-700">
+            {text.paymentConfirmed}
+          </p>
+          <p className="mt-3 text-sm leading-7 text-slate-700">
+            {text.paymentConfirmedBody}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={() => navigate("/dashboard")} className="rounded-2xl">
+              {text.openDashboard}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => navigate("/strategy")}
+              className="rounded-2xl"
+            >
+              {text.openStrategy}
+            </Button>
+          </div>
+        </SurfaceCard>
+      ) : null}
+
       <div className="mb-10 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
         <div className="max-w-3xl">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
@@ -621,6 +741,18 @@ export default function PricingPage() {
           )}
         </SurfaceCard>
       </div>
+
+      <SurfaceCard className="mb-6 border-amber-200 bg-gradient-to-br from-amber-50 to-white">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
+          {text.whyNowTitle}
+        </p>
+
+        <div className="mt-4 space-y-3 text-sm text-slate-700">
+          <p>{text.whyNowLine1}</p>
+          <p>{text.whyNowLine2}</p>
+          <p>{text.whyNowLine3}</p>
+        </div>
+      </SurfaceCard>
 
       <SurfaceCard className="mb-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">

@@ -14,6 +14,7 @@ import BillingSuccessPage from "./pages/BillingSuccessPage";
 import SelfDashboardPage from "./pages/SelfDashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import StrategyPage from "./pages/StrategyPage";
+import StrategySimulatorPage from "./pages/StrategySimulatorPage";
 import ChatPage from "./pages/ChatPage";
 import SelfApplicationPage from "./pages/SelfApplicationPage";
 import SelfDocumentsPage from "./pages/SelfDocumentsPage";
@@ -214,6 +215,20 @@ export default function App() {
       />
 
       <Route
+        path="/strategy/simulator" 
+        element={
+          <StrategySimulatorPage />
+        }
+      />
+
+      <Route 
+        path="/strategy/simulator" 
+        element={
+          <StrategySimulatorPage />
+        } 
+      />
+
+      <Route
         path="/chat"
         element={
           <ProtectedAppRoute>
@@ -338,6 +353,13 @@ export default function App() {
             <ClientMattersPage />
           </ProtectedAppRoute>
         }
+      />
+
+      <Route
+      path="/strategy/simulator" 
+      element={
+        <StrategySimulatorPage />
+      }
       />
 
       {/* FALLBACK */}

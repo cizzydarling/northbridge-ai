@@ -40,6 +40,22 @@ def _tokenize(value: Optional[str]) -> List[str]:
     return [part for part in text.split(" ") if part]
 
 
+def _deduplicate_preserve_order(items: List[str]) -> List[str]:
+    seen = set()
+    output: List[str] = []
+    for item in items:
+        normalized = _normalize_text(item)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        output.append(item)
+    return output
+
+
+def _extract_numeric_noc(value: Optional[str]) -> str:
+    return "".join(ch for ch in str(value or "") if ch.isdigit())
+
+
 def _expand_occupation_variants(value: Optional[str]) -> List[str]:
     normalized = _normalize_text(value)
     if not normalized:
@@ -58,6 +74,10 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "full stack developer",
             "full-stack developer",
             "web developer",
+            "backend developer",
+            "back end developer",
+            "frontend developer",
+            "front end developer",
         ],
         "software engineer": [
             "software developer",
@@ -68,6 +88,8 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "applications developer",
             "full stack developer",
             "full-stack developer",
+            "backend developer",
+            "frontend developer",
         ],
         "developer": [
             "software developer",
@@ -76,6 +98,8 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "computer programmer",
             "web developer",
             "application developer",
+            "backend developer",
+            "frontend developer",
         ],
         "programmer": [
             "software developer",
@@ -92,11 +116,47 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "back end developer",
             "backend developer",
         ],
+        "data analyst": [
+            "analyst",
+            "business analyst",
+            "data specialist",
+            "reporting analyst",
+            "bi analyst",
+            "business intelligence analyst",
+        ],
+        "business analyst": [
+            "analyst",
+            "data analyst",
+            "systems analyst",
+            "business systems analyst",
+        ],
+        "project manager": [
+            "program manager",
+            "project coordinator",
+            "implementation manager",
+            "delivery manager",
+        ],
+        "project coordinator": [
+            "project manager",
+            "coordinator",
+            "program coordinator",
+        ],
         "nurse": [
             "registered nurse",
             "licensed practical nurse",
             "registered psychiatric nurse",
             "nursing",
+        ],
+        "accountant": [
+            "financial accountant",
+            "accounting analyst",
+            "auditor",
+            "accounting",
+        ],
+        "administrative assistant": [
+            "office assistant",
+            "admin assistant",
+            "administrative officer",
         ],
     }
 
@@ -124,6 +184,7 @@ def _build_search_blob(record: Dict[str, Any]) -> str:
     parts.extend(record.get("example_titles", []) or [])
     parts.extend(record.get("keywords", []) or [])
     parts.extend(record.get("main_duties", []) or [])
+    parts.extend(record.get("employment_requirements", []) or [])
     return _normalize_text(" ".join(parts))
 
 
@@ -240,14 +301,19 @@ def _score_record(
             f"Related keywords overlap: {', '.join(sorted(variant_overlap)[:5])}."
         )
 
+    keyword_hits = 0
     for keyword in keywords:
         if keyword and keyword in combined_user_text:
-            score += 4
+            keyword_hits += 1
+
+    if keyword_hits:
+        score += min(keyword_hits * 4, 16)
+        why.append("Matched NOC keyword signals.")
 
     duty_hits = 0
     for duty in main_duties:
-        duty_tokens = _tokenize(duty)[:4]
-        if duty and any(fragment in combined_user_text for fragment in duty_tokens):
+        duty_tokens = _tokenize(duty)[:6]
+        if duty and duty_tokens and any(fragment in combined_user_text for fragment in duty_tokens):
             duty_hits += 1
 
     if duty_hits:
@@ -291,7 +357,7 @@ def _score_record(
         why.append("General keyword alignment.")
 
     return NocMatch(
-        noc=record["noc"],
+        noc=str(record["noc"]),
         title=record["title"],
         teer=int(record["teer"]),
         score=score,
@@ -299,8 +365,33 @@ def _score_record(
         broad_category=record.get("broad_category", ""),
         immigration_category_tags=list(record.get("immigration_category_tags") or []),
         express_entry_skilled_work=bool(record.get("express_entry_skilled_work", False)),
-        why_matched=why[:3],
+        why_matched=_deduplicate_preserve_order(why)[:3],
     )
+
+
+def _build_noc_summary(best: Optional[NocMatch], occupation: str) -> Dict[str, Any]:
+    if not best:
+        return {
+            "occupation": occupation,
+            "noc_code": "",
+            "noc_title": "",
+            "teer": None,
+            "confidence": 0.0,
+            "broad_category": "",
+            "express_entry_skilled_work": False,
+            "category_tags": [],
+        }
+
+    return {
+        "occupation": occupation,
+        "noc_code": best.noc,
+        "noc_title": best.title,
+        "teer": best.teer,
+        "confidence": best.confidence,
+        "broad_category": best.broad_category,
+        "express_entry_skilled_work": best.express_entry_skilled_work,
+        "category_tags": list(best.immigration_category_tags or []),
+    }
 
 
 def suggest_noc_matches(
@@ -310,7 +401,11 @@ def suggest_noc_matches(
     duties: Optional[List[str]] = None,
     top_k: int = 3,
 ) -> Dict[str, Any]:
-    duties = duties or []
+    duties = [item.strip() for item in (duties or []) if str(item or "").strip()]
+    occupation = str(occupation or "").strip()
+    job_description = str(job_description or "").strip()
+    top_k = max(1, min(int(top_k or 3), 10))
+
     dataset = load_noc_dataset()
 
     matches = [
@@ -330,6 +425,7 @@ def suggest_noc_matches(
     )
 
     if not ranked:
+        empty_summary = _build_noc_summary(None, occupation)
         return {
             "occupation_input": occupation,
             "job_description_input": job_description,
@@ -346,6 +442,7 @@ def suggest_noc_matches(
                 "express_entry_skilled_work": False,
                 "category_tags": [],
             },
+            "noc_summary": empty_summary,
         }
 
     best = ranked[0]
@@ -353,11 +450,7 @@ def suggest_noc_matches(
     min_score_threshold = 24
     relative_threshold = max(best.score * 0.45, min_score_threshold)
 
-    filtered = [
-        item
-        for item in ranked
-        if item.score >= relative_threshold
-    ]
+    filtered = [item for item in ranked if item.score >= relative_threshold]
 
     top = filtered[: max(1, top_k)]
     if not top:
@@ -372,11 +465,13 @@ def suggest_noc_matches(
             "broad_category": item.broad_category,
             "immigration_category_tags": item.immigration_category_tags,
             "express_entry_skilled_work": item.express_entry_skilled_work,
+            "why_matched": item.why_matched,
         }
         for item in top
     ]
 
     alternatives = serialized_top[1:]
+    noc_summary = _build_noc_summary(best, occupation)
 
     return {
         "occupation_input": occupation,
@@ -394,12 +489,17 @@ def suggest_noc_matches(
             "express_entry_skilled_work": best.express_entry_skilled_work,
             "category_tags": best.immigration_category_tags,
         },
+        "noc_summary": noc_summary,
     }
 
 
 def lookup_noc_by_code(code: str) -> Optional[Dict[str, Any]]:
-    normalized = str(code or "").strip()
+    normalized = _extract_numeric_noc(code)
+    if not normalized:
+        return None
+
     for record in load_noc_dataset():
-        if record.get("noc") == normalized:
+        record_noc = _extract_numeric_noc(record.get("noc"))
+        if record_noc == normalized:
             return record
     return None

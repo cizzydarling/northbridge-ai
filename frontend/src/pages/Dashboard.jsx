@@ -1,6 +1,5 @@
-// frontend/src/pages/Dashboard.jsx
-
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import StatCard from "../components/StatCard";
@@ -9,6 +8,7 @@ import {
   getBillingStatus,
   getMyProfile,
   getMyStrategy,
+  getMyStrategyLite,
   getToken,
   getCurrentUserLocal,
   refreshCurrentUser,
@@ -17,6 +17,7 @@ import {
 function hasPaidPlan(user, billingPlan) {
   if (!user) return false;
   if (user.role === "admin") return true;
+
   const effectivePlan = billingPlan || user.plan;
   return ["individual_pro", "agent_pro", "individual_premium"].includes(
     effectivePlan
@@ -124,6 +125,8 @@ function PremiumBlurCard({
 }
 
 export default function Dashboard() {
+  const { i18n } = useTranslation();
+  const language = i18n.language === "fr" ? "fr" : "en";
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
@@ -144,8 +147,18 @@ export default function Dashboard() {
   );
 
   useEffect(() => {
+  const forceRefresh = localStorage.getItem("nbai_force_refresh");
+
+  if (forceRefresh === "true") {
+    localStorage.removeItem("nbai_force_refresh");
+    window.location.reload();
+  }
+}, []);
+
+  useEffect(() => {
     const load = async () => {
       const token = getToken();
+
       if (!token) {
         navigate("/auth");
         return;
@@ -154,7 +167,9 @@ export default function Dashboard() {
       try {
         const refreshed = await refreshCurrentUser();
         setCurrentUser(refreshed?.data || refreshed);
-      } catch {}
+      } catch {
+        // keep local state
+      }
 
       const [profileRes, billingRes] = await Promise.allSettled([
         getMyProfile(),
@@ -173,13 +188,22 @@ export default function Dashboard() {
       }
 
       if (isProfileComplete(loadedProfile)) {
+        setStrategyLoading(true);
+
+        let strategyData = null;
+
         try {
-          setStrategyLoading(true);
-          const strategyRes = await getMyStrategy();
-          setStrategy(strategyRes.data);
-        } catch (err) {
-          console.error("Strategy auto-run failed:", err);
+          const liteRes = await getMyStrategyLite();
+          strategyData = liteRes.data;
+        } catch {
+          try {
+            const fullRes = await getMyStrategy();
+            strategyData = fullRes.data;
+          } catch (err) {
+            console.error("Strategy load failed:", err);
+          }
         } finally {
+          setStrategy(strategyData);
           setStrategyLoading(false);
         }
       }
@@ -203,66 +227,91 @@ export default function Dashboard() {
   const nextAction = useMemo(() => {
     if (!profile || !isProfileComplete(profile)) {
       return {
-        label: "Complete Profile",
+        label: language === "fr" ? "Compléter le profil" : "Complete Profile",
         path: "/profile",
       };
     }
 
     if (strategyLoading) {
       return {
-        label: "Building Your Strategy...",
+        label:
+          language === "fr"
+            ? "Construction de votre stratégie..."
+            : "Building Your Strategy...",
         path: "/dashboard",
       };
     }
 
     if (!strategy) {
       return {
-        label: "View My Strategy",
+        label:
+          language === "fr" ? "Voir ma stratégie" : "View My Strategy",
         path: "/strategy",
       };
     }
 
     if (!paidAccess) {
       return {
-        label: "Unlock Forms & Documents",
+        label:
+          language === "fr"
+            ? "Débloquer formulaires et documents"
+            : "Unlock Forms & Documents",
         path: "/pricing",
       };
     }
 
     if (paidAccess && !isPremium) {
       return {
-        label: "Finalize with PDF Export",
+        label:
+          language === "fr"
+            ? "Finaliser avec export PDF"
+            : "Finalize with PDF Export",
         path: "/pricing",
       };
     }
 
     return {
-      label: "Continue My Application",
+      label:
+        language === "fr"
+          ? "Continuer ma demande"
+          : "Continue My Application",
       path: "/documents",
     };
-  }, [profile, strategy, strategyLoading, paidAccess, isPremium]);
+  }, [profile, strategy, strategyLoading, paidAccess, isPremium, language]);
 
   const secondaryAction = useMemo(() => {
     if (!profile || !isProfileComplete(profile)) {
-      return { label: "View Pricing", path: "/pricing" };
+      return {
+        label: language === "fr" ? "Voir les tarifs" : "View Pricing",
+        path: "/pricing",
+      };
     }
 
     if (!strategy) {
-      return { label: "Open Profile", path: "/profile" };
+      return {
+        label: language === "fr" ? "Ouvrir le profil" : "Open Profile",
+        path: "/profile",
+      };
     }
 
     if (!paidAccess) {
-      return { label: "View Strategy", path: "/strategy" };
+      return {
+        label: language === "fr" ? "Voir la stratégie" : "View Strategy",
+        path: "/strategy",
+      };
     }
 
-    return { label: "Open Forms Studio", path: "/forms" };
-  }, [profile, strategy, paidAccess]);
+    return {
+      label: language === "fr" ? "Ouvrir Forms Studio" : "Open Forms Studio",
+      path: "/forms",
+    };
+  }, [profile, strategy, paidAccess, language]);
 
   if (loading) {
     return (
       <Layout>
         <div className="flex justify-center py-24">
-          <p className="text-lg">Loading...</p>
+          <p className="text-lg">{language === "fr" ? "Chargement..." : "Loading..."}</p>
         </div>
       </Layout>
     );
@@ -275,28 +324,62 @@ export default function Dashboard() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
               <h1 className="text-4xl font-bold">
-                Your guided immigration workspace
+                {language === "fr"
+                  ? "Votre espace d’immigration guidé"
+                  : "Your guided immigration workspace"}
               </h1>
 
               <p className="mt-4 text-sm text-blue-100">
-                Move from uncertainty to action with a clearer profile, stronger
-                strategy, and a more organized application workflow.
+                {language === "fr"
+                  ? "Passez de l’incertitude à l’action avec un profil plus clair, une stratégie plus forte et un flux de préparation mieux organisé."
+                  : "Move from uncertainty to action with a clearer profile, stronger strategy, and a more organized application workflow."}
               </p>
 
               {strategyLoading && (
                 <div className="mt-5 rounded-2xl border border-blue-300/40 bg-white/10 px-4 py-3 text-sm text-blue-50">
-                  We’re building your personalized immigration strategy now...
+                  {language === "fr"
+                    ? "Nous construisons votre stratégie personnalisée..."
+                    : "We’re building your personalized immigration strategy now..."}
                 </div>
               )}
 
               {!strategyLoading && strategy && summary && (
                 <div className="mt-5 rounded-2xl border border-blue-300/30 bg-white/10 px-4 py-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
-                    Strategy insight
+                    {language === "fr" ? "Aperçu stratégie" : "Strategy insight"}
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-blue-50">{summary}</p>
+                </div>
+              )}
+
+              {!strategyLoading && strategy && (
+                <div className="mt-5 rounded-2xl border border-white/20 bg-white/10 px-4 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
+                    {language === "fr" ? "Simulateur de score" : "Score simulator"}
                   </p>
                   <p className="mt-2 text-sm leading-7 text-blue-50">
-                    {summary}
+                    {paidAccess
+                      ? language === "fr"
+                        ? "Testez des scénarios d’amélioration et comparez les changements les plus susceptibles de faire évoluer votre résultat."
+                        : "Test score-improvement scenarios and compare which change is most likely to move your result."
+                      : language === "fr"
+                      ? "Débloquez le simulateur pour tester des scénarios d’amélioration avant d’investir du temps dans la mauvaise étape."
+                      : "Unlock the score simulator to test improvement scenarios before you spend time on the wrong next step."}
                   </p>
+                  <button
+                    onClick={() =>
+                      navigate(paidAccess ? "/strategy/simulator" : "/pricing")
+                    }
+                    className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-blue-900"
+                  >
+                    {paidAccess
+                      ? language === "fr"
+                        ? "Essayer le simulateur"
+                        : "Try Score Simulator"
+                      : language === "fr"
+                      ? "Débloquer le simulateur"
+                      : "Unlock Simulator"}
+                  </button>
                 </div>
               )}
 
@@ -306,7 +389,11 @@ export default function Dashboard() {
                   className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-blue-900"
                   disabled={strategyLoading && nextAction.path === "/dashboard"}
                 >
-                  {strategyLoading ? "Building strategy..." : nextAction.label}
+                  {strategyLoading
+                    ? language === "fr"
+                      ? "Construction..."
+                      : "Building strategy..."
+                    : nextAction.label}
                 </button>
 
                 <button
@@ -328,23 +415,35 @@ export default function Dashboard() {
                 </p>
                 <p className="mt-2 text-xs text-blue-100">
                   {crsScore
-                    ? "Current estimated score"
+                    ? language === "fr"
+                      ? "Score estimé actuel"
+                      : "Current estimated score"
+                    : language === "fr"
+                    ? "Complétez votre profil pour améliorer la précision"
                     : "Complete your profile to improve precision"}
                 </p>
               </div>
 
               <div className="rounded-3xl bg-white/10 p-5 backdrop-blur-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
-                  Profile status
+                  {language === "fr" ? "Statut du profil" : "Profile status"}
                 </p>
                 <p className="mt-3 text-xl font-semibold">
                   {profile && isProfileComplete(profile)
-                    ? "Ready"
+                    ? language === "fr"
+                      ? "Prêt"
+                      : "Ready"
+                    : language === "fr"
+                    ? "À compléter"
                     : "Needs completion"}
                 </p>
                 <p className="mt-2 text-xs text-blue-100">
                   {profile && isProfileComplete(profile)
-                    ? "Your strategy can be generated"
+                    ? language === "fr"
+                      ? "Votre stratégie peut être générée"
+                      : "Your strategy can be generated"
+                    : language === "fr"
+                    ? "Terminez la configuration pour de meilleurs résultats"
                     : "Finish setup to unlock stronger results"}
                 </p>
               </div>
@@ -355,19 +454,22 @@ export default function Dashboard() {
         {strategy && !paidAccess && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
             <p className="text-sm font-semibold text-amber-900">
-              Your strategy is ready — unlock the full breakdown
+              {language === "fr"
+                ? "Votre stratégie est prête — débloquez l’analyse complète"
+                : "Your strategy is ready — unlock the full breakdown"}
             </p>
 
             <p className="mt-2 text-sm text-amber-800">
-              Get detailed pathway analysis, document guidance, and personalized
-              action steps.
+              {language === "fr"
+                ? "Obtenez l’analyse détaillée des voies, la guidance documentaire, les actions personnalisées et le simulateur de score."
+                : "Get detailed pathway analysis, document guidance, personalized action steps, and the score simulator."}
             </p>
 
             <button
               onClick={() => navigate("/pricing")}
               className="mt-4 rounded-xl bg-amber-600 px-5 py-2 text-sm text-white"
             >
-              Unlock Full Strategy
+              {language === "fr" ? "Débloquer la stratégie" : "Unlock Full Strategy"}
             </button>
           </div>
         )}
@@ -375,42 +477,74 @@ export default function Dashboard() {
         {paidAccess && !isPremium && (
           <div className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
             <p className="text-sm text-purple-800">
-              You're one step away from finishing your application. Unlock PDF
-              export and finalize everything cleanly.
+              {language === "fr"
+                ? "Vous êtes à une étape de la finition. Débloquez l’export PDF pour finaliser proprement."
+                : "You're one step away from finishing your application. Unlock PDF export and finalize everything cleanly."}
             </p>
 
             <button
               onClick={() => navigate("/pricing")}
               className="mt-3 rounded-xl bg-purple-600 px-4 py-2 text-sm text-white"
             >
-              Upgrade to Premium
+              {language === "fr" ? "Passer à Premium" : "Upgrade to Premium"}
             </button>
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <StatCard
-            label="Profile"
+            label={language === "fr" ? "Profil" : "Profile"}
             value={
-              profile && isProfileComplete(profile) ? "Completed" : "Missing"
+              profile && isProfileComplete(profile)
+                ? language === "fr"
+                  ? "Complété"
+                  : "Completed"
+                : language === "fr"
+                ? "Manquant"
+                : "Missing"
             }
           />
           <StatCard
-            label="Strategy"
+            label={language === "fr" ? "Stratégie" : "Strategy"}
             value={
-              strategy ? "Ready" : strategyLoading ? "Building..." : "Not started"
+              strategy
+                ? language === "fr"
+                  ? "Prête"
+                  : "Ready"
+                : strategyLoading
+                ? language === "fr"
+                  ? "En cours..."
+                  : "Building..."
+                : language === "fr"
+                ? "Non démarrée"
+                : "Not started"
             }
           />
-          <StatCard label="Plan" value={currentPlan} />
-          <StatCard label="Access" value={paidAccess ? "Unlocked" : "Locked"} />
+          <StatCard label={language === "fr" ? "Plan" : "Plan"} value={currentPlan} />
+          <StatCard
+            label={language === "fr" ? "Accès" : "Access"}
+            value={
+              paidAccess
+                ? language === "fr"
+                  ? "Débloqué"
+                  : "Unlocked"
+                : language === "fr"
+                ? "Verrouillé"
+                : "Locked"
+            }
+          />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border bg-white p-6 shadow">
-            <h3 className="text-xl font-semibold">Your next step</h3>
+            <h3 className="text-xl font-semibold">
+              {language === "fr" ? "Votre prochaine étape" : "Your next step"}
+            </h3>
 
             <p className="mt-2 text-sm text-slate-600">
-              Follow the guided flow to move forward.
+              {language === "fr"
+                ? "Suivez le flux guidé pour avancer."
+                : "Follow the guided flow to move forward."}
             </p>
 
             <button
@@ -418,23 +552,39 @@ export default function Dashboard() {
               className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-white"
               disabled={strategyLoading && nextAction.path === "/dashboard"}
             >
-              {strategyLoading ? "Preparing your strategy..." : nextAction.label}
+              {strategyLoading
+                ? language === "fr"
+                  ? "Préparation de votre stratégie..."
+                  : "Preparing your strategy..."
+                : nextAction.label}
             </button>
           </div>
 
           {!paidAccess ? (
             <PremiumBlurCard
-              title="Premium recommendations"
-              body="Unlock your top pathways, tailored recommendations, and clearer next steps."
+              title={
+                language === "fr"
+                  ? "Recommandations premium"
+                  : "Premium recommendations"
+              }
+              body={
+                language === "fr"
+                  ? "Débloquez vos meilleures voies, des recommandations adaptées et des prochaines étapes plus claires."
+                  : "Unlock your top pathways, tailored recommendations, and clearer next steps."
+              }
               onUpgrade={() => navigate("/pricing")}
             />
           ) : (
             <div className="rounded-2xl border bg-white p-6 shadow">
-              <h3 className="text-xl font-semibold">Top recommendations</h3>
+              <h3 className="text-xl font-semibold">
+                {language === "fr" ? "Principales recommandations" : "Top recommendations"}
+              </h3>
 
               {strategyLoading ? (
                 <p className="mt-3 text-sm text-slate-600">
-                  Strategy recommendations are being prepared...
+                  {language === "fr"
+                    ? "Les recommandations sont en préparation..."
+                    : "Strategy recommendations are being prepared..."}
                 </p>
               ) : recommendations.length > 0 ? (
                 <div className="mt-4 space-y-3">
@@ -459,7 +609,9 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <p className="mt-3 text-sm text-slate-600">
-                  Complete your profile to unlock recommendation insights.
+                  {language === "fr"
+                    ? "Complétez votre profil pour voir les recommandations."
+                    : "Complete your profile to unlock recommendation insights."}
                 </p>
               )}
             </div>
@@ -469,18 +621,26 @@ export default function Dashboard() {
         <div className="grid gap-6 lg:grid-cols-2">
           {!paidAccess ? (
             <PremiumBlurCard
-              title="Priority next steps"
-              body="See the exact actions to take next based on your profile and strategy."
-              buttonLabel="Unlock action plan"
+              title={language === "fr" ? "Prochaines étapes prioritaires" : "Priority next steps"}
+              body={
+                language === "fr"
+                  ? "Voyez les actions exactes à prendre ensuite selon votre profil et votre stratégie."
+                  : "See the exact actions to take next based on your profile and strategy."
+              }
+              buttonLabel={language === "fr" ? "Débloquer le plan d’action" : "Unlock action plan"}
               onUpgrade={() => navigate("/pricing")}
             />
           ) : (
             <div className="rounded-2xl border bg-white p-6 shadow">
-              <h3 className="text-xl font-semibold">Priority next steps</h3>
+              <h3 className="text-xl font-semibold">
+                {language === "fr" ? "Prochaines étapes prioritaires" : "Priority next steps"}
+              </h3>
 
               {strategyLoading ? (
                 <p className="mt-3 text-sm text-slate-600">
-                  We’re preparing action steps for you...
+                  {language === "fr"
+                    ? "Nous préparons vos actions..."
+                    : "We’re preparing action steps for you..."}
                 </p>
               ) : nextSteps.length > 0 ? (
                 <div className="mt-4 space-y-3">
@@ -505,29 +665,47 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <p className="mt-3 text-sm text-slate-600">
-                  Your personalized next steps will appear here once your strategy
-                  is ready.
+                  {language === "fr"
+                    ? "Vos prochaines étapes personnalisées apparaîtront ici."
+                    : "Your personalized next steps will appear here once your strategy is ready."}
                 </p>
               )}
             </div>
           )}
 
           <div className="rounded-2xl border bg-white p-6 shadow">
-            <h3 className="text-xl font-semibold">Fast actions</h3>
+            <h3 className="text-xl font-semibold">
+              {language === "fr" ? "Actions rapides" : "Fast actions"}
+            </h3>
 
             <div className="mt-4 flex flex-wrap gap-3">
               <button
                 onClick={() => navigate("/profile")}
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
               >
-                Open Profile
+                {language === "fr" ? "Ouvrir le profil" : "Open Profile"}
               </button>
 
               <button
                 onClick={() => navigate("/strategy")}
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
               >
-                View Strategy
+                {language === "fr" ? "Voir la stratégie" : "View Strategy"}
+              </button>
+
+              <button
+                onClick={() =>
+                  navigate(paidAccess ? "/strategy/simulator" : "/pricing")
+                }
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
+              >
+                {paidAccess
+                  ? language === "fr"
+                    ? "Simulateur de score"
+                    : "Score Simulator"
+                  : language === "fr"
+                  ? "Débloquer le simulateur"
+                  : "Unlock Simulator"}
               </button>
 
               <button
@@ -536,7 +714,13 @@ export default function Dashboard() {
                 }
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
               >
-                {paidAccess ? "Forms Studio" : "Unlock Forms"}
+                {paidAccess
+                  ? language === "fr"
+                    ? "Forms Studio"
+                    : "Forms Studio"
+                  : language === "fr"
+                  ? "Débloquer les formulaires"
+                  : "Unlock Forms"}
               </button>
 
               <button
@@ -545,14 +729,20 @@ export default function Dashboard() {
                 }
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
               >
-                {isPremium ? "My Documents" : "Export & Documents"}
+                {isPremium
+                  ? language === "fr"
+                    ? "Mes documents"
+                    : "My Documents"
+                  : language === "fr"
+                  ? "Export et documents"
+                  : "Export & Documents"}
               </button>
 
               <button
                 onClick={() => navigate("/pricing")}
                 className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
               >
-                View Pricing
+                {language === "fr" ? "Voir les tarifs" : "View Pricing"}
               </button>
             </div>
           </div>
@@ -563,6 +753,7 @@ export default function Dashboard() {
         open={showUpgrade}
         onClose={() => setShowUpgrade(false)}
         onUpgrade={() => navigate("/pricing")}
+        language={language}
       />
     </Layout>
   );

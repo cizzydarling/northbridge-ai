@@ -395,10 +395,7 @@ export const getMyStrategy = (language = getLanguage()) =>
   });
 
 export const refreshStrategy = (language = getLanguage()) =>
-  api.post(`/self/workspace?language=${language}`, {
-    matter_type: "permanent_residence",
-    intake: {},
-  });
+  getMyStrategy(language);
 
 export const exportMyStrategyPdf = (language = getLanguage()) =>
   api.get(`/self/strategy/export-pdf?language=${language}`, {
@@ -406,6 +403,10 @@ export const exportMyStrategyPdf = (language = getLanguage()) =>
   });
 
 export const downloadStrategyReport = exportMyStrategyPdf;
+
+// ✅ FIXED: single definition only
+export const getMyStrategyLite = (language = getLanguage()) =>
+  api.get(`/self/strategy?language=${language}`);
 
 /* =========================
    JOURNEY

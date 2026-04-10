@@ -32,6 +32,12 @@ def _safe_join(items: List[Any], empty_value: str) -> str:
     return ", ".join(cleaned) if cleaned else empty_value
 
 
+def _safe_get(profile: Any, field_name: str, default: Any = None) -> Any:
+    if isinstance(profile, dict):
+        return profile.get(field_name, default)
+    return getattr(profile, field_name, default)
+
+
 def _extract_profile_context(profile: Any, language: str) -> str:
     if not profile:
         return (
@@ -41,23 +47,23 @@ def _extract_profile_context(profile: Any, language: str) -> str:
         )
 
     fields = {
-        "first_name": getattr(profile, "first_name", None),
-        "last_name": getattr(profile, "last_name", None),
-        "nationality": getattr(profile, "nationality", None),
-        "current_country": getattr(profile, "current_country", None),
-        "current_city": getattr(profile, "current_city", None),
-        "marital_status": getattr(profile, "marital_status", None),
-        "preferred_language": getattr(profile, "preferred_language", None),
-        "age": getattr(profile, "age", None),
-        "education": getattr(profile, "education", None),
-        "language_score": getattr(profile, "language_score", None),
-        "experience_years": getattr(profile, "experience_years", None),
-        "has_job_offer": getattr(profile, "has_job_offer", None),
-        "has_canadian_experience": getattr(profile, "has_canadian_experience", None),
-        "studied_in_canada": getattr(profile, "studied_in_canada", None),
-        "occupation": getattr(profile, "occupation", None),
-        "noc_code": getattr(profile, "noc_code", None),
-        "preferred_province": getattr(profile, "preferred_province", None),
+        "first_name": _safe_get(profile, "first_name"),
+        "last_name": _safe_get(profile, "last_name"),
+        "nationality": _safe_get(profile, "nationality"),
+        "current_country": _safe_get(profile, "current_country"),
+        "current_city": _safe_get(profile, "current_city"),
+        "marital_status": _safe_get(profile, "marital_status"),
+        "preferred_language": _safe_get(profile, "preferred_language"),
+        "age": _safe_get(profile, "age"),
+        "education": _safe_get(profile, "education"),
+        "language_score": _safe_get(profile, "language_score"),
+        "experience_years": _safe_get(profile, "experience_years"),
+        "has_job_offer": _safe_get(profile, "has_job_offer"),
+        "has_canadian_experience": _safe_get(profile, "has_canadian_experience"),
+        "studied_in_canada": _safe_get(profile, "studied_in_canada"),
+        "occupation": _safe_get(profile, "occupation"),
+        "noc_code": _safe_get(profile, "noc_code"),
+        "preferred_province": _safe_get(profile, "preferred_province"),
     }
 
     non_empty = []
@@ -94,9 +100,13 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
     improvement_scenarios = strategy.get("improvement_scenarios") or []
     province_recommendations = strategy.get("province_recommendations") or []
     french_advantage = strategy.get("french_advantage") or {}
+    noc_advantage = strategy.get("noc_advantage") or {}
     advisor_summary = strategy.get("advisor_summary")
     crs_score = strategy.get("crs_score")
     noc_summary = strategy.get("noc_summary") or {}
+    timeline_estimate = strategy.get("timeline_estimate")
+    probability_estimate = strategy.get("probability_estimate")
+    draw_prediction = strategy.get("draw_prediction")
 
     roadmap_titles = [
         step.get("title")
@@ -104,17 +114,28 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
         if isinstance(step, dict) and step.get("title")
     ]
 
-    scenario_labels = [
-        item.get("change")
-        for item in improvement_scenarios
-        if isinstance(item, dict) and item.get("change")
-    ]
+    scenario_labels = []
+    for item in improvement_scenarios[:8]:
+        if isinstance(item, dict):
+            label = item.get("change") or item.get("label") or item.get("title")
+            if label:
+                scenario_labels.append(label)
+        elif str(item).strip():
+            scenario_labels.append(str(item).strip())
 
-    province_labels = [
-        item.get("province")
-        for item in province_recommendations
-        if isinstance(item, dict) and item.get("province")
-    ]
+    province_labels = []
+    for item in province_recommendations[:8]:
+        if isinstance(item, dict):
+            province = item.get("province")
+            program = item.get("program")
+            chance = item.get("chance")
+            joined = " | ".join(
+                [str(x).strip() for x in [province, program, chance] if str(x).strip()]
+            )
+            if joined:
+                province_labels.append(joined)
+        elif str(item).strip():
+            province_labels.append(str(item).strip())
 
     parts = [
         f"crs_score: {crs_score}",
@@ -125,8 +146,12 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
         f"roadmap: {_safe_join(roadmap_titles[:5], empty_word)}",
         f"improvement_scenarios: {_safe_join(scenario_labels[:5], empty_word)}",
         f"province_recommendations: {_safe_join(province_labels[:5], empty_word)}",
-        f"french_strategic_value: {french_advantage.get('strategic_value', 'low')}",
+        f"french_advantage: {json.dumps(french_advantage, ensure_ascii=False)}",
+        f"noc_advantage: {json.dumps(noc_advantage, ensure_ascii=False)}",
         f"noc_summary: {json.dumps(noc_summary, ensure_ascii=False)}",
+        f"timeline_estimate: {json.dumps(timeline_estimate, ensure_ascii=False)}",
+        f"probability_estimate: {json.dumps(probability_estimate, ensure_ascii=False)}",
+        f"draw_prediction: {json.dumps(draw_prediction, ensure_ascii=False)}",
     ]
 
     if advisor_summary:
@@ -371,8 +396,8 @@ def _build_strategy_system_prompt(language: str) -> str:
         return """
 Tu es NorthBridgeAI, un conseiller stratégique en immigration canadienne.
 
-Tu reçois un profil structuré et dois produire une synthèse stratégique claire,
-utile et concise pour un utilisateur individuel.
+Tu reçois un profil structuré ainsi qu’un contexte stratégique complet et tu dois
+produire une synthèse stratégique claire, utile et concise pour un utilisateur individuel.
 
 Retourne uniquement du JSON valide avec cette structure:
 {
@@ -386,12 +411,13 @@ Contraintes:
 - explique les parcours prioritaires
 - explique les principaux leviers d’amélioration
 - mentionne les risques ou limites s’il y en a
+- exploite le contexte stratégique fourni s’il existe (score CRS, roadmap, provinces, atouts français, signaux CNP, scénarios d’amélioration)
 - ne donne pas d’avis juridique définitif
 """
     return """
 You are NorthBridgeAI, a Canadian immigration strategy advisor.
 
-You receive a structured profile and must produce a clear,
+You receive a structured profile and full strategy context and must produce a clear,
 useful, concise strategic summary for an individual user.
 
 Return only valid JSON with this structure:
@@ -406,6 +432,7 @@ Constraints:
 - explain the priority pathways
 - explain the main improvement levers
 - mention risks or limits where relevant
+- use the supplied strategy context when available (CRS, roadmap, provinces, French advantage, NOC signals, improvement scenarios)
 - do not provide definitive legal advice
 """
 
@@ -470,8 +497,23 @@ Respond in English.
 """
 
 
-def _build_strategy_prompt(profile: Any, language: str) -> str:
+def _build_strategy_prompt(
+    *,
+    profile: Any,
+    language: str,
+    strategy_data: Optional[Dict[str, Any]] = None,
+    crs_score: Optional[int] = None,
+    programs: Optional[List[str]] = None,
+) -> str:
     profile_context = _extract_profile_context(profile, language)
+
+    merged_strategy_data = dict(strategy_data or {})
+    if crs_score is not None and "crs_score" not in merged_strategy_data:
+        merged_strategy_data["crs_score"] = crs_score
+    if programs and "recommended_programs" not in merged_strategy_data:
+        merged_strategy_data["recommended_programs"] = programs
+
+    strategy_context = _extract_strategy_context(merged_strategy_data, language)
 
     if language == "fr":
         return f"""
@@ -480,6 +522,9 @@ Analyse ce profil d’immigration et produis une synthèse stratégique.
 Contexte profil:
 {profile_context}
 
+Contexte stratégie:
+{strategy_context}
+
 Réponds en français.
 """
     return f"""
@@ -487,6 +532,9 @@ Analyze this immigration profile and produce a strategic summary.
 
 Profile context:
 {profile_context}
+
+Strategy context:
+{strategy_context}
 
 Respond in English.
 """
@@ -858,6 +906,9 @@ def generate_ai_strategy(
     *,
     profile: Any,
     language: str = "en",
+    strategy_data: Optional[Dict[str, Any]] = None,
+    crs_score: Optional[int] = None,
+    programs: Optional[List[str]] = None,
 ) -> Dict[str, str]:
     language = _normalize_language(language)
     openai_client = _get_openai_client()
@@ -868,7 +919,16 @@ def generate_ai_strategy(
     try:
         messages: List[Dict[str, str]] = [
             {"role": "system", "content": _build_strategy_system_prompt(language)},
-            {"role": "user", "content": _build_strategy_prompt(profile, language)},
+            {
+                "role": "user",
+                "content": _build_strategy_prompt(
+                    profile=profile,
+                    language=language,
+                    strategy_data=strategy_data,
+                    crs_score=crs_score,
+                    programs=programs,
+                ),
+            },
         ]
 
         response = openai_client.chat.completions.create(

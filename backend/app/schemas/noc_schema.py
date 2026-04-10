@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,18 @@ class NocAlternative(BaseModel):
     broad_category: str
     immigration_category_tags: List[str]
     express_entry_skilled_work: bool
+    why_matched: Optional[List[str]] = []
+
+
+class NocSummary(BaseModel):
+    occupation: str
+    noc_code: str
+    noc_title: str
+    teer: Optional[int]
+    confidence: float
+    broad_category: str
+    express_entry_skilled_work: bool
+    category_tags: List[str]
 
 
 class NocSuggestResponse(BaseModel):
@@ -35,4 +47,7 @@ class NocSuggestResponse(BaseModel):
     alternatives: List[NocAlternative]
     matches: List[NocAlternative]
 
-    immigration_flags: dict
+    immigration_flags: Dict[str, Any]
+
+    # 🔥 NEW — used across strategy + frontend
+    noc_summary: Optional[NocSummary] = None

@@ -479,6 +479,61 @@ def run_permanent_residence_workspace(
     }
 
 
+@router.get("/strategy")
+def get_my_strategy(
+    language: str = Query(default="en"),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_self_user),
+):
+    language = normalize_language(language)
+
+    profile = get_profile_for_user(db, current_user.id)
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail=t(
+                "Complete your profile first.",
+                "Complétez votre profil d’abord.",
+                language,
+            ),
+        )
+
+    subscription_status = str(
+        getattr(current_user, "subscription_status", "") or ""
+    ).strip().lower()
+    plan = str(getattr(current_user, "plan", "") or "").strip().lower()
+    is_active = subscription_status in {"active", "trialing"}
+
+    is_pro = has_individual_pro(current_user) or (
+        plan in {"individual_pro", "pro"} and is_active
+    )
+    is_premium = has_premium_access(current_user) or (
+        plan in {"individual_premium", "premium"} and is_active
+    )
+
+    raw_strategy = build_strategy(profile, language=language)
+
+    strategy = build_strategy_payload(
+        raw_strategy,
+        is_pro=is_pro,
+        is_premium=is_premium,
+        language=language,
+    )
+
+    return {
+        **strategy,
+        "pathways": strategy.get("recommended_programs", []),
+        "french_advantage": strategy.get("french_advantage", {}),
+        "access": {
+            "is_pro": is_pro,
+            "is_premium": is_premium,
+            "can_export_pdf": is_premium,
+            "subscription_status": subscription_status,
+            "plan": plan,
+        },
+    }
+
+
 @router.get("/application")
 def get_self_application_context(
     db: Session = Depends(get_db),

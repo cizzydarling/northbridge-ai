@@ -28,7 +28,6 @@ from app.routes import (
     program_routes,
     recommendation_routes,
     self_document_routes,
-    self_routes,
     simulation_scenarios_routes,
     strategy_routes,
     forms_routes,
@@ -103,7 +102,6 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(disclosure_routes.router)
     app.include_router(billing_routes.router)
     app.include_router(matter_routes.router)
-    app.include_router(self_routes.router)
     app.include_router(self_document_routes.router)
     app.include_router(generated_document_routes.router)
     app.include_router(noc_routes.router)

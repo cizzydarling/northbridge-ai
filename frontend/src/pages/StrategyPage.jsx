@@ -10,6 +10,7 @@ import {
   exportMyStrategyPdf,
   getBillingAccess,
   getMyStrategy,
+  getMyStrategyLite,
 } from "../api";
 
 /* ===============================
@@ -38,7 +39,13 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
   const recommendedPrograms = Array.isArray(strategyData?.recommended_programs)
     ? strategyData.recommended_programs
     : [];
+  const provinceRecommendations = Array.isArray(
+    strategyData?.province_recommendations
+  )
+    ? strategyData.province_recommendations
+    : [];
   const nocSummary = strategyData?.noc_summary || {};
+  const nocAdvantage = strategyData?.noc_advantage || {};
   const crsScore = Number(strategyData?.crs_score || 0);
   const frenchAdvantage = strategyData?.french_advantage || {};
 
@@ -49,8 +56,18 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
   const weaknessBlob = weaknesses.join(" ").toLowerCase();
   const nextStepBlob = nextSteps.join(" ").toLowerCase();
   const programBlob = recommendedPrograms.join(" ").toLowerCase();
+  const provinceBlob = provinceRecommendations
+    .map((item) =>
+      [item?.province, item?.program, item?.chance, item?.reason]
+        .filter(Boolean)
+        .join(" ")
+    )
+    .join(" ")
+    .toLowerCase();
   const nocBlob = `${nocSummary?.occupation || ""} ${
     nocSummary?.noc_code || ""
+  } ${nocAdvantage?.noc_code || ""} ${
+    Array.isArray(nocAdvantage?.signals) ? nocAdvantage.signals.join(" ") : ""
   }`.toLowerCase();
 
   const en = {
@@ -216,6 +233,14 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
   const copy = language === "fr" ? fr : en;
 
   if (
+    programBlob.includes("provincial") ||
+    programBlob.includes("province") ||
+    provinceBlob
+  ) {
+    return copy.pnp;
+  }
+
+  if (
     weaknessBlob.includes("work") ||
     weaknessBlob.includes("emploi") ||
     weaknessBlob.includes("experience") ||
@@ -246,10 +271,6 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
     weaknessBlob.includes("fonds")
   ) {
     return copy.funds;
-  }
-
-  if (programBlob.includes("provincial") || programBlob.includes("province")) {
-    return copy.pnp;
   }
 
   if (tracked > 0 && completed < tracked && reviewed === 0) {
@@ -295,12 +316,14 @@ function ListCard({ title, items, emptyLabel }) {
 
   return (
     <Card padding="lg">
-      <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
-        {title}
-      </h3>
+      {title ? (
+        <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
+          {title}
+        </h3>
+      ) : null}
 
       {safeItems.length > 0 ? (
-        <ul className="mt-4 space-y-3">
+        <ul className={title ? "mt-4 space-y-3" : "space-y-3"}>
           {safeItems.map((item, i) => (
             <li
               key={i}
@@ -331,33 +354,168 @@ function PlanChip({ active = false, children }) {
   );
 }
 
-function BlurredSection({ children, title, body, onUpgrade }) {
+function BlurredSection({
+  children,
+  title,
+  body,
+  onUpgrade,
+  buttonLabel = "Unlock Now",
+}) {
   return (
     <div className="relative">
-      {/* BLURRED CONTENT */}
-      <div className="pointer-events-none blur-[3px] select-none">
+      <div className="pointer-events-none select-none blur-[3px]">
         {children}
       </div>
 
-      {/* OVERLAY CTA */}
       <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
         <div className="max-w-sm rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center shadow-sm">
-          <p className="text-base font-semibold text-amber-900">
-            {title}
-          </p>
-          <p className="mt-2 text-sm text-amber-800">
-            {body}
-          </p>
+          <p className="text-base font-semibold text-amber-900">{title}</p>
+          <p className="mt-2 text-sm text-amber-800">{body}</p>
 
           <button
             onClick={onUpgrade}
             className="mt-4 rounded-xl bg-amber-600 px-5 py-2 text-sm text-white"
           >
-            Unlock Now
+            {buttonLabel}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function ScoreSimulatorTeaser({
+  language,
+  currentScore,
+  hasFullStrategy,
+  onUpgrade,
+}) {
+  const safeScore = Number(currentScore || 0);
+  const teaserGain = safeScore < 430 ? 65 : safeScore < 470 ? 48 : 32;
+  const simulatedScore = safeScore ? safeScore + teaserGain : null;
+
+  const copy =
+    language === "fr"
+      ? {
+          eyebrow: "Simulateur de score",
+          title: "Voyez votre potentiel avant même d’optimiser votre dossier",
+          body:
+            "Débloquez le simulateur avancé pour tester des scénarios comme de meilleurs résultats linguistiques, plus d’expérience, une offre d’emploi ou une voie provinciale.",
+          current: "Score actuel",
+          possible: "Potentiel simulé",
+          gain: "Hausse possible",
+          cta: "Débloquer le simulateur",
+          footer:
+            "Le simulateur complet aide à prioriser les améliorations qui peuvent créer le plus d’impact.",
+        }
+      : {
+          eyebrow: "Score simulator",
+          title: "See your upside before you optimize your case",
+          body:
+            "Unlock the advanced simulator to test scenarios like higher language scores, more experience, a job offer, or a provincial pathway.",
+          current: "Current score",
+          possible: "Simulated potential",
+          gain: "Possible gain",
+          cta: "Unlock simulator",
+          footer:
+            "The full simulator helps prioritize the improvements most likely to move your result.",
+        };
+
+  if (hasFullStrategy) {
+    return (
+      <Card padding="lg">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          {copy.eyebrow}
+        </p>
+        <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+          {copy.title}
+        </h3>
+        <p className="mt-3 text-sm leading-7 text-slate-600">{copy.body}</p>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <Stat label={copy.current} value={safeScore || "--"} />
+          <Stat label={copy.possible} value={simulatedScore || "--"} />
+          <Stat label={copy.gain} value={safeScore ? `+${teaserGain}` : "--"} />
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card variant="premium" padding="lg">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+        {copy.eyebrow}
+      </p>
+      <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        {copy.title}
+      </h3>
+      <p className="mt-3 text-sm leading-7 text-slate-600">{copy.body}</p>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <Stat label={copy.current} value={safeScore || "--"} />
+        <Stat label={copy.possible} value={simulatedScore || "--"} />
+        <Stat label={copy.gain} value={safeScore ? `+${teaserGain}` : "--"} />
+      </div>
+
+      <div className="mt-5 rounded-[24px] border border-amber-200 bg-amber-50 p-4">
+        <p className="text-sm leading-7 text-amber-900">{copy.footer}</p>
+        <div className="mt-4">
+          <Button onClick={onUpgrade}>{copy.cta}</Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function ProvinceCard({ title, items, emptyLabel }) {
+  const safeItems = Array.isArray(items) ? items : [];
+
+  return (
+    <Card padding="lg">
+      <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
+        {title}
+      </h3>
+
+      {safeItems.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {safeItems.map((item, index) => (
+            <div
+              key={`${item?.province || "province"}-${item?.program || index}`}
+              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+            >
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {item?.province || "--"}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {item?.program || "--"}
+                  </p>
+                </div>
+
+                <div className="inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                  {item?.chance || "--"}
+                </div>
+              </div>
+
+              {typeof item?.score !== "undefined" ? (
+                <p className="mt-3 text-xs uppercase tracking-[0.12em] text-slate-500">
+                  Score: {item.score}
+                </p>
+              ) : null}
+
+              {item?.reason ? (
+                <p className="mt-3 text-sm leading-7 text-slate-700">
+                  {item.reason}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-slate-500">{emptyLabel}</p>
+      )}
+    </Card>
   );
 }
 
@@ -372,6 +530,15 @@ export default function StrategyPage() {
   const [engineVersion, setEngineVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [exportingPdf, setExportingPdf] = useState(false);
+
+  useEffect(() => {
+  const forceRefresh = localStorage.getItem("nbai_force_refresh");
+
+  if (forceRefresh === "true") {
+    localStorage.removeItem("nbai_force_refresh");
+    window.location.reload();
+  }
+}, []);
 
   useEffect(() => {
     loadPage();
@@ -397,28 +564,35 @@ export default function StrategyPage() {
       setLoading(true);
       setMessage("");
 
-      const [strategyRes, accessRes] = await Promise.allSettled([
-        getMyStrategy(language),
+      const [liteRes, accessRes] = await Promise.allSettled([
+        getMyStrategyLite(language),
         getBillingAccess(),
       ]);
 
-      if (strategyRes.status === "fulfilled") {
-        setData(strategyRes.value?.data || null);
-      } else {
-        const status = strategyRes.reason?.response?.status;
+      let strategyData = null;
 
-        if (status === 404) {
-          setData(null);
-        } else {
-          console.error(strategyRes.reason);
-          setMessage(
-            strategyRes.reason?.response?.data?.detail ||
-              (language === "fr"
-                ? "Impossible de charger la stratégie."
-                : "Failed to load strategy.")
-          );
+      if (liteRes.status === "fulfilled") {
+        strategyData = liteRes.value?.data || null;
+      } else {
+        try {
+          const fallback = await getMyStrategy(language);
+          strategyData = fallback?.data || null;
+        } catch (err) {
+          const status = err?.response?.status;
+
+          if (status !== 404) {
+            console.error(err);
+            setMessage(
+              err?.response?.data?.detail ||
+                (language === "fr"
+                  ? "Impossible de charger la stratégie."
+                  : "Failed to load strategy.")
+            );
+          }
         }
       }
+
+      setData(strategyData);
 
       if (accessRes.status === "fulfilled") {
         setAccess(accessRes.value?.data || null);
@@ -482,8 +656,14 @@ export default function StrategyPage() {
     }
   }
 
-  const strategy = data?.strategy || data || null;
+  const strategy = data || null;
   const noc = strategy?.noc_summary || {};
+  const nocAdvantage = strategy?.noc_advantage || {};
+  const provinceRecommendations = Array.isArray(
+    strategy?.province_recommendations
+  )
+    ? strategy.province_recommendations
+    : [];
 
   const documentStats = useMemo(() => {
     const engine = readCompletionEngine();
@@ -507,6 +687,10 @@ export default function StrategyPage() {
     Boolean(access?.is_premium);
   const hasAdvancedCopilot = Boolean(access?.can_use_advanced_ai);
   const canExportPdf = Boolean(access?.can_export_pdf);
+  const hasSimulatorAccess =
+    Boolean(access?.features?.decision_engine) ||
+    Boolean(access?.is_pro) ||
+    Boolean(access?.is_premium);
 
   const currentPlanLabel = useMemo(() => {
     if (access?.is_premium || access?.plan === "premium") return "Premium";
@@ -527,6 +711,8 @@ export default function StrategyPage() {
         weaknesses: "Faiblesses",
         nextSteps: "Prochaines étapes",
         noc: "Signal CNP",
+        nocInsights: "Analyse CNP",
+        provinceRecommendations: "Provinces recommandées",
         documentsProgress: "Progression des documents",
         completed: "Complétés",
         reviewed: "Révisés",
@@ -573,6 +759,32 @@ export default function StrategyPage() {
           "Premium est le niveau de finition pour les utilisateurs qui veulent sortir du mode exploration et produire un dossier plus partageable.",
         exportPdf: "Télécharger le PDF",
         exportingPdf: "Téléchargement...",
+        blurProgramsTitle: "Débloquez vos meilleures voies d’immigration",
+        blurProgramsBody:
+          "Voyez exactement quels programmes correspondent le mieux à votre profil et pourquoi.",
+        blurWeaknessesTitle: "Voyez ce qui freine vraiment votre dossier",
+        blurWeaknessesBody:
+          "Identifiez vos points faibles les plus critiques et comment les corriger.",
+        blurStepsTitle: "Débloquez votre plan d’action complet",
+        blurStepsBody:
+          "Obtenez les prochaines étapes les plus importantes, adaptées à votre profil.",
+        blurProvinceTitle: "Débloquez vos meilleures provinces cibles",
+        blurProvinceBody:
+          "Voyez quelles provinces et quels programmes semblent les plus adaptés à votre profil.",
+        unlockNow: "Débloquer maintenant",
+        scoreImproveTitle: "Découvrez jusqu’où votre score pourrait monter",
+        scoreImproveBody:
+          "Débloquez le simulateur avancé pour tester différents scénarios d’amélioration avant d’agir.",
+        simulatorTitle: "Simulateur de score",
+        simulatorButton: "Ouvrir le simulateur",
+        simulatorLockedButton: "Débloquer le simulateur",
+        teer: "TEER",
+        strategicValue: "Valeur stratégique",
+        highDemandOccupation: "Profession en demande",
+        yes: "Oui",
+        no: "Non",
+        whyThisMatters: "Pourquoi c’est important",
+        recommendedNocActions: "Actions liées au CNP",
       };
     }
 
@@ -587,6 +799,8 @@ export default function StrategyPage() {
       weaknesses: "Weaknesses",
       nextSteps: "Next Steps",
       noc: "NOC Signal",
+      nocInsights: "NOC Insight",
+      provinceRecommendations: "Recommended Provinces",
       documentsProgress: "Document Progress",
       completed: "Completed",
       reviewed: "Reviewed",
@@ -633,6 +847,32 @@ export default function StrategyPage() {
         "Premium is the finishing tier for users who want to move beyond exploration and produce a more shareable case package.",
       exportPdf: "Download PDF",
       exportingPdf: "Downloading...",
+      blurProgramsTitle: "Unlock your best immigration pathways",
+      blurProgramsBody:
+        "See exactly which programs fit your profile best and why.",
+      blurWeaknessesTitle: "See what’s really holding your case back",
+      blurWeaknessesBody:
+        "Identify your most important weaknesses and how to improve them.",
+      blurStepsTitle: "Unlock your full action plan",
+      blurStepsBody:
+        "Get the most important next steps tailored to your profile.",
+      blurProvinceTitle: "Unlock your best province targets",
+      blurProvinceBody:
+        "See which provinces and provincial programs appear to fit your profile best.",
+      unlockNow: "Unlock Now",
+      scoreImproveTitle: "See how far your score could move",
+      scoreImproveBody:
+        "Unlock the advanced simulator to test improvement scenarios before you act.",
+      simulatorTitle: "Score simulator",
+      simulatorButton: "Open simulator",
+      simulatorLockedButton: "Unlock simulator",
+      teer: "TEER",
+      strategicValue: "Strategic value",
+      highDemandOccupation: "High-demand occupation",
+      yes: "Yes",
+      no: "No",
+      whyThisMatters: "Why this matters",
+      recommendedNocActions: "NOC-related actions",
     };
   }, [language]);
 
@@ -692,7 +932,7 @@ export default function StrategyPage() {
   return (
     <Layout>
       {message && (
-        <div className="mb-6 rounded-[24px] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-6 rounded-[24px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
           {message}
         </div>
       )}
@@ -775,6 +1015,17 @@ export default function StrategyPage() {
         </div>
       </Card>
 
+      <ScoreSimulatorTeaser
+        language={language}
+        currentScore={strategy?.crs_score}
+        hasFullStrategy={hasFullStrategy}
+        onUpgrade={() =>
+          navigate(hasSimulatorAccess ? "/strategy/simulator" : "/pricing")
+        }
+      />
+
+      <div className="mt-6" />
+
       {!hasFullStrategy && (
         <UpgradePrompt
           className="mb-6"
@@ -823,6 +1074,31 @@ export default function StrategyPage() {
             <p className="mt-3 text-5xl font-semibold tracking-tight text-blue-900">
               {strategy?.crs_score ?? "--"}
             </p>
+
+            {!hasFullStrategy && (
+              <div className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                {text.scoreImproveTitle}
+                <button
+                  onClick={() => navigate("/pricing")}
+                  className="ml-2 font-semibold underline"
+                >
+                  {text.unlockNow}
+                </button>
+              </div>
+            )}
+
+            <div className="mt-4">
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  navigate(hasSimulatorAccess ? "/strategy/simulator" : "/pricing")
+                }
+              >
+                {hasSimulatorAccess
+                  ? text.simulatorButton
+                  : text.simulatorLockedButton}
+              </Button>
+            </div>
           </Card>
 
           <Card padding="lg">
@@ -946,95 +1222,250 @@ export default function StrategyPage() {
             </div>
           </Card>
 
-          {(noc?.noc_code || noc?.occupation) && (
-            <Card padding="lg">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {text.noc}
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
-                {noc?.noc_code
-                  ? `${noc.noc_code} — ${noc.noc_title || noc.occupation || ""}`
-                  : noc?.occupation}
-              </h2>
-              {typeof noc?.teer === "number" && (
-                <p className="mt-2 text-sm text-slate-600">TEER {noc.teer}</p>
-              )}
+          {(noc?.noc_code ||
+            noc?.occupation ||
+            nocAdvantage?.has_noc ||
+            typeof nocAdvantage?.teer === "number") && (
+            <Card padding="lg" className="space-y-5">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  {text.noc}
+                </p>
+                <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
+                  {noc?.noc_code
+                    ? `${noc.noc_code} — ${noc.noc_title || noc.occupation || ""}`
+                    : nocAdvantage?.noc_code
+                    ? `${nocAdvantage.noc_code}`
+                    : noc?.occupation || "--"}
+                </h2>
+                {typeof noc?.teer === "number" ? (
+                  <p className="mt-2 text-sm text-slate-600">TEER {noc.teer}</p>
+                ) : typeof nocAdvantage?.teer === "number" &&
+                  nocAdvantage.teer >= 0 ? (
+                  <p className="mt-2 text-sm text-slate-600">
+                    {text.teer} {nocAdvantage.teer}
+                  </p>
+                ) : null}
+              </div>
+
+              {(typeof nocAdvantage?.teer === "number" && nocAdvantage.teer >= 0) ||
+              typeof nocAdvantage?.strategic_value === "string" ||
+              typeof nocAdvantage?.is_high_demand === "boolean" ? (
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Stat
+                    label={text.teer}
+                    value={
+                      typeof nocAdvantage?.teer === "number" &&
+                      nocAdvantage.teer >= 0
+                        ? nocAdvantage.teer
+                        : "--"
+                    }
+                  />
+                  <Stat
+                    label={text.strategicValue}
+                    value={nocAdvantage?.strategic_value || "--"}
+                  />
+                  <Stat
+                    label={text.highDemandOccupation}
+                    value={
+                      typeof nocAdvantage?.is_high_demand === "boolean"
+                        ? nocAdvantage.is_high_demand
+                          ? text.yes
+                          : text.no
+                        : "--"
+                    }
+                  />
+                </div>
+              ) : null}
+
+              {Array.isArray(nocAdvantage?.signals) &&
+              nocAdvantage.signals.length > 0 ? (
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {text.whyThisMatters}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {nocAdvantage.signals.map((item, index) => (
+                      <div
+                        key={`${item}-${index}`}
+                        className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700"
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {Array.isArray(nocAdvantage?.recommendations) &&
+              nocAdvantage.recommendations.length > 0 ? (
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {text.recommendedNocActions}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {nocAdvantage.recommendations.map((item, index) => (
+                      <div
+                        key={`${item}-${index}`}
+                        className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-7 text-blue-900"
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </Card>
+          )}
+
+          {hasFullStrategy ? (
+            <ProvinceCard
+              title={text.provinceRecommendations}
+              items={provinceRecommendations}
+              emptyLabel={text.noItems}
+            />
+          ) : (
+            <BlurredSection
+              title={text.blurProvinceTitle}
+              body={text.blurProvinceBody}
+              buttonLabel={text.unlockNow}
+              onUpgrade={() => navigate("/pricing")}
+            >
+              <ProvinceCard
+                title={text.provinceRecommendations}
+                items={
+                  provinceRecommendations.length
+                    ? provinceRecommendations
+                    : [
+                        language === "fr"
+                          ? {
+                              province: "Ontario",
+                              program: "Volet Tech de l’OINP",
+                              chance: "Élevée",
+                              reason:
+                                "Cette province pourrait bien correspondre à votre profil.",
+                            }
+                          : {
+                              province: "Ontario",
+                              program: "OINP Tech Draw",
+                              chance: "High",
+                              reason:
+                                "This province may align well with your profile.",
+                            },
+                      ]
+                }
+                emptyLabel={text.noItems}
+              />
+            </BlurredSection>
           )}
         </div>
 
         <div className="space-y-6">
-             {hasFullStrategy ? (
-           <ListCard
-             title={text.programs}
-             items={strategy?.recommended_programs}
-             emptyLabel={text.noItems}
+          {hasFullStrategy ? (
+            <ListCard
+              title={text.programs}
+              items={strategy?.recommended_programs}
+              emptyLabel={text.noItems}
             />
           ) : (
             <BlurredSection
-             title="Unlock your best immigration pathways"
-             body="See exactly which programs you qualify for and why."
-             onUpgrade={() => navigate("/pricing")}
-  >
-            <ListCard
-             title={text.programs}
-             items={strategy?.recommended_programs || ["Express Entry", "PNP", "Work Permit"]}
-            />
+              title={text.blurProgramsTitle}
+              body={text.blurProgramsBody}
+              buttonLabel={text.unlockNow}
+              onUpgrade={() => navigate("/pricing")}
+            >
+              <ListCard
+                title={text.programs}
+                items={
+                  strategy?.recommended_programs?.length
+                    ? strategy.recommended_programs
+                    : ["Express Entry", "Provincial Nominee Program", "Work Permit"]
+                }
+                emptyLabel={text.noItems}
+              />
             </BlurredSection>
           )}
+
           <ListCard
             title={text.strengths}
             items={strategy?.strengths}
             emptyLabel={text.noItems}
           />
+
           {hasFullStrategy ? (
-          <ListCard
-            title={text.weaknesses}
-            items={strategy?.weaknesses}
-            emptyLabel={text.noItems}
-          />
-        ) : (
-          <BlurredSection
-            title="See what’s holding your application back"
-            body="Identify your biggest risks and how to fix them."
-            onUpgrade={() => navigate("/pricing")}
-         >
-          <ListCard
-            title={text.weaknesses}
-            items={strategy?.weaknesses || ["Language score gap", "Experience mismatch"]}
-          />
-          </BlurredSection>
-        )}
-          {hasFullStrategy ? (
-          <ListCard
-            title={text.nextSteps}
-            items={strategy?.next_steps}
-            emptyLabel={text.noItems}
-          />
-        ) : (
-          <div>
-            {/* Show 1 real step */}
             <ListCard
-              title={text.nextSteps}
-              items={strategy?.next_steps?.slice(0, 1)}
+              title={text.weaknesses}
+              items={strategy?.weaknesses}
               emptyLabel={text.noItems}
             />
+          ) : (
+            <BlurredSection
+              title={text.blurWeaknessesTitle}
+              body={text.blurWeaknessesBody}
+              buttonLabel={text.unlockNow}
+              onUpgrade={() => navigate("/pricing")}
+            >
+              <ListCard
+                title={text.weaknesses}
+                items={
+                  strategy?.weaknesses?.length
+                    ? strategy.weaknesses
+                    : [
+                        language === "fr"
+                          ? "Écart potentiel de score linguistique"
+                          : "Potential language score gap",
+                        language === "fr"
+                          ? "Preuves de travail à renforcer"
+                          : "Work evidence may need strengthening",
+                      ]
+                }
+                emptyLabel={text.noItems}
+              />
+            </BlurredSection>
+          )}
 
-            {/* Blur the rest */}
-            <div className="mt-4">
-              <BlurredSection
-                title="Unlock your full action plan"
-                body="Get step-by-step guidance tailored to your profile."
-                onUpgrade={() => navigate("/pricing")}
-              >
-                <ListCard
-                  title=""
-                  items={["Improve CRS score", "Prepare documents", "Apply strategically"]}
-                />
-              </BlurredSection>
+          {hasFullStrategy ? (
+            <ListCard
+              title={text.nextSteps}
+              items={strategy?.next_steps}
+              emptyLabel={text.noItems}
+            />
+          ) : (
+            <div>
+              <ListCard
+                title={text.nextSteps}
+                items={Array.isArray(strategy?.next_steps) ? strategy.next_steps.slice(0, 1) : []}
+                emptyLabel={text.noItems}
+              />
+
+              <div className="mt-4">
+                <BlurredSection
+                  title={text.blurStepsTitle}
+                  body={text.blurStepsBody}
+                  buttonLabel={text.unlockNow}
+                  onUpgrade={() => navigate("/pricing")}
+                >
+                  <ListCard
+                    title=""
+                    items={
+                      language === "fr"
+                        ? [
+                            "Améliorer le score linguistique",
+                            "Préparer les documents clés",
+                            "Exécuter la meilleure voie stratégique",
+                          ]
+                        : [
+                            "Improve language score",
+                            "Prepare key documents",
+                            "Execute the best-fit pathway",
+                          ]
+                    }
+                    emptyLabel={text.noItems}
+                  />
+                </BlurredSection>
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
     </Layout>

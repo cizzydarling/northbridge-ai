@@ -27,6 +27,27 @@ function splitParagraphs(content) {
     .filter(Boolean);
 }
 
+function isLikelySectionHeading(paragraph) {
+  const value = String(paragraph || "").trim();
+
+  if (!value) return false;
+  if (value.length > 80) return false;
+  if (value.endsWith(":")) return true;
+  if (/^[A-Z][A-Za-z\s/&-]{2,60}$/.test(value)) return true;
+  if (/^[À-ÿA-Z][À-ÿA-Za-z\s/&'-]{2,60}$/.test(value) && value.split(" ").length <= 8) {
+    return true;
+  }
+
+  return false;
+}
+
+function normalizeParagraph(paragraph) {
+  return String(paragraph || "")
+    .replace(/\t/g, " ")
+    .replace(/[ ]{2,}/g, " ")
+    .trim();
+}
+
 export function exportDocumentToPdf({
   title,
   documentTypeLabel,
@@ -62,14 +83,19 @@ export function exportDocumentToPdf({
 
       const metaLine = [
         "NorthBridgeAI",
-        documentTypeLabel ? `${lang === "fr" ? "Type" : "Type"}: ${documentTypeLabel}` : null,
+        documentTypeLabel
+          ? `${lang === "fr" ? "Type" : "Type"}: ${documentTypeLabel}`
+          : null,
         tone ? `${lang === "fr" ? "Ton" : "Tone"}: ${tone}` : null,
       ]
         .filter(Boolean)
         .join(" • ");
 
-      doc.text(metaLine, marginX, y);
-      y += 24;
+      if (metaLine) {
+        const metaLines = doc.splitTextToSize(metaLine, usableWidth);
+        doc.text(metaLines, marginX, y);
+        y += metaLines.length * 12 + 10;
+      }
 
       doc.setDrawColor(220, 226, 232);
       doc.line(marginX, y, pageWidth - marginX, y);
@@ -106,9 +132,28 @@ export function exportDocumentToPdf({
     }
   }
 
+  function drawParagraph(paragraph) {
+    const lines = doc.splitTextToSize(paragraph, usableWidth);
+    const estimatedHeight = lines.length * 15 + 10;
+
+    ensureSpace(estimatedHeight);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(lines, marginX, y);
+    y += estimatedHeight;
+  }
+
+  function drawSectionHeading(paragraph) {
+    ensureSpace(28);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(paragraph.replace(/:\s*$/, ""), marginX, y);
+    y += 20;
+  }
+
   drawHeader(true);
 
-  const paragraphs = splitParagraphs(content);
+  const paragraphs = splitParagraphs(content).map(normalizeParagraph).filter(Boolean);
 
   if (!paragraphs.length) {
     doc.setFont("helvetica", "normal");
@@ -121,16 +166,15 @@ export function exportDocumentToPdf({
       y
     );
   } else {
-    paragraphs.forEach((paragraph) => {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-
-      const lines = doc.splitTextToSize(paragraph, usableWidth);
-      const estimatedHeight = lines.length * 15 + 10;
-
-      ensureSpace(estimatedHeight);
-      doc.text(lines, marginX, y);
-      y += estimatedHeight;
+    paragraphs.forEach((paragraph, index) => {
+      if (isLikelySectionHeading(paragraph)) {
+        if (index > 0) {
+          y += 4;
+        }
+        drawSectionHeading(paragraph);
+      } else {
+        drawParagraph(paragraph);
+      }
     });
   }
 
