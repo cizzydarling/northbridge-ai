@@ -48,19 +48,17 @@ function normalizeParagraph(paragraph) {
     .trim();
 }
 
-export function exportDocumentToPdf({
-  title,
-  documentTypeLabel,
-  language = "en",
-  tone,
-  content,
-}) {
-  const lang = normalizeLanguage(language);
-  const doc = new jsPDF({
-    unit: "pt",
-    format: "letter",
-  });
+function safeArray(value) {
+  return Array.isArray(value) ? value.filter(Boolean) : [];
+}
 
+function safeText(value, fallback = "--") {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
+function createPdfLayout(doc, language, title) {
+  const lang = normalizeLanguage(language);
   const marginX = 56;
   const topStart = 60;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -71,30 +69,20 @@ export function exportDocumentToPdf({
   let y = topStart;
   let pageNumber = 1;
 
-  function drawHeader(isFirstPage = false) {
+  function drawHeader(isFirstPage = false, subtitle = "") {
     if (isFirstPage) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
-      doc.text(title || "NorthBridgeAI Document", marginX, y);
+      doc.text(title || "NorthBridgeAI", marginX, y);
 
       y += 24;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
 
-      const metaLine = [
-        "NorthBridgeAI",
-        documentTypeLabel
-          ? `${lang === "fr" ? "Type" : "Type"}: ${documentTypeLabel}`
-          : null,
-        tone ? `${lang === "fr" ? "Ton" : "Tone"}: ${tone}` : null,
-      ]
-        .filter(Boolean)
-        .join(" • ");
-
-      if (metaLine) {
-        const metaLines = doc.splitTextToSize(metaLine, usableWidth);
-        doc.text(metaLines, marginX, y);
-        y += metaLines.length * 12 + 10;
+      if (subtitle) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        const lines = doc.splitTextToSize(subtitle, usableWidth);
+        doc.text(lines, marginX, y);
+        y += lines.length * 12 + 8;
       }
 
       doc.setDrawColor(220, 226, 232);
@@ -132,52 +120,389 @@ export function exportDocumentToPdf({
     }
   }
 
-  function drawParagraph(paragraph) {
-    const lines = doc.splitTextToSize(paragraph, usableWidth);
-    const estimatedHeight = lines.length * 15 + 10;
-
+  function drawBodyText(text, fontSize = 11, extraSpacing = 10) {
+    const lines = doc.splitTextToSize(String(text || ""), usableWidth);
+    const estimatedHeight = lines.length * (fontSize + 4) + extraSpacing;
     ensureSpace(estimatedHeight);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
+    doc.setFontSize(fontSize);
     doc.text(lines, marginX, y);
     y += estimatedHeight;
   }
 
-  function drawSectionHeading(paragraph) {
+  function drawMutedText(text, fontSize = 10, extraSpacing = 8) {
+    const lines = doc.splitTextToSize(String(text || ""), usableWidth);
+    const estimatedHeight = lines.length * (fontSize + 3) + extraSpacing;
+    ensureSpace(estimatedHeight);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(fontSize);
+    doc.setTextColor(90, 102, 114);
+    doc.text(lines, marginX, y);
+    doc.setTextColor(0, 0, 0);
+    y += estimatedHeight;
+  }
+
+  function drawSectionHeading(text) {
     ensureSpace(28);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text(paragraph.replace(/:\s*$/, ""), marginX, y);
+    doc.text(String(text || "").replace(/:\s*$/, ""), marginX, y);
     y += 20;
   }
 
-  drawHeader(true);
+  function drawSmallLabelValue(label, value) {
+    const text = `${label}: ${value}`;
+    const lines = doc.splitTextToSize(text, usableWidth);
+    const estimatedHeight = lines.length * 13 + 8;
+    ensureSpace(estimatedHeight);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(`${label}:`, marginX, y);
+    const labelWidth = doc.getTextWidth(`${label}: `);
+    doc.setFont("helvetica", "normal");
+    doc.text(doc.splitTextToSize(String(value || ""), usableWidth - labelWidth), marginX + labelWidth, y);
+    y += estimatedHeight;
+  }
+
+  function drawBulletList(items, options = {}) {
+    const safeItems = safeArray(items);
+    const fontSize = options.fontSize || 11;
+    const bulletIndent = marginX + 12;
+    const textIndent = marginX + 24;
+    const bulletWidth = usableWidth - 24;
+
+    if (!safeItems.length) {
+      return;
+    }
+
+    safeItems.forEach((item) => {
+      const lines = doc.splitTextToSize(String(item || ""), bulletWidth);
+      const estimatedHeight = lines.length * (fontSize + 4) + 6;
+      ensureSpace(estimatedHeight);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(fontSize);
+      doc.text("•", bulletIndent, y);
+      doc.text(lines, textIndent, y);
+      y += estimatedHeight;
+    });
+  }
+
+  function drawKeyValueGrid(items) {
+    const safeItems = safeArray(items);
+    if (!safeItems.length) return;
+
+    const colGap = 12;
+    const colWidth = (usableWidth - colGap) / 2;
+    let currentX = marginX;
+    let rowHeight = 0;
+
+    safeItems.forEach((item, index) => {
+      const label = safeText(item?.label);
+      const value = safeText(item?.value);
+      const labelLines = doc.splitTextToSize(label, colWidth - 16);
+      const valueLines = doc.splitTextToSize(value, colWidth - 16);
+      const boxHeight = Math.max(56, 18 + labelLines.length * 11 + valueLines.length * 15);
+
+      if (index % 2 === 0) {
+        ensureSpace(boxHeight + 8);
+        currentX = marginX;
+        rowHeight = boxHeight;
+      } else {
+        currentX = marginX + colWidth + colGap;
+        rowHeight = Math.max(rowHeight, boxHeight);
+      }
+
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(currentX, y, colWidth, boxHeight, 12, 12);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(labelLines, currentX + 8, y + 14);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42);
+      doc.text(valueLines, currentX + 8, y + 34);
+
+      doc.setTextColor(0, 0, 0);
+
+      if (index % 2 === 1 || index === safeItems.length - 1) {
+        y += rowHeight + 12;
+      }
+    });
+  }
+
+  function finish() {
+    drawFooter();
+  }
+
+  return {
+    lang,
+    marginX,
+    usableWidth,
+    drawHeader,
+    drawFooter,
+    ensureSpace,
+    drawBodyText,
+    drawMutedText,
+    drawSectionHeading,
+    drawSmallLabelValue,
+    drawBulletList,
+    drawKeyValueGrid,
+    finish,
+    getY: () => y,
+    setY: (nextY) => {
+      y = nextY;
+    },
+  };
+}
+
+export function exportDocumentToPdf({
+  title,
+  documentTypeLabel,
+  language = "en",
+  tone,
+  content,
+}) {
+  const lang = normalizeLanguage(language);
+  const doc = new jsPDF({
+    unit: "pt",
+    format: "letter",
+  });
+
+  const layout = createPdfLayout(doc, lang, title || "NorthBridgeAI Document");
+
+  const metaLine = [
+    "NorthBridgeAI",
+    documentTypeLabel
+      ? `${lang === "fr" ? "Type" : "Type"}: ${documentTypeLabel}`
+      : null,
+    tone ? `${lang === "fr" ? "Ton" : "Tone"}: ${tone}` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+
+  layout.drawHeader(true, metaLine);
 
   const paragraphs = splitParagraphs(content).map(normalizeParagraph).filter(Boolean);
 
   if (!paragraphs.length) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text(
+    layout.drawBodyText(
       lang === "fr"
         ? "Aucun contenu disponible pour l’export PDF."
-        : "No content available for PDF export.",
-      marginX,
-      y
+        : "No content available for PDF export."
     );
   } else {
     paragraphs.forEach((paragraph, index) => {
       if (isLikelySectionHeading(paragraph)) {
         if (index > 0) {
-          y += 4;
+          layout.setY(layout.getY() + 4);
         }
-        drawSectionHeading(paragraph);
+        layout.drawSectionHeading(paragraph);
       } else {
-        drawParagraph(paragraph);
+        layout.drawBodyText(paragraph);
       }
     });
   }
 
-  drawFooter();
+  layout.finish();
   doc.save(buildFileName(title, lang));
+}
+
+export function exportStrategyReportToPdf({
+  strategy,
+  language = "en",
+  applicantName = "",
+}) {
+  const lang = normalizeLanguage(language);
+  const doc = new jsPDF({
+    unit: "pt",
+    format: "letter",
+  });
+
+  const title =
+    lang === "fr"
+      ? "Rapport stratégique NorthBridgeAI"
+      : "NorthBridgeAI Strategy Report";
+
+  const layout = createPdfLayout(doc, lang, title);
+
+  const subtitleParts = [
+    applicantName || null,
+    lang === "fr" ? "Rapport personnalisé de stratégie d’immigration" : "Personalized immigration strategy report",
+  ].filter(Boolean);
+
+  layout.drawHeader(true, subtitleParts.join(" • "));
+
+  const crsScore = strategy?.crs_score;
+  const crsBandLabel = strategy?.crs_band?.label;
+  const timelineSummary = strategy?.timeline_summary;
+  const bestPathway = strategy?.best_pathway?.name;
+  const confidence = strategy?.best_pathway?.confidence;
+
+  layout.drawKeyValueGrid([
+    {
+      label: lang === "fr" ? "Score CRS" : "CRS Score",
+      value: typeof crsScore !== "undefined" && crsScore !== null ? String(crsScore) : "--",
+    },
+    {
+      label: lang === "fr" ? "Force du profil" : "Profile strength",
+      value: safeText(crsBandLabel),
+    },
+    {
+      label: lang === "fr" ? "Meilleur parcours" : "Best pathway",
+      value: safeText(bestPathway),
+    },
+    {
+      label: lang === "fr" ? "Confiance" : "Confidence",
+      value: safeText(confidence),
+    },
+  ]);
+
+  if (strategy?.strategy_headline) {
+    layout.drawSectionHeading(lang === "fr" ? "Lecture stratégique" : "Strategic read");
+    layout.drawBodyText(strategy.strategy_headline);
+  }
+
+  if (strategy?.crs_band?.description) {
+    layout.drawSectionHeading(lang === "fr" ? "Lecture du score" : "Score interpretation");
+    layout.drawBodyText(strategy.crs_band.description);
+  }
+
+  if (timelineSummary) {
+    layout.drawSectionHeading(lang === "fr" ? "Délai estimé" : "Estimated timeline");
+    layout.drawBodyText(timelineSummary);
+  }
+
+  if (Array.isArray(strategy?.best_pathway?.reasons) && strategy.best_pathway.reasons.length) {
+    layout.drawSectionHeading(lang === "fr" ? "Pourquoi ce parcours" : "Why this pathway");
+    layout.drawBulletList(strategy.best_pathway.reasons);
+  }
+
+  if (safeArray(strategy?.recommended_programs).length) {
+    layout.drawSectionHeading(lang === "fr" ? "Programmes recommandés" : "Recommended programs");
+    layout.drawBulletList(strategy.recommended_programs);
+  }
+
+  if (safeArray(strategy?.strengths).length) {
+    layout.drawSectionHeading(lang === "fr" ? "Forces" : "Strengths");
+    layout.drawBulletList(strategy.strengths);
+  }
+
+  if (safeArray(strategy?.weaknesses).length) {
+    layout.drawSectionHeading(lang === "fr" ? "Faiblesses" : "Weaknesses");
+    layout.drawBulletList(strategy.weaknesses);
+  }
+
+  if (safeArray(strategy?.next_steps).length) {
+    layout.drawSectionHeading(lang === "fr" ? "Prochaines étapes" : "Next steps");
+    layout.drawBulletList(strategy.next_steps);
+  }
+
+  if (safeArray(strategy?.roadmap).length) {
+    layout.drawSectionHeading(lang === "fr" ? "Feuille de route" : "Roadmap");
+    strategy.roadmap.forEach((step, index) => {
+      const titleLine =
+        `${index + 1}. ${safeText(step?.title)}` +
+        (typeof step?.estimated_crs_gain === "number" && step.estimated_crs_gain > 0
+          ? ` (${lang === "fr" ? "gain estimé" : "estimated gain"}: +${step.estimated_crs_gain} CRS)`
+          : "");
+
+      layout.drawBodyText(titleLine, 11, 6);
+
+      if (step?.reason) {
+        layout.drawMutedText(step.reason, 10, 6);
+      }
+
+      if (step?.difficulty) {
+        layout.drawMutedText(
+          `${lang === "fr" ? "Difficulté" : "Difficulty"}: ${step.difficulty}`,
+          10,
+          8
+        );
+      }
+    });
+  }
+
+  if (safeArray(strategy?.province_recommendations).length) {
+    layout.drawSectionHeading(
+      lang === "fr" ? "Provinces recommandées" : "Recommended provinces"
+    );
+
+    strategy.province_recommendations.forEach((item) => {
+      layout.drawBodyText(
+        `${safeText(item?.province)} — ${safeText(item?.program)}`,
+        11,
+        4
+      );
+
+      if (item?.chance) {
+        layout.drawMutedText(
+          `${lang === "fr" ? "Probabilité" : "Likelihood"}: ${item.chance}`,
+          10,
+          4
+        );
+      }
+
+      if (item?.reason) {
+        layout.drawMutedText(item.reason, 10, 8);
+      }
+    });
+  }
+
+  if (safeArray(strategy?.risk_analysis).length) {
+    layout.drawSectionHeading(lang === "fr" ? "Risques à surveiller" : "Risks to watch");
+
+    strategy.risk_analysis.forEach((risk) => {
+      layout.drawBodyText(safeText(risk?.risk), 11, 4);
+
+      if (risk?.impact) {
+        layout.drawMutedText(
+          `${lang === "fr" ? "Impact" : "Impact"}: ${risk.impact}`,
+          10,
+          4
+        );
+      }
+
+      if (risk?.mitigation) {
+        layout.drawMutedText(
+          `${lang === "fr" ? "Atténuation" : "Mitigation"}: ${risk.mitigation}`,
+          10,
+          8
+        );
+      }
+    });
+  }
+
+  if (strategy?.advisor_summary) {
+    layout.drawSectionHeading(lang === "fr" ? "Résumé conseiller" : "Advisor summary");
+    layout.drawBodyText(strategy.advisor_summary);
+  }
+
+  if (strategy?.ai_strategy) {
+    layout.drawSectionHeading(lang === "fr" ? "Analyse IA" : "AI analysis");
+    splitParagraphs(strategy.ai_strategy).forEach((paragraph) => {
+      layout.drawBodyText(paragraph);
+    });
+  }
+
+  layout.drawSectionHeading(lang === "fr" ? "Avis important" : "Important notice");
+  layout.drawMutedText(
+    lang === "fr"
+      ? "Ce rapport est fourni à titre informatif seulement et ne constitue pas un avis juridique ou réglementaire."
+      : "This report is provided for informational purposes only and does not constitute legal or regulatory advice.",
+    10,
+    8
+  );
+
+  layout.finish();
+
+  const fileName =
+    lang === "fr"
+      ? buildFileName("rapport_strategie_northbridgeai", lang)
+      : buildFileName("northbridgeai_strategy_report", lang);
+
+  doc.save(fileName);
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -12,6 +13,14 @@ import api, {
 } from "../api";
 
 const LOCAL_FORMS_DRAFT_KEY = "nbai_forms_studio_draft_v1";
+
+function buildProPricingPath(source = "forms", intent = "execute") {
+  return `/pricing?plan=pro&source=${source}&intent=${intent}`;
+}
+
+function buildPremiumPricingPath(source = "forms", intent = "export") {
+  return `/pricing?plan=premium&source=${source}&intent=${intent}`;
+}
 
 function PageHeader({ brand, title, subtitle }) {
   return (
@@ -342,6 +351,7 @@ function mapApplicationTypeToMatterType(applicationType) {
 export default function FormsPage() {
   const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
+  const navigate = useNavigate();
 
   const [applicationTypes, setApplicationTypes] = useState([]);
   const [selectedApplicationType, setSelectedApplicationType] = useState("");
@@ -634,6 +644,9 @@ export default function FormsPage() {
     ? preview.missing_fields.length
     : 0;
 
+  const proPath = buildProPricingPath("forms", "execute");
+  const premiumPath = buildPremiumPricingPath("forms", "export");
+
   const pageText = useMemo(() => {
     if (language === "fr") {
       return {
@@ -728,6 +741,15 @@ export default function FormsPage() {
         loadingAccess: "Chargement de votre accès...",
         loadingSaved: "Chargement...",
         viewPricing: "Voir les tarifs",
+        unlockDownloadTitle: "Débloquez le téléchargement",
+        unlockDownloadBody:
+          "Passez à Pro pour télécharger votre dossier de formulaires.",
+        upgradeToPro: "Passer à Pro",
+        packageReadyTitle: "Votre dossier est prêt",
+        packageReadyBody:
+          "Passez à la génération de documents pour compléter votre dossier.",
+        continueToDocuments: "Continuer vers les documents",
+        unlockPdfPremium: "Débloquer PDF (Premium)",
       };
     }
 
@@ -823,6 +845,15 @@ export default function FormsPage() {
       loadingAccess: "Loading your access...",
       loadingSaved: "Loading...",
       viewPricing: "View pricing",
+      unlockDownloadTitle: "Unlock download",
+      unlockDownloadBody:
+        "Upgrade to Pro to download your forms package.",
+      upgradeToPro: "Upgrade to Pro",
+      packageReadyTitle: "Your forms package is ready",
+      packageReadyBody:
+        "Move to document generation to complete your application.",
+      continueToDocuments: "Continue to Document Generator",
+      unlockPdfPremium: "Unlock PDF (Premium)",
     };
   }, [language]);
 
@@ -1033,55 +1064,64 @@ export default function FormsPage() {
 
           {preview && (
             <div className="space-y-4">
-                {/* 🔒 FREE USER → UPGRADE */}
-                {!canDownloadForms && (
-                    <UpgradePrompt
-                      title={pageText.upgradeTitle}
-                      body={pageText.upgradeBody}
-                      buttonLabel={pageText.viewPricing}
-                    />
-                )}
+              {shouldShowUpgradePrompt && (
+                <UpgradePrompt
+                  title={pageText.upgradeTitle}
+                  body={pageText.upgradeBody}
+                  buttonLabel={pageText.viewPricing}
+                />
+              )}
 
-                {/* 🚀 PRO / PREMIUM → NEXT STEP */}
-                {canDownloadForms && (
-                    <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
-                        <h3 className="text-lg font-semibold text-emerald-900">
-                            {language === "fr"
-                             ? "Votre dossier est prêt"
-                             : "Your forms package is ready"}
-                        </h3>
+              {preview && !canDownloadForms && (
+                <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-5">
+                  <h3 className="text-lg font-semibold text-amber-900">
+                    {pageText.unlockDownloadTitle}
+                  </h3>
 
-                        <p className="mt-2 text-sm text-emerald-800">
-                            {language === "fr"
-                             ? "Passez à la génération de documents pour préparer vos lettres et compléter votre dossier."
-                             : "Move to document generation to prepare your letters and complete your application."}
-                        </p>
+                  <p className="mt-2 text-sm text-amber-800">
+                    {pageText.unlockDownloadBody}
+                  </p>
 
-                        <div className="mt-4 flex gap-3">
-                            <Button
-                              onClick={() => window.location.href = "/documents/generator"}
-                            >
-                              {language === "fr"
-                                ? "Continuer vers les documents"
-                                : "Continue to Document Generator"}  
-                            </Button>
-
-                            {!access?.is_premium && (
-                                <Button
-                                  variant="secondary"
-                                  onClick={()=> window.location.href = "/pricing"}
-                                >
-                                    {language === "fr"
-                                      ? "Débloquer PDF (Premium)"
-                                      : "Unlock PDF (Premium)"}
-                                </Button>
-                            )}
-                          </div>
-                        </div>
-                    )}
+                  <div className="mt-4">
+                    <Button onClick={() => navigate(proPath)}>
+                      {pageText.upgradeToPro}
+                    </Button>
+                  </div>
                 </div>
-            )}
+              )}
 
+              {canDownloadForms && (
+                <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
+                  <h3 className="text-lg font-semibold text-emerald-900">
+                    {pageText.packageReadyTitle}
+                  </h3>
+
+                  <p className="mt-2 text-sm text-emerald-800">
+                    {pageText.packageReadyBody}
+                  </p>
+
+                  <div className="mt-4 flex gap-3">
+                    <Button
+                      onClick={() =>
+                        navigate("/documents/generator?source=forms&intent=execute")
+                      }
+                    >
+                      {pageText.continueToDocuments}
+                    </Button>
+
+                    {!access?.is_premium && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => navigate(premiumPath)}
+                      >
+                        {pageText.unlockPdfPremium}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="text-xs leading-6 text-slate-500">{pageText.disclaimer}</div>
         </div>

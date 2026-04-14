@@ -7,6 +7,7 @@ import Button from "../components/ui/Button";
 function normalizePlan(plan) {
   const value = String(plan || "").trim().toLowerCase();
   if (value === "individual_pro") return "pro";
+  if (value === "individual_premium") return "premium";
   if (value === "agent_pro") return "premium";
   if (value === "premium") return "premium";
   if (value === "pro") return "pro";
@@ -200,9 +201,7 @@ export default function Layout({ children }) {
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const isAgentWorkspace =
-    currentUser?.role === "agent" ||
-    currentUser?.role === "admin" ||
-    effectivePlan === "premium";
+    currentUser?.role === "agent" || currentUser?.role === "admin";
 
   const displayName = useMemo(() => {
     const firstName =
@@ -229,15 +228,21 @@ export default function Layout({ children }) {
       ]
     : [
         { label: t("nav.dashboard"), path: "/dashboard" },
-        { label: t("layout.myApplication"), path: "/self/application" },
         { label: t("nav.strategy"), path: "/strategy" },
-        { label: t("layout.myDocuments"), path: "/self/documents" },
+        {
+          label: language === "fr" ? "Documents" : "Documents",
+          path: "/documents",
+        },
+        { label: t("layout.myApplication"), path: "/self/application" },
       ];
 
   const toolsItems = isAgentWorkspace
     ? [
         { label: t("nav.profile"), path: "/profile" },
-        { label: language === "fr" ? "Tarifs" : "Pricing", path: "/pricing" },
+        {
+          label: language === "fr" ? "Tarifs et facturation" : "Pricing & Billing",
+          path: "/pricing",
+        },
       ]
     : [
         {
@@ -254,8 +259,11 @@ export default function Layout({ children }) {
               : "Document Review",
           path: "/documents/review",
         },
+        {
+          label: language === "fr" ? "Forms Studio" : "Forms Studio",
+          path: "/forms",
+        },
         { label: t("nav.profile"), path: "/profile" },
-        { label: language === "fr" ? "Tarifs" : "Pricing", path: "/pricing" },
       ];
 
   function handleLogout() {
@@ -272,7 +280,9 @@ export default function Layout({ children }) {
     if (path === "/dashboard") {
       return location.pathname === "/dashboard" || location.pathname === "/";
     }
-    return location.pathname === path || location.pathname.startsWith(path + "/");
+    return (
+      location.pathname === path || location.pathname.startsWith(path + "/")
+    );
   }
 
   function goTo(path) {
@@ -280,6 +290,20 @@ export default function Layout({ children }) {
     setAccountOpen(false);
     setMobileMenuOpen(false);
     navigate(path);
+  }
+
+  function handleUpgradeClick() {
+    if (effectivePlan === "free") {
+      navigate("/pricing?plan=pro&source=header&intent=execute");
+      return;
+    }
+
+    if (effectivePlan === "pro") {
+      navigate("/pricing?plan=premium&source=header&intent=export");
+      return;
+    }
+
+    navigate("/pricing");
   }
 
   return (
@@ -362,13 +386,35 @@ export default function Layout({ children }) {
           </div>
 
           <div className="flex items-center gap-2 md:gap-3">
-            <Button
-              variant="primary"
-              className="hidden h-11 rounded-2xl px-5 shadow-sm md:inline-flex"
-              onClick={() => navigate("/chat")}
-            >
-              {t("nav.aiAssistant")}
-            </Button>
+            {effectivePlan === "free" && (
+              <Button
+                variant="primary"
+                className="hidden h-11 rounded-2xl px-5 shadow-sm md:inline-flex"
+                onClick={handleUpgradeClick}
+              >
+                {language === "fr" ? "Passer à Pro" : "Upgrade"}
+              </Button>
+            )}
+
+            {effectivePlan === "pro" && (
+              <Button
+                variant="primary"
+                className="hidden h-11 rounded-2xl px-5 shadow-sm md:inline-flex"
+                onClick={handleUpgradeClick}
+              >
+                {language === "fr" ? "Passer à Premium" : "Go Premium"}
+              </Button>
+            )}
+
+            {effectivePlan === "premium" && (
+              <Button
+                variant="primary"
+                className="hidden h-11 rounded-2xl px-5 shadow-sm md:inline-flex"
+                onClick={() => navigate("/chat")}
+              >
+                {t("nav.aiAssistant")}
+              </Button>
+            )}
 
             <div className="relative hidden xl:block" ref={accountRef}>
               <button
@@ -531,9 +577,25 @@ export default function Layout({ children }) {
                 <Button
                   variant="primary"
                   className="h-11 w-full justify-center rounded-2xl"
-                  onClick={() => goTo("/chat")}
+                  onClick={() =>
+                    goTo(
+                      effectivePlan === "premium"
+                        ? "/chat"
+                        : effectivePlan === "pro"
+                        ? "/pricing?plan=premium&source=mobile_menu&intent=export"
+                        : "/pricing?plan=pro&source=mobile_menu&intent=execute"
+                    )
+                  }
                 >
-                  {t("nav.aiAssistant")}
+                  {effectivePlan === "premium"
+                    ? t("nav.aiAssistant")
+                    : effectivePlan === "pro"
+                    ? language === "fr"
+                      ? "Passer à Premium"
+                      : "Go Premium"
+                    : language === "fr"
+                    ? "Passer à Pro"
+                    : "Upgrade"}
                 </Button>
               </div>
 

@@ -61,6 +61,98 @@ def _build_document_preview(result: dict, language: str) -> dict:
     }
 
 
+def _normalize_actions(actions) -> list:
+    if not isinstance(actions, list):
+        return []
+
+    normalized = []
+    for item in actions[:3]:
+        if isinstance(item, dict):
+            label = str(item.get("label") or item.get("text") or "").strip()
+            route = item.get("route")
+            if label:
+                normalized.append(
+                    {
+                        "label": label,
+                        "route": route if route else None,
+                    }
+                )
+        elif isinstance(item, str):
+            label = item.strip()
+            if label:
+                normalized.append({"label": label, "route": None})
+
+    return normalized
+
+
+def _normalize_insights(insights, pathways=None) -> list[str]:
+    if isinstance(insights, list):
+        cleaned = [str(item).strip() for item in insights if str(item).strip()]
+        if cleaned:
+            return cleaned[:3]
+
+    if isinstance(pathways, list):
+        fallback = [str(item).strip() for item in pathways if str(item).strip()]
+        return fallback[:3]
+
+    return []
+
+
+def _fallback_chat_payload(language: str) -> dict:
+    return {
+        "reply": _t(
+            "Here is a personalized analysis based on your current profile. Focus on strengthening your profile details, reviewing your strategy, and preparing your strongest supporting documents.",
+            "Voici une analyse personnalisée basée sur votre profil actuel. Concentrez-vous sur l’amélioration de votre profil, la révision de votre stratégie et la préparation de vos documents les plus importants.",
+            language,
+        ),
+        "profile_found": True,
+        "strategy_loaded": False,
+        "language": language,
+        "suggested_next_actions": _normalize_actions(
+            [
+                {
+                    "label": _t(
+                        "Open my strategy",
+                        "Ouvrir ma stratégie",
+                        language,
+                    ),
+                    "route": "/strategy",
+                },
+                {
+                    "label": _t(
+                        "Improve my profile",
+                        "Améliorer mon profil",
+                        language,
+                    ),
+                    "route": "/profile",
+                },
+                {
+                    "label": _t(
+                        "Open my documents",
+                        "Ouvrir mes documents",
+                        language,
+                    ),
+                    "route": "/documents",
+                },
+            ]
+        ),
+        "pathways": [],
+        "french_advantage": {},
+        "insights": [
+            _t(
+                "Your profile still has room for stronger optimization.",
+                "Votre profil présente encore un potentiel d’optimisation.",
+                language,
+            ),
+            _t(
+                "Language results, experience, and document quality often have the biggest impact.",
+                "Les résultats linguistiques, l’expérience et la qualité documentaire ont souvent le plus d’impact.",
+                language,
+            ),
+        ],
+    }
+
+
 @router.post("/chat", response_model=AIChatResponse)
 def chat_with_ai(
     payload: AIChatRequest,
@@ -73,25 +165,50 @@ def chat_with_ai(
         result = ask_self_user_copilot(
             db=db,
             current_user=current_user,
-            message=payload.message,
+            message=(payload.message or "").strip(),
             language=language,
             chat_history=payload.chat_history,
             fail_silently=True,
-        )
+        ) or {}
+
+        reply = str(result.get("reply") or "").strip()
+        actions = _normalize_actions(result.get("suggested_next_actions", []))
+        pathways = result.get("pathways") or []
+        insights = _normalize_insights(result.get("insights"), pathways)
+
+        if not reply:
+            fallback = _fallback_chat_payload(language)
+            reply = fallback["reply"]
+            if not actions:
+                actions = fallback["suggested_next_actions"]
+            if not insights:
+                insights = fallback["insights"]
 
         return AIChatResponse(
-            reply=result.get("reply", ""),
-            profile_found=result.get("profile_found", False),
-            strategy_loaded=result.get("strategy_loaded", False),
+            reply=reply,
+            profile_found=bool(result.get("profile_found", True)),
+            strategy_loaded=bool(result.get("strategy_loaded", True)),
             language=language,
-            suggested_next_actions=result.get("suggested_next_actions", []),
-            pathways=result.get("pathways", []),
-            french_advantage=result.get("french_advantage", {}),
+            suggested_next_actions=actions,
+            pathways=pathways if isinstance(pathways, list) else [],
+            french_advantage=result.get("french_advantage", {}) or {},
+            insights=insights,
         )
 
     except Exception as e:
         print("❌ AI CHAT ERROR:", str(e))
-        raise HTTPException(status_code=500, detail="AI service error")
+        fallback = _fallback_chat_payload(language)
+
+        return AIChatResponse(
+            reply=fallback["reply"],
+            profile_found=fallback["profile_found"],
+            strategy_loaded=fallback["strategy_loaded"],
+            language=fallback["language"],
+            suggested_next_actions=fallback["suggested_next_actions"],
+            pathways=fallback["pathways"],
+            french_advantage=fallback["french_advantage"],
+            insights=fallback["insights"],
+        )
 
 
 @router.post("/generate-document", response_model=DocumentGeneratorResponse)

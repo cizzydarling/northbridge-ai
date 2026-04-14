@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import StatCard from "../components/StatCard";
 import UpgradeModal from "../components/UpgradeModal";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
 import {
   getBillingStatus,
   getMyProfile,
@@ -13,6 +15,16 @@ import {
   getCurrentUserLocal,
   refreshCurrentUser,
 } from "../api";
+
+function normalizePlan(plan) {
+  const value = String(plan || "").trim().toLowerCase();
+
+  if (value === "individual_pro") return "pro";
+  if (value === "individual_premium") return "premium";
+  if (value === "premium") return "premium";
+  if (value === "pro") return "pro";
+  return "free";
+}
 
 function hasPaidPlan(user, billingPlan) {
   if (!user) return false;
@@ -25,17 +37,50 @@ function hasPaidPlan(user, billingPlan) {
 }
 
 function isPremiumPlan(plan) {
-  return plan === "individual_premium";
+  return normalizePlan(plan) === "premium";
 }
 
-function isProfileComplete(profile) {
-  if (!profile) return false;
+function computeProfileCompletion(profile) {
+  if (!profile) return 0;
+
+  const fields = [
+    profile.first_name,
+    profile.last_name,
+    profile.nationality,
+    profile.current_country,
+    profile.current_city,
+    profile.marital_status,
+    profile.preferred_language,
+    profile.age,
+    profile.education,
+    profile.language_score,
+    profile.experience_years,
+    profile.occupation,
+    profile.noc_code,
+    profile.preferred_province,
+  ];
+
+  const completed = fields.filter((value) => {
+    if (typeof value === "boolean") return true;
+    if (typeof value === "number") return !Number.isNaN(value);
+    return Boolean(String(value || "").trim());
+  }).length;
+
+  return Math.round((completed / fields.length) * 100);
+}
+
+function isStrategyUsable(strategy) {
+  if (!strategy) return false;
 
   return Boolean(
-    profile.first_name &&
-      profile.occupation &&
-      profile.noc_code &&
-      profile.preferred_province
+    strategy?.crs_score ||
+      strategy?.strategy?.crs_score ||
+      strategy?.recommended_programs?.length ||
+      strategy?.strategy?.recommended_programs?.length ||
+      strategy?.next_steps?.length ||
+      strategy?.strategy?.next_steps?.length ||
+      strategy?.advisor_summary ||
+      strategy?.strategy?.advisor_summary
   );
 }
 
@@ -46,6 +91,9 @@ function extractStrategySummary(strategy) {
       recommendations: [],
       nextSteps: [],
       summary: "",
+      strategyHeadline: "",
+      bestPathway: "",
+      topImprovement: "",
     };
   }
 
@@ -77,50 +125,60 @@ function extractStrategySummary(strategy) {
     strategy?.overall_assessment ||
     "";
 
+  const strategyHeadline =
+    strategy?.strategy_headline ||
+    strategy?.strategy?.strategy_headline ||
+    strategy?.result?.strategy_headline ||
+    "";
+
+  const bestPathway =
+    strategy?.best_pathway?.name ||
+    strategy?.strategy?.best_pathway?.name ||
+    strategy?.result?.best_pathway?.name ||
+    (Array.isArray(recommendations) && recommendations.length > 0
+      ? typeof recommendations[0] === "string"
+        ? recommendations[0]
+        : recommendations[0]?.name ||
+          recommendations[0]?.title ||
+          recommendations[0]?.program ||
+          ""
+      : "");
+
+  const topImprovement =
+    Array.isArray(nextSteps) && nextSteps.length > 0
+      ? typeof nextSteps[0] === "string"
+        ? nextSteps[0]
+        : nextSteps[0]?.label ||
+          nextSteps[0]?.title ||
+          nextSteps[0]?.action ||
+          ""
+      : "";
+
   return {
     crsScore,
     recommendations: Array.isArray(recommendations) ? recommendations : [],
     nextSteps: Array.isArray(nextSteps) ? nextSteps : [],
     summary,
+    strategyHeadline,
+    bestPathway,
+    topImprovement,
   };
 }
 
-function PremiumBlurCard({
-  title,
-  body,
-  buttonLabel = "Unlock full strategy",
-  onUpgrade,
-}) {
+function InfoRow({ label, value }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border bg-white p-6 shadow">
-      <div className="pointer-events-none select-none blur-[3px]">
-        <h3 className="text-xl font-semibold">{title}</h3>
-        <div className="mt-4 space-y-3">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Skilled pathway recommendation
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Province-specific option unlocked
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Recommended next legal and document steps
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute inset-0 flex items-center justify-center bg-white/55 backdrop-blur-[1px]">
-        <div className="mx-6 max-w-sm rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center shadow-sm">
-          <p className="text-base font-semibold text-amber-900">{title}</p>
-          <p className="mt-2 text-sm text-amber-800">{body}</p>
-          <button
-            onClick={onUpgrade}
-            className="mt-4 rounded-xl bg-amber-600 px-5 py-2 text-sm text-white"
-          >
-            {buttonLabel}
-          </button>
-        </div>
-      </div>
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="text-sm font-medium text-slate-900 text-right">{value}</p>
     </div>
+  );
+}
+
+function QuickActionButton({ label, onClick, variant = "secondary" }) {
+  return (
+    <Button variant={variant} onClick={onClick} className="justify-center">
+      {label}
+    </Button>
   );
 }
 
@@ -137,23 +195,36 @@ export default function Dashboard() {
   const [currentUser, setCurrentUser] = useState(getCurrentUserLocal());
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const currentPlan = billing?.plan || currentUser?.plan || "free";
-  const paidAccess = hasPaidPlan(currentUser, currentPlan);
-  const isPremium = isPremiumPlan(currentPlan);
+  const currentPlanRaw = billing?.plan || currentUser?.plan || "free";
+  const currentPlan = normalizePlan(currentPlanRaw);
+  const paidAccess = hasPaidPlan(currentUser, currentPlanRaw);
+  const isPremium = isPremiumPlan(currentPlanRaw);
 
-  const { crsScore, recommendations, nextSteps, summary } = useMemo(
-    () => extractStrategySummary(strategy),
-    [strategy]
+  const profileCompletion = useMemo(
+    () => computeProfileCompletion(profile),
+    [profile]
   );
 
-  useEffect(() => {
-  const forceRefresh = localStorage.getItem("nbai_force_refresh");
+  const {
+    crsScore,
+    recommendations,
+    nextSteps,
+    summary,
+    strategyHeadline,
+    bestPathway,
+    topImprovement,
+  } = useMemo(() => extractStrategySummary(strategy), [strategy]);
 
-  if (forceRefresh === "true") {
-    localStorage.removeItem("nbai_force_refresh");
-    window.location.reload();
-  }
-}, []);
+  const hasStrategy = useMemo(() => isStrategyUsable(strategy), [strategy]);
+
+  useEffect(() => {
+    const forceRefresh = localStorage.getItem("nbai_force_refresh");
+
+    if (forceRefresh === "true") {
+      localStorage.removeItem("nbai_force_refresh");
+      window.location.reload();
+    }
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -171,141 +242,221 @@ export default function Dashboard() {
         // keep local state
       }
 
-      const [profileRes, billingRes] = await Promise.allSettled([
-        getMyProfile(),
-        getBillingStatus(),
-      ]);
+      try {
+        const [profileRes, billingRes] = await Promise.allSettled([
+          getMyProfile(),
+          getBillingStatus(),
+        ]);
 
-      let loadedProfile = null;
+        let loadedProfile = null;
 
-      if (profileRes.status === "fulfilled") {
-        loadedProfile = profileRes.value.data;
-        setProfile(loadedProfile);
-      }
-
-      if (billingRes.status === "fulfilled") {
-        setBilling(billingRes.value.data);
-      }
-
-      if (isProfileComplete(loadedProfile)) {
-        setStrategyLoading(true);
-
-        let strategyData = null;
-
-        try {
-          const liteRes = await getMyStrategyLite();
-          strategyData = liteRes.data;
-        } catch {
-          try {
-            const fullRes = await getMyStrategy();
-            strategyData = fullRes.data;
-          } catch (err) {
-            console.error("Strategy load failed:", err);
-          }
-        } finally {
-          setStrategy(strategyData);
-          setStrategyLoading(false);
+        if (profileRes.status === "fulfilled") {
+          loadedProfile = profileRes.value.data;
+          setProfile(loadedProfile);
         }
-      }
 
-      setLoading(false);
+        if (billingRes.status === "fulfilled") {
+          setBilling(billingRes.value.data);
+        }
+
+        if (loadedProfile && computeProfileCompletion(loadedProfile) >= 65) {
+          setStrategyLoading(true);
+
+          let strategyData = null;
+
+          try {
+            const liteRes = await getMyStrategyLite();
+            strategyData = liteRes.data;
+          } catch {
+            try {
+              const fullRes = await getMyStrategy();
+              strategyData = fullRes.data;
+            } catch (err) {
+              console.error("Strategy load failed:", err);
+            }
+          } finally {
+            setStrategy(strategyData);
+            setStrategyLoading(false);
+          }
+        }
+      } finally {
+        setLoading(false);
+      }
     };
 
     load();
   }, [navigate]);
 
   useEffect(() => {
-    if (strategy && !paidAccess) {
+    if (hasStrategy && !paidAccess) {
       const timer = setTimeout(() => {
         setShowUpgrade(true);
-      }, 2000);
+      }, 2500);
 
       return () => clearTimeout(timer);
     }
-  }, [strategy, paidAccess]);
+  }, [hasStrategy, paidAccess]);
 
-  const nextAction = useMemo(() => {
-    if (!profile || !isProfileComplete(profile)) {
+  const pageText = useMemo(() => {
+    if (language === "fr") {
       return {
-        label: language === "fr" ? "Compléter le profil" : "Complete Profile",
-        path: "/profile",
-      };
-    }
-
-    if (strategyLoading) {
-      return {
-        label:
-          language === "fr"
-            ? "Construction de votre stratégie..."
-            : "Building Your Strategy...",
-        path: "/dashboard",
-      };
-    }
-
-    if (!strategy) {
-      return {
-        label:
-          language === "fr" ? "Voir ma stratégie" : "View My Strategy",
-        path: "/strategy",
-      };
-    }
-
-    if (!paidAccess) {
-      return {
-        label:
-          language === "fr"
-            ? "Débloquer formulaires et documents"
-            : "Unlock Forms & Documents",
-        path: "/pricing",
-      };
-    }
-
-    if (paidAccess && !isPremium) {
-      return {
-        label:
-          language === "fr"
-            ? "Finaliser avec export PDF"
-            : "Finalize with PDF Export",
-        path: "/pricing",
+        dashboard: "Tableau de bord",
+        subtitle:
+          "Suivez votre progression et avancez avec plus de clarté.",
+        accountSummary: "Résumé du compte",
+        currentPlan: "Plan actuel",
+        billingStatus: "Statut d’abonnement",
+        premiumAccess: "Accès Premium",
+        email: "Email",
+        accountName: "Nom",
+        active: "Actif",
+        inactive: "Inactif",
+        unlocked: "Débloqué",
+        locked: "Verrouillé",
+        yes: "Oui",
+        no: "Non",
+        profileCompletion: "Complétion du profil",
+        currentCrsScore: "Score CRS actuel",
+        bestPathway: "Meilleur parcours",
+        topImprovement: "Amélioration prioritaire",
+        noStrategy: "Stratégie non disponible",
+        noImprovement: "Aucune recommandation pour le moment",
+        noPathway: "Aucun parcours détecté",
+        latestStrategy: "Dernière stratégie calculée",
+        bestImmigrationOption: "Meilleure option actuelle",
+        nextOptimization: "Prochaine optimisation recommandée",
+        nextSteps: "Prochaines étapes",
+        strategySnapshot: "Aperçu stratégique",
+        recommendedPrograms: "Programmes recommandés",
+        noPrograms: "Aucun programme disponible pour le moment.",
+        openStrategy: "Ouvrir la stratégie",
+        updateProfile: "Mettre à jour le profil",
+        managePlan: "Gérer le plan",
+        openDocuments: "Mes documents",
+        openForms: "Forms Studio",
+        generateDocument: "Générateur de documents",
+        reviewDocument: "Révision IA",
+        strategySummary: "Résumé stratégique",
+        profileNeedsWork:
+          "Complétez davantage votre profil pour améliorer la qualité de la stratégie.",
+        strategyLoading: "Chargement de votre stratégie personnalisée...",
+        noStrategyYet:
+          "Votre stratégie n’est pas encore prête. Ajoutez plus d’informations dans votre profil pour générer un résultat exploitable.",
+        unlockTitle: "Débloquez l’exécution complète",
+        unlockBody:
+          "Passez à Pro pour utiliser les outils documents, formulaires, révision IA et avancer plus vite.",
+        upgrade: "Voir les tarifs",
+        premiumTitle: "Passez à Premium pour finaliser",
+        premiumBody:
+          "Débloquez l’export PDF et une couche de finition plus forte pour votre dossier.",
+        goPremium: "Passer à Premium",
       };
     }
 
     return {
-      label:
-        language === "fr"
-          ? "Continuer ma demande"
-          : "Continue My Application",
+      dashboard: "Dashboard",
+      subtitle: "Track your progress and move forward with more clarity.",
+      accountSummary: "Account summary",
+      currentPlan: "Current plan",
+      billingStatus: "Subscription status",
+      premiumAccess: "Premium access",
+      email: "Email",
+      accountName: "Name",
+      active: "Active",
+      inactive: "Inactive",
+      unlocked: "Unlocked",
+      locked: "Locked",
+      yes: "Yes",
+      no: "No",
+      profileCompletion: "Profile completion",
+      currentCrsScore: "Current CRS score",
+      bestPathway: "Best pathway",
+      topImprovement: "Top improvement",
+      noStrategy: "No strategy available",
+      noImprovement: "No recommendation available yet",
+      noPathway: "No pathway detected",
+      latestStrategy: "Latest strategy result",
+      bestImmigrationOption: "Best immigration option",
+      nextOptimization: "Best next optimization opportunity",
+      nextSteps: "Next steps",
+      strategySnapshot: "Strategy snapshot",
+      recommendedPrograms: "Recommended programs",
+      noPrograms: "No programs available.",
+      openStrategy: "Open strategy",
+      updateProfile: "Update profile",
+      managePlan: "Manage plan",
+      openDocuments: "My documents",
+      openForms: "Forms Studio",
+      generateDocument: "Document generator",
+      reviewDocument: "AI review",
+      strategySummary: "Strategy summary",
+      profileNeedsWork:
+        "Complete more of your profile to improve strategy quality.",
+      strategyLoading: "Loading your personalized strategy...",
+      noStrategyYet:
+        "Your strategy is not ready yet. Add more profile information to generate a useful result.",
+      unlockTitle: "Unlock full execution",
+      unlockBody:
+        "Upgrade to Pro to use documents, forms, AI review, and move faster.",
+      upgrade: "View pricing",
+      premiumTitle: "Upgrade to Premium to finalize",
+      premiumBody:
+        "Unlock PDF export and a stronger finishing layer for your case.",
+      goPremium: "Go Premium",
+    };
+  }, [language]);
+
+  const heroSummary = strategyHeadline || summary || "";
+
+  const subscriptionStatusLabel = billing?.subscription_status
+    ? billing.subscription_status
+    : paidAccess
+    ? pageText.active
+    : pageText.inactive;
+
+  const accountDisplayName =
+    currentUser?.first_name && currentUser?.last_name
+      ? `${currentUser.first_name} ${currentUser.last_name}`
+      : currentUser?.first_name || currentUser?.email || "—";
+
+  const quickActions = [
+    {
+      label: pageText.updateProfile,
+      path: "/profile",
+      variant: "primary",
+    },
+    {
+      label: pageText.openStrategy,
+      path: "/strategy",
+      variant: "secondary",
+    },
+    {
+      label: pageText.openDocuments,
       path: "/documents",
-    };
-  }, [profile, strategy, strategyLoading, paidAccess, isPremium, language]);
-
-  const secondaryAction = useMemo(() => {
-    if (!profile || !isProfileComplete(profile)) {
-      return {
-        label: language === "fr" ? "Voir les tarifs" : "View Pricing",
-        path: "/pricing",
-      };
-    }
-
-    if (!strategy) {
-      return {
-        label: language === "fr" ? "Ouvrir le profil" : "Open Profile",
-        path: "/profile",
-      };
-    }
-
-    if (!paidAccess) {
-      return {
-        label: language === "fr" ? "Voir la stratégie" : "View Strategy",
-        path: "/strategy",
-      };
-    }
-
-    return {
-      label: language === "fr" ? "Ouvrir Forms Studio" : "Open Forms Studio",
-      path: "/forms",
-    };
-  }, [profile, strategy, paidAccess, language]);
+      variant: "secondary",
+    },
+    {
+      label: pageText.generateDocument,
+      path: paidAccess
+        ? "/documents/generator?source=dashboard&intent=execute"
+        : "/pricing?plan=pro&source=dashboard&intent=execute",
+      variant: "secondary",
+    },
+    {
+      label: pageText.reviewDocument,
+      path: paidAccess
+        ? "/documents/review?source=dashboard&intent=improve"
+        : "/pricing?plan=pro&source=dashboard&intent=improve",
+      variant: "secondary",
+    },
+    {
+      label: pageText.openForms,
+      path: paidAccess
+        ? "/forms"
+        : "/pricing?plan=pro&source=dashboard&intent=execute",
+      variant: "secondary",
+    },
+  ];
 
   if (loading) {
     return (
@@ -320,431 +471,229 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="rounded-3xl bg-gradient-to-br from-blue-900 to-blue-600 p-8 text-white shadow-xl">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-3xl">
-              <h1 className="text-4xl font-bold">
-                {language === "fr"
-                  ? "Votre espace d’immigration guidé"
-                  : "Your guided immigration workspace"}
-              </h1>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+              {pageText.dashboard}
+            </p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
+              {pageText.dashboard}
+            </h1>
+            <p className="mt-3 text-base leading-7 text-slate-600">
+              {pageText.subtitle}
+            </p>
+          </div>
 
-              <p className="mt-4 text-sm text-blue-100">
-                {language === "fr"
-                  ? "Passez de l’incertitude à l’action avec un profil plus clair, une stratégie plus forte et un flux de préparation mieux organisé."
-                  : "Move from uncertainty to action with a clearer profile, stronger strategy, and a more organized application workflow."}
-              </p>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              navigate(
+                isPremium
+                  ? "/pricing"
+                  : "/pricing?plan=pro&source=dashboard&intent=execute"
+              )
+            }
+            className="hidden md:inline-flex"
+          >
+            {pageText.upgrade}
+          </Button>
+        </div>
 
-              {strategyLoading && (
-                <div className="mt-5 rounded-2xl border border-blue-300/40 bg-white/10 px-4 py-3 text-sm text-blue-50">
-                  {language === "fr"
-                    ? "Nous construisons votre stratégie personnalisée..."
-                    : "We’re building your personalized immigration strategy now..."}
+        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label={pageText.profileCompletion}
+                value={`${profileCompletion}%`}
+                description={pageText.profileNeedsWork}
+                valueClassName="text-3xl"
+                tone={profileCompletion >= 85 ? "success" : "warning"}
+              />
+
+              <StatCard
+                label={pageText.currentCrsScore}
+                value={hasStrategy ? crsScore ?? "—" : "—"}
+                description={pageText.latestStrategy}
+                valueClassName="text-3xl"
+                tone={hasStrategy ? "info" : "default"}
+              />
+
+              <StatCard
+                label={pageText.bestPathway}
+                value={hasStrategy ? bestPathway || pageText.noPathway : pageText.noStrategy}
+                description={pageText.bestImmigrationOption}
+                valueClassName="text-lg"
+                tone={hasStrategy ? "success" : "default"}
+              />
+
+              <StatCard
+                label={pageText.topImprovement}
+                value={
+                  hasStrategy
+                    ? topImprovement || pageText.noImprovement
+                    : pageText.noStrategy
+                }
+                description={pageText.nextOptimization}
+                valueClassName="text-base"
+                tone={hasStrategy ? "warning" : "default"}
+              />
+            </div>
+
+            <Card variant="default" padding="lg">
+              <h2 className="text-2xl font-semibold text-slate-900">
+                {pageText.nextSteps}
+              </h2>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {quickActions.map((item) => (
+                  <QuickActionButton
+                    key={item.label}
+                    label={item.label}
+                    variant={item.variant}
+                    onClick={() => navigate(item.path)}
+                  />
+                ))}
+              </div>
+            </Card>
+
+            <Card variant="default" padding="lg">
+              <h2 className="text-2xl font-semibold text-slate-900">
+                {pageText.strategySnapshot}
+              </h2>
+
+              {strategyLoading ? (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+                  {pageText.strategyLoading}
+                </div>
+              ) : hasStrategy ? (
+                <>
+                  {heroSummary ? (
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm leading-7 text-slate-700">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        {pageText.strategySummary}
+                      </p>
+                      <p className="mt-2">{heroSummary}</p>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {pageText.recommendedPrograms}
+                    </p>
+
+                    {recommendations.length > 0 ? (
+                      <div className="mt-3 space-y-2">
+                        {recommendations.slice(0, 3).map((item, index) => {
+                          const label =
+                            typeof item === "string"
+                              ? item
+                              : item?.name ||
+                                item?.title ||
+                                item?.program ||
+                                "Recommendation";
+
+                          return (
+                            <div
+                              key={`${label}-${index}`}
+                              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                            >
+                              {label}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-slate-600">
+                        {pageText.noPrograms}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-5">
+                    <Button onClick={() => navigate("/strategy")}>
+                      {pageText.openStrategy}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+                  {pageText.noStrategyYet}
                 </div>
               )}
+            </Card>
 
-              {!strategyLoading && strategy && summary && (
-                <div className="mt-5 rounded-2xl border border-blue-300/30 bg-white/10 px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
-                    {language === "fr" ? "Aperçu stratégie" : "Strategy insight"}
-                  </p>
-                  <p className="mt-2 text-sm leading-7 text-blue-50">{summary}</p>
-                </div>
-              )}
-
-              {!strategyLoading && strategy && (
-                <div className="mt-5 rounded-2xl border border-white/20 bg-white/10 px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
-                    {language === "fr" ? "Simulateur de score" : "Score simulator"}
-                  </p>
-                  <p className="mt-2 text-sm leading-7 text-blue-50">
-                    {paidAccess
-                      ? language === "fr"
-                        ? "Testez des scénarios d’amélioration et comparez les changements les plus susceptibles de faire évoluer votre résultat."
-                        : "Test score-improvement scenarios and compare which change is most likely to move your result."
-                      : language === "fr"
-                      ? "Débloquez le simulateur pour tester des scénarios d’amélioration avant d’investir du temps dans la mauvaise étape."
-                      : "Unlock the score simulator to test improvement scenarios before you spend time on the wrong next step."}
-                  </p>
-                  <button
+            {!paidAccess && hasStrategy && (
+              <Card variant="warning" padding="lg">
+                <h3 className="text-xl font-semibold text-slate-900">
+                  {pageText.unlockTitle}
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-slate-700">
+                  {pageText.unlockBody}
+                </p>
+                <div className="mt-4">
+                  <Button
                     onClick={() =>
-                      navigate(paidAccess ? "/strategy/simulator" : "/pricing")
+                      navigate("/pricing?plan=pro&source=dashboard&intent=execute")
                     }
-                    className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-blue-900"
                   >
-                    {paidAccess
-                      ? language === "fr"
-                        ? "Essayer le simulateur"
-                        : "Try Score Simulator"
-                      : language === "fr"
-                      ? "Débloquer le simulateur"
-                      : "Unlock Simulator"}
-                  </button>
+                    {pageText.upgrade}
+                  </Button>
                 </div>
-              )}
+              </Card>
+            )}
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  onClick={() => navigate(nextAction.path)}
-                  className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-blue-900"
-                  disabled={strategyLoading && nextAction.path === "/dashboard"}
+            {paidAccess && !isPremium && (
+              <Card variant="premium" padding="lg">
+                <h3 className="text-xl font-semibold text-slate-900">
+                  {pageText.premiumTitle}
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-slate-700">
+                  {pageText.premiumBody}
+                </p>
+                <div className="mt-4">
+                  <Button
+                    variant="premium"
+                    onClick={() =>
+                      navigate("/pricing?plan=premium&source=dashboard&intent=export")
+                    }
+                  >
+                    {pageText.goPremium}
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            <Card variant="default" padding="lg">
+              <h2 className="text-2xl font-semibold text-slate-900">
+                {pageText.accountSummary}
+              </h2>
+
+              <div className="mt-4">
+                <InfoRow label={pageText.accountName} value={accountDisplayName} />
+                <InfoRow label={pageText.email} value={currentUser?.email || "—"} />
+                <InfoRow label={pageText.currentPlan} value={currentPlan} />
+                <InfoRow
+                  label={pageText.billingStatus}
+                  value={subscriptionStatusLabel}
+                />
+                <InfoRow
+                  label={pageText.premiumAccess}
+                  value={isPremium ? pageText.unlocked : pageText.locked}
+                />
+              </div>
+
+              <div className="mt-5">
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => navigate("/pricing")}
                 >
-                  {strategyLoading
-                    ? language === "fr"
-                      ? "Construction..."
-                      : "Building strategy..."
-                    : nextAction.label}
-                </button>
-
-                <button
-                  onClick={() => navigate(secondaryAction.path)}
-                  className="rounded-xl border border-white px-5 py-3 text-sm"
-                >
-                  {secondaryAction.label}
-                </button>
+                  {pageText.managePlan}
+                </Button>
               </div>
-            </div>
-
-            <div className="grid min-w-[260px] gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-3xl bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
-                  CRS score
-                </p>
-                <p className="mt-3 text-4xl font-bold">
-                  {crsScore ?? (strategyLoading ? "..." : "—")}
-                </p>
-                <p className="mt-2 text-xs text-blue-100">
-                  {crsScore
-                    ? language === "fr"
-                      ? "Score estimé actuel"
-                      : "Current estimated score"
-                    : language === "fr"
-                    ? "Complétez votre profil pour améliorer la précision"
-                    : "Complete your profile to improve precision"}
-                </p>
-              </div>
-
-              <div className="rounded-3xl bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
-                  {language === "fr" ? "Statut du profil" : "Profile status"}
-                </p>
-                <p className="mt-3 text-xl font-semibold">
-                  {profile && isProfileComplete(profile)
-                    ? language === "fr"
-                      ? "Prêt"
-                      : "Ready"
-                    : language === "fr"
-                    ? "À compléter"
-                    : "Needs completion"}
-                </p>
-                <p className="mt-2 text-xs text-blue-100">
-                  {profile && isProfileComplete(profile)
-                    ? language === "fr"
-                      ? "Votre stratégie peut être générée"
-                      : "Your strategy can be generated"
-                    : language === "fr"
-                    ? "Terminez la configuration pour de meilleurs résultats"
-                    : "Finish setup to unlock stronger results"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {strategy && !paidAccess && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-            <p className="text-sm font-semibold text-amber-900">
-              {language === "fr"
-                ? "Votre stratégie est prête — débloquez l’analyse complète"
-                : "Your strategy is ready — unlock the full breakdown"}
-            </p>
-
-            <p className="mt-2 text-sm text-amber-800">
-              {language === "fr"
-                ? "Obtenez l’analyse détaillée des voies, la guidance documentaire, les actions personnalisées et le simulateur de score."
-                : "Get detailed pathway analysis, document guidance, personalized action steps, and the score simulator."}
-            </p>
-
-            <button
-              onClick={() => navigate("/pricing")}
-              className="mt-4 rounded-xl bg-amber-600 px-5 py-2 text-sm text-white"
-            >
-              {language === "fr" ? "Débloquer la stratégie" : "Unlock Full Strategy"}
-            </button>
-          </div>
-        )}
-
-        {paidAccess && !isPremium && (
-          <div className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
-            <p className="text-sm text-purple-800">
-              {language === "fr"
-                ? "Vous êtes à une étape de la finition. Débloquez l’export PDF pour finaliser proprement."
-                : "You're one step away from finishing your application. Unlock PDF export and finalize everything cleanly."}
-            </p>
-
-            <button
-              onClick={() => navigate("/pricing")}
-              className="mt-3 rounded-xl bg-purple-600 px-4 py-2 text-sm text-white"
-            >
-              {language === "fr" ? "Passer à Premium" : "Upgrade to Premium"}
-            </button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <StatCard
-            label={language === "fr" ? "Profil" : "Profile"}
-            value={
-              profile && isProfileComplete(profile)
-                ? language === "fr"
-                  ? "Complété"
-                  : "Completed"
-                : language === "fr"
-                ? "Manquant"
-                : "Missing"
-            }
-          />
-          <StatCard
-            label={language === "fr" ? "Stratégie" : "Strategy"}
-            value={
-              strategy
-                ? language === "fr"
-                  ? "Prête"
-                  : "Ready"
-                : strategyLoading
-                ? language === "fr"
-                  ? "En cours..."
-                  : "Building..."
-                : language === "fr"
-                ? "Non démarrée"
-                : "Not started"
-            }
-          />
-          <StatCard label={language === "fr" ? "Plan" : "Plan"} value={currentPlan} />
-          <StatCard
-            label={language === "fr" ? "Accès" : "Access"}
-            value={
-              paidAccess
-                ? language === "fr"
-                  ? "Débloqué"
-                  : "Unlocked"
-                : language === "fr"
-                ? "Verrouillé"
-                : "Locked"
-            }
-          />
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border bg-white p-6 shadow">
-            <h3 className="text-xl font-semibold">
-              {language === "fr" ? "Votre prochaine étape" : "Your next step"}
-            </h3>
-
-            <p className="mt-2 text-sm text-slate-600">
-              {language === "fr"
-                ? "Suivez le flux guidé pour avancer."
-                : "Follow the guided flow to move forward."}
-            </p>
-
-            <button
-              onClick={() => navigate(nextAction.path)}
-              className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-white"
-              disabled={strategyLoading && nextAction.path === "/dashboard"}
-            >
-              {strategyLoading
-                ? language === "fr"
-                  ? "Préparation de votre stratégie..."
-                  : "Preparing your strategy..."
-                : nextAction.label}
-            </button>
-          </div>
-
-          {!paidAccess ? (
-            <PremiumBlurCard
-              title={
-                language === "fr"
-                  ? "Recommandations premium"
-                  : "Premium recommendations"
-              }
-              body={
-                language === "fr"
-                  ? "Débloquez vos meilleures voies, des recommandations adaptées et des prochaines étapes plus claires."
-                  : "Unlock your top pathways, tailored recommendations, and clearer next steps."
-              }
-              onUpgrade={() => navigate("/pricing")}
-            />
-          ) : (
-            <div className="rounded-2xl border bg-white p-6 shadow">
-              <h3 className="text-xl font-semibold">
-                {language === "fr" ? "Principales recommandations" : "Top recommendations"}
-              </h3>
-
-              {strategyLoading ? (
-                <p className="mt-3 text-sm text-slate-600">
-                  {language === "fr"
-                    ? "Les recommandations sont en préparation..."
-                    : "Strategy recommendations are being prepared..."}
-                </p>
-              ) : recommendations.length > 0 ? (
-                <div className="mt-4 space-y-3">
-                  {recommendations.slice(0, 3).map((item, index) => {
-                    const label =
-                      typeof item === "string"
-                        ? item
-                        : item?.name ||
-                          item?.title ||
-                          item?.program ||
-                          "Recommendation";
-
-                    return (
-                      <div
-                        key={`${label}-${index}`}
-                        className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
-                      >
-                        {label}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-slate-600">
-                  {language === "fr"
-                    ? "Complétez votre profil pour voir les recommandations."
-                    : "Complete your profile to unlock recommendation insights."}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {!paidAccess ? (
-            <PremiumBlurCard
-              title={language === "fr" ? "Prochaines étapes prioritaires" : "Priority next steps"}
-              body={
-                language === "fr"
-                  ? "Voyez les actions exactes à prendre ensuite selon votre profil et votre stratégie."
-                  : "See the exact actions to take next based on your profile and strategy."
-              }
-              buttonLabel={language === "fr" ? "Débloquer le plan d’action" : "Unlock action plan"}
-              onUpgrade={() => navigate("/pricing")}
-            />
-          ) : (
-            <div className="rounded-2xl border bg-white p-6 shadow">
-              <h3 className="text-xl font-semibold">
-                {language === "fr" ? "Prochaines étapes prioritaires" : "Priority next steps"}
-              </h3>
-
-              {strategyLoading ? (
-                <p className="mt-3 text-sm text-slate-600">
-                  {language === "fr"
-                    ? "Nous préparons vos actions..."
-                    : "We’re preparing action steps for you..."}
-                </p>
-              ) : nextSteps.length > 0 ? (
-                <div className="mt-4 space-y-3">
-                  {nextSteps.slice(0, 4).map((step, index) => {
-                    const label =
-                      typeof step === "string"
-                        ? step
-                        : step?.label || step?.title || step?.action || "Next step";
-
-                    return (
-                      <div
-                        key={`${label}-${index}`}
-                        className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
-                      >
-                        <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-                          {index + 1}
-                        </div>
-                        <p className="text-sm text-slate-700">{label}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-slate-600">
-                  {language === "fr"
-                    ? "Vos prochaines étapes personnalisées apparaîtront ici."
-                    : "Your personalized next steps will appear here once your strategy is ready."}
-                </p>
-              )}
-            </div>
-          )}
-
-          <div className="rounded-2xl border bg-white p-6 shadow">
-            <h3 className="text-xl font-semibold">
-              {language === "fr" ? "Actions rapides" : "Fast actions"}
-            </h3>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                onClick={() => navigate("/profile")}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
-              >
-                {language === "fr" ? "Ouvrir le profil" : "Open Profile"}
-              </button>
-
-              <button
-                onClick={() => navigate("/strategy")}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
-              >
-                {language === "fr" ? "Voir la stratégie" : "View Strategy"}
-              </button>
-
-              <button
-                onClick={() =>
-                  navigate(paidAccess ? "/strategy/simulator" : "/pricing")
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
-              >
-                {paidAccess
-                  ? language === "fr"
-                    ? "Simulateur de score"
-                    : "Score Simulator"
-                  : language === "fr"
-                  ? "Débloquer le simulateur"
-                  : "Unlock Simulator"}
-              </button>
-
-              <button
-                onClick={() =>
-                  paidAccess ? navigate("/forms") : navigate("/pricing")
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
-              >
-                {paidAccess
-                  ? language === "fr"
-                    ? "Forms Studio"
-                    : "Forms Studio"
-                  : language === "fr"
-                  ? "Débloquer les formulaires"
-                  : "Unlock Forms"}
-              </button>
-
-              <button
-                onClick={() =>
-                  isPremium ? navigate("/documents") : navigate("/pricing")
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
-              >
-                {isPremium
-                  ? language === "fr"
-                    ? "Mes documents"
-                    : "My Documents"
-                  : language === "fr"
-                  ? "Export et documents"
-                  : "Export & Documents"}
-              </button>
-
-              <button
-                onClick={() => navigate("/pricing")}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700"
-              >
-                {language === "fr" ? "Voir les tarifs" : "View Pricing"}
-              </button>
-            </div>
+            </Card>
           </div>
         </div>
       </div>
@@ -752,8 +701,13 @@ export default function Dashboard() {
       <UpgradeModal
         open={showUpgrade}
         onClose={() => setShowUpgrade(false)}
-        onUpgrade={() => navigate("/pricing")}
+        onUpgrade={() =>
+          navigate("/pricing?plan=pro&source=dashboard&intent=execute")
+        }
         language={language}
+        variant="pro"
+        source="dashboard"
+        intent="execute"
       />
     </Layout>
   );

@@ -6,7 +6,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.data.db import Base, engine
 from app.routes import (
     ai_routes,
     auth_routes,
@@ -67,7 +66,7 @@ def get_allowed_origins() -> list[str]:
             if cleaned:
                 parsed_env_origins.append(cleaned)
 
-    merged = []
+    merged: list[str] = []
     seen = set()
 
     for origin in default_origins + parsed_env_origins:
@@ -111,14 +110,10 @@ def register_routers(app: FastAPI) -> None:
 def create_app() -> FastAPI:
     app = FastAPI(title="NorthBridgeAI API")
 
-    Base.metadata.create_all(bind=engine)
-
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
-
     allowed_origins = get_allowed_origins()
     print("CORS allowed origins:", allowed_origins)
     print("OPENAI_API_KEY loaded:", bool(os.getenv("OPENAI_API_KEY")))
+    print("DATABASE_URL loaded:", bool(os.getenv("DATABASE_URL")))
 
     app.add_middleware(
         CORSMiddleware,
@@ -127,6 +122,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
     register_routers(app)
 

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class AIChatMessage(BaseModel):
-    role: Literal["user", "assistant"]
+    role: Literal["user", "assistant", "system"]
     content: str = Field(..., min_length=1)
 
 
@@ -20,11 +20,11 @@ class AIChatRequest(BaseModel):
 
 
 class AIChatResponse(BaseModel):
-    reply: str
+    reply: str = ""
     profile_found: bool = True
     strategy_loaded: bool = True
     language: Literal["en", "fr"] = "en"
-    suggested_next_actions: Optional[List[AIActionItem]] = None
-    insights: Optional[List[str]] = None
-    pathways: Optional[List[str]] = None
-    french_advantage: Optional[Dict[str, Any]] = None
+    suggested_next_actions: List[AIActionItem] = Field(default_factory=list)
+    insights: List[str] = Field(default_factory=list)
+    pathways: List[str] = Field(default_factory=list)
+    french_advantage: Dict[str, Any] = Field(default_factory=dict)

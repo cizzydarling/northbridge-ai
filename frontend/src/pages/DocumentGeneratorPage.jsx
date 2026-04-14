@@ -51,6 +51,14 @@ const COMPLETION_STORAGE_KEY = "nbai_document_completion_engine_v1";
 const GENERATOR_USAGE_KEY = "nbai_doc_generator_usage_v1";
 const FREE_GENERATOR_LIMIT = 3;
 
+function buildProPricingPath(source = "documents", intent = "execute") {
+  return `/pricing?plan=pro&source=${source}&intent=${intent}`;
+}
+
+function buildPremiumPricingPath(source = "documents", intent = "export") {
+  return `/pricing?plan=premium&source=${source}&intent=${intent}`;
+}
+
 function PageHeader({ brand, title, subtitle }) {
   return (
     <div className="mb-8 max-w-3xl">
@@ -563,7 +571,6 @@ export default function DocumentGeneratorPage() {
 
   useEffect(() => {
     loadPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1018,6 +1025,9 @@ export default function DocumentGeneratorPage() {
   const canGenerateMore =
     canPreviewGenerator && (canGenerateDocumentsFull || !limitReached);
 
+  const proPath = buildProPricingPath("documents", "execute");
+  const premiumPath = buildPremiumPricingPath("documents", "export");
+
   const instructionPresets = useMemo(() => {
     if (language === "fr") {
       return [
@@ -1127,6 +1137,9 @@ export default function DocumentGeneratorPage() {
         finalPremiumTitle: "Votre document est prêt à être finalisé",
         finalPremiumBody:
           "Passez à Premium pour exporter un PDF propre et prêt à être soumis.",
+        continueToReview: "Continuer vers la révision IA",
+        unlockReview: "Débloquer la révision IA",
+        improveBeforeExport: "Améliorer avant export",
       };
     }
 
@@ -1219,6 +1232,9 @@ export default function DocumentGeneratorPage() {
       finalPremiumTitle: "Your document is ready to finalize",
       finalPremiumBody:
         "Upgrade to Premium to export a clean, submission-ready PDF.",
+      continueToReview: "Continue to AI Review",
+      unlockReview: "Unlock AI Review",
+      improveBeforeExport: "Improve before export",
     };
   }, [language, generatorUsage]);
 
@@ -1442,69 +1458,67 @@ export default function DocumentGeneratorPage() {
                 </div>
               </div>
 
-              <>
-                <div className="flex flex-wrap gap-3">
-                  <Button onClick={handleGenerate} disabled={loading || !canGenerateMore}>
-                    {loading ? pageText.generating : pageText.generate}
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleGenerate} disabled={loading || !canGenerateMore}>
+                  {loading ? pageText.generating : pageText.generate}
+                </Button>
+
+                {canDownloadDocx ? (
+                  <Button
+                    variant="secondary"
+                    onClick={handleDownloadWord}
+                    disabled={downloading || !result?.content}
+                  >
+                    {downloading ? pageText.downloading : pageText.downloadWord}
                   </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(proPath)}
+                    disabled={!result?.content}
+                  >
+                    {pageText.downloadWord}
+                  </Button>
+                )}
 
-                  {canDownloadDocx ? (
-                    <Button
-                      variant="secondary"
-                      onClick={handleDownloadWord}
-                      disabled={downloading || !result?.content}
-                    >
-                      {downloading ? pageText.downloading : pageText.downloadWord}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      onClick={() => navigate("/pricing")}
-                      disabled={!result?.content}
-                    >
-                      {pageText.downloadWord}
-                    </Button>
-                  )}
+                {canExportPdf ? (
+                  <Button
+                    variant="secondary"
+                    onClick={handleDownloadPdf}
+                    disabled={downloadingPdf || !result?.content}
+                  >
+                    {downloadingPdf ? pageText.downloadingPdf : pageText.downloadPdf}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(premiumPath)}
+                    disabled={!result?.content}
+                  >
+                    {pageText.downloadPdf}
+                  </Button>
+                )}
+              </div>
 
-                  {canExportPdf ? (
-                    <Button
-                      variant="secondary"
-                      onClick={handleDownloadPdf}
-                      disabled={downloadingPdf || !result?.content}
-                    >
-                      {downloadingPdf ? pageText.downloadingPdf : pageText.downloadPdf}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      onClick={() => navigate("/pricing")}
-                      disabled={!result?.content}
-                    >
-                      {pageText.downloadPdf}
-                    </Button>
-                  )}
+              {!canDownloadDocx && (
+                <div className="mt-4">
+                  <UpgradePrompt
+                    title={pageText.wordPromptTitle}
+                    body={pageText.wordPromptBody}
+                    buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+                  />
                 </div>
+              )}
 
-                {!canDownloadDocx && (
-                  <div className="mt-4">
-                    <UpgradePrompt
-                      title={pageText.wordPromptTitle}
-                      body={pageText.wordPromptBody}
-                      buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
-                    />
-                  </div>
-                )}
-
-                {canDownloadDocx && !canExportPdf && (
-                  <div className="mt-4">
-                    <UpgradePrompt
-                      title={pageText.pdfPromptTitle}
-                      body={pageText.pdfPromptBody}
-                      buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
-                    />
-                  </div>
-                )}
-              </>
+              {canDownloadDocx && !canExportPdf && (
+                <div className="mt-4">
+                  <UpgradePrompt
+                    title={pageText.pdfPromptTitle}
+                    body={pageText.pdfPromptBody}
+                    buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+                  />
+                </div>
+              )}
             </div>
           </Card>
 
@@ -1573,10 +1587,7 @@ export default function DocumentGeneratorPage() {
 
                   {selectedDraftId ? (
                     <>
-                      <Button
-                        onClick={handleSaveDraft}
-                        disabled={savingDraft}
-                      >
+                      <Button onClick={handleSaveDraft} disabled={savingDraft}>
                         {savingDraft ? pageText.saving : pageText.save}
                       </Button>
 
@@ -1598,51 +1609,16 @@ export default function DocumentGeneratorPage() {
                     </>
                   ) : null}
 
-                  <div className="flex flex-wrap gap-3">
-                    <Button variant="secondary" onClick={handleCopy}>
-                      {pageText.copy}
+                  {canReviewDocumentsFull ? (
+                    <Button onClick={handleOpenReview}>
+                      {pageText.continueToReview}
                     </Button>
-
-                    {selectedDraftId ? (
-                      <>
-                        <Button onClick={handleSaveDraft} disabled={savingDraft}>
-                          {savingDraft ? pageText.saving : pageText.save}
-                        </Button>
-
-                        <Button
-                          variant="secondary"
-                          onClick={handleDuplicateDraft}
-                          disabled={duplicatingDraft}
-                        >
-                          {duplicatingDraft ? pageText.duplicating : pageText.duplicate}
-                        </Button>
-
-                        <Button
-                          variant="danger"
-                          onClick={handleDeleteDraft}
-                          disabled={deletingDraft}
-                        >
-                          {deletingDraft ? pageText.deleting : pageText.delete}
-                        </Button>  
-                      </>
-                    ) : null}
-
-                    {/* 🔥 PRIMARY FUNNEL CTA */}
-                    {canReviewDocumentsFull ? (
-                      <Button onClick={handleOpenReview}>
-                        {language === "fr"
-                          ? "Continuer vers la révision IA"
-                          : "Continue to AI Review"}
-                      </Button>
-                    ) : (
-                      <Button onClick={() => navigate("/pricing")}>
-                        {language === "fr"
-                          ? "Débloquer la révision IA"
-                          : "Unlock AI Review"}
-                      </Button>
-                    )}
-                  </div>
-                   
+                  ) : (
+                    <Button onClick={() => navigate(proPath)}>
+                      {pageText.unlockReview}
+                    </Button>
+                  )}
+                </div>
 
                 {!canReviewDocumentsFull && (
                   <div className="mt-5">
@@ -1657,28 +1633,20 @@ export default function DocumentGeneratorPage() {
                 {result?.content && canGenerateDocumentsFull && !canExportPdf && (
                   <div className="mt-5 rounded-[24px] border border-purple-200 bg-purple-50 p-5">
                     <h3 className="text-lg font-semibold text-purple-900">
-                      {language === "fr"
-                        ? "Votre document est prêt à être finalisé"
-                        : "Your document is ready to be finalized"}
+                      {pageText.finalPremiumTitle}
                     </h3>
 
                     <p className="mt-2 text-sm text-purple-800">
-                      {language === "fr"
-                        ? "Exportez un PDF propre et prêt à soumettre."
-                        : "Export a clean, submission-ready PDF."}
+                      {pageText.finalPremiumBody}
                     </p>
 
                     <div className="mt-4 flex gap-3">
-                      <Button onClick={() => navigate("/pricing")}>
-                        {language === "fr"
-                          ? "Passer à Premium"
-                          : "Upgrade to Premium"}
+                      <Button onClick={() => navigate(premiumPath)}>
+                        {pageText.upgradeToPremium}
                       </Button>
 
                       <Button variant="secondary" onClick={handleOpenReview}>
-                        {language === "fr"
-                          ? "Améliorer avant export"
-                          : "Improve before export"}
+                        {pageText.improveBeforeExport}
                       </Button>
                     </div>
                   </div>
@@ -1697,7 +1665,6 @@ export default function DocumentGeneratorPage() {
                     />
                   </div>
                 )}
-                </div>
               </>
             ) : (
               <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
@@ -1725,12 +1692,12 @@ export default function DocumentGeneratorPage() {
               </div>
 
               <div className="mt-5 flex flex-wrap gap-3">
-                <Button variant="secondary" onClick={() => navigate("/self/documents")}>
+                <Button variant="secondary" onClick={() => navigate("/documents")}>
                   {pageText.openDocuments}
                 </Button>
                 <Button
                   variant="secondary"
-                  onClick={() => navigate("/pricing")}
+                  onClick={() => navigate(canGenerateDocumentsFull ? premiumPath : proPath)}
                 >
                   {canGenerateDocumentsFull
                     ? pageText.upgradeToPremium

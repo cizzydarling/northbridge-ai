@@ -7,9 +7,17 @@ export default function Button({
   className = "",
   disabled = false,
   loading = false,
+  fullWidth = false,
+  leftIcon = null,
+  rightIcon = null,
+  ariaLabel,
 }) {
+  const isDisabled = disabled || loading;
+
   const base =
     "inline-flex items-center justify-center whitespace-nowrap rounded-2xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60";
+
+  const widthClass = fullWidth ? "w-full" : "";
 
   const sizes = {
     sm: "h-9 px-4 text-sm",
@@ -36,27 +44,52 @@ export default function Button({
     outlineLight:
       "border border-white/80 text-white hover:bg-white hover:text-slate-900 active:scale-[0.98]",
 
-    subtle: // ⭐ NEW (premium low-emphasis button)
+    subtle:
       "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.98]",
 
-    premium: // ⭐ NEW (used sparingly for high-value actions)
+    premium:
       "bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow-md shadow-blue-900/20 hover:opacity-95 active:scale-[0.98]",
   };
+
+  const spinnerClassMap = {
+    primary: "border-white/30 border-t-white",
+    premium: "border-white/30 border-t-white",
+    outlineLight: "border-white/30 border-t-white",
+    white: "border-slate-300 border-t-slate-700",
+    secondary: "border-slate-300 border-t-slate-700",
+    ghost: "border-slate-300 border-t-slate-700",
+    subtle: "border-slate-300 border-t-slate-700",
+    danger: "border-red-200 border-t-red-600",
+  };
+
+  const spinnerClass =
+    spinnerClassMap[variant] || "border-white/30 border-t-white";
 
   return (
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled || loading}
-      className={`${base} ${sizes[size]} ${
+      disabled={isDisabled}
+      aria-label={ariaLabel}
+      aria-busy={loading}
+      className={`${base} ${sizes[size] || sizes.md} ${
         variants[variant] || variants.primary
-      } ${className}`}
+      } ${widthClass} ${className}`}
     >
       <span className="flex items-center justify-center gap-2">
-        {loading && (
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-        )}
-        {children}
+        {loading ? (
+          <span
+            className={`h-4 w-4 animate-spin rounded-full border-2 ${spinnerClass}`}
+          />
+        ) : leftIcon ? (
+          <span className="inline-flex items-center">{leftIcon}</span>
+        ) : null}
+
+        <span className="inline-flex items-center">{children}</span>
+
+        {!loading && rightIcon ? (
+          <span className="inline-flex items-center">{rightIcon}</span>
+        ) : null}
       </span>
     </button>
   );

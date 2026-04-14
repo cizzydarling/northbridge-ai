@@ -5,6 +5,9 @@ export default function UpgradeModal({
   onClose,
   onUpgrade,
   language = "en",
+  variant = "pro",
+  source = "app",
+  intent = "upgrade",
 }) {
   useEffect(() => {
     if (!open) return;
@@ -27,35 +30,74 @@ export default function UpgradeModal({
   if (!open) return null;
 
   const isFrench = String(language || "en").toLowerCase().startsWith("fr");
+  const isPremium = String(variant || "pro").toLowerCase() === "premium";
 
   const text = isFrench
+    ? isPremium
+      ? {
+          eyebrow: "NorthBridgeAI",
+          title: "Passez à Premium pour finaliser votre dossier",
+          body:
+            "Premium est conçu pour les utilisateurs qui veulent aller jusqu’au rendu final avec plus de temps, plus de confort et l’export PDF.",
+          highlightsTitle: "Ce que vous débloquez",
+          highlights: [
+            "Export PDF propre et partageable",
+            "Fenêtre de préparation plus longue pour compléter votre dossier",
+            "Meilleure couche de finition pour aller jusqu’au rendu final",
+          ],
+          primary: "Voir Premium",
+          secondary: "Peut-être plus tard",
+          sourceLabel: "Origine",
+          intentLabel: "Intention",
+        }
+      : {
+          eyebrow: "NorthBridgeAI",
+          title: "Débloquez votre stratégie complète avec Pro",
+          body:
+            "Pro est le point d’entrée pour passer de l’exploration à l’exécution. Débloquez la stratégie complète, les outils documents et formulaires, ainsi qu’une guidance plus exploitable.",
+          highlightsTitle: "Ce que vous débloquez",
+          highlights: [
+            "Analyse stratégique complète et recommandations prioritaires",
+            "Génération de documents, formulaires et flux d’exécution",
+            "Copilote IA avancé pour mieux préparer votre dossier",
+          ],
+          primary: "Passer à Pro",
+          secondary: "Peut-être plus tard",
+          sourceLabel: "Origine",
+          intentLabel: "Intention",
+        }
+    : isPremium
     ? {
         eyebrow: "NorthBridgeAI",
-        title: "Débloquez votre stratégie d’immigration complète",
+        title: "Upgrade to Premium to finalize your case",
         body:
-          "Passez à une offre supérieure pour voir vos meilleures voies, obtenir des recommandations plus approfondies, utiliser les outils IA avancés et avancer avec plus de clarté.",
-        highlightsTitle: "Ce que vous débloquez",
+          "Premium is built for users who want to go all the way to final output with more time, more comfort, and PDF export.",
+        highlightsTitle: "What you unlock",
         highlights: [
-          "Analyse stratégique complète et recommandations prioritaires",
-          "Orientation documentaire et formulaires plus approfondie",
-          "Copilote IA avancé pour mieux préparer votre dossier",
+          "Clean, shareable PDF export",
+          "A longer preparation window to complete your case",
+          "A stronger finishing layer for going to final output",
         ],
-        primary: "Voir les tarifs",
-        secondary: "Peut-être plus tard",
+        primary: "See Premium",
+        secondary: "Maybe later",
+        sourceLabel: "Source",
+        intentLabel: "Intent",
       }
     : {
         eyebrow: "NorthBridgeAI",
-        title: "Unlock your full immigration strategy",
+        title: "Unlock your full strategy with Pro",
         body:
-          "Upgrade to unlock your strongest pathways, deeper recommendations, advanced AI tools, and a clearer action plan for moving forward.",
+          "Pro is the point where you move from exploration into execution. Unlock the full strategy, documents and forms tools, and more actionable guidance.",
         highlightsTitle: "What you unlock",
         highlights: [
           "Full strategy analysis and smarter priority recommendations",
-          "Deeper documents and forms guidance",
+          "Documents, forms, and execution workflow access",
           "Advanced AI copilot to prepare your case with more confidence",
         ],
-        primary: "View pricing",
+        primary: "Upgrade to Pro",
         secondary: "Maybe later",
+        sourceLabel: "Source",
+        intentLabel: "Intent",
       };
 
   function handleBackdropClick(event) {
@@ -73,22 +115,56 @@ export default function UpgradeModal({
       aria-labelledby="upgrade-modal-title"
     >
       <div className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
-        <div className="bg-gradient-to-br from-blue-900 via-blue-700 to-indigo-600 px-6 py-6 text-white">
+        <div
+          className={`px-6 py-6 text-white ${
+            isPremium
+              ? "bg-gradient-to-br from-purple-900 via-violet-700 to-indigo-600"
+              : "bg-gradient-to-br from-blue-900 via-blue-700 to-indigo-600"
+          }`}
+        >
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-100">
             {text.eyebrow}
           </p>
+
           <h3
             id="upgrade-modal-title"
             className="mt-3 text-2xl font-semibold tracking-tight"
           >
             {text.title}
           </h3>
+
           <p className="mt-3 text-sm leading-7 text-blue-50">{text.body}</p>
         </div>
 
         <div className="px-6 py-6">
-          <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm font-semibold text-amber-900">
+          {(source || intent) && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {source ? (
+                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                  {text.sourceLabel}: {source}
+                </span>
+              ) : null}
+
+              {intent ? (
+                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                  {text.intentLabel}: {intent}
+                </span>
+              ) : null}
+            </div>
+          )}
+
+          <div
+            className={`rounded-[24px] p-4 ${
+              isPremium
+                ? "border border-purple-200 bg-purple-50"
+                : "border border-amber-200 bg-amber-50"
+            }`}
+          >
+            <p
+              className={`text-sm font-semibold ${
+                isPremium ? "text-purple-900" : "text-amber-900"
+              }`}
+            >
               {text.highlightsTitle}
             </p>
 
@@ -96,7 +172,7 @@ export default function UpgradeModal({
               {text.highlights.map((item, index) => (
                 <div
                   key={`${item}-${index}`}
-                  className="rounded-2xl border border-amber-100 bg-white px-4 py-3 text-sm leading-7 text-slate-700"
+                  className="rounded-2xl border border-white bg-white px-4 py-3 text-sm leading-7 text-slate-700"
                 >
                   {item}
                 </div>
@@ -107,7 +183,11 @@ export default function UpgradeModal({
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button
               onClick={onUpgrade}
-              className="flex-1 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className={`flex-1 rounded-2xl px-5 py-3 text-sm font-semibold text-white transition ${
+                isPremium
+                  ? "bg-purple-600 hover:bg-purple-700"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
               {text.primary}
             </button>

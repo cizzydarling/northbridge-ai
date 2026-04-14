@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.services import province_targeting_service
 from app.services.ai_advisor import generate_ai_strategy
@@ -19,29 +19,58 @@ def _safe_get(profile, field_name, default=None):
     return getattr(profile, field_name, default)
 
 
-def _normalize_language(language: str) -> str:
+def _normalize_language(language: Optional[str]) -> str:
     language = (language or "en").lower()
     return "fr" if language == "fr" else "en"
 
 
-def _get_language_score(profile) -> int:
-    value = _safe_get(profile, "language_score", 0)
+def _t(en: str, fr: str, language: str) -> str:
+    return fr if _normalize_language(language) == "fr" else en
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
     try:
         return int(value or 0)
     except (TypeError, ValueError):
-        return 0
+        return default
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes", "y", "on"}
+    return bool(value)
+
+
+def _get_language_score(profile) -> int:
+    value = _safe_get(profile, "language_score", 0)
+    return _safe_int(value, 0)
 
 
 def _get_experience_years(profile) -> int:
     value = _safe_get(profile, "experience_years", 0)
-    try:
-        return int(value or 0)
-    except (TypeError, ValueError):
-        return 0
+    return _safe_int(value, 0)
+
+
+def _get_age(profile) -> int:
+    value = _safe_get(profile, "age", 0)
+    return _safe_int(value, 0)
+
+
+def _get_education(profile) -> str:
+    return str(_safe_get(profile, "education", "") or "").strip().lower()
 
 
 def _get_bool(profile, field_name: str) -> bool:
-    return bool(_safe_get(profile, field_name, False))
+    return _safe_bool(_safe_get(profile, field_name, False))
 
 
 def _get_preferred_province(profile) -> str:
@@ -50,6 +79,10 @@ def _get_preferred_province(profile) -> str:
 
 def _get_noc_code(profile) -> str:
     return (_safe_get(profile, "noc_code", "") or "").strip()
+
+
+def _get_occupation(profile) -> str:
+    return (_safe_get(profile, "occupation", "") or "").strip()
 
 
 def _extract_teer_from_noc(noc_code: str) -> int:
@@ -737,6 +770,8 @@ def _translate_list_items(items: List[str], language: str) -> List[str]:
         "Work permit or study pathway before permanent residence": "Permis de travail ou permis d’études avant la résidence permanente",
         "The profile may benefit from a priority francophone or bilingual strategy.": "Le profil peut bénéficier d’une stratégie francophone ou bilingue prioritaire.",
         "The profile may benefit from a francophone or bilingual strategy.": "Le profil peut bénéficier d’une stratégie francophone ou bilingue.",
+        "The declared occupation may unlock NOC-targeted pathways and category-based draws.": "La profession déclarée peut ouvrir des voies ciblées liées au CNP et aux sélections par catégorie.",
+        "Validate the selected NOC code and compare occupation-targeted pathways by province.": "Valider le code CNP choisi et comparer les voies ciblées selon la profession et la province.",
         "Confirm whether French ability can strengthen PR pathway options.": "Confirmer si le français peut renforcer les options de résidence permanente.",
     }
 
@@ -744,6 +779,341 @@ def _translate_list_items(items: List[str], language: str) -> List[str]:
     for item in items:
         output.append(translations.get(item, item))
     return output
+
+
+def _build_crs_band(crs_score: int, language: str) -> Dict[str, str]:
+    language = _normalize_language(language)
+
+    if crs_score >= 500:
+        return {
+            "label": _t("Very strong", "Très fort", language),
+            "description": _t(
+                "Your profile appears highly competitive for federal selection rounds.",
+                "Votre profil semble très compétitif pour les rondes de sélection fédérales.",
+                language,
+            ),
+        }
+    if crs_score >= 470:
+        return {
+            "label": _t("Strong", "Fort", language),
+            "description": _t(
+                "Your profile may already be competitive depending on draw trends and pathway fit.",
+                "Votre profil peut déjà être compétitif selon les tendances des rondes et l’adéquation du parcours.",
+                language,
+            ),
+        }
+    if crs_score >= 430:
+        return {
+            "label": _t("Promising but needs optimization", "Prometteur mais à optimiser", language),
+            "description": _t(
+                "Your profile has real potential, but targeted improvements could materially increase your chances.",
+                "Votre profil a un vrai potentiel, mais des améliorations ciblées pourraient augmenter sensiblement vos chances.",
+                language,
+            ),
+        }
+    if crs_score >= 400:
+        return {
+            "label": _t("Moderate", "Modéré", language),
+            "description": _t(
+                "Provincial and category-based options may be more realistic than relying only on general federal draws.",
+                "Les voies provinciales et par catégorie peuvent être plus réalistes que de compter uniquement sur les rondes fédérales générales.",
+                language,
+            ),
+        }
+
+    return {
+        "label": _t("Needs improvement", "À renforcer", language),
+        "description": _t(
+            "Your current profile likely needs stronger immigration levers before becoming competitive for permanent residence.",
+            "Votre profil actuel a probablement besoin de leviers plus solides avant d’être compétitif pour la résidence permanente.",
+            language,
+        ),
+    }
+
+
+def _build_strategy_headline(
+    *,
+    crs_score: int,
+    programs: List[str],
+    french_advantage: Dict,
+    noc_advantage: Dict,
+    language: str,
+) -> str:
+    language = _normalize_language(language)
+    top_program = programs[0] if programs else _t(
+        "Permanent residence strategy",
+        "Stratégie de résidence permanente",
+        language,
+    )
+
+    if crs_score >= 470:
+        return _t(
+            f"Your profile is currently strongest for {top_program}, with a CRS score that may already be competitive.",
+            f"Votre profil est actuellement le plus solide pour {top_program}, avec un score CRS qui peut déjà être compétitif.",
+            language,
+        )
+
+    if french_advantage.get("strategic_value") == "high":
+        return _t(
+            f"Your strongest near-term edge may come from a francophone-focused strategy built around {top_program}.",
+            f"Votre meilleur levier à court terme peut venir d’une stratégie francophone axée sur {top_program}.",
+            language,
+        )
+
+    if noc_advantage.get("strategic_value") == "high":
+        return _t(
+            f"Your occupation appears to be one of your strongest strategic levers, especially for {top_program}.",
+            f"Votre profession semble être l’un de vos meilleurs leviers stratégiques, surtout pour {top_program}.",
+            language,
+        )
+
+    return _t(
+        f"Your current best path appears to be {top_program}, but your profile would benefit from targeted optimization.",
+        f"Votre meilleur parcours actuel semble être {top_program}, mais votre profil gagnerait à être optimisé de façon ciblée.",
+        language,
+    )
+
+
+def _build_best_pathway(
+    *,
+    programs: List[str],
+    crs_score: int,
+    french_advantage: Dict,
+    noc_advantage: Dict,
+    province_recommendations: List[Dict],
+    language: str,
+) -> Dict[str, Any]:
+    language = _normalize_language(language)
+
+    pathway = programs[0] if programs else _t(
+        "Permanent residence planning",
+        "Planification de résidence permanente",
+        language,
+    )
+    province = province_recommendations[0] if province_recommendations else {}
+
+    reasons: List[str] = []
+
+    if crs_score >= 470:
+        reasons.append(
+            _t(
+                "Your CRS score may already support stronger federal competitiveness.",
+                "Votre score CRS peut déjà soutenir une meilleure compétitivité fédérale.",
+                language,
+            )
+        )
+    elif crs_score >= 430:
+        reasons.append(
+            _t(
+                "Your profile is within a realistic optimization range for stronger selection outcomes.",
+                "Votre profil se situe dans une zone réaliste d’optimisation pour de meilleurs résultats de sélection.",
+                language,
+            )
+        )
+    else:
+        reasons.append(
+            _t(
+                "Your strategy likely depends more on targeted improvements and pathway fit than raw CRS score alone.",
+                "Votre stratégie dépend probablement davantage d’améliorations ciblées et de l’adéquation du parcours que du seul score CRS.",
+                language,
+            )
+        )
+
+    if french_advantage.get("strategic_value") in {"medium", "high"}:
+        reasons.append(
+            _t(
+                "French ability may improve category-based or province-specific opportunities.",
+                "Le français peut améliorer les occasions par catégorie ou propres à certaines provinces.",
+                language,
+            )
+        )
+
+    if noc_advantage.get("strategic_value") == "high":
+        reasons.append(
+            _t(
+                "Your declared occupation and NOC may support targeted pathway analysis.",
+                "Votre profession déclarée et votre CNP peuvent soutenir une analyse ciblée des parcours.",
+                language,
+            )
+        )
+
+    if province:
+        province_name = province.get("province")
+        program_name = province.get("program")
+        if province_name or program_name:
+            reasons.append(
+                _t(
+                    f"Province targeting may be especially relevant through {province_name or 'a recommended province'} and {program_name or 'its provincial pathway'}.",
+                    f"Le ciblage provincial peut être particulièrement pertinent via {province_name or 'une province recommandée'} et {program_name or 'son parcours provincial'}.",
+                    language,
+                )
+            )
+
+    return {
+        "name": pathway,
+        "reasons": deduplicate_programs(reasons),
+        "confidence": _t("High", "Élevée", language) if crs_score >= 470 else _t("Medium", "Moyenne", language),
+    }
+
+
+def _build_risk_analysis(
+    *,
+    profile,
+    crs_score: int,
+    french_advantage: Dict,
+    noc_advantage: Dict,
+    language: str,
+) -> List[Dict[str, str]]:
+    language = _normalize_language(language)
+
+    risks: List[Dict[str, str]] = []
+
+    if _get_language_score(profile) < 9:
+        risks.append(
+            {
+                "risk": _t("Language score ceiling", "Plafond du score linguistique", language),
+                "impact": _t(
+                    "A sub-CLB 9 language profile can limit CRS upside and pathway competitiveness.",
+                    "Un profil linguistique sous CLB/NCLC 9 peut limiter le potentiel CRS et la compétitivité des parcours.",
+                    language,
+                ),
+                "mitigation": _t(
+                    "Retake language testing with a CLB 9+ target.",
+                    "Repasser le test linguistique avec un objectif CLB/NCLC 9+.",
+                    language,
+                ),
+            }
+        )
+
+    if not _get_bool(profile, "has_job_offer"):
+        risks.append(
+            {
+                "risk": _t("No qualifying job offer", "Absence d’offre d’emploi admissible", language),
+                "impact": _t(
+                    "You may be relying more heavily on CRS improvements or provincial selection.",
+                    "Vous pourriez dépendre davantage des améliorations CRS ou de la sélection provinciale.",
+                    language,
+                ),
+                "mitigation": _t(
+                    "Prioritize employer outreach and province-aligned job targeting.",
+                    "Prioriser la prospection employeur et le ciblage d’emplois alignés avec les provinces.",
+                    language,
+                ),
+            }
+        )
+
+    if not _get_bool(profile, "has_canadian_experience"):
+        risks.append(
+            {
+                "risk": _t("Limited Canadian profile depth", "Profondeur limitée du profil canadien", language),
+                "impact": _t(
+                    "Lack of Canadian work experience may reduce flexibility across pathways.",
+                    "L’absence d’expérience de travail canadienne peut réduire la flexibilité entre les parcours.",
+                    language,
+                ),
+                "mitigation": _t(
+                    "Evaluate work, study, or transitional routes that can build Canadian experience.",
+                    "Évaluer les voies de travail, d’études ou de transition pouvant créer de l’expérience canadienne.",
+                    language,
+                ),
+            }
+        )
+
+    if french_advantage.get("strategic_value") == "low":
+        risks.append(
+            {
+                "risk": _t("Untapped language leverage", "Levier linguistique insuffisamment exploité", language),
+                "impact": _t(
+                    "The profile may be missing additional category-based leverage through stronger bilingual positioning.",
+                    "Le profil peut manquer un levier supplémentaire par catégorie via un positionnement bilingue plus fort.",
+                    language,
+                ),
+                "mitigation": _t(
+                    "Assess whether French improvement is realistic and worthwhile.",
+                    "Évaluer si une amélioration du français est réaliste et pertinente.",
+                    language,
+                ),
+            }
+        )
+
+    if noc_advantage.get("strategic_value") != "high":
+        risks.append(
+            {
+                "risk": _t("Occupation targeting not fully validated", "Ciblage professionnel non entièrement validé", language),
+                "impact": _t(
+                    "A weak or missing NOC signal can reduce strategy precision.",
+                    "Un signal CNP faible ou absent peut réduire la précision de la stratégie.",
+                    language,
+                ),
+                "mitigation": _t(
+                    "Validate occupation and NOC alignment before relying on category-based assumptions.",
+                    "Valider l’alignement profession-CNP avant de s’appuyer sur des hypothèses de sélection par catégorie.",
+                    language,
+                ),
+            }
+        )
+
+    if crs_score < 430:
+        risks.append(
+            {
+                "risk": _t("Current CRS competitiveness", "Compétitivité CRS actuelle", language),
+                "impact": _t(
+                    "General federal draws may be less realistic without improvements or targeted pathways.",
+                    "Les rondes fédérales générales peuvent être moins réalistes sans améliorations ou voies ciblées.",
+                    language,
+                ),
+                "mitigation": _t(
+                    "Focus on score-building actions and province/category fit rather than waiting passively.",
+                    "Se concentrer sur les actions d’amélioration du score et l’adéquation province/catégorie plutôt que d’attendre passivement.",
+                    language,
+                ),
+            }
+        )
+
+    return risks[:5]
+
+
+def _build_profile_snapshot(profile) -> Dict[str, Any]:
+    return {
+        "age": _get_age(profile),
+        "education": _get_education(profile),
+        "language_score": _get_language_score(profile),
+        "experience_years": _get_experience_years(profile),
+        "has_job_offer": _get_bool(profile, "has_job_offer"),
+        "has_canadian_experience": _get_bool(profile, "has_canadian_experience"),
+        "studied_in_canada": _get_bool(profile, "studied_in_canada"),
+        "occupation": _get_occupation(profile),
+        "noc_code": _get_noc_code(profile),
+        "preferred_province": _get_preferred_province(profile),
+    }
+
+
+def _build_timeline_summary(timeline_estimate: Any, language: str) -> str:
+    language = _normalize_language(language)
+
+    if isinstance(timeline_estimate, dict):
+        low = timeline_estimate.get("min_months")
+        high = timeline_estimate.get("max_months")
+        summary = timeline_estimate.get("summary")
+
+        if summary:
+            return str(summary)
+
+        if low and high:
+            return _t(
+                f"Estimated timeline: approximately {low}-{high} months.",
+                f"Délai estimé : environ {low}-{high} mois.",
+                language,
+            )
+
+    if timeline_estimate:
+        return str(timeline_estimate)
+
+    return _t(
+        "Timeline depends on pathway, profile optimization, and draw selection timing.",
+        "Le délai dépend du parcours, de l’optimisation du profil et du moment des sélections.",
+        language,
+    )
 
 
 def build_strategy(profile, language: str = "en") -> Dict:
@@ -849,12 +1219,44 @@ def build_strategy(profile, language: str = "en") -> Dict:
                 f"Review {top_province.get('province', 'the recommended province')} first through {top_province.get('program', 'the recommended provincial program')}."
             )
 
+    strengths = deduplicate_programs(strengths)
+    weaknesses = deduplicate_programs(weaknesses)
+    next_steps = deduplicate_programs(next_steps)
+
+    crs_band = _build_crs_band(crs_score, language)
+    strategy_headline = _build_strategy_headline(
+        crs_score=crs_score,
+        programs=programs,
+        french_advantage=french_advantage,
+        noc_advantage=noc_advantage,
+        language=language,
+    )
+    best_pathway = _build_best_pathway(
+        programs=programs,
+        crs_score=crs_score,
+        french_advantage=french_advantage,
+        noc_advantage=noc_advantage,
+        province_recommendations=province_recommendations,
+        language=language,
+    )
+    risk_analysis = _build_risk_analysis(
+        profile=profile,
+        crs_score=crs_score,
+        french_advantage=french_advantage,
+        noc_advantage=noc_advantage,
+        language=language,
+    )
+    timeline_summary = _build_timeline_summary(timeline_estimate, language)
+
     strategy_context = {
         "crs_score": crs_score,
+        "crs_band": crs_band,
+        "strategy_headline": strategy_headline,
+        "best_pathway": best_pathway,
         "recommended_programs": programs,
-        "strengths": deduplicate_programs(strengths),
-        "weaknesses": deduplicate_programs(weaknesses),
-        "next_steps": deduplicate_programs(next_steps),
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "next_steps": next_steps,
         "advisor_summary": advisor_summary,
         "roadmap": roadmap,
         "french_advantage": french_advantage,
@@ -862,23 +1264,37 @@ def build_strategy(profile, language: str = "en") -> Dict:
         "province_recommendations": province_recommendations,
         "improvement_scenarios": scenarios,
         "timeline_estimate": timeline_estimate,
+        "timeline_summary": timeline_summary,
         "probability_estimate": probability_estimate,
         "draw_prediction": draw_prediction,
+        "risk_analysis": risk_analysis,
+        "profile_snapshot": _build_profile_snapshot(profile),
     }
 
     ai_advice = None
     try:
-        ai_result = generate_ai_strategy(
-            profile=profile,
-            language=language,
-        )
+        try:
+            ai_result = generate_ai_strategy(
+                profile=profile,
+                language=language,
+                strategy_data=strategy_context,
+                crs_score=crs_score,
+                programs=programs,
+            )
+        except TypeError:
+            ai_result = generate_ai_strategy(
+                profile=profile,
+                language=language,
+            )
 
         if isinstance(ai_result, dict):
             ai_advice = (
-                (ai_result.get("advisor_summary", "") or "").strip()
-                + "\n\n"
-                + (ai_result.get("ai_strategy", "") or "").strip()
+                ((ai_result.get("advisor_summary", "") or "").strip()
+                 + "\n\n"
+                 + (ai_result.get("ai_strategy", "") or "").strip())
             ).strip()
+            if not ai_advice:
+                ai_advice = (ai_result.get("reply", "") or "").strip()
         else:
             ai_advice = str(ai_result).strip()
 
@@ -888,18 +1304,31 @@ def build_strategy(profile, language: str = "en") -> Dict:
 
     return {
         "crs_score": crs_score,
+        "crs_band": crs_band,
+        "strategy_headline": strategy_headline,
+        "best_pathway": best_pathway,
         "recommended_programs": programs,
         "improvement_scenarios": scenarios,
         "ai_strategy": ai_advice,
         "roadmap": roadmap,
         "province_recommendations": province_recommendations,
         "timeline_estimate": timeline_estimate,
+        "timeline_summary": timeline_summary,
         "probability_estimate": probability_estimate,
         "draw_prediction": draw_prediction,
-        "strengths": strategy_context["strengths"],
-        "weaknesses": strategy_context["weaknesses"],
-        "next_steps": strategy_context["next_steps"],
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "next_steps": next_steps,
         "advisor_summary": advisor_summary,
         "french_advantage": french_advantage,
         "noc_advantage": noc_advantage,
+        "risk_analysis": risk_analysis,
+        "profile_snapshot": _build_profile_snapshot(profile),
+        "completion_signals": {
+            "has_language_score": _get_language_score(profile) > 0,
+            "has_experience_years": _get_experience_years(profile) > 0,
+            "has_occupation": bool(_get_occupation(profile)),
+            "has_noc_code": bool(_get_noc_code(profile)),
+            "has_preferred_province": bool(_get_preferred_province(profile)),
+        },
     }

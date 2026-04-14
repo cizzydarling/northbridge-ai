@@ -46,6 +46,14 @@ const COMPLETION_STORAGE_KEY = "nbai_document_completion_engine_v1";
 const REVIEW_USAGE_KEY = "nbai_doc_review_usage_v1";
 const FREE_REVIEW_LIMIT = 2;
 
+function buildProPricingPath(source = "review", intent = "improve") {
+  return `/pricing?plan=pro&source=${source}&intent=${intent}`;
+}
+
+function buildPremiumPricingPath(source = "review", intent = "export") {
+  return `/pricing?plan=premium&source=${source}&intent=${intent}`;
+}
+
 function PageHeader({ brand, title, subtitle }) {
   return (
     <div className="mb-8 max-w-3xl">
@@ -542,6 +550,9 @@ export default function DocumentReviewPage() {
     remainingFreeReviews <= 1;
   const canReviewNow = canPreviewReview && !reviewLimitReached;
 
+  const proPath = buildProPricingPath("review", "improve");
+  const premiumPath = buildPremiumPricingPath("review", "export");
+
   const pageText = useMemo(() => {
     if (language === "fr") {
       return {
@@ -566,6 +577,7 @@ export default function DocumentReviewPage() {
         unlockProBody:
           "Débloquez l’analyse complète, les actions d’amélioration détaillées et la boucle complète de révision.",
         upgradeToPro: "Passer à Pro",
+        upgradeToPremium: "Passer à Premium",
         strengths: "Points forts",
         concerns: "Risques / faiblesses",
         missingSupport: "Éléments potentiellement manquants",
@@ -607,6 +619,11 @@ export default function DocumentReviewPage() {
         markReviewed: "Marquer comme révisé",
         premiumBar:
           "Pro débloque l’analyse complète et la boucle d’amélioration. Premium s’intègre au flux avancé global.",
+        finalizeDocument: "Finaliser le document",
+        improveFurther: "Améliorer encore",
+        premiumReadyTitle: "Votre document est prêt",
+        premiumReadyBody:
+          "Passez à Premium pour exporter un PDF propre, prêt à être soumis.",
       };
     }
 
@@ -632,6 +649,7 @@ export default function DocumentReviewPage() {
       unlockProBody:
         "Unlock full analysis, detailed improvement actions, and the complete review loop.",
       upgradeToPro: "Upgrade to Pro",
+      upgradeToPremium: "Upgrade to Premium",
       strengths: "Strengths",
       concerns: "Concerns / risks",
       missingSupport: "Potentially missing support",
@@ -672,6 +690,11 @@ export default function DocumentReviewPage() {
       markReviewed: "Mark as reviewed",
       premiumBar:
         "Pro unlocks full analysis and the improvement loop. Premium fits into the broader advanced workflow.",
+      finalizeDocument: "Finalize document",
+      improveFurther: "Improve further",
+      premiumReadyTitle: "Your document is ready",
+      premiumReadyBody:
+        "Upgrade to Premium to export a clean, submission-ready PDF.",
     };
   }, [language, reviewUsage]);
 
@@ -1072,7 +1095,10 @@ export default function DocumentReviewPage() {
                   {loading ? pageText.reviewing : pageText.review}
                 </Button>
 
-                <Button variant="secondary" onClick={() => navigate("/documents/generator")}>
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate("/documents/generator?source=review&intent=improve")}
+                >
                   {pageText.openGenerator}
                 </Button>
               </div>
@@ -1124,21 +1150,20 @@ export default function DocumentReviewPage() {
                 )}
 
                 <div className="mt-5 flex flex-wrap gap-3">
-                  {/* 🔁 LOOP BACK TO GENERATOR */}
                   <Button variant="secondary" onClick={handleApplyImprovements}>
                     {pageText.applyImprovements}
                   </Button>
 
-                  {/* ✅ MARK STEP */}
                   <Button variant="secondary" onClick={handleMarkReviewed}>
                     {pageText.markReviewed}
                   </Button>
 
-                  {/* 🚀 PRIMARY NEXT STEP */}
-                  <Button onClick={() => navigate("/documents/generator")}>
-                    {language === "fr"
-                      ? "Finaliser le document"
-                      : "Finalize Document"}
+                  <Button
+                    onClick={() =>
+                      navigate("/documents/generator?source=review&intent=finalize")
+                    }
+                  >
+                    {pageText.finalizeDocument}
                   </Button>
                 </div>
               </Card>
@@ -1190,28 +1215,20 @@ export default function DocumentReviewPage() {
               {!locked && result?.reviewed_document_preview && (
                 <div className="mt-6 rounded-[28px] border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-6">
                   <h3 className="text-xl font-semibold text-slate-900">
-                    {language === "fr"
-                      ? "Votre document est prêt"
-                      : "Your document is ready"}
+                    {pageText.premiumReadyTitle}
                   </h3>
 
                   <p className="mt-2 text-sm text-slate-600">
-                    {language === "fr"
-                      ? "Passez à Premium pour exporter un PDF propre, prêt à être soumis."
-                      : "Upgrade to Premium to export a clean, submission-ready PDF."}
+                    {pageText.premiumReadyBody}
                   </p>
 
                   <div className="mt-4 flex gap-3">
-                    <Button onClick={() => navigate("/pricing")}>
-                      {language === "fr"
-                        ? "Passer à Premium"
-                        : "Upgrade to Premium"}
+                    <Button onClick={() => navigate(premiumPath)}>
+                      {pageText.upgradeToPremium}
                     </Button>
 
                     <Button variant="secondary" onClick={handleApplyImprovements}>
-                      {language === "fr"
-                        ? "Améliorer encore"
-                        : "Improve further"}
+                      {pageText.improveFurther}
                     </Button>
                   </div>
                 </div>

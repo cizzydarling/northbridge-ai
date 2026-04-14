@@ -4,9 +4,11 @@ export default function Card({
   variant = "default",
   hover = false,
   padding = "md",
+  as: Component = "div",
+  onClick,
+  interactive = false,
 }) {
-  const base =
-    "rounded-[28px] border transition-all duration-200";
+  const base = "rounded-[28px] border transition-all duration-200";
 
   const variants = {
     default:
@@ -19,6 +21,12 @@ export default function Card({
       "border-white/30 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.10)]",
     premium:
       "border-blue-100 bg-gradient-to-br from-white to-blue-50/40 shadow-[0_18px_60px_rgba(15,23,42,0.08)]",
+    success:
+      "border-emerald-200 bg-emerald-50/40 shadow-[0_12px_40px_rgba(15,23,42,0.05)]",
+    warning:
+      "border-amber-200 bg-amber-50/50 shadow-[0_12px_40px_rgba(15,23,42,0.05)]",
+    danger:
+      "border-red-200 bg-red-50/40 shadow-[0_12px_40px_rgba(15,23,42,0.05)]",
   };
 
   const paddings = {
@@ -29,17 +37,24 @@ export default function Card({
     none: "",
   };
 
-  const hoverStyles = hover
-    ? "hover:-translate-y-[2px] hover:shadow-[0_22px_70px_rgba(15,23,42,0.10)]"
-    : "";
+  const hoverStyles =
+    hover || interactive
+      ? "hover:-translate-y-[2px] hover:shadow-[0_22px_70px_rgba(15,23,42,0.10)]"
+      : "";
+
+  const interactiveStyles =
+    interactive || onClick
+      ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200"
+      : "";
 
   return (
-    <div
+    <Component
+      onClick={onClick}
       className={`${base} ${variants[variant] || variants.default} ${
         paddings[padding] || paddings.md
-      } ${hoverStyles} ${className}`}
+      } ${hoverStyles} ${interactiveStyles} ${className}`}
     >
       {children}
-    </div>
+    </Component>
   );
 }

@@ -1,4 +1,3 @@
-print("🔥 UPDATED AI_ADVISOR LOADED")
 import json
 import os
 from typing import Any, Dict, List, Optional
@@ -25,6 +24,10 @@ def get_openai_client() -> Optional[OpenAI]:
     get_openai_client directly.
     """
     return _get_openai_client()
+
+
+def _t(en: str, fr: str, language: str) -> str:
+    return fr if _normalize_language(language) == "fr" else en
 
 
 def _safe_join(items: List[Any], empty_value: str) -> str:
@@ -245,26 +248,27 @@ def _extract_decision_context(
 
 def _build_chat_system_prompt(language: str, plan: str = "free") -> str:
     if language == "fr":
-        premium_block = ""
         if plan == "premium":
-            premium_block = """
+            plan_block = """
 Niveau premium:
 - inclure une analyse plus stratégique
 - inclure les principaux risques ou blocages
 - inclure les meilleures optimisations possibles
+- relier clairement les recommandations au profil et à la stratégie
 """
         elif plan == "pro":
-            premium_block = """
+            plan_block = """
 Niveau pro:
 - répondre de façon structurée
 - donner des actions pratiques et prioritaires
-- être plus précis qu’une simple réponse générale
+- être précis, concret et orienté exécution
 """
         else:
-            premium_block = """
+            plan_block = """
 Niveau gratuit:
 - rester utile mais plus concis
 - donner l’essentiel seulement
+- montrer une direction claire sans entrer dans une profondeur maximale
 """
 
         return f"""
@@ -275,6 +279,7 @@ Ton rôle:
 - identifier les points forts et les blocages
 - recommander les meilleures prochaines étapes
 - rester concret, rassurant, structuré et utile
+- répondre UNIQUEMENT en français
 
 Règles:
 - ne donne pas d’avis juridique définitif
@@ -282,8 +287,11 @@ Règles:
 - base-toi sur le profil, la stratégie, la demande et le contexte décisionnel fournis
 - si le contexte est incomplet, indique clairement ce qui manque
 - suggère des actions courtes et pratiques
+- n’utilise jamais l’anglais
+- ne mentionne jamais des limitations internes, de configuration ou d’indisponibilité
+- ne dis jamais que l’IA n’est pas configurée, pas prête ou pas disponible
 
-{premium_block}
+{plan_block}
 
 Tu DOIS retourner uniquement du JSON valide avec cette structure:
 {{
@@ -298,15 +306,16 @@ Tu DOIS retourner uniquement du JSON valide avec cette structure:
 }}
 
 Contraintes:
-- "reply" doit être clair, humain, et utile
+- "reply" doit être clair, humain, utile, et basé sur le contexte fourni
+- "reply" doit faire environ 2 à 5 phrases
 - "suggested_next_actions" doit contenir 0 à 3 actions
-- chaque action doit avoir un "label" court
+- chaque action doit avoir un "label" court et orienté utilisateur
+- n’invente pas des routes arbitraires
 - utilise seulement ces routes quand pertinent:
   /profile
   /strategy
   /chat
-  /self/application
-  /self/documents
+  /documents
   /documents/generator
   /documents/review
   /legal/disclosure
@@ -314,29 +323,33 @@ Contraintes:
 - tu peux utiliser des query params quand utile, par exemple:
   /documents/generator?document_type=study_plan
   /documents/review?document_type=client_submission_notes
-  /self/documents?document_type=proof_of_funds_explanation&action=generate
+  /documents?document_type=proof_of_funds_explanation&action=generate
 - "insights" doit contenir 0 à 3 points courts
+- pas de markdown
+- pas de texte hors JSON
 """
-    premium_block = ""
+
     if plan == "premium":
-        premium_block = """
+        plan_block = """
 Premium level:
 - include more strategic depth
 - include key risks or blockers
 - include the strongest optimization ideas
+- clearly connect recommendations to profile and strategy
 """
     elif plan == "pro":
-        premium_block = """
+        plan_block = """
 Pro level:
 - answer in a structured way
 - give practical and prioritized actions
-- be more precise than a general answer
+- be precise, concrete, and execution-oriented
 """
     else:
-        premium_block = """
+        plan_block = """
 Free level:
 - stay useful but more concise
 - provide the essentials only
+- show clear direction without maximum depth
 """
 
     return f"""
@@ -347,6 +360,7 @@ Your role:
 - identify strengths and blockers
 - recommend the best next steps
 - stay concrete, calm, structured, and useful
+- respond ONLY in English
 
 Rules:
 - do not give definitive legal advice
@@ -354,8 +368,11 @@ Rules:
 - base your answer on the supplied profile, strategy, application, and decision context
 - if context is incomplete, clearly say what is missing
 - suggest short, practical actions
+- never switch to French
+- never mention internal limitations, configuration, or service availability
+- never say the AI is not configured, not ready, or unavailable
 
-{premium_block}
+{plan_block}
 
 You MUST return only valid JSON with this structure:
 {{
@@ -370,15 +387,16 @@ You MUST return only valid JSON with this structure:
 }}
 
 Constraints:
-- "reply" should be clear, human, and useful
+- "reply" should be clear, human, useful, and grounded in the supplied context
+- "reply" should be about 2 to 5 sentences
 - "suggested_next_actions" must contain 0 to 3 actions
-- each action must have a short "label"
+- each action must have a short user-facing "label"
+- do not invent arbitrary routes
 - only use these routes when relevant:
   /profile
   /strategy
   /chat
-  /self/application
-  /self/documents
+  /documents
   /documents/generator
   /documents/review
   /legal/disclosure
@@ -386,8 +404,10 @@ Constraints:
 - you may use query params when useful, for example:
   /documents/generator?document_type=study_plan
   /documents/review?document_type=client_submission_notes
-  /self/documents?document_type=proof_of_funds_explanation&action=generate
+  /documents?document_type=proof_of_funds_explanation&action=generate
 - "insights" must contain 0 to 3 short points
+- no markdown
+- no text outside JSON
 """
 
 
@@ -406,6 +426,7 @@ Retourne uniquement du JSON valide avec cette structure:
 }
 
 Contraintes:
+- répondre uniquement en français
 - advisor_summary: 2 à 5 phrases, claires et concrètes
 - ai_strategy: format markdown, structuré avec courts sous-titres et puces
 - explique les parcours prioritaires
@@ -413,6 +434,7 @@ Contraintes:
 - mentionne les risques ou limites s’il y en a
 - exploite le contexte stratégique fourni s’il existe (score CRS, roadmap, provinces, atouts français, signaux CNP, scénarios d’amélioration)
 - ne donne pas d’avis juridique définitif
+- ne mentionne jamais une indisponibilité ou un problème interne
 """
     return """
 You are NorthBridgeAI, a Canadian immigration strategy advisor.
@@ -427,6 +449,7 @@ Return only valid JSON with this structure:
 }
 
 Constraints:
+- respond only in English
 - advisor_summary: 2 to 5 sentences, clear and concrete
 - ai_strategy: markdown format, structured with short headings and bullet points
 - explain the priority pathways
@@ -434,6 +457,7 @@ Constraints:
 - mention risks or limits where relevant
 - use the supplied strategy context when available (CRS, roadmap, provinces, French advantage, NOC signals, improvement scenarios)
 - do not provide definitive legal advice
+- never mention service unavailability or internal issues
 """
 
 
@@ -472,7 +496,8 @@ Contexte demande:
 Contexte décisionnel:
 {decision_text}
 
-Réponds en français.
+Réponds uniquement en français.
+Utilise le contexte fourni pour personnaliser la réponse.
 """
     return f"""
 User message:
@@ -493,7 +518,8 @@ Application context:
 Decision context:
 {decision_text}
 
-Respond in English.
+Respond only in English.
+Use the supplied context to personalize the response.
 """
 
 
@@ -525,7 +551,7 @@ Contexte profil:
 Contexte stratégie:
 {strategy_context}
 
-Réponds en français.
+Réponds uniquement en français.
 """
     return f"""
 Analyze this immigration profile and produce a strategic summary.
@@ -536,7 +562,7 @@ Profile context:
 Strategy context:
 {strategy_context}
 
-Respond in English.
+Respond only in English.
 """
 
 
@@ -545,61 +571,13 @@ def _default_actions(language: str) -> List[Dict[str, str]]:
         return [
             {"label": "Voir ma stratégie", "route": "/strategy"},
             {"label": "Mettre à jour mon profil", "route": "/profile"},
-            {"label": "Ouvrir ma demande", "route": "/self/application"},
+            {"label": "Ouvrir mes documents", "route": "/documents"},
         ]
     return [
         {"label": "View my strategy", "route": "/strategy"},
         {"label": "Update my profile", "route": "/profile"},
-        {"label": "Open my application", "route": "/self/application"},
+        {"label": "Open my documents", "route": "/documents"},
     ]
-
-
-def _fallback_chat_response(language: str) -> Dict[str, Any]:
-    if language == "fr":
-        return {
-            "reply": (
-                "Je peux déjà vous aider à comprendre votre stratégie et vos prochaines étapes, "
-                "mais la réponse IA complète n’est pas disponible pour le moment."
-            ),
-            "suggested_next_actions": _default_actions(language),
-            "insights": [],
-        }
-    return {
-        "reply": (
-            "I can still help explain your strategy and next steps, "
-            "but the full AI response is not available right now."
-        ),
-        "suggested_next_actions": _default_actions(language),
-        "insights": [],
-    }
-
-
-def _fallback_strategy_response(language: str) -> Dict[str, str]:
-    if language == "fr":
-        return {
-            "advisor_summary": (
-                "Votre stratégie initiale est disponible. Complétez ou améliorez votre profil "
-                "pour obtenir une analyse IA plus approfondie."
-            ),
-            "ai_strategy": (
-                "## Analyse stratégique\n\n"
-                "- Complétez votre profil si certaines informations sont manquantes.\n"
-                "- Vérifiez vos scores linguistiques, votre expérience et votre province cible.\n"
-                "- Utilisez l’assistant IA pour comprendre vos prochaines priorités."
-            ),
-        }
-    return {
-        "advisor_summary": (
-            "Your initial strategy is available. Complete or improve your profile "
-            "to unlock a deeper AI analysis."
-        ),
-        "ai_strategy": (
-            "## Strategic analysis\n\n"
-            "- Complete your profile if some information is missing.\n"
-            "- Review language scores, work experience, and target province.\n"
-            "- Use the AI assistant to understand your next priorities."
-        ),
-    }
 
 
 def _detect_document_type_from_text(text: str, matter_type: Optional[str] = None) -> Optional[str]:
@@ -687,11 +665,11 @@ def _infer_route_from_action_label(
     if any(token in lowered for token in ["document", "documents", "preuve", "evidence", "checklist"]):
         if document_type:
             return _build_document_route(
-                base_path="/self/documents",
+                base_path="/documents",
                 document_type=document_type,
                 action="generate",
             )
-        return "/self/documents"
+        return "/documents"
 
     if any(token in lowered for token in ["profile", "profil"]):
         return "/profile"
@@ -700,7 +678,7 @@ def _infer_route_from_action_label(
         return "/strategy"
 
     if any(token in lowered for token in ["application", "demande", "form", "formulaire"]):
-        return "/self/application"
+        return "/documents"
 
     return ""
 
@@ -713,7 +691,7 @@ def _normalize_action(
     if isinstance(action, str):
         label = action.strip()
         if not label:
-            return None
+          return None
         return {
             "label": label,
             "route": _infer_route_from_action_label(label, matter_type=matter_type),
@@ -741,11 +719,13 @@ def _normalize_chat_response(
     matter_type: Optional[str] = None,
 ) -> Dict[str, Any]:
     if not isinstance(payload, dict):
-        return _fallback_chat_response(language)
+        return {
+            "reply": "",
+            "suggested_next_actions": [],
+            "insights": [],
+        }
 
     reply = str(payload.get("reply", "")).strip()
-    if not reply:
-        reply = _fallback_chat_response(language)["reply"]
 
     actions_raw = payload.get("suggested_next_actions", [])
     insights_raw = payload.get("insights", [])
@@ -786,6 +766,133 @@ def _normalize_strategy_response(payload: Any, language: str) -> Dict[str, str]:
     }
 
 
+def _build_contextual_fallback_chat_response(
+    language: str,
+    *,
+    profile: Any = None,
+    strategy: Optional[Dict[str, Any]] = None,
+    application_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    strategy = strategy or {}
+    application_context = application_context or {}
+
+    crs_score = strategy.get("crs_score")
+    recommended_programs = strategy.get("recommended_programs") or []
+    next_steps = strategy.get("next_steps") or []
+    occupation = _safe_get(profile, "occupation")
+    preferred_province = _safe_get(profile, "preferred_province")
+    matter_type = application_context.get("matter_type")
+
+    if language == "fr":
+        reply_parts = ["Voici une lecture personnalisée de votre situation actuelle."]
+        if crs_score is not None:
+            reply_parts.append(f"Votre score CRS actuel semble être d’environ {crs_score}.")
+        if recommended_programs:
+            reply_parts.append(f"Votre meilleur parcours actuel semble être {recommended_programs[0]}.")
+        if occupation:
+            reply_parts.append(f"Votre profession actuelle est prise en compte dans l’analyse : {occupation}.")
+        if preferred_province:
+            reply_parts.append(f"Votre province cible actuelle est {preferred_province}.")
+        if matter_type:
+            reply_parts.append(f"Votre type de dossier actuel est {matter_type}.")
+        if next_steps:
+            reply_parts.append(f"La prochaine priorité utile semble être {next_steps[0]}.")
+        reply_parts.append(
+            "Concentrez-vous sur l’amélioration de votre profil, la préparation des bons documents et les leviers qui renforcent le plus votre dossier."
+        )
+
+        insights = []
+        if crs_score is not None:
+            insights.append(f"Votre score CRS actuel est d’environ {crs_score}.")
+        if recommended_programs:
+            insights.append(f"Votre parcours prioritaire semble être {recommended_programs[0]}.")
+        if next_steps:
+            insights.append(f"Une prochaine étape importante est {next_steps[0]}.")
+
+        if not insights:
+            insights = [
+                "Votre profil peut encore être renforcé.",
+                "Les scores linguistiques, l’expérience et les documents ont souvent un impact important.",
+            ]
+
+        return {
+            "reply": " ".join(reply_parts),
+            "suggested_next_actions": [
+                {"label": "Ouvrir ma stratégie", "route": "/strategy"},
+                {"label": "Améliorer mon profil", "route": "/profile"},
+                {"label": "Ouvrir mes documents", "route": "/documents"},
+            ],
+            "insights": insights[:3],
+        }
+
+    reply_parts = ["Here is a personalized reading of your current situation."]
+    if crs_score is not None:
+        reply_parts.append(f"Your current CRS score appears to be around {crs_score}.")
+    if recommended_programs:
+        reply_parts.append(f"Your strongest current pathway appears to be {recommended_programs[0]}.")
+    if occupation:
+        reply_parts.append(f"Your current occupation is part of the analysis: {occupation}.")
+    if preferred_province:
+        reply_parts.append(f"Your current target province is {preferred_province}.")
+    if matter_type:
+        reply_parts.append(f"Your current matter type is {matter_type}.")
+    if next_steps:
+        reply_parts.append(f"Your most useful next priority appears to be {next_steps[0]}.")
+    reply_parts.append(
+        "Focus on improving your profile quality, preparing the right documents, and strengthening the factors that most improve your case."
+    )
+
+    insights = []
+    if crs_score is not None:
+        insights.append(f"Your current CRS score is around {crs_score}.")
+    if recommended_programs:
+        insights.append(f"Your strongest pathway appears to be {recommended_programs[0]}.")
+    if next_steps:
+        insights.append(f"One important next step is {next_steps[0]}.")
+
+    if not insights:
+        insights = [
+            "Your profile still has room for stronger optimization.",
+            "Language results, experience, and document quality often have a major impact.",
+        ]
+
+    return {
+        "reply": " ".join(reply_parts),
+        "suggested_next_actions": [
+            {"label": "View my strategy", "route": "/strategy"},
+            {"label": "Improve my profile", "route": "/profile"},
+            {"label": "Open my documents", "route": "/documents"},
+        ],
+        "insights": insights[:3],
+    }
+
+
+def _fallback_strategy_response(language: str) -> Dict[str, str]:
+    if language == "fr":
+        return {
+            "advisor_summary": (
+                "Votre stratégie initiale est disponible. Renforcez votre profil pour obtenir une analyse plus approfondie et plus précise."
+            ),
+            "ai_strategy": (
+                "## Analyse stratégique\n\n"
+                "- Vérifiez les informations clés de votre profil.\n"
+                "- Renforcez le score linguistique, l’expérience et la cohérence documentaire.\n"
+                "- Priorisez le parcours le plus solide selon votre situation actuelle."
+            ),
+        }
+    return {
+        "advisor_summary": (
+            "Your initial strategy is available. Strengthen your profile to unlock a deeper and more precise analysis."
+        ),
+        "ai_strategy": (
+            "## Strategic analysis\n\n"
+            "- Review the key parts of your profile.\n"
+            "- Strengthen language score, work experience, and document consistency.\n"
+            "- Prioritize the strongest pathway for your current situation."
+        ),
+    }
+
+
 def generate_ai_chat_reply(
     *,
     message: str,
@@ -801,7 +908,12 @@ def generate_ai_chat_reply(
     openai_client = _get_openai_client()
 
     if openai_client is None:
-        return _fallback_chat_response(language)
+        return _build_contextual_fallback_chat_response(
+            language,
+            profile=profile,
+            strategy=strategy,
+            application_context=application_context,
+        )
 
     try:
         messages: List[Dict[str, str]] = [
@@ -829,7 +941,7 @@ def generate_ai_chat_reply(
         response = openai_client.chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=messages,
-            temperature=0.3,
+            temperature=0.25,
             response_format={"type": "json_object"},
         )
 
@@ -838,9 +950,9 @@ def generate_ai_chat_reply(
         try:
             parsed = json.loads(raw_content)
         except json.JSONDecodeError:
-            return {
-                "reply": raw_content.strip() or _fallback_chat_response(language)["reply"],
-                "suggested_next_actions": _default_actions(language),
+            parsed = {
+                "reply": raw_content.strip(),
+                "suggested_next_actions": [],
                 "insights": [],
             }
 
@@ -853,6 +965,14 @@ def generate_ai_chat_reply(
             language,
             matter_type=matter_type,
         )
+
+        if not normalized.get("reply"):
+            normalized = _build_contextual_fallback_chat_response(
+                language,
+                profile=profile,
+                strategy=strategy,
+                application_context=application_context,
+            )
 
         if not normalized.get("suggested_next_actions"):
             document_type = _detect_document_type_from_text(
@@ -894,12 +1014,32 @@ def generate_ai_chat_reply(
                             ),
                         },
                     ]
+            else:
+                normalized["suggested_next_actions"] = _build_contextual_fallback_chat_response(
+                    language,
+                    profile=profile,
+                    strategy=strategy,
+                    application_context=application_context,
+                )["suggested_next_actions"]
+
+        if not normalized.get("insights"):
+            normalized["insights"] = _build_contextual_fallback_chat_response(
+                language,
+                profile=profile,
+                strategy=strategy,
+                application_context=application_context,
+            )["insights"]
 
         return normalized
 
     except Exception as e:
         print("AI CHAT ERROR:", str(e))
-        return _fallback_chat_response(language)
+        return _build_contextual_fallback_chat_response(
+            language,
+            profile=profile,
+            strategy=strategy,
+            application_context=application_context,
+        )
 
 
 def generate_ai_strategy(
@@ -934,7 +1074,7 @@ def generate_ai_strategy(
         response = openai_client.chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=messages,
-            temperature=0.3,
+            temperature=0.25,
             response_format={"type": "json_object"},
         )
 

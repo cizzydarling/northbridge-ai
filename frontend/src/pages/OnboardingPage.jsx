@@ -48,6 +48,85 @@ const PROVINCES = [
   "Newfoundland and Labrador",
 ];
 
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function isFilled(value) {
+  if (typeof value === "boolean") return true;
+  if (typeof value === "number") return !Number.isNaN(value);
+  return Boolean(normalizeText(value));
+}
+
+function getStepOneRequiredKeys() {
+  return [
+    "first_name",
+    "last_name",
+    "nationality",
+    "current_country",
+    "current_city",
+    "marital_status",
+    "preferred_language",
+  ];
+}
+
+function getStepTwoRequiredKeys() {
+  return [
+    "age",
+    "education",
+    "language_score",
+    "experience_years",
+    "occupation",
+    "noc_code",
+    "preferred_province",
+  ];
+}
+
+function getProfileReadinessScore(form) {
+  const fields = [
+    form.first_name,
+    form.last_name,
+    form.nationality,
+    form.current_country,
+    form.current_city,
+    form.marital_status,
+    form.preferred_language,
+    form.age,
+    form.education,
+    form.language_score,
+    form.experience_years,
+    form.occupation,
+    form.noc_code,
+    form.preferred_province,
+  ];
+
+  const completed = fields.filter((value) => isFilled(value)).length;
+  return Math.round((completed / fields.length) * 100);
+}
+
+function FieldHint({ children, error = false }) {
+  if (!children) return null;
+
+  return (
+    <p
+      className={`mt-1 text-xs ${
+        error ? "text-red-600" : "text-slate-500"
+      }`}
+    >
+      {children}
+    </p>
+  );
+}
+
+function RequiredLabel({ children }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span>{children}</span>
+      <span className="text-red-500">*</span>
+    </span>
+  );
+}
+
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const { i18n } = useTranslation();
@@ -58,6 +137,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [step, setStep] = useState(1);
+  const [completed, setCompleted] = useState(false);
 
   const [suggestedNocs, setSuggestedNocs] = useState([]);
   const [suggestingNoc, setSuggestingNoc] = useState(false);
@@ -67,6 +147,8 @@ export default function OnboardingPage() {
 
   const [cityQuery, setCityQuery] = useState("");
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const countryFieldRef = useRef(null);
   const cityFieldRef = useRef(null);
@@ -81,7 +163,7 @@ export default function OnboardingPage() {
   }, []);
 
   const filteredCountries = useMemo(() => {
-    const query = String(countryQuery || "").trim().toLowerCase();
+    const query = normalizeText(countryQuery).toLowerCase();
 
     if (!query) return countries.slice(0, 12);
 
@@ -107,7 +189,7 @@ export default function OnboardingPage() {
 
   const filteredCities = useMemo(() => {
     if (!availableCities.length) return [];
-    const query = String(cityQuery || "").trim().toLowerCase();
+    const query = normalizeText(cityQuery).toLowerCase();
 
     if (!query) return availableCities.slice(0, 10);
 
@@ -119,6 +201,14 @@ export default function OnboardingPage() {
   const showManualCityInput = useMemo(() => {
     return !form.current_country || availableCities.length === 0;
   }, [form.current_country, availableCities]);
+
+  const progress = useMemo(() => {
+    return step === 1 ? 50 : 100;
+  }, [step]);
+
+  const readinessScore = useMemo(() => {
+    return getProfileReadinessScore(form);
+  }, [form]);
 
   useEffect(() => {
     let mounted = true;
@@ -183,10 +273,6 @@ export default function OnboardingPage() {
     };
   }, []);
 
-  const progress = useMemo(() => {
-    return step === 1 ? 50 : 100;
-  }, [step]);
-
   const pageText = useMemo(() => {
     if (language === "fr") {
       return {
@@ -194,15 +280,15 @@ export default function OnboardingPage() {
         brand: "NorthBridgeAI",
         title: "Bienvenue — configurons votre profil",
         subtitle:
-          "Complétez quelques informations clés pour que votre stratégie, votre guidance IA et vos documents soient personnalisés dès le départ.",
+          "Complétez les informations les plus utiles pour générer une stratégie plus exploitable dès votre arrivée dans l’application.",
         stepOf: "Étape",
         of: "sur",
         personalDetails: "Informations personnelles",
         personalDetailsBody:
-          "Ces informations nous aident à personnaliser votre expérience et vos documents générés.",
+          "Cette étape construit votre identité de base dans l’application et améliore la cohérence de vos documents.",
         immigrationProfile: "Profil d’immigration",
         immigrationProfileBody:
-          "Ces informations alimentent votre moteur de stratégie et vos recommandations.",
+          "Cette étape alimente votre moteur de stratégie et aide à calculer un meilleur score, un meilleur parcours et de meilleures améliorations.",
         firstName: "Prénom",
         lastName: "Nom",
         nationality: "Nationalité",
@@ -249,24 +335,41 @@ export default function OnboardingPage() {
         saving: "Enregistrement...",
         copilotTitle: "Copilote IA d’onboarding",
         copilotDesc:
-          "Comprenez quelles informations sont les plus importantes à compléter pour partir sur de bonnes bases.",
+          "Comprenez quelles informations ont le plus d’impact sur la qualité de votre stratégie.",
         copilotButton: "Que dois-je remplir ?",
         quickFill: "Remplissage rapide",
         quickFillBody:
-          "Utilisez un point de départ proche de votre situation, puis ajustez les détails.",
+          "Choisissez un point de départ proche de votre situation pour accélérer la configuration.",
         helperTitle: "Pourquoi cela compte",
         helperBody:
-          "Un meilleur profil donne une meilleure stratégie, une meilleure guidance, et des documents plus pertinents.",
+          "Un profil plus complet réduit les zones vides sur le tableau de bord et améliore la qualité du score, du meilleur parcours et des recommandations.",
         suggestNoc: "Suggérer le code CNP",
         suggestingNoc: "Suggestion...",
         suggestedNocs: "Suggestions de CNP",
         noNocFound: "Aucune suggestion CNP trouvée pour cette profession.",
         nocHelper:
-          "Choisissez la suggestion la plus proche de votre profession pour améliorer la qualité de votre stratégie.",
+          "Choisissez la suggestion la plus proche pour améliorer immédiatement la qualité de votre stratégie.",
         onboardingSaveError:
           "Échec de l’enregistrement des informations d’onboarding.",
         nocSuggestionError:
           "Impossible de suggérer un code CNP pour le moment.",
+        completedTitle: "Profil complété avec succès",
+        completedBody:
+          "Votre profil contient maintenant les informations clés pour afficher un meilleur tableau de bord et une stratégie plus utile.",
+        completedPrimary: "Débloquer ma stratégie complète",
+        completedSecondary: "Retour au tableau de bord",
+        readiness: "Préparation du profil",
+        readinessBody:
+          "Essayez d’atteindre un profil solide avant de terminer cette configuration.",
+        coreFieldsTitle: "Champs les plus importants",
+        coreFieldsBody:
+          "Âge, études, score linguistique, expérience, profession, code CNP et province préférée ont le plus d’impact.",
+        requiredField: "Ce champ est requis.",
+        invalidAge: "Veuillez entrer un âge valide.",
+        invalidLanguageScore: "Veuillez entrer un score linguistique valide.",
+        invalidExperience: "Veuillez entrer un nombre d’années valide.",
+        completeMore:
+          "Complétez davantage votre profil avant de terminer.",
       };
     }
 
@@ -275,15 +378,15 @@ export default function OnboardingPage() {
       brand: "NorthBridgeAI",
       title: "Welcome — let’s set up your profile",
       subtitle:
-        "Complete a few key details so your strategy, AI guidance, and documents are personalized from the start.",
+        "Complete the most useful details first so your strategy can be more reliable from the moment you enter the app.",
       stepOf: "Step",
       of: "of",
       personalDetails: "Personal details",
       personalDetailsBody:
-        "These details help us personalize your experience and your generated documents.",
+        "This step builds your base identity in the app and improves document consistency.",
       immigrationProfile: "Immigration profile",
       immigrationProfileBody:
-        "These details power your strategy engine and recommendation logic.",
+        "This step powers your strategy engine and helps produce a better score, better pathway, and better improvement suggestions.",
       firstName: "First Name",
       lastName: "Last Name",
       nationality: "Nationality",
@@ -330,22 +433,38 @@ export default function OnboardingPage() {
       saving: "Saving...",
       copilotTitle: "Onboarding AI Copilot",
       copilotDesc:
-        "Understand which details matter most so you can start with a stronger foundation.",
+        "Understand which details have the biggest impact on strategy quality.",
       copilotButton: "What should I fill in?",
       quickFill: "Quick fill",
       quickFillBody:
-        "Use a starting point close to your situation, then adjust the details.",
+        "Choose a starting point close to your situation to speed things up.",
       helperTitle: "Why this matters",
       helperBody:
-        "A better profile leads to a better strategy, stronger guidance, and more relevant documents.",
+        "A fuller profile reduces empty dashboard states and improves score, best pathway, and recommendation quality.",
       suggestNoc: "Suggest NOC code",
       suggestingNoc: "Suggesting...",
       suggestedNocs: "Suggested NOCs",
       noNocFound: "No NOC suggestions found for this occupation.",
       nocHelper:
-        "Choose the closest suggestion to improve the quality of your strategy.",
+        "Choose the closest suggestion to immediately improve strategy quality.",
       onboardingSaveError: "Failed to save onboarding details.",
       nocSuggestionError: "Unable to suggest a NOC code right now.",
+      completedTitle: "Profile successfully completed",
+      completedBody:
+        "Your profile now contains the key information needed for a stronger dashboard and more useful strategy results.",
+      completedPrimary: "Unlock my full strategy",
+      completedSecondary: "Back to dashboard",
+      readiness: "Profile readiness",
+      readinessBody:
+        "Aim for a strong profile before finishing setup.",
+      coreFieldsTitle: "Most important fields",
+      coreFieldsBody:
+        "Age, education, language score, experience, occupation, NOC code, and preferred province have the biggest impact.",
+      requiredField: "This field is required.",
+      invalidAge: "Please enter a valid age.",
+      invalidLanguageScore: "Please enter a valid language score.",
+      invalidExperience: "Please enter a valid number of years.",
+      completeMore: "Complete more of your profile before finishing.",
     };
   }, [language]);
 
@@ -425,6 +544,15 @@ export default function OnboardingPage() {
     ];
   }, [language]);
 
+  function clearFieldError(name) {
+    setFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  }
+
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
 
@@ -435,6 +563,8 @@ export default function OnboardingPage() {
       }
     }
 
+    clearFieldError(name);
+
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -443,6 +573,9 @@ export default function OnboardingPage() {
 
   function handleCountryInputChange(e) {
     const value = e.target.value;
+
+    clearFieldError("current_country");
+
     setCountryQuery(value);
     setForm((prev) => ({
       ...prev,
@@ -455,6 +588,9 @@ export default function OnboardingPage() {
   }
 
   function handleSelectCountry(countryName) {
+    clearFieldError("current_country");
+    clearFieldError("current_city");
+
     setCountryQuery(countryName);
     setForm((prev) => ({
       ...prev,
@@ -468,6 +604,9 @@ export default function OnboardingPage() {
 
   function handleCityInputChange(e) {
     const value = e.target.value;
+
+    clearFieldError("current_city");
+
     setCityQuery(value);
     setForm((prev) => ({
       ...prev,
@@ -477,6 +616,8 @@ export default function OnboardingPage() {
   }
 
   function handleSelectCity(city) {
+    clearFieldError("current_city");
+
     setCityQuery(city);
     setForm((prev) => ({
       ...prev,
@@ -492,7 +633,54 @@ export default function OnboardingPage() {
     }));
   }
 
+  function validateStepOne() {
+    const errors = {};
+
+    for (const key of getStepOneRequiredKeys()) {
+      if (!isFilled(form[key])) {
+        errors[key] = pageText.requiredField;
+      }
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  function validateStepTwo() {
+    const errors = {};
+
+    for (const key of getStepTwoRequiredKeys()) {
+      if (!isFilled(form[key])) {
+        errors[key] = pageText.requiredField;
+      }
+    }
+
+    const age = Number(form.age);
+    const languageScore = Number(form.language_score);
+    const experienceYears = Number(form.experience_years);
+
+    if (!Number.isFinite(age) || age <= 0) {
+      errors.age = pageText.invalidAge;
+    }
+
+    if (!Number.isFinite(languageScore) || languageScore < 0) {
+      errors.language_score = pageText.invalidLanguageScore;
+    }
+
+    if (!Number.isFinite(experienceYears) || experienceYears < 0) {
+      errors.experience_years = pageText.invalidExperience;
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
   function nextStep() {
+    if (!validateStepOne()) {
+      setMessage("");
+      return;
+    }
+
     setStep(2);
     setMessage("");
   }
@@ -503,7 +691,7 @@ export default function OnboardingPage() {
   }
 
   async function handleSuggestNOC() {
-    if (!form.occupation?.trim()) {
+    if (!normalizeText(form.occupation)) {
       return;
     }
 
@@ -513,16 +701,11 @@ export default function OnboardingPage() {
       setSuggestedNocs([]);
 
       const payload = {
-        occupation: form.occupation.trim(),
+        occupation: normalizeText(form.occupation),
         top_k: 3,
       };
 
-      console.log("Suggest NOC request payload:", payload);
-
       const res = await suggestNOC(payload);
-
-      console.log("Suggest NOC raw response:", res?.data);
-
       const data = res?.data;
 
       let normalizedMatches = [];
@@ -551,8 +734,6 @@ export default function OnboardingPage() {
         normalizedMatches = data.alternatives;
       }
 
-      console.log("Suggest NOC parsed matches:", normalizedMatches);
-
       setSuggestedNocs(normalizedMatches);
 
       if (normalizedMatches.length === 0) {
@@ -560,7 +741,6 @@ export default function OnboardingPage() {
       }
     } catch (err) {
       console.error("Suggest NOC failed:", err);
-      console.error("Suggest NOC response body:", err?.response?.data);
 
       setMessage(
         err?.response?.data?.detail || pageText.nocSuggestionError
@@ -577,6 +757,9 @@ export default function OnboardingPage() {
     const selectedTitle =
       noc?.title || noc?.name || noc?.occupation || "";
 
+    clearFieldError("noc_code");
+    clearFieldError("occupation");
+
     setForm((prev) => ({
       ...prev,
       noc_code: selectedCode || prev.noc_code,
@@ -590,33 +773,37 @@ export default function OnboardingPage() {
     setLoading(true);
     setMessage("");
 
+    if (!validateStepTwo()) {
+      setLoading(false);
+      setMessage(pageText.completeMore);
+      return;
+    }
+
     try {
       const payload = {
         ...form,
         age: Number(form.age),
         language_score: Number(form.language_score),
         experience_years: Number(form.experience_years),
-        occupation: form.occupation?.trim() || null,
-        noc_code: form.noc_code?.trim() || null,
+        occupation: normalizeText(form.occupation) || null,
+        noc_code: normalizeText(form.noc_code) || null,
         preferred_province: form.preferred_province || null,
-        first_name: form.first_name?.trim() || null,
-        last_name: form.last_name?.trim() || null,
-        nationality: form.nationality?.trim() || null,
-        current_country: form.current_country?.trim() || null,
-        current_city: form.current_city?.trim() || null,
-        phone_number: form.phone_number?.trim() || null,
+        first_name: normalizeText(form.first_name) || null,
+        last_name: normalizeText(form.last_name) || null,
+        nationality: normalizeText(form.nationality) || null,
+        current_country: normalizeText(form.current_country) || null,
+        current_city: normalizeText(form.current_city) || null,
+        phone_number: normalizeText(form.phone_number) || null,
         date_of_birth: form.date_of_birth || null,
         marital_status: form.marital_status || null,
         preferred_language: form.preferred_language || "en",
       };
 
-      console.log("Onboarding save payload:", payload);
-
       await updateMyProfile(payload);
-      navigate("/dashboard");
+      localStorage.setItem("nbai_force_refresh", "true");
+      setCompleted(true);
     } catch (err) {
       console.error("Onboarding save failed:", err);
-      console.error("Onboarding save response:", err?.response?.data);
 
       setMessage(
         err?.response?.data?.detail || pageText.onboardingSaveError
@@ -630,6 +817,49 @@ export default function OnboardingPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <p className="text-slate-600">{pageText.loading}</p>
+      </div>
+    );
+  }
+
+  if (completed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <div className="max-w-xl rounded-3xl border border-green-200 bg-white p-8 text-center shadow-xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-green-700">
+            {pageText.brand}
+          </p>
+
+          <h2 className="mt-3 text-2xl font-semibold text-slate-900">
+            {pageText.completedTitle}
+          </h2>
+
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            {pageText.completedBody}
+          </p>
+
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            {pageText.readiness}: <span className="font-semibold">{readinessScore}%</span>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Button
+              onClick={() =>
+                navigate("/pricing?plan=pro&source=onboarding&intent=execute")
+              }
+              className="w-full rounded-2xl"
+            >
+              {pageText.completedPrimary}
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={() => navigate("/dashboard")}
+              className="w-full rounded-2xl"
+            >
+              {pageText.completedSecondary}
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -656,7 +886,7 @@ export default function OnboardingPage() {
             language === "fr"
               ? `Agis comme un copilote d’onboarding en immigration.
 
-Explique:
+Explique :
 1. quelles informations de profil sont les plus importantes à compléter d’abord
 2. quels champs ont le plus d’impact sur la stratégie
 3. ce que je peux compléter plus tard
@@ -679,11 +909,16 @@ Explain:
               </span>
               <span>{progress}%</span>
             </div>
+
             <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full bg-blue-600 transition-all"
                 style={{ width: `${progress}%` }}
               />
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <span className="font-semibold">{pageText.readiness}:</span> {readinessScore}%
             </div>
           </div>
 
@@ -700,30 +935,45 @@ Explain:
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Input
-                    label={pageText.firstName}
-                    name="first_name"
-                    value={form.first_name}
-                    onChange={handleChange}
-                  />
+                  <div>
+                    <Input
+                      label={<RequiredLabel>{pageText.firstName}</RequiredLabel>}
+                      name="first_name"
+                      value={form.first_name}
+                      onChange={handleChange}
+                    />
+                    <FieldHint error={Boolean(fieldErrors.first_name)}>
+                      {fieldErrors.first_name}
+                    </FieldHint>
+                  </div>
 
-                  <Input
-                    label={pageText.lastName}
-                    name="last_name"
-                    value={form.last_name}
-                    onChange={handleChange}
-                  />
+                  <div>
+                    <Input
+                      label={<RequiredLabel>{pageText.lastName}</RequiredLabel>}
+                      name="last_name"
+                      value={form.last_name}
+                      onChange={handleChange}
+                    />
+                    <FieldHint error={Boolean(fieldErrors.last_name)}>
+                      {fieldErrors.last_name}
+                    </FieldHint>
+                  </div>
 
-                  <Input
-                    label={pageText.nationality}
-                    name="nationality"
-                    value={form.nationality}
-                    onChange={handleChange}
-                  />
+                  <div>
+                    <Input
+                      label={<RequiredLabel>{pageText.nationality}</RequiredLabel>}
+                      name="nationality"
+                      value={form.nationality}
+                      onChange={handleChange}
+                    />
+                    <FieldHint error={Boolean(fieldErrors.nationality)}>
+                      {fieldErrors.nationality}
+                    </FieldHint>
+                  </div>
 
                   <div className="relative" ref={countryFieldRef}>
                     <label className="mb-2 block text-sm font-medium text-slate-700">
-                      {pageText.countryOfResidence}
+                      <RequiredLabel>{pageText.countryOfResidence}</RequiredLabel>
                     </label>
                     <input
                       type="text"
@@ -757,20 +1007,29 @@ Explain:
                           {pageText.noCountryMatch}
                         </div>
                       )}
+
+                    <FieldHint error={Boolean(fieldErrors.current_country)}>
+                      {fieldErrors.current_country}
+                    </FieldHint>
                   </div>
 
                   {showManualCityInput ? (
-                    <Input
-                      label={pageText.city}
-                      name="current_city"
-                      value={form.current_city}
-                      onChange={handleChange}
-                      placeholder={pageText.typeCity}
-                    />
+                    <div>
+                      <Input
+                        label={<RequiredLabel>{pageText.city}</RequiredLabel>}
+                        name="current_city"
+                        value={form.current_city}
+                        onChange={handleChange}
+                        placeholder={pageText.typeCity}
+                      />
+                      <FieldHint error={Boolean(fieldErrors.current_city)}>
+                        {fieldErrors.current_city}
+                      </FieldHint>
+                    </div>
                   ) : (
                     <div className="relative" ref={cityFieldRef}>
                       <label className="mb-2 block text-sm font-medium text-slate-700">
-                        {pageText.city}
+                        <RequiredLabel>{pageText.city}</RequiredLabel>
                       </label>
                       <input
                         type="text"
@@ -804,6 +1063,10 @@ Explain:
                             {pageText.noCityMatch}
                           </div>
                         )}
+
+                      <FieldHint error={Boolean(fieldErrors.current_city)}>
+                        {fieldErrors.current_city}
+                      </FieldHint>
                     </div>
                   )}
 
@@ -824,7 +1087,7 @@ Explain:
 
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-700">
-                      {pageText.maritalStatus}
+                      <RequiredLabel>{pageText.maritalStatus}</RequiredLabel>
                     </label>
                     <select
                       name="marital_status"
@@ -839,11 +1102,14 @@ Explain:
                       <option value="divorced">{pageText.divorced}</option>
                       <option value="widowed">{pageText.widowed}</option>
                     </select>
+                    <FieldHint error={Boolean(fieldErrors.marital_status)}>
+                      {fieldErrors.marital_status}
+                    </FieldHint>
                   </div>
 
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-700">
-                      {pageText.preferredLanguage}
+                      <RequiredLabel>{pageText.preferredLanguage}</RequiredLabel>
                     </label>
                     <select
                       name="preferred_language"
@@ -854,6 +1120,9 @@ Explain:
                       <option value="en">{pageText.english}</option>
                       <option value="fr">{pageText.french}</option>
                     </select>
+                    <FieldHint error={Boolean(fieldErrors.preferred_language)}>
+                      {fieldErrors.preferred_language}
+                    </FieldHint>
                   </div>
                 </div>
 
@@ -907,18 +1176,32 @@ Explain:
                   </div>
                 </div>
 
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="text-sm font-semibold text-blue-900">
+                    {pageText.coreFieldsTitle}
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-blue-900">
+                    {pageText.coreFieldsBody}
+                  </p>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Input
-                    label={pageText.age}
-                    name="age"
-                    type="number"
-                    value={form.age}
-                    onChange={handleChange}
-                  />
+                  <div>
+                    <Input
+                      label={<RequiredLabel>{pageText.age}</RequiredLabel>}
+                      name="age"
+                      type="number"
+                      value={form.age}
+                      onChange={handleChange}
+                    />
+                    <FieldHint error={Boolean(fieldErrors.age)}>
+                      {fieldErrors.age}
+                    </FieldHint>
+                  </div>
 
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-700">
-                      {pageText.education}
+                      <RequiredLabel>{pageText.education}</RequiredLabel>
                     </label>
                     <select
                       name="education"
@@ -932,36 +1215,54 @@ Explain:
                       <option value="master">{pageText.master}</option>
                       <option value="phd">{pageText.phd}</option>
                     </select>
+                    <FieldHint error={Boolean(fieldErrors.education)}>
+                      {fieldErrors.education}
+                    </FieldHint>
                   </div>
-
-                  <Input
-                    label={pageText.languageScore}
-                    name="language_score"
-                    type="number"
-                    value={form.language_score}
-                    onChange={handleChange}
-                  />
-
-                  <Input
-                    label={pageText.experienceYears}
-                    name="experience_years"
-                    type="number"
-                    value={form.experience_years}
-                    onChange={handleChange}
-                  />
 
                   <div>
                     <Input
-                      label={pageText.occupation}
+                      label={<RequiredLabel>{pageText.languageScore}</RequiredLabel>}
+                      name="language_score"
+                      type="number"
+                      value={form.language_score}
+                      onChange={handleChange}
+                    />
+                    <FieldHint error={Boolean(fieldErrors.language_score)}>
+                      {fieldErrors.language_score}
+                    </FieldHint>
+                  </div>
+
+                  <div>
+                    <Input
+                      label={
+                        <RequiredLabel>{pageText.experienceYears}</RequiredLabel>
+                      }
+                      name="experience_years"
+                      type="number"
+                      value={form.experience_years}
+                      onChange={handleChange}
+                    />
+                    <FieldHint error={Boolean(fieldErrors.experience_years)}>
+                      {fieldErrors.experience_years}
+                    </FieldHint>
+                  </div>
+
+                  <div>
+                    <Input
+                      label={<RequiredLabel>{pageText.occupation}</RequiredLabel>}
                       name="occupation"
                       value={form.occupation}
                       onChange={handleChange}
                     />
+                    <FieldHint error={Boolean(fieldErrors.occupation)}>
+                      {fieldErrors.occupation}
+                    </FieldHint>
 
                     <button
                       type="button"
                       onClick={handleSuggestNOC}
-                      disabled={suggestingNoc || !form.occupation?.trim()}
+                      disabled={suggestingNoc || !normalizeText(form.occupation)}
                       className="mt-2 text-xs font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {suggestingNoc
@@ -1005,16 +1306,21 @@ Explain:
                     )}
                   </div>
 
-                  <Input
-                    label={pageText.nocCode}
-                    name="noc_code"
-                    value={form.noc_code}
-                    onChange={handleChange}
-                  />
+                  <div>
+                    <Input
+                      label={<RequiredLabel>{pageText.nocCode}</RequiredLabel>}
+                      name="noc_code"
+                      value={form.noc_code}
+                      onChange={handleChange}
+                    />
+                    <FieldHint error={Boolean(fieldErrors.noc_code)}>
+                      {fieldErrors.noc_code}
+                    </FieldHint>
+                  </div>
 
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-medium text-slate-700">
-                      {pageText.preferredProvince}
+                      <RequiredLabel>{pageText.preferredProvince}</RequiredLabel>
                     </label>
                     <select
                       name="preferred_province"
@@ -1029,6 +1335,9 @@ Explain:
                         </option>
                       ))}
                     </select>
+                    <FieldHint error={Boolean(fieldErrors.preferred_province)}>
+                      {fieldErrors.preferred_province}
+                    </FieldHint>
                   </div>
                 </div>
 

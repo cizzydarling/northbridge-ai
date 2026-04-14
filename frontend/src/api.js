@@ -353,6 +353,20 @@ export async function saveSelfApplication(
 }
 
 /* =========================
+   PRICING NAV HELPERS
+========================= */
+
+export const buildProPricingPath = (
+  source = "app",
+  intent = "upgrade"
+) => `/pricing?plan=pro&source=${source}&intent=${intent}`;
+
+export const buildPremiumPricingPath = (
+  source = "app",
+  intent = "export"
+) => `/pricing?plan=premium&source=${source}&intent=${intent}`;
+
+/* =========================
    SELF DOCUMENTS
 ========================= */
 
@@ -389,10 +403,7 @@ export const removeSelfDocumentFile = (documentId) =>
 ========================= */
 
 export const getMyStrategy = (language = getLanguage()) =>
-  api.post(`/self/workspace?language=${language}`, {
-    matter_type: "permanent_residence",
-    intake: {},
-  });
+  api.get(`/self/strategy?language=${language}`);
 
 export const refreshStrategy = (language = getLanguage()) =>
   getMyStrategy(language);
@@ -432,9 +443,9 @@ export const sendAIMessage = ({
     language: language === "fr" ? "fr" : "en",
   });
 
-/* =========================
+/* ===============================
    AI DOCUMENT GENERATOR
-========================= */
+=============================== */
 
 export const generateAIDocument = (payload) =>
   api.post("/ai/generate-document", payload);
@@ -443,6 +454,19 @@ export const downloadAIDocumentDocx = (payload) =>
   api.post("/ai/generate-document/docx", payload, {
     responseType: "blob",
   });
+
+export const generateDocument = generateAIDocument;
+
+/* ===============================
+   AI DOCUMENT EXPORT (PDF)
+=============================== */
+
+export const exportAIDocumentPdf = (payload) =>
+  api.post("/ai/generate-document/pdf", payload, {
+    responseType: "blob",
+  });
+
+export const exportDocumentPdf = exportAIDocumentPdf; 
 
 /* =========================
    DOCUMENT REVIEW AI

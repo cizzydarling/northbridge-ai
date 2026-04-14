@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -24,6 +24,14 @@ function readCompletionEngine() {
   } catch {
     return {};
   }
+}
+
+function buildProPricingPath(source = "strategy", intent = "execute") {
+  return `/pricing?plan=pro&source=${source}&intent=${intent}`;
+}
+
+function buildPremiumPricingPath(source = "strategy", intent = "export") {
+  return `/pricing?plan=premium&source=${source}&intent=${intent}`;
 }
 
 /* ===============================
@@ -80,7 +88,7 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
         "Review duties, dates, hours, and salary for consistency.",
         "Add supporting proof like contracts, pay slips, or tax records.",
       ],
-      route: "/self/documents",
+      route: "/documents",
     },
     language: {
       title: "Prioritize language-supporting evidence and planning",
@@ -102,7 +110,7 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
         "Check consistency of balances and ownership.",
         "Generate a proof-of-funds explanation if needed.",
       ],
-      route: "/self/documents",
+      route: "/documents",
     },
     incompleteDocs: {
       title: "Prioritize unfinished document execution",
@@ -113,7 +121,7 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
         "Send at least one draft through AI review.",
         "Mark completed items once they are submission-ready.",
       ],
-      route: "/self/documents",
+      route: "/documents",
     },
     review: {
       title: "Prioritize document review and quality control",
@@ -146,7 +154,7 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
         "Generate the highest-priority missing document.",
         "Review and complete it before moving to the next one.",
       ],
-      route: "/self/documents",
+      route: "/documents",
     },
   };
 
@@ -160,7 +168,7 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
         "Vérifiez la cohérence des tâches, dates, heures et salaire.",
         "Ajoutez des preuves de soutien comme contrats, fiches de paie ou relevés fiscaux.",
       ],
-      route: "/self/documents",
+      route: "/documents",
     },
     language: {
       title: "Prioriser les preuves et la planification linguistiques",
@@ -182,7 +190,7 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
         "Vérifiez la cohérence des soldes et de la propriété des fonds.",
         "Générez une explication de preuve de fonds si nécessaire.",
       ],
-      route: "/self/documents",
+      route: "/documents",
     },
     incompleteDocs: {
       title: "Prioriser l’exécution des documents inachevés",
@@ -193,7 +201,7 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
         "Passez au moins un brouillon par la révision IA.",
         "Marquez les éléments comme complétés lorsqu’ils sont prêts à être soumis.",
       ],
-      route: "/self/documents",
+      route: "/documents",
     },
     review: {
       title: "Prioriser la révision documentaire et le contrôle qualité",
@@ -226,7 +234,7 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
         "Générez le document prioritaire manquant.",
         "Révisez-le et complétez-le avant de passer au suivant.",
       ],
-      route: "/self/documents",
+      route: "/documents",
     },
   };
 
@@ -311,6 +319,22 @@ function Stat({ label, value }) {
   );
 }
 
+function StrategyHeroStat({ label, value, subvalue }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+        {value}
+      </p>
+      {subvalue ? (
+        <p className="mt-2 text-sm leading-6 text-slate-600">{subvalue}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function ListCard({ title, items, emptyLabel }) {
   const safeItems = Array.isArray(items) ? items : [];
 
@@ -333,6 +357,107 @@ function ListCard({ title, items, emptyLabel }) {
             </li>
           ))}
         </ul>
+      ) : (
+        <p className="mt-4 text-sm text-slate-500">{emptyLabel}</p>
+      )}
+    </Card>
+  );
+}
+
+function RiskCard({ title, items, emptyLabel, language }) {
+  const safeItems = Array.isArray(items) ? items : [];
+
+  return (
+    <Card padding="lg">
+      <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
+        {title}
+      </h3>
+
+      {safeItems.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {safeItems.map((item, i) => (
+            <div
+              key={`${item?.risk || "risk"}-${i}`}
+              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+            >
+              <p className="text-sm font-semibold text-slate-900">
+                {item?.risk || "--"}
+              </p>
+              {item?.impact ? (
+                <p className="mt-2 text-sm leading-7 text-slate-700">
+                  <span className="font-medium text-slate-900">
+                    {language === "fr" ? "Impact : " : "Impact: "}
+                  </span>
+                  {item.impact}
+                </p>
+              ) : null}
+              {item?.mitigation ? (
+                <p className="mt-2 text-sm leading-7 text-slate-700">
+                  <span className="font-medium text-slate-900">
+                    {language === "fr" ? "Atténuation : " : "Mitigation: "}
+                  </span>
+                  {item.mitigation}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-slate-500">{emptyLabel}</p>
+      )}
+    </Card>
+  );
+}
+
+function RoadmapCard({ title, items, emptyLabel, language }) {
+  const safeItems = Array.isArray(items) ? items : [];
+
+  return (
+    <Card padding="lg">
+      <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
+        {title}
+      </h3>
+
+      {safeItems.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {safeItems.map((item, index) => (
+            <div
+              key={`${item?.title || "roadmap"}-${index}`}
+              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+            >
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {item?.title || "--"}
+                  </p>
+                  {item?.reason ? (
+                    <p className="mt-2 text-sm leading-7 text-slate-700">
+                      {item.reason}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {typeof item?.estimated_crs_gain !== "undefined" ? (
+                    <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                      {item.estimated_crs_gain > 0
+                        ? `+${item.estimated_crs_gain} CRS`
+                        : language === "fr"
+                        ? "Impact stratégique"
+                        : "Strategic step"}
+                    </span>
+                  ) : null}
+
+                  {item?.difficulty ? (
+                    <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                      {item.difficulty}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <p className="mt-4 text-sm text-slate-500">{emptyLabel}</p>
       )}
@@ -519,10 +644,122 @@ function ProvinceCard({ title, items, emptyLabel }) {
   );
 }
 
+function StrategyPaywallHero({
+  language,
+  currentPlanLabel,
+  onUpgradePro,
+  onUpgradePremium,
+  source,
+  intent,
+}) {
+  const copy =
+    language === "fr"
+      ? {
+          eyebrow:
+            source === "onboarding"
+              ? "Stratégie prête"
+              : "Débloquez votre stratégie",
+          title:
+            source === "onboarding"
+              ? "Votre profil est configuré. Votre stratégie détaillée est prête à être débloquée."
+              : "Passez à Pro pour voir votre stratégie complète et agir avec plus de clarté.",
+          body:
+            intent === "execute"
+              ? "Vous avez déjà fait le plus dur: compléter votre profil. L’étape suivante est de débloquer les programmes recommandés, les risques, la feuille de route et les prochaines actions."
+              : "Débloquez vos meilleures voies d’immigration, vos risques, vos provinces cibles et votre plan d’action complet.",
+          proCta: "Débloquer avec Pro",
+          premiumCta: "Voir Premium",
+          currentPlan: "Plan actuel",
+          whatUnlocks: "Avec Pro, vous débloquez",
+          bullets: [
+            "vos programmes recommandés",
+            "vos faiblesses et prochaines étapes complètes",
+            "vos provinces cibles et votre feuille de route",
+          ],
+        }
+      : {
+          eyebrow:
+            source === "onboarding"
+              ? "Strategy ready"
+              : "Unlock your strategy",
+          title:
+            source === "onboarding"
+              ? "Your profile is set up. Your detailed strategy is ready to unlock."
+              : "Upgrade to Pro to see your full strategy and move forward with more clarity.",
+          body:
+            intent === "execute"
+              ? "You already did the hard part: completing your profile. The next step is unlocking your recommended programs, risks, roadmap, and next actions."
+              : "Unlock your best-fit immigration pathways, risks, target provinces, and full action plan.",
+          proCta: "Unlock with Pro",
+          premiumCta: "See Premium",
+          currentPlan: "Current plan",
+          whatUnlocks: "With Pro, you unlock",
+          bullets: [
+            "your recommended programs",
+            "your full weaknesses and next steps",
+            "your target provinces and roadmap",
+          ],
+        };
+
+  return (
+    <Card
+      variant="soft"
+      padding="lg"
+      className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+    >
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
+            {copy.eyebrow}
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+            {copy.title}
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-700">{copy.body}</p>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={onUpgradePro}>{copy.proCta}</Button>
+            <Button variant="secondary" onClick={onUpgradePremium}>
+              {copy.premiumCta}
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[24px] border border-slate-200 bg-white p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+            {copy.currentPlan}
+          </p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+            {currentPlanLabel}
+          </p>
+
+          <p className="mt-5 text-sm font-semibold text-slate-900">
+            {copy.whatUnlocks}
+          </p>
+          <div className="mt-3 space-y-2.5">
+            {copy.bullets.map((item, index) => (
+              <div
+                key={`${item}-${index}`}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function StrategyPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const language = i18n.language === "fr" ? "fr" : "en";
+
+  const source = searchParams.get("source") || "";
+  const intent = searchParams.get("intent") || "";
 
   const [data, setData] = useState(null);
   const [access, setAccess] = useState(null);
@@ -532,13 +769,13 @@ export default function StrategyPage() {
   const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
-  const forceRefresh = localStorage.getItem("nbai_force_refresh");
+    const forceRefresh = localStorage.getItem("nbai_force_refresh");
 
-  if (forceRefresh === "true") {
-    localStorage.removeItem("nbai_force_refresh");
-    window.location.reload();
-  }
-}, []);
+    if (forceRefresh === "true") {
+      localStorage.removeItem("nbai_force_refresh");
+      window.location.reload();
+    }
+  }, []);
 
   useEffect(() => {
     loadPage();
@@ -698,6 +935,25 @@ export default function StrategyPage() {
     return language === "fr" ? "Gratuit" : "Free";
   }, [access, language]);
 
+  const showTopPaywallHero = !hasFullStrategy;
+
+  const proPath = buildProPricingPath("strategy", intent || "execute");
+  const premiumPath = buildPremiumPricingPath("strategy", "export");
+
+  const bestPathwayName =
+    strategy?.best_pathway?.name ||
+    (Array.isArray(strategy?.recommended_programs) &&
+    strategy.recommended_programs.length > 0
+      ? strategy.recommended_programs[0]
+      : "--");
+
+  const topImprovement =
+    Array.isArray(strategy?.next_steps) && strategy.next_steps.length > 0
+      ? strategy.next_steps[0]
+      : language === "fr"
+      ? "Aucune optimisation prioritaire détectée"
+      : "No priority improvement detected";
+
   const text = useMemo(() => {
     if (language === "fr") {
       return {
@@ -705,11 +961,20 @@ export default function StrategyPage() {
         title: "Votre stratégie",
         subtitle:
           "Votre stratégie personnalisée basée sur votre profil, votre admissibilité et votre progression documentaire.",
+        overview: "Aperçu stratégique",
         crs: "Score CRS",
+        crsBand: "Force du profil",
+        strategyHeadline: "Lecture stratégique",
+        bestPathway: "Meilleur parcours actuel",
+        topImprovement: "Amélioration prioritaire",
+        confidence: "Niveau de confiance",
+        timeline: "Délai estimé",
         programs: "Programmes recommandés",
         strengths: "Forces",
         weaknesses: "Faiblesses",
         nextSteps: "Prochaines étapes",
+        roadmap: "Feuille de route",
+        riskAnalysis: "Risques à surveiller",
         noc: "Signal CNP",
         nocInsights: "Analyse CNP",
         provinceRecommendations: "Provinces recommandées",
@@ -771,6 +1036,12 @@ export default function StrategyPage() {
         blurProvinceTitle: "Débloquez vos meilleures provinces cibles",
         blurProvinceBody:
           "Voyez quelles provinces et quels programmes semblent les plus adaptés à votre profil.",
+        blurRoadmapTitle: "Débloquez votre feuille de route complète",
+        blurRoadmapBody:
+          "Voyez les actions à plus fort impact, leur difficulté et leur potentiel stratégique.",
+        blurRiskTitle: "Débloquez l’analyse des risques",
+        blurRiskBody:
+          "Comprenez ce qui peut ralentir votre dossier et comment réduire ces risques.",
         unlockNow: "Débloquer maintenant",
         scoreImproveTitle: "Découvrez jusqu’où votre score pourrait monter",
         scoreImproveBody:
@@ -785,6 +1056,9 @@ export default function StrategyPage() {
         no: "Non",
         whyThisMatters: "Pourquoi c’est important",
         recommendedNocActions: "Actions liées au CNP",
+        premiumExportTitle: "Débloquez l’export PDF premium",
+        premiumExportPrimary: "Passer à Premium",
+        premiumExportSecondary: "Voir les plans",
       };
     }
 
@@ -793,11 +1067,20 @@ export default function StrategyPage() {
       title: "Your Strategy",
       subtitle:
         "Your personalized strategy based on your profile, eligibility, and document progress.",
+      overview: "Strategy overview",
       crs: "CRS Score",
+      crsBand: "Profile strength",
+      strategyHeadline: "Strategic read",
+      bestPathway: "Best current pathway",
+      topImprovement: "Top improvement",
+      confidence: "Confidence",
+      timeline: "Estimated timeline",
       programs: "Recommended Programs",
       strengths: "Strengths",
       weaknesses: "Weaknesses",
       nextSteps: "Next Steps",
+      roadmap: "Roadmap",
+      riskAnalysis: "Risks to watch",
       noc: "NOC Signal",
       nocInsights: "NOC Insight",
       provinceRecommendations: "Recommended Provinces",
@@ -859,6 +1142,12 @@ export default function StrategyPage() {
       blurProvinceTitle: "Unlock your best province targets",
       blurProvinceBody:
         "See which provinces and provincial programs appear to fit your profile best.",
+      blurRoadmapTitle: "Unlock your full roadmap",
+      blurRoadmapBody:
+        "See the highest-impact actions, their difficulty, and their strategic upside.",
+      blurRiskTitle: "Unlock risk analysis",
+      blurRiskBody:
+        "Understand what may slow your case down and how to reduce those risks.",
       unlockNow: "Unlock Now",
       scoreImproveTitle: "See how far your score could move",
       scoreImproveBody:
@@ -873,6 +1162,9 @@ export default function StrategyPage() {
       no: "No",
       whyThisMatters: "Why this matters",
       recommendedNocActions: "NOC-related actions",
+      premiumExportTitle: "Unlock premium PDF export",
+      premiumExportPrimary: "Upgrade to Premium",
+      premiumExportSecondary: "View plans",
     };
   }, [language]);
 
@@ -919,7 +1211,7 @@ export default function StrategyPage() {
             </Button>
             <Button
               variant="secondary"
-              onClick={() => navigate("/self/documents")}
+              onClick={() => navigate("/documents")}
             >
               {text.openDocuments}
             </Button>
@@ -942,6 +1234,17 @@ export default function StrategyPage() {
         title={text.title}
         subtitle={text.subtitle}
       />
+
+      {showTopPaywallHero && (
+        <StrategyPaywallHero
+          language={language}
+          currentPlanLabel={currentPlanLabel}
+          source={source}
+          intent={intent}
+          onUpgradePro={() => navigate(proPath)}
+          onUpgradePremium={() => navigate(premiumPath)}
+        />
+      )}
 
       <Card variant="soft" padding="lg" className="mb-6">
         <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
@@ -1015,12 +1318,43 @@ export default function StrategyPage() {
         </div>
       </Card>
 
+      <Card variant="premium" padding="lg" className="mb-6">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          {text.overview}
+        </p>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <StrategyHeroStat
+            label={text.crs}
+            value={strategy?.crs_score ?? "--"}
+            subvalue={strategy?.crs_band?.label || ""}
+          />
+          <StrategyHeroStat
+            label={text.bestPathway}
+            value={bestPathwayName}
+            subvalue={strategy?.best_pathway?.confidence || ""}
+          />
+          <StrategyHeroStat
+            label={text.topImprovement}
+            value={topImprovement}
+          />
+        </div>
+
+        {strategy?.strategy_headline ? (
+          <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <p className="text-sm leading-7 text-blue-900">
+              {strategy.strategy_headline}
+            </p>
+          </div>
+        ) : null}
+      </Card>
+
       <ScoreSimulatorTeaser
         language={language}
         currentScore={strategy?.crs_score}
         hasFullStrategy={hasFullStrategy}
         onUpgrade={() =>
-          navigate(hasSimulatorAccess ? "/strategy/simulator" : "/pricing")
+          navigate(hasSimulatorAccess ? "/strategy/simulator" : proPath)
         }
       />
 
@@ -1038,9 +1372,13 @@ export default function StrategyPage() {
       <AICopilotCard
         title={language === "fr" ? "Copilote IA stratégie" : "AI Strategy Copilot"}
         description={
-          language === "fr"
-            ? "Comprenez votre stratégie plus en profondeur et optimisez vos prochaines actions."
-            : "Understand your strategy more deeply and optimize your next actions."
+          hasAdvancedCopilot
+            ? language === "fr"
+              ? "Comprenez votre stratégie plus en profondeur et optimisez vos prochaines actions."
+              : "Understand your strategy more deeply and optimize your next actions."
+            : language === "fr"
+            ? "Obtenez une lecture stratégique plus approfondie de votre dossier."
+            : "Get a deeper strategic read of your case."
         }
         buttonLabel={
           language === "fr" ? "Analyser ma stratégie" : "Analyze my strategy"
@@ -1051,55 +1389,113 @@ export default function StrategyPage() {
             ? "Analyse ma stratégie d'immigration et propose les meilleures améliorations possibles."
             : "Analyze my immigration strategy and suggest the best improvements possible."
         }
-        premiumLocked={!hasAdvancedCopilot}
-        premiumTitle={
-          language === "fr"
-            ? "Débloquez le copilote avancé"
-            : "Unlock advanced AI copilot"
-        }
-        premiumBody={
-          language === "fr"
-            ? "Passez à Pro ou Premium pour une guidance plus profonde."
-            : "Upgrade to Pro or Premium for deeper guidance."
-        }
         className="mb-6"
       />
 
+      {!hasAdvancedCopilot && (
+        <UpgradePrompt
+          className="mb-6"
+          title={
+            language === "fr"
+              ? "Débloquez le copilote avancé"
+              : "Unlock advanced AI copilot"
+          }
+          body={
+            language === "fr"
+              ? "Passez à Pro ou Premium pour une guidance plus profonde et plus exploitable."
+              : "Upgrade to Pro or Premium for deeper, more actionable guidance."
+          }
+          buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+        />
+      )}
+
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-6">
-          <Card variant="premium" padding="lg">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {text.crs}
-            </p>
-            <p className="mt-3 text-5xl font-semibold tracking-tight text-blue-900">
-              {strategy?.crs_score ?? "--"}
-            </p>
+          {(strategy?.strategy_headline || strategy?.best_pathway?.name) && (
+            <Card padding="lg">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {text.strategyHeadline}
+              </p>
 
-            {!hasFullStrategy && (
-              <div className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
-                {text.scoreImproveTitle}
-                <button
-                  onClick={() => navigate("/pricing")}
-                  className="ml-2 font-semibold underline"
-                >
-                  {text.unlockNow}
-                </button>
-              </div>
-            )}
+              {strategy?.strategy_headline ? (
+                <p className="mt-3 text-base leading-7 text-slate-700">
+                  {strategy.strategy_headline}
+                </p>
+              ) : null}
 
-            <div className="mt-4">
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  navigate(hasSimulatorAccess ? "/strategy/simulator" : "/pricing")
-                }
-              >
-                {hasSimulatorAccess
-                  ? text.simulatorButton
-                  : text.simulatorLockedButton}
-              </Button>
-            </div>
-          </Card>
+              {strategy?.best_pathway?.name ? (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    {text.bestPathway}
+                  </p>
+                  <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+                    {strategy.best_pathway.name}
+                  </p>
+
+                  {strategy?.best_pathway?.confidence ? (
+                    <div className="mt-3 inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                      {text.confidence}: {strategy.best_pathway.confidence}
+                    </div>
+                  ) : null}
+
+                  {Array.isArray(strategy?.best_pathway?.reasons) &&
+                  strategy.best_pathway.reasons.length > 0 ? (
+                    hasFullStrategy ? (
+                      <div className="mt-4 space-y-2">
+                        {strategy.best_pathway.reasons.map((reason, index) => (
+                          <div
+                            key={`${reason}-${index}`}
+                            className="rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 text-slate-700"
+                          >
+                            {reason}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-4">
+                        <BlurredSection
+                          title={
+                            language === "fr"
+                              ? "Débloquez la logique complète du meilleur parcours"
+                              : "Unlock the full best-pathway logic"
+                          }
+                          body={
+                            language === "fr"
+                              ? "Voyez pourquoi ce parcours est recommandé et quels signaux renforcent votre dossier."
+                              : "See why this pathway is recommended and which signals strengthen your case."
+                          }
+                          buttonLabel={text.unlockNow}
+                          onUpgrade={() => navigate(proPath)}
+                        >
+                          <div className="space-y-2">
+                            {strategy.best_pathway.reasons.map((reason, index) => (
+                              <div
+                                key={`${reason}-${index}`}
+                                className="rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 text-slate-700"
+                              >
+                                {reason}
+                              </div>
+                            ))}
+                          </div>
+                        </BlurredSection>
+                      </div>
+                    )
+                  ) : null}
+                </div>
+              ) : null}
+
+              {strategy?.timeline_summary ? (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    {text.timeline}
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-slate-700">
+                    {strategy.timeline_summary}
+                  </p>
+                </div>
+              ) : null}
+            </Card>
+          )}
 
           <Card padding="lg">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -1137,19 +1533,42 @@ export default function StrategyPage() {
 
             <div className="mt-5 flex flex-wrap gap-3">
               {canExportPdf ? (
-                <Button onClick={handleExportPdf} disabled={exportingPdf}>
+                <Button
+                  onClick={handleExportPdf}
+                  disabled={exportingPdf}
+                  className="shadow-md transition hover:scale-[1.02]"
+                >
                   {exportingPdf ? text.exportingPdf : text.exportPdf}
                 </Button>
               ) : null}
 
-              <Button variant="secondary" onClick={() => navigate("/self/documents")}>
+              <Button variant="secondary" onClick={() => navigate("/documents")}>
                 {text.openDocuments}
               </Button>
             </div>
 
             {!canExportPdf && (
-              <div className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50/70 px-4 py-4 text-sm leading-7 text-slate-700">
-                {text.exportHint}
+              <div className="mt-5 rounded-[24px] border border-amber-200 bg-amber-50 p-5">
+                <p className="text-sm font-semibold text-amber-900">
+                  {text.premiumExportTitle}
+                </p>
+
+                <p className="mt-2 text-sm text-amber-800">
+                  {text.exportHint}
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button onClick={() => navigate(premiumPath)}>
+                    {text.premiumExportPrimary}
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(premiumPath)}
+                  >
+                    {text.premiumExportSecondary}
+                  </Button>
+                </div>
               </div>
             )}
           </Card>
@@ -1329,7 +1748,7 @@ export default function StrategyPage() {
               title={text.blurProvinceTitle}
               body={text.blurProvinceBody}
               buttonLabel={text.unlockNow}
-              onUpgrade={() => navigate("/pricing")}
+              onUpgrade={() => navigate(proPath)}
             >
               <ProvinceCard
                 title={text.provinceRecommendations}
@@ -1358,6 +1777,92 @@ export default function StrategyPage() {
               />
             </BlurredSection>
           )}
+
+          {hasFullStrategy ? (
+            <RoadmapCard
+              title={text.roadmap}
+              items={strategy?.roadmap}
+              emptyLabel={text.noItems}
+              language={language}
+            />
+          ) : (
+            <BlurredSection
+              title={text.blurRoadmapTitle}
+              body={text.blurRoadmapBody}
+              buttonLabel={text.unlockNow}
+              onUpgrade={() => navigate(proPath)}
+            >
+              <RoadmapCard
+                title={text.roadmap}
+                items={
+                  Array.isArray(strategy?.roadmap) && strategy.roadmap.length
+                    ? strategy.roadmap
+                    : [
+                        language === "fr"
+                          ? {
+                              title: "Améliorer le score linguistique",
+                              estimated_crs_gain: 28,
+                              difficulty: "Moyen",
+                              reason:
+                                "L’amélioration linguistique est l’un des leviers les plus rapides.",
+                            }
+                          : {
+                              title: "Improve language score",
+                              estimated_crs_gain: 28,
+                              difficulty: "Medium",
+                              reason:
+                                "Language improvement is one of the fastest levers.",
+                            },
+                      ]
+                }
+                emptyLabel={text.noItems}
+                language={language}
+              />
+            </BlurredSection>
+          )}
+
+          {hasFullStrategy ? (
+            <RiskCard
+              title={text.riskAnalysis}
+              items={strategy?.risk_analysis}
+              emptyLabel={text.noItems}
+              language={language}
+            />
+          ) : (
+            <BlurredSection
+              title={text.blurRiskTitle}
+              body={text.blurRiskBody}
+              buttonLabel={text.unlockNow}
+              onUpgrade={() => navigate(proPath)}
+            >
+              <RiskCard
+                title={text.riskAnalysis}
+                items={
+                  Array.isArray(strategy?.risk_analysis) && strategy.risk_analysis.length
+                    ? strategy.risk_analysis
+                    : [
+                        language === "fr"
+                          ? {
+                              risk: "Plafond du score linguistique",
+                              impact:
+                                "Un score linguistique insuffisant peut limiter votre compétitivité.",
+                              mitigation:
+                                "Viser un score CLB/NCLC 9+ au prochain test.",
+                            }
+                          : {
+                              risk: "Language score ceiling",
+                              impact:
+                                "A lower language result can limit overall competitiveness.",
+                              mitigation:
+                                "Target CLB 9+ on a retake.",
+                            },
+                      ]
+                }
+                emptyLabel={text.noItems}
+                language={language}
+              />
+            </BlurredSection>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -1372,7 +1877,7 @@ export default function StrategyPage() {
               title={text.blurProgramsTitle}
               body={text.blurProgramsBody}
               buttonLabel={text.unlockNow}
-              onUpgrade={() => navigate("/pricing")}
+              onUpgrade={() => navigate(proPath)}
             >
               <ListCard
                 title={text.programs}
@@ -1403,7 +1908,7 @@ export default function StrategyPage() {
               title={text.blurWeaknessesTitle}
               body={text.blurWeaknessesBody}
               buttonLabel={text.unlockNow}
-              onUpgrade={() => navigate("/pricing")}
+              onUpgrade={() => navigate(proPath)}
             >
               <ListCard
                 title={text.weaknesses}
@@ -1443,7 +1948,7 @@ export default function StrategyPage() {
                   title={text.blurStepsTitle}
                   body={text.blurStepsBody}
                   buttonLabel={text.unlockNow}
-                  onUpgrade={() => navigate("/pricing")}
+                  onUpgrade={() => navigate(proPath)}
                 >
                   <ListCard
                     title=""

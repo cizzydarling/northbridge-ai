@@ -59,26 +59,67 @@ function SurfaceCard({ children, className = "" }) {
   );
 }
 
+function StatusPill({ children, active = false, featured = false }) {
+  return (
+    <span
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+        featured
+          ? "border-amber-200 bg-amber-50 text-amber-800"
+          : active
+          ? "border-blue-200 bg-blue-50 text-blue-700"
+          : "border-slate-200 bg-slate-50 text-slate-600"
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ValueCard({ title, body }) {
+  return (
+    <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+      <p className="text-lg font-semibold tracking-tight text-slate-900">
+        {title}
+      </p>
+      <p className="mt-2 text-sm leading-7 text-slate-600">{body}</p>
+    </div>
+  );
+}
+
 function PlanCard({
   plan,
   text,
   language,
   isCurrent,
+  isHighlighted,
   onSelect,
   loading,
+  recommendedPlan,
 }) {
   const isFeatured = Boolean(plan.featured);
+  const isRecommended = recommendedPlan === plan.key;
+  const shouldHighlight = Boolean(isHighlighted && !isCurrent);
+
+  const highlightStyle = isRecommended
+    ? "border-blue-400 ring-2 ring-blue-200"
+    : shouldHighlight
+    ? "border-amber-300 ring-2 ring-amber-200"
+    : isFeatured
+    ? "border-blue-200 ring-1 ring-blue-100"
+    : "border-slate-200";
 
   return (
     <div
-      className={`relative flex h-full flex-col rounded-[32px] border bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.06)] transition ${
-        isFeatured
-          ? "border-blue-200 ring-1 ring-blue-100"
-          : "border-slate-200"
-      }`}
+      className={`relative flex h-full flex-col rounded-[32px] border bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.06)] transition ${highlightStyle}`}
     >
+      {isRecommended && (
+        <div className="absolute -top-3 left-7 rounded-full bg-blue-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
+          {text.recommendationPill}
+        </div>
+      )}
+
       {isFeatured && (
-        <div className="absolute -top-3 left-7 rounded-full bg-blue-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
+        <div className="absolute -top-3 right-7 rounded-full bg-blue-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
           {text.mostPopular}
         </div>
       )}
@@ -99,6 +140,11 @@ function PlanCard({
         <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
           {plan.price}
         </p>
+        {plan.subprice ? (
+          <p className="mt-2 text-sm font-medium text-slate-500">
+            {plan.subprice}
+          </p>
+        ) : null}
         <p className="mt-3 text-sm leading-7 text-slate-600">
           {plan.description}
         </p>
@@ -113,13 +159,32 @@ function PlanCard({
           {plan.features.map((feature, index) => (
             <div
               key={`${plan.key}-${index}`}
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+              className={`rounded-2xl border px-4 py-3 text-sm ${
+                isRecommended
+                  ? "border-blue-100 bg-blue-50 text-slate-700"
+                  : "border-slate-200 bg-slate-50 text-slate-700"
+              }`}
             >
               {feature}
             </div>
           ))}
         </div>
       </div>
+
+      {plan.fitNote ? (
+        <div
+          className={`mb-6 rounded-[22px] border px-4 py-4 text-sm leading-7 ${
+            isRecommended
+              ? "border-blue-200 bg-blue-50 text-slate-700"
+              : "border-slate-200 bg-white text-slate-700"
+          }`}
+        >
+          <span className="font-semibold text-slate-900">
+            {text.bestFitLabel}{" "}
+          </span>
+          {plan.fitNote}
+        </div>
+      ) : null}
 
       <div className="mt-auto">
         {isCurrent ? (
@@ -131,7 +196,7 @@ function PlanCard({
             onClick={onSelect}
             disabled={loading}
             className="w-full rounded-2xl"
-            variant={isFeatured ? "primary" : "secondary"}
+            variant={isRecommended ? "primary" : "secondary"}
           >
             {loading
               ? language === "fr"
@@ -163,6 +228,9 @@ export default function PricingPage() {
 
   const successFlag = searchParams.get("success");
   const cancelledFlag = searchParams.get("cancelled");
+  const requestedPlan = normalizePlan(searchParams.get("plan") || "");
+  const source = searchParams.get("source") || "";
+  const intent = searchParams.get("intent") || "";
 
   useEffect(() => {
     loadBillingPage();
@@ -208,9 +276,7 @@ export default function PricingPage() {
     if (cancelledFlag !== "true") return;
 
     setMessage(
-      language === "fr"
-        ? "Paiement annulé."
-        : "Checkout cancelled."
+      language === "fr" ? "Paiement annulé." : "Checkout cancelled."
     );
 
     const next = new URLSearchParams(searchParams);
@@ -346,14 +412,15 @@ export default function PricingPage() {
     if (language === "fr") {
       return {
         brand: "NorthBridgeAI",
-        title: "Une tarification conçue pour faire avancer votre dossier",
+        title: "Choisissez le bon niveau pour avancer dans votre dossier",
         subtitle:
-          "Commencez gratuitement pour explorer votre parcours, puis passez à Pro ou Premium au moment où vous êtes prêt à préparer sérieusement votre dossier.",
+          "Commencez gratuitement pour explorer votre position, passez à Pro pour débloquer l’exécution complète, puis choisissez Premium lorsque vous voulez plus de temps, plus de contrôle et l’export PDF.",
         currentPlan: "Plan actuel",
         billingStatus: "Statut de facturation",
         manageBilling: "Gérer ma facturation",
         includedFeatures: "Fonctionnalités incluses",
         mostPopular: "Le plus populaire",
+        focusedChoice: "Choix ciblé",
         startFree: "Commencer gratuitement",
         upgradeToPro: "Choisir Pro",
         upgradeToPremium: "Choisir Premium",
@@ -363,20 +430,22 @@ export default function PricingPage() {
         switchToPro: "Passer à Pro",
         switchToPremium: "Passer à Premium",
         explore: "Explorer",
-        build: "Finaliser plus vite",
-        accelerate: "Préparer un dossier complet",
+        build: "Agir maintenant",
+        accelerate: "Finaliser un dossier complet",
         freeTitle: "Gratuit",
         proTitle: "Pro",
         premiumTitle: "Premium",
         freePrice: "0 $",
         proPrice: "39 $ / 30 jours",
         premiumPrice: "99 $ / 90 jours",
+        proSubprice: "Pour débloquer l’exécution",
+        premiumSubprice: "Pour aller jusqu’au rendu final",
         freeDesc:
           "Pour découvrir NorthBridgeAI, structurer votre profil et voir ce qui manque avant de payer.",
         proDesc:
-          "Pour les utilisateurs prêts à avancer maintenant, télécharger leurs dossiers et utiliser les outils essentiels de préparation.",
+          "Pour les utilisateurs prêts à avancer maintenant avec la stratégie complète, les outils essentiels et une meilleure vitesse d’exécution.",
         premiumDesc:
-          "Pour les utilisateurs qui préparent un dossier complet et veulent plus de temps, l’export PDF et un contrôle plus fort sur leur processus.",
+          "Pour les utilisateurs qui préparent un dossier complet et veulent l’export PDF, plus de temps et une couche de finition plus forte.",
         comparisonTitle: "Comparaison rapide",
         strategy: "Stratégie complète",
         forms: "Téléchargement des formulaires",
@@ -390,51 +459,72 @@ export default function PricingPage() {
         notAvailable: "Non disponible",
         roleLabel: "Rôle",
         rawPlanLabel: "Plan brut",
-        valueTitle: "Pourquoi les utilisateurs passent à une offre supérieure",
+        valueTitle: "Pourquoi les utilisateurs passent à un forfait supérieur",
         valueCards: [
           {
             title: "Plus de clarté",
-            body: "Comprenez ce qui manque, ce qui bloque votre dossier et sur quoi agir ensuite.",
+            body: "Comprenez précisément ce qui manque, ce qui bloque votre dossier et quelles étapes ont le plus d’impact.",
           },
           {
             title: "Plus de vitesse",
-            body: "Téléchargez, générez et révisez plus rapidement au lieu d’avancer à l’aveugle.",
+            body: "Téléchargez, générez et révisez plus rapidement au lieu d’avancer manuellement.",
           },
           {
             title: "Plus de contrôle",
-            body: "Choisissez Pro pour aller vite ou Premium pour avancer sur une période plus longue.",
+            body: "Choisissez Pro pour agir vite ou Premium pour préparer un dossier plus complet avec l’export final.",
           },
         ],
-        ctaTitle: "Le bon moment pour passer à un forfait payant",
+        ctaTitle: "Quel plan choisir",
         ctaBody:
-          "La plupart des utilisateurs restent en Gratuit pour explorer, passent à Pro lorsqu’ils sont prêts à agir, puis choisissent Premium lorsqu’ils veulent plus de temps pour préparer un dossier complet.",
+          "La plupart des utilisateurs commencent en Gratuit pour explorer, passent à Pro lorsqu’ils sont prêts à agir, puis choisissent Premium lorsqu’ils veulent plus de temps et l’export PDF.",
         summaryTitle: "Votre abonnement en un coup d’œil",
         premiumBadge: "Meilleure valeur",
         whyNowTitle: "Pourquoi passer à un plan payant maintenant",
         whyNowLine1:
-          "Vous avez déjà une stratégie. La prochaine étape est d’agir dessus.",
+          "Vous avez déjà une stratégie. L’étape suivante est de l’exécuter.",
         whyNowLine2:
-          "Les utilisateurs passent à Pro lorsqu’ils veulent avancer rapidement avec les bons documents et formulaires.",
+          "Pro est conçu pour les utilisateurs qui veulent avancer rapidement avec les bons documents, formulaires et outils.",
         whyNowLine3:
-          "Ils passent à Premium lorsqu’ils veulent préparer un dossier complet avec plus de temps et de contrôle.",
+          "Premium est conçu pour ceux qui veulent aller jusqu’au rendu final avec plus de temps et l’export PDF.",
         paymentConfirmed: "Paiement confirmé",
         paymentConfirmedBody:
           "Votre accès vient d’être actualisé. Vous pouvez maintenant retourner au tableau de bord ou ouvrir votre stratégie.",
         openDashboard: "Ouvrir le tableau de bord",
         openStrategy: "Ouvrir ma stratégie",
+        strategyUnlockTitle: "Votre stratégie mérite une vraie exécution",
+        strategyUnlockBody:
+          "Le niveau Gratuit aide à comprendre votre position. Pro débloque la stratégie complète, l’exécution et les outils essentiels. Premium ajoute la finition, plus de temps et l’export PDF.",
+        bestFitLabel: "Meilleur choix :",
+        freeFit: "vous voulez explorer votre profil avant de payer.",
+        proFit:
+          "vous êtes prêt à agir maintenant et débloquer la stratégie complète.",
+        premiumFit:
+          "vous voulez finaliser un dossier plus complet avec PDF et plus de marge de préparation.",
+        recommendedPlanLabel: "Recommandation actuelle",
+        recommendedPro:
+          "Pro est le meilleur point d’entrée pour commencer à exécuter votre dossier.",
+        recommendedPremium:
+          "Premium est le meilleur choix si vous voulez l’export PDF et une préparation plus complète.",
+        recommendationPill: "Recommandé",
+        targetedTitle: "Parcours recommandé",
+        targetedPro:
+          "Vous êtes arrivé ici pour débloquer la stratégie complète et l’exécution. Pro est le meilleur choix pour cette étape.",
+        targetedPremium:
+          "Vous êtes arrivé ici pour l’export PDF ou une préparation plus complète. Premium est le meilleur choix pour cette étape.",
       };
     }
 
     return {
       brand: "NorthBridgeAI",
-      title: "Pricing built to move your case forward",
+      title: "Choose the right tier to move your case forward",
       subtitle:
-        "Start free to explore your path, then move into Pro or Premium when you are ready to seriously prepare your application.",
+        "Start free to understand where you stand, move to Pro to unlock full execution, then choose Premium when you want more time, more control, and PDF export.",
       currentPlan: "Current plan",
       billingStatus: "Billing status",
       manageBilling: "Manage billing",
       includedFeatures: "Included features",
       mostPopular: "Most popular",
+      focusedChoice: "Focused choice",
       startFree: "Start free",
       upgradeToPro: "Choose Pro",
       upgradeToPremium: "Choose Premium",
@@ -444,20 +534,22 @@ export default function PricingPage() {
       switchToPro: "Switch to Pro",
       switchToPremium: "Switch to Premium",
       explore: "Explore",
-      build: "Finish faster",
-      accelerate: "Build a fuller case",
+      build: "Take action now",
+      accelerate: "Finish a fuller case",
       freeTitle: "Free",
       proTitle: "Pro",
       premiumTitle: "Premium",
       freePrice: "$0",
       proPrice: "$39 / 30 days",
       premiumPrice: "$99 / 90 days",
+      proSubprice: "For unlocking execution",
+      premiumSubprice: "For going to final output",
       freeDesc:
         "For exploring NorthBridgeAI, structuring your profile, and seeing what is missing before you pay.",
       proDesc:
-        "For users ready to move now, download their packages, and use the essential preparation tools.",
+        "For users ready to move now with the full strategy, essential tools, and faster execution.",
       premiumDesc:
-        "For users preparing a complete application who want more time, PDF export, and full control over their process.",
+        "For users preparing a fuller application who want PDF export, more time, and a stronger finishing layer.",
       comparisonTitle: "Quick comparison",
       strategy: "Full strategy",
       forms: "Forms download",
@@ -475,33 +567,52 @@ export default function PricingPage() {
       valueCards: [
         {
           title: "More clarity",
-          body: "Understand what is missing, what is blocking your case, and what to do next.",
+          body: "Understand exactly what is missing, what is blocking your case, and which next steps matter most.",
         },
         {
           title: "More speed",
-          body: "Download, generate, and review faster instead of piecing everything together manually.",
+          body: "Download, generate, and review faster instead of piecing everything together by hand.",
         },
         {
           title: "More control",
-          body: "Choose Pro to move quickly or Premium to work through a fuller application over more time.",
+          body: "Choose Pro to move quickly or Premium to prepare a fuller case with final export.",
         },
       ],
-      ctaTitle: "The right time to upgrade",
+      ctaTitle: "Which plan should you choose",
       ctaBody:
-        "Most users stay on Free to explore, move to Pro when they are ready to act, and choose Premium when they want more time to prepare a fuller case.",
+        "Most users start on Free to explore, move to Pro when they are ready to act, and choose Premium when they want more time and PDF export.",
       summaryTitle: "Your subscription at a glance",
       premiumBadge: "Best value",
       whyNowTitle: "Why upgrade now",
-      whyNowLine1: "You already have a strategy. The next step is acting on it.",
+      whyNowLine1: "You already have a strategy. The next step is executing on it.",
       whyNowLine2:
-        "Users upgrade to Pro when they want to move forward quickly with the right documents and forms.",
+        "Pro is built for users who want to move forward quickly with the right documents, forms, and tools.",
       whyNowLine3:
-        "They move to Premium when they want more time and control to prepare a complete application.",
+        "Premium is built for users who want more time and PDF export to finish a fuller case package.",
       paymentConfirmed: "Payment confirmed",
       paymentConfirmedBody:
         "Your access has just been refreshed. You can now go back to the dashboard or open your strategy.",
       openDashboard: "Open dashboard",
       openStrategy: "Open my strategy",
+      strategyUnlockTitle: "Your strategy deserves real execution",
+      strategyUnlockBody:
+        "Free helps you understand where you stand. Pro unlocks the full strategy, execution, and essential tools. Premium adds finishing value, more time, and PDF export.",
+      bestFitLabel: "Best for when",
+      freeFit: "you want to explore your profile before paying.",
+      proFit: "you are ready to act now and unlock the full strategy.",
+      premiumFit:
+        "you want to finish a fuller case with PDF export and more preparation runway.",
+      recommendedPlanLabel: "Current recommendation",
+      recommendedPro:
+        "Pro is the best starting point when you are ready to execute your case.",
+      recommendedPremium:
+        "Premium is the best choice when you want PDF export and a fuller preparation flow.",
+      recommendationPill: "Recommended",
+      targetedTitle: "Suggested path",
+      targetedPro:
+        "You came here to unlock the full strategy and execution. Pro is the best fit for this step.",
+      targetedPremium:
+        "You came here for PDF export or fuller preparation. Premium is the best fit for this step.",
     };
   }, [language]);
 
@@ -518,6 +629,7 @@ export default function PricingPage() {
         description: text.freeDesc,
         audience: text.explore,
         cta: text.startFree,
+        fitNote: text.freeFit,
         features: [
           language === "fr"
             ? "Profil et orientation de base"
@@ -537,10 +649,12 @@ export default function PricingPage() {
         key: "pro",
         title: text.proTitle,
         price: text.proPrice,
+        subprice: text.proSubprice,
         description: text.proDesc,
         audience: text.build,
         featured: true,
         cta: text.upgradeToPro,
+        fitNote: text.proFit,
         features: [
           language === "fr" ? "Stratégie complète" : "Full strategy",
           language === "fr"
@@ -561,9 +675,11 @@ export default function PricingPage() {
         key: "premium",
         title: text.premiumTitle,
         price: text.premiumPrice,
+        subprice: text.premiumSubprice,
         description: text.premiumDesc,
         audience: text.accelerate,
         cta: text.upgradeToPremium,
+        fitNote: text.premiumFit,
         features: [
           language === "fr" ? "Tout dans Pro" : "Everything in Pro",
           language === "fr"
@@ -628,6 +744,30 @@ export default function PricingPage() {
     ];
   }, [text]);
 
+  const recommendedPlan = useMemo(() => {
+    if (currentPlan === "premium") return null;
+    if (requestedPlan === "premium" && currentPlan !== "premium") return "premium";
+    if (requestedPlan === "pro" && currentPlan === "free") return "pro";
+    if (currentPlan === "pro") return "premium";
+    return "pro";
+  }, [currentPlan, requestedPlan]);
+
+  const recommendedPlanMessage =
+    recommendedPlan === "premium"
+      ? text.recommendedPremium
+      : text.recommendedPro;
+
+  const targetedPlanMessage =
+    requestedPlan === "premium"
+      ? text.targetedPremium
+      : requestedPlan === "pro"
+      ? text.targetedPro
+      : "";
+
+  const showActiveSubscriptionCard =
+    successFlag !== "true" &&
+    (subscriptionStatus === "active" || currentPlan !== "free");
+
   if (loading) {
     return (
       <Layout>
@@ -663,7 +803,7 @@ export default function PricingPage() {
         </SurfaceCard>
       ) : null}
 
-      {successFlag !== "true" && (subscriptionStatus === "active" || currentPlan !== "free") ? (
+      {showActiveSubscriptionCard ? (
         <SurfaceCard className="mb-6 border-green-200 bg-gradient-to-br from-green-50 to-white">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-green-700">
             {text.paymentConfirmed}
@@ -697,6 +837,18 @@ export default function PricingPage() {
           <p className="mt-4 text-base leading-7 text-slate-600">
             {text.subtitle}
           </p>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            <StatusPill active={currentPlan === "free"}>
+              {text.freeTitle}
+            </StatusPill>
+            <StatusPill active={currentPlan === "pro"}>
+              {text.proTitle}
+            </StatusPill>
+            <StatusPill active={currentPlan === "premium"} featured>
+              {text.premiumTitle}
+            </StatusPill>
+          </div>
         </div>
 
         <SurfaceCard className="h-fit">
@@ -724,6 +876,17 @@ export default function PricingPage() {
             </p>
           </div>
 
+          {recommendedPlan ? (
+            <div className="mt-5 rounded-[22px] border border-blue-200 bg-blue-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
+                {text.recommendedPlanLabel}
+              </p>
+              <p className="mt-2 text-sm leading-7 text-blue-900">
+                {recommendedPlanMessage}
+              </p>
+            </div>
+          ) : null}
+
           {hasStripeCustomer && currentPlan !== "free" && (
             <div className="mt-5">
               <Button
@@ -741,6 +904,32 @@ export default function PricingPage() {
           )}
         </SurfaceCard>
       </div>
+
+      {requestedPlan && targetedPlanMessage ? (
+        <SurfaceCard className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+            {text.targetedTitle}
+          </p>
+          <p className="mt-4 text-sm leading-7 text-slate-700">
+            {targetedPlanMessage}
+          </p>
+          {(source || intent) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {source ? <StatusPill active>{source}</StatusPill> : null}
+              {intent ? <StatusPill active>{intent}</StatusPill> : null}
+            </div>
+          )}
+        </SurfaceCard>
+      ) : null}
+
+      <SurfaceCard className="mb-6 border-amber-200 bg-gradient-to-br from-amber-50 to-white">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
+          {text.strategyUnlockTitle}
+        </p>
+        <p className="mt-4 text-sm leading-7 text-slate-700">
+          {text.strategyUnlockBody}
+        </p>
+      </SurfaceCard>
 
       <SurfaceCard className="mb-6 border-amber-200 bg-gradient-to-br from-amber-50 to-white">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
@@ -760,17 +949,7 @@ export default function PricingPage() {
         </p>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {text.valueCards.map((item, index) => (
-            <div
-              key={index}
-              className="rounded-[24px] border border-slate-200 bg-slate-50 p-5"
-            >
-              <p className="text-lg font-semibold tracking-tight text-slate-900">
-                {item.title}
-              </p>
-              <p className="mt-2 text-sm leading-7 text-slate-600">
-                {item.body}
-              </p>
-            </div>
+            <ValueCard key={index} title={item.title} body={item.body} />
           ))}
         </div>
       </SurfaceCard>
@@ -783,7 +962,9 @@ export default function PricingPage() {
             text={text}
             language={language}
             isCurrent={currentPlan === plan.key}
+            isHighlighted={requestedPlan === plan.key}
             loading={checkoutLoadingPlan === plan.key}
+            recommendedPlan={recommendedPlan}
             onSelect={() => {
               if (plan.key === "free") {
                 navigate("/dashboard");
@@ -816,6 +997,12 @@ export default function PricingPage() {
             <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
               {subscriptionStatus || text.notAvailable}
             </div>
+            {recommendedPlan ? (
+              <div className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
+                {text.recommendationPill}:{" "}
+                {recommendedPlan === "premium" ? text.premiumTitle : text.proTitle}
+              </div>
+            ) : null}
           </div>
         </SurfaceCard>
       </div>

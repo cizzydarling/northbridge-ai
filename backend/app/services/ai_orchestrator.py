@@ -110,11 +110,11 @@ def build_user_context(
         "strategy": strategy or {},
         "decision": decision or {},
         "application": {
-          "matter_type": application_snapshot.get("matter_type"),
-          "checklist": application_snapshot.get("checklist_result", []),
-          "missing_fields": forms_result.get("missing_fields", []) or [],
-          "recommended_forms": forms_result.get("recommended_forms", []) or [],
-          "intake_payload": application_snapshot.get("intake_payload", {}) or {},
+            "matter_type": application_snapshot.get("matter_type"),
+            "checklist": application_snapshot.get("checklist_result", []),
+            "missing_fields": forms_result.get("missing_fields", []) or [],
+            "recommended_forms": forms_result.get("recommended_forms", []) or [],
+            "intake_payload": application_snapshot.get("intake_payload", {}) or {},
         },
     }
 
@@ -261,7 +261,7 @@ def _inject_monetization_actions(
             0,
             {
                 "label": _t("Open my documents", "Ouvrir mes documents", language),
-                "route": "/self/documents",
+                "route": "/documents",
             },
         )
 
@@ -473,6 +473,191 @@ def build_self_user_summary_cards(context: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _coerce_ai_result(result: Any, language: str) -> Dict[str, Any]:
+    if not isinstance(result, dict):
+        return {
+            "reply": _t(
+                "Here is a personalized analysis based on your current immigration profile.",
+                "Voici une analyse personnalisée basée sur votre profil actuel.",
+                language,
+            ),
+            "suggested_next_actions": [],
+            "insights": [],
+        }
+
+    coerced = {
+        "reply": (result.get("reply") or "").strip(),
+        "suggested_next_actions": result.get("suggested_next_actions", []) or [],
+        "insights": result.get("insights", []) or [],
+    }
+
+    if not coerced["reply"]:
+      coerced["reply"] = _t(
+            "Here is a personalized analysis based on your current immigration profile.",
+            "Voici une analyse personnalisée basée sur votre profil actuel.",
+            language,
+        )
+
+    return coerced
+
+
+def _build_contextual_fallback_reply(
+    *,
+    language: str,
+    strategy: Optional[Dict[str, Any]] = None,
+    application: Optional[SelfApplication] = None,
+) -> str:
+    strategy = strategy or {}
+    recommended_programs = strategy.get("recommended_programs") or []
+    next_steps = strategy.get("next_steps") or []
+    top_program = recommended_programs[0] if recommended_programs else None
+    top_step = next_steps[0] if next_steps else None
+    matter_type = getattr(application, "matter_type", None) if application else None
+
+    if language == "fr":
+        parts = [
+            "Voici une analyse personnalisée basée sur votre profil actuel."
+        ]
+        if top_program:
+            parts.append(f"Votre meilleur parcours semble être : {top_program}.")
+        if top_step:
+            parts.append(f"Votre prochaine priorité semble être : {top_step}.")
+        if matter_type:
+            parts.append(f"Votre type de dossier actuel est : {matter_type}.")
+        parts.append(
+            "Concentrez-vous sur l’amélioration de votre profil, de vos documents prioritaires et de vos éléments les plus stratégiques."
+        )
+        return " ".join(parts)
+
+    parts = [
+        "Here is a personalized analysis based on your current profile."
+    ]
+    if top_program:
+        parts.append(f"Your strongest pathway appears to be: {top_program}.")
+    if top_step:
+        parts.append(f"Your top current priority appears to be: {top_step}.")
+    if matter_type:
+        parts.append(f"Your current matter type is: {matter_type}.")
+    parts.append(
+        "Focus on improving your profile quality, your priority documents, and the strongest factors influencing your case."
+    )
+    return " ".join(parts)
+
+
+def _build_contextual_fallback_actions(
+    *,
+    language: str,
+    plan: str,
+    strategy: Optional[Dict[str, Any]] = None,
+    application: Optional[SelfApplication] = None,
+) -> List[Dict[str, Any]]:
+    strategy = strategy or {}
+    application_exists = application is not None
+    has_strategy = bool(strategy)
+
+    actions: List[Dict[str, Any]] = []
+
+    if has_strategy:
+        actions.append(
+            {
+                "label": _t("Open my strategy", "Ouvrir ma stratégie", language),
+                "route": "/strategy",
+            }
+        )
+
+    if application_exists or has_strategy:
+        actions.append(
+            {
+                "label": _t("Open my documents", "Ouvrir mes documents", language),
+                "route": "/documents",
+            }
+        )
+
+    actions.append(
+        {
+            "label": _t("Improve my profile", "Améliorer mon profil", language),
+            "route": "/profile",
+        }
+    )
+
+    if plan == "free":
+        actions.append(
+            {
+                "label": _t("View pricing", "Voir les tarifs", language),
+                "route": "/pricing",
+            }
+        )
+
+    deduped: List[Dict[str, Any]] = []
+    seen = set()
+    for item in actions:
+        key = (item.get("label"), item.get("route"))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+
+    return deduped[:3]
+
+
+def _build_contextual_fallback_insights(
+    *,
+    language: str,
+    strategy: Optional[Dict[str, Any]] = None,
+) -> List[str]:
+    strategy = strategy or {}
+    crs_score = strategy.get("crs_score")
+    next_steps = strategy.get("next_steps") or []
+    recommended_programs = strategy.get("recommended_programs") or []
+
+    insights: List[str] = []
+
+    if crs_score is not None:
+        insights.append(
+            _t(
+                f"Your current CRS score is approximately {crs_score}.",
+                f"Votre score CRS actuel est d’environ {crs_score}.",
+                language,
+            )
+        )
+
+    if recommended_programs:
+        insights.append(
+            _t(
+                f"Your strongest current pathway appears to be {recommended_programs[0]}.",
+                f"Votre meilleur parcours actuel semble être {recommended_programs[0]}.",
+                language,
+            )
+        )
+
+    if next_steps:
+        insights.append(
+            _t(
+                f"One of your highest-value next steps is {next_steps[0]}.",
+                f"L’une de vos prochaines étapes à plus forte valeur est {next_steps[0]}.",
+                language,
+            )
+        )
+
+    if not insights:
+        insights.append(
+            _t(
+                "Your current profile still has optimization potential.",
+                "Votre profil actuel présente encore un potentiel d’optimisation.",
+                language,
+            )
+        )
+        insights.append(
+            _t(
+                "Improving your language score and file quality can meaningfully strengthen your position.",
+                "L’amélioration du score linguistique et de la qualité du dossier peut renforcer sensiblement votre position.",
+                language,
+            )
+        )
+
+    return insights[:3]
+
+
 def ask_self_user_copilot(
     *,
     db: Session,
@@ -491,35 +676,27 @@ def ask_self_user_copilot(
 
     fn = getattr(ai_advisor, "generate_ai_chat_reply", None)
     if not callable(fn):
-        fallback = {
-            "reply": _t(
-                "I received your message, but the AI assistant is not fully available right now.",
-                "J’ai bien reçu votre message, mais l’assistant IA n’est pas encore entièrement disponible.",
-                language,
+        fallback = format_ai_response(
+            raw_text=_build_contextual_fallback_reply(
+                language=language,
+                strategy=context.get("strategy") or {},
+                application=context.get("application"),
             ),
-            "suggested_next_actions": [
-                {
-                    "label": _t("Open my strategy", "Ouvrir ma stratégie", language),
-                    "route": "/strategy",
-                },
-                {
-                    "label": _t("Open my documents", "Ouvrir mes documents", language),
-                    "route": "/self/documents",
-                },
-                {
-                    "label": _t("View pricing", "Voir les tarifs", language),
-                    "route": "/pricing",
-                }
-                if context["ai_plan"] == "free"
-                else {
-                    "label": _t("Open my application", "Ouvrir ma demande", language),
-                    "route": "/self/application",
-                },
-            ],
-            "insights": [],
-            "locked": context["ai_plan"] == "free",
-            "plan": context["ai_plan"],
-        }
+            language=language,
+            plan=context["ai_plan"],
+            strategy=context.get("strategy") or {},
+            application=context.get("application"),
+            suggested_next_actions=_build_contextual_fallback_actions(
+                language=language,
+                plan=context["ai_plan"],
+                strategy=context.get("strategy") or {},
+                application=context.get("application"),
+            ),
+            insights=_build_contextual_fallback_insights(
+                language=language,
+                strategy=context.get("strategy") or {},
+            ),
+        )
 
         if fail_silently:
             return {
@@ -565,12 +742,10 @@ def ask_self_user_copilot(
             plan=plan,
         )
 
-        if not isinstance(result, dict):
-            raise ValueError("AI advisor returned invalid format.")
+        result = _coerce_ai_result(result, language)
 
-        raw_reply = (result.get("reply") or "").strip()
         formatted = format_ai_response(
-            raw_text=raw_reply,
+            raw_text=result.get("reply", ""),
             language=language,
             plan=plan,
             strategy=strategy,
@@ -596,26 +771,25 @@ def ask_self_user_copilot(
             raise
 
         fallback = format_ai_response(
-            raw_text=_t(
-                "Your strategy and application context are available. The next best step is to continue executing your strongest documents and review your priority items.",
-                "Votre stratégie et votre contexte de demande sont disponibles. La prochaine meilleure étape est de continuer l’exécution de vos documents prioritaires et de réviser les éléments les plus importants.",
-                language,
+            raw_text=_build_contextual_fallback_reply(
+                language=language,
+                strategy=context.get("strategy") or {},
+                application=context.get("application"),
             ),
             language=language,
             plan=context["ai_plan"],
             strategy=context.get("strategy") or {},
             application=context.get("application"),
-            suggested_next_actions=[
-                {
-                    "label": _t("Open my documents", "Ouvrir mes documents", language),
-                    "route": "/self/documents",
-                },
-                {
-                    "label": _t("Open my strategy", "Ouvrir ma stratégie", language),
-                    "route": "/strategy",
-                },
-            ],
-            insights=[],
+            suggested_next_actions=_build_contextual_fallback_actions(
+                language=language,
+                plan=context["ai_plan"],
+                strategy=context.get("strategy") or {},
+                application=context.get("application"),
+            ),
+            insights=_build_contextual_fallback_insights(
+                language=language,
+                strategy=context.get("strategy") or {},
+            ),
         )
 
         return {
@@ -661,7 +835,12 @@ def build_dashboard_copilot_prompt(context: Dict[str, Any]) -> str:
             f"La prochaine priorité est: {next_priority}. "
             f"Programmes recommandés: {', '.join(programs) if programs else 'aucun'}. "
             "Explique la situation simplement, indique ce qui bloque le plus le dossier, "
-            "et propose 3 actions concrètes et courtes."
+            "et propose 3 actions concrètes et courtes. "
+            "Retourne la réponse dans cette structure: "
+            "une explication claire en 2 à 4 phrases, "
+            "3 suggested_next_actions courtes, "
+            "et 2 ou 3 insights utiles. "
+            "N’utilise pas de markdown ni de formatage supplémentaire."
         )
 
     return (
@@ -671,7 +850,12 @@ def build_dashboard_copilot_prompt(context: Dict[str, Any]) -> str:
         f"Top next priority: {next_priority}. "
         f"Recommended programs: {', '.join(programs) if programs else 'none'}. "
         "Explain the situation simply, identify the biggest blocker, "
-        "and provide 3 short concrete next actions."
+        "and provide 3 short concrete next actions. "
+        "Return the answer in this structure: "
+        "one clear explanation in 2 to 4 sentences, "
+        "3 short suggested_next_actions, "
+        "and 2 to 3 helpful insights. "
+        "Do not use markdown or extra formatting."
     )
 
 
@@ -692,7 +876,12 @@ def build_strategy_copilot_prompt(context: Dict[str, Any]) -> str:
             f"Prochaines étapes: {', '.join(next_steps) if next_steps else 'aucune'}. "
             f"Feuille de route: {', '.join(roadmap_titles) if roadmap_titles else 'aucune'}. "
             "Résume la logique de la stratégie, explique pourquoi certains parcours sont prioritaires, "
-            "et retourne aussi 3 suggested_next_actions très courtes."
+            "et retourne aussi 3 suggested_next_actions très courtes. "
+            "Retourne la réponse dans cette structure: "
+            "une explication claire en 2 à 4 phrases, "
+            "3 suggested_next_actions courtes, "
+            "et 2 ou 3 insights utiles. "
+            "N’utilise pas de markdown ni de formatage supplémentaire."
         )
 
     return (
@@ -701,7 +890,12 @@ def build_strategy_copilot_prompt(context: Dict[str, Any]) -> str:
         f"Next steps: {', '.join(next_steps) if next_steps else 'none'}. "
         f"Roadmap: {', '.join(roadmap_titles) if roadmap_titles else 'none'}. "
         "Summarize the logic behind the strategy, explain why certain pathways are prioritized, "
-        "and also return 3 very short suggested_next_actions."
+        "and also return 3 very short suggested_next_actions. "
+        "Return the answer in this structure: "
+        "one clear explanation in 2 to 4 sentences, "
+        "3 short suggested_next_actions, "
+        "and 2 to 3 helpful insights. "
+        "Do not use markdown or extra formatting."
     )
 
 
@@ -721,7 +915,12 @@ def build_documents_copilot_prompt(context: Dict[str, Any]) -> str:
             f"Programme principal suggéré: {top_program or 'non déterminé'}. "
             f"Contexte décisionnel disponible: {'oui' if decision else 'non'}. "
             "Explique quels documents semblent les plus importants, "
-            "ce qui manque potentiellement, et propose des prochaines étapes claires."
+            "ce qui manque potentiellement, et propose des prochaines étapes claires. "
+            "Retourne la réponse dans cette structure: "
+            "une explication claire en 2 à 4 phrases, "
+            "3 suggested_next_actions courtes, "
+            "et 2 ou 3 insights utiles. "
+            "N’utilise pas de markdown ni de formatage supplémentaire."
         )
 
     return (
@@ -730,7 +929,12 @@ def build_documents_copilot_prompt(context: Dict[str, Any]) -> str:
         f"Top suggested program: {top_program or 'not determined'}. "
         f"Decision context available: {'yes' if decision else 'no'}. "
         "Explain which documents seem most important, "
-        "what may be missing, and provide clear next steps."
+        "what may be missing, and provide clear next steps. "
+        "Return the answer in this structure: "
+        "one clear explanation in 2 to 4 sentences, "
+        "3 short suggested_next_actions, "
+        "and 2 to 3 helpful insights. "
+        "Do not use markdown or extra formatting."
     )
 
 

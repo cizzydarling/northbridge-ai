@@ -66,6 +66,22 @@ function SectionIntro({ eyebrow, title, body }) {
   );
 }
 
+function SectionNavButton({ active, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
+        active
+          ? "border-blue-200 bg-blue-50 text-blue-700"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+      }`}
+    >
+      <span className="font-medium">{label}</span>
+    </button>
+  );
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { i18n } = useTranslation();
@@ -76,6 +92,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [profileExists, setProfileExists] = useState(false);
+  const [activeSection, setActiveSection] = useState("personal");
 
   const [nocDescription, setNocDescription] = useState("");
   const [nocDutyInput, setNocDutyInput] = useState("");
@@ -149,6 +166,7 @@ export default function ProfilePage() {
           : "Mettez à jour votre profil pour améliorer votre stratégie d’immigration, vos recommandations IA et votre espace de demande.",
         personalInfo: "Informations personnelles",
         immigrationProfile: "Profil d’immigration",
+        sections: "Sections",
         firstName: "Prénom",
         lastName: "Nom",
         nationality: "Nationalité",
@@ -236,6 +254,7 @@ export default function ProfilePage() {
         : "Update your profile to improve your immigration strategy, AI guidance, and application workspace.",
       personalInfo: "Personal Information",
       immigrationProfile: "Immigration Profile",
+      sections: "Sections",
       firstName: "First Name",
       lastName: "Last Name",
       nationality: "Nationality",
@@ -391,6 +410,16 @@ export default function ProfilePage() {
     ];
   }, [language]);
 
+  const sections = useMemo(
+    () => [
+      { id: "personal", label: pageText.personalInfo },
+      { id: "immigration", label: pageText.immigrationProfile },
+      { id: "noc", label: pageText.nocTitle },
+      { id: "guidance", label: pageText.guidanceTitle },
+    ],
+    [pageText]
+  );
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
@@ -440,6 +469,7 @@ export default function ProfilePage() {
           ? "Suggestion de CNP générée."
           : "NOC suggestion generated."
       );
+      setActiveSection("noc");
     } catch (err) {
       console.error(err);
       setMessage(
@@ -462,6 +492,7 @@ export default function ProfilePage() {
     setMessage(
       language === "fr" ? "CNP appliqué au profil." : "NOC applied to profile."
     );
+    setActiveSection("immigration");
   };
 
   const handleSubmit = async (e) => {
@@ -554,7 +585,7 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-5xl space-y-10 px-4 py-10">
+      <div className="mx-auto max-w-6xl space-y-8 px-4 py-10">
         {isOnboarding && (
           <div className="rounded-[24px] border border-indigo-200 bg-indigo-50 px-5 py-4 text-sm text-indigo-800">
             {pageText.onboardingBanner}
@@ -637,400 +668,429 @@ Return:
           />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-10">
-          <Card variant="default" padding="lg" className="space-y-6">
-            <SectionIntro
-              eyebrow={pageText.personalInfo}
-              title={pageText.personalInfo}
-            />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Input
-                name="first_name"
-                label={pageText.firstName}
-                value={form.first_name}
-                onChange={handleChange}
-              />
-              <Input
-                name="last_name"
-                label={pageText.lastName}
-                value={form.last_name}
-                onChange={handleChange}
-              />
-              <Input
-                name="nationality"
-                label={pageText.nationality}
-                value={form.nationality}
-                onChange={handleChange}
-              />
-              <Input
-                name="current_country"
-                label={pageText.country}
-                value={form.current_country}
-                onChange={handleChange}
-              />
-              <Input
-                name="current_city"
-                label={pageText.city}
-                value={form.current_city}
-                onChange={handleChange}
-              />
-              <Input
-                name="phone_number"
-                label={pageText.phone}
-                value={form.phone_number}
-                onChange={handleChange}
-              />
-              <Input
-                name="date_of_birth"
-                label={pageText.dateOfBirth}
-                type="date"
-                value={form.date_of_birth}
-                onChange={handleChange}
-              />
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {pageText.maritalStatus}
-                </label>
-                <select
-                  name="marital_status"
-                  value={form.marital_status}
-                  onChange={handleChange}
-                  className="input"
-                >
-                  <option value="">{pageText.select}</option>
-                  <option value="single">{pageText.single}</option>
-                  <option value="married">{pageText.married}</option>
-                  <option value="common-law">{pageText.commonLaw}</option>
-                  <option value="divorced">{pageText.divorced}</option>
-                  <option value="widowed">{pageText.widowed}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {pageText.preferredLanguage}
-                </label>
-                <select
-                  name="preferred_language"
-                  value={form.preferred_language}
-                  onChange={handleChange}
-                  className="input"
-                >
-                  <option value="en">{pageText.english}</option>
-                  <option value="fr">{pageText.french}</option>
-                </select>
-              </div>
-            </div>
-          </Card>
-
-          <Card variant="default" padding="lg" className="space-y-6">
-            <SectionIntro
-              eyebrow={pageText.immigrationProfile}
-              title={pageText.immigrationProfile}
-            />
-
-            <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-5">
-              <p className="text-sm font-semibold text-slate-900">
-                {pageText.quickFill}
-              </p>
-              <p className="mt-2 text-sm leading-7 text-slate-600">
-                {pageText.quickFillHelp}
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
+            <Card padding="lg" className="h-fit">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {pageText.sections}
               </p>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                {quickFillPresets.map((preset, index) => (
-                  <Button
-                    key={`${preset.label}-${index}`}
-                    type="button"
-                    size="sm"
-                    variant="subtle"
-                    onClick={() => applyQuickFill(preset.values)}
-                  >
-                    {preset.label}
-                  </Button>
+              <div className="mt-4 space-y-2">
+                {sections.map((section) => (
+                  <SectionNavButton
+                    key={section.id}
+                    active={activeSection === section.id}
+                    label={section.label}
+                    onClick={() => setActiveSection(section.id)}
+                  />
                 ))}
               </div>
-            </div>
+            </Card>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Input
-                name="age"
-                type="number"
-                label={pageText.age}
-                value={form.age}
-                onChange={handleChange}
-              />
+            <div className="space-y-6">
+              {activeSection === "personal" && (
+                <Card variant="default" padding="lg" className="space-y-6">
+                  <SectionIntro
+                    eyebrow={pageText.personalInfo}
+                    title={pageText.personalInfo}
+                  />
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {pageText.education}
-                </label>
-                <select
-                  name="education"
-                  value={form.education}
-                  onChange={handleChange}
-                  className="input"
-                >
-                  <option value="high school">{pageText.highSchool}</option>
-                  <option value="diploma">{pageText.diploma}</option>
-                  <option value="bachelor">{pageText.bachelor}</option>
-                  <option value="master">{pageText.master}</option>
-                  <option value="phd">{pageText.phd}</option>
-                </select>
-              </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Input
+                      name="first_name"
+                      label={pageText.firstName}
+                      value={form.first_name}
+                      onChange={handleChange}
+                    />
+                    <Input
+                      name="last_name"
+                      label={pageText.lastName}
+                      value={form.last_name}
+                      onChange={handleChange}
+                    />
+                    <Input
+                      name="nationality"
+                      label={pageText.nationality}
+                      value={form.nationality}
+                      onChange={handleChange}
+                    />
+                    <Input
+                      name="current_country"
+                      label={pageText.country}
+                      value={form.current_country}
+                      onChange={handleChange}
+                    />
+                    <Input
+                      name="current_city"
+                      label={pageText.city}
+                      value={form.current_city}
+                      onChange={handleChange}
+                    />
+                    <Input
+                      name="phone_number"
+                      label={pageText.phone}
+                      value={form.phone_number}
+                      onChange={handleChange}
+                    />
+                    <Input
+                      name="date_of_birth"
+                      label={pageText.dateOfBirth}
+                      type="date"
+                      value={form.date_of_birth}
+                      onChange={handleChange}
+                    />
 
-              <Input
-                name="language_score"
-                type="number"
-                label={pageText.languageScore}
-                value={form.language_score}
-                onChange={handleChange}
-              />
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        {pageText.maritalStatus}
+                      </label>
+                      <select
+                        name="marital_status"
+                        value={form.marital_status}
+                        onChange={handleChange}
+                        className="input"
+                      >
+                        <option value="">{pageText.select}</option>
+                        <option value="single">{pageText.single}</option>
+                        <option value="married">{pageText.married}</option>
+                        <option value="common-law">{pageText.commonLaw}</option>
+                        <option value="divorced">{pageText.divorced}</option>
+                        <option value="widowed">{pageText.widowed}</option>
+                      </select>
+                    </div>
 
-              <Input
-                name="experience_years"
-                type="number"
-                label={pageText.experienceYears}
-                value={form.experience_years}
-                onChange={handleChange}
-              />
-
-              <Input
-                name="occupation"
-                label={pageText.occupation}
-                value={form.occupation}
-                onChange={handleChange}
-              />
-
-              <Input
-                name="noc_code"
-                label={pageText.nocCode}
-                value={form.noc_code}
-                onChange={handleChange}
-              />
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {pageText.preferredProvince}
-                </label>
-                <select
-                  name="preferred_province"
-                  value={form.preferred_province}
-                  onChange={handleChange}
-                  className="input"
-                >
-                  <option value="">{pageText.selectProvince}</option>
-                  {PROVINCES.map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  name="has_job_offer"
-                  checked={form.has_job_offer}
-                  onChange={handleChange}
-                />
-                {pageText.hasJobOffer}
-              </label>
-
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  name="has_canadian_experience"
-                  checked={form.has_canadian_experience}
-                  onChange={handleChange}
-                />
-                {pageText.hasCanadianExperience}
-              </label>
-
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  name="studied_in_canada"
-                  checked={form.studied_in_canada}
-                  onChange={handleChange}
-                />
-                {pageText.studiedInCanada}
-              </label>
-            </div>
-          </Card>
-
-          <Card variant="premium" padding="lg" className="space-y-6">
-            <SectionIntro
-              eyebrow={pageText.nocTitle}
-              title={pageText.nocTitle}
-              body={pageText.nocDesc}
-            />
-
-            <div className="grid gap-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {pageText.nocDescription}
-                </label>
-                <textarea
-                  rows={5}
-                  value={nocDescription}
-                  onChange={(e) => setNocDescription(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-                  placeholder={pageText.nocDescriptionPlaceholder}
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {pageText.nocDuties}
-                </label>
-                <textarea
-                  rows={5}
-                  value={nocDutyInput}
-                  onChange={(e) => setNocDutyInput(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-                  placeholder={pageText.nocDutiesPlaceholder}
-                />
-              </div>
-
-              <div>
-                <Button
-                  type="button"
-                  variant="premium"
-                  onClick={handleSuggestNoc}
-                  disabled={nocLoading}
-                  loading={nocLoading}
-                >
-                  {nocLoading ? pageText.suggestingNoc : pageText.suggestNoc}
-                </Button>
-              </div>
-            </div>
-
-            {nocResult && (
-              <div className="space-y-5 rounded-[24px] border border-blue-200 bg-blue-50 p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {pageText.suggestedNoc}
-                    </p>
-                    <h3 className="mt-2 text-2xl font-semibold tracking-tight text-blue-900">
-                      {nocResult.suggested_noc} — {nocResult.suggested_title}
-                    </h3>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                        {pageText.teer}: {nocResult.teer}
-                      </span>
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                        {pageText.confidence}:{" "}
-                        {Math.round((nocResult.confidence || 0) * 100)}%
-                      </span>
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                        {pageText.category}: {nocResult.broad_category}
-                      </span>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        {pageText.preferredLanguage}
+                      </label>
+                      <select
+                        name="preferred_language"
+                        value={form.preferred_language}
+                        onChange={handleChange}
+                        className="input"
+                      >
+                        <option value="en">{pageText.english}</option>
+                        <option value="fr">{pageText.french}</option>
+                      </select>
                     </div>
                   </div>
+                </Card>
+              )}
 
-                  <div>
-                    <Button
-                      type="button"
-                      onClick={() => applySuggestedNoc(nocResult.suggested_noc)}
-                    >
-                      {pageText.useThisNoc}
-                    </Button>
-                  </div>
-                </div>
+              {activeSection === "immigration" && (
+                <Card variant="default" padding="lg" className="space-y-6">
+                  <SectionIntro
+                    eyebrow={pageText.immigrationProfile}
+                    title={pageText.immigrationProfile}
+                  />
 
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {pageText.whyMatched}
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    {(nocResult.why_matched || []).map((item, index) => (
-                      <div
-                        key={`${item}-${index}`}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-5">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {pageText.quickFill}
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-slate-600">
+                      {pageText.quickFillHelp}
+                    </p>
 
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {pageText.alternatives}
-                  </p>
-
-                  {Array.isArray(nocResult.alternatives) &&
-                  nocResult.alternatives.length > 0 ? (
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      {nocResult.alternatives.map((alt) => (
-                        <div
-                          key={alt.noc}
-                          className="rounded-2xl border border-slate-200 bg-white p-4"
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {quickFillPresets.map((preset, index) => (
+                        <Button
+                          key={`${preset.label}-${index}`}
+                          type="button"
+                          size="sm"
+                          variant="subtle"
+                          onClick={() => applyQuickFill(preset.values)}
                         >
-                          <p className="text-sm font-semibold text-slate-900">
-                            {alt.noc} — {alt.title}
-                          </p>
-                          <p className="mt-2 text-xs text-slate-500">
-                            {pageText.teer}: {alt.teer} · {pageText.confidence}:{" "}
-                            {Math.round((alt.confidence || 0) * 100)}%
-                          </p>
-                          <div className="mt-4">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              onClick={() => applySuggestedNoc(alt.noc)}
-                            >
-                              {pageText.useThisNoc}
-                            </Button>
-                          </div>
-                        </div>
+                          {preset.label}
+                        </Button>
                       ))}
                     </div>
-                  ) : (
-                    <p className="mt-3 text-sm text-slate-500">
-                      {pageText.noAlternatives}
-                    </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Input
+                      name="age"
+                      type="number"
+                      label={pageText.age}
+                      value={form.age}
+                      onChange={handleChange}
+                    />
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        {pageText.education}
+                      </label>
+                      <select
+                        name="education"
+                        value={form.education}
+                        onChange={handleChange}
+                        className="input"
+                      >
+                        <option value="high school">{pageText.highSchool}</option>
+                        <option value="diploma">{pageText.diploma}</option>
+                        <option value="bachelor">{pageText.bachelor}</option>
+                        <option value="master">{pageText.master}</option>
+                        <option value="phd">{pageText.phd}</option>
+                      </select>
+                    </div>
+
+                    <Input
+                      name="language_score"
+                      type="number"
+                      label={pageText.languageScore}
+                      value={form.language_score}
+                      onChange={handleChange}
+                    />
+
+                    <Input
+                      name="experience_years"
+                      type="number"
+                      label={pageText.experienceYears}
+                      value={form.experience_years}
+                      onChange={handleChange}
+                    />
+
+                    <Input
+                      name="occupation"
+                      label={pageText.occupation}
+                      value={form.occupation}
+                      onChange={handleChange}
+                    />
+
+                    <Input
+                      name="noc_code"
+                      label={pageText.nocCode}
+                      value={form.noc_code}
+                      onChange={handleChange}
+                    />
+
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        {pageText.preferredProvince}
+                      </label>
+                      <select
+                        name="preferred_province"
+                        value={form.preferred_province}
+                        onChange={handleChange}
+                        className="input"
+                      >
+                        <option value="">{pageText.selectProvince}</option>
+                        {PROVINCES.map((province) => (
+                          <option key={province} value={province}>
+                            {province}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        name="has_job_offer"
+                        checked={form.has_job_offer}
+                        onChange={handleChange}
+                      />
+                      {pageText.hasJobOffer}
+                    </label>
+
+                    <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        name="has_canadian_experience"
+                        checked={form.has_canadian_experience}
+                        onChange={handleChange}
+                      />
+                      {pageText.hasCanadianExperience}
+                    </label>
+
+                    <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        name="studied_in_canada"
+                        checked={form.studied_in_canada}
+                        onChange={handleChange}
+                      />
+                      {pageText.studiedInCanada}
+                    </label>
+                  </div>
+                </Card>
+              )}
+
+              {activeSection === "noc" && (
+                <Card variant="premium" padding="lg" className="space-y-6">
+                  <SectionIntro
+                    eyebrow={pageText.nocTitle}
+                    title={pageText.nocTitle}
+                    body={pageText.nocDesc}
+                  />
+
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        {pageText.nocDescription}
+                      </label>
+                      <textarea
+                        rows={5}
+                        value={nocDescription}
+                        onChange={(e) => setNocDescription(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                        placeholder={pageText.nocDescriptionPlaceholder}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        {pageText.nocDuties}
+                      </label>
+                      <textarea
+                        rows={5}
+                        value={nocDutyInput}
+                        onChange={(e) => setNocDutyInput(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                        placeholder={pageText.nocDutiesPlaceholder}
+                      />
+                    </div>
+
+                    <div>
+                      <Button
+                        type="button"
+                        variant="premium"
+                        onClick={handleSuggestNoc}
+                        disabled={nocLoading}
+                        loading={nocLoading}
+                      >
+                        {nocLoading ? pageText.suggestingNoc : pageText.suggestNoc}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {nocResult && (
+                    <div className="space-y-5 rounded-[24px] border border-blue-200 bg-blue-50 p-5">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {pageText.suggestedNoc}
+                          </p>
+                          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-blue-900">
+                            {nocResult.suggested_noc} — {nocResult.suggested_title}
+                          </h3>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                              {pageText.teer}: {nocResult.teer}
+                            </span>
+                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                              {pageText.confidence}:{" "}
+                              {Math.round((nocResult.confidence || 0) * 100)}%
+                            </span>
+                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                              {pageText.category}: {nocResult.broad_category}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Button
+                            type="button"
+                            onClick={() => applySuggestedNoc(nocResult.suggested_noc)}
+                          >
+                            {pageText.useThisNoc}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {pageText.whyMatched}
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {(nocResult.why_matched || []).map((item, index) => (
+                            <div
+                              key={`${item}-${index}`}
+                              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                            >
+                              {item}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {pageText.alternatives}
+                        </p>
+
+                        {Array.isArray(nocResult.alternatives) &&
+                        nocResult.alternatives.length > 0 ? (
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            {nocResult.alternatives.map((alt) => (
+                              <div
+                                key={alt.noc}
+                                className="rounded-2xl border border-slate-200 bg-white p-4"
+                              >
+                                <p className="text-sm font-semibold text-slate-900">
+                                  {alt.noc} — {alt.title}
+                                </p>
+                                <p className="mt-2 text-xs text-slate-500">
+                                  {pageText.teer}: {alt.teer} · {pageText.confidence}:{" "}
+                                  {Math.round((alt.confidence || 0) * 100)}%
+                                </p>
+                                <div className="mt-4">
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => applySuggestedNoc(alt.noc)}
+                                  >
+                                    {pageText.useThisNoc}
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-sm text-slate-500">
+                            {pageText.noAlternatives}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </div>
-              </div>
-            )}
-          </Card>
+                </Card>
+              )}
 
-          <Card variant="soft" padding="lg" className="space-y-6">
-            <SectionIntro
-              eyebrow={pageText.guidanceTitle}
-              title={pageText.guidanceTitle}
-              body={pageText.guidanceBody}
-            />
+              {activeSection === "guidance" && (
+                <Card variant="soft" padding="lg" className="space-y-6">
+                  <SectionIntro
+                    eyebrow={pageText.guidanceTitle}
+                    title={pageText.guidanceTitle}
+                    body={pageText.guidanceBody}
+                  />
 
-            <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={() => navigate("/strategy")}>
-                {pageText.openStrategy}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => navigate("/self/application")}
-              >
-                {pageText.openApplication}
-              </Button>
-              <Button variant="secondary" onClick={() => navigate("/chat")}>
-                {pageText.openAssistant}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => navigate("/self/documents")}
-              >
-                {pageText.openDocuments}
-              </Button>
+                  <div className="flex flex-wrap gap-3">
+                    <Button variant="secondary" onClick={() => navigate("/strategy")}>
+                      {pageText.openStrategy}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => navigate("/self/application")}
+                    >
+                      {pageText.openApplication}
+                    </Button>
+                    <Button variant="secondary" onClick={() => navigate("/chat")}>
+                      {pageText.openAssistant}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => navigate("/documents")}
+                    >
+                      {pageText.openDocuments}
+                    </Button>
+                  </div>
+                </Card>
+              )}
             </div>
-          </Card>
+          </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button

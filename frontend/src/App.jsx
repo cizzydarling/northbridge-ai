@@ -166,6 +166,10 @@ export default function App() {
       {/* Pricing must be available both before and after login */}
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/billing" element={<PricingPage />} />
+      <Route
+        path="/upgrade"
+        element={<Navigate to="/pricing?source=app&intent=upgrade" replace />}
+      />
 
       <Route
         path="/billing/success"
@@ -215,17 +219,12 @@ export default function App() {
       />
 
       <Route
-        path="/strategy/simulator" 
+        path="/strategy/simulator"
         element={
-          <StrategySimulatorPage />
+          <ProtectedAppRoute>
+            <StrategySimulatorPage />
+          </ProtectedAppRoute>
         }
-      />
-
-      <Route 
-        path="/strategy/simulator" 
-        element={
-          <StrategySimulatorPage />
-        } 
       />
 
       <Route
@@ -256,12 +255,17 @@ export default function App() {
       />
 
       <Route
-        path="/self/documents"
+        path="/documents"
         element={
           <ProtectedAppRoute>
             <SelfDocumentsPage />
           </ProtectedAppRoute>
         }
+      />
+
+      <Route
+        path="/self/documents"
+        element={<Navigate to="/documents" replace />}
       />
 
       <Route
@@ -353,13 +357,6 @@ export default function App() {
             <ClientMattersPage />
           </ProtectedAppRoute>
         }
-      />
-
-      <Route
-      path="/strategy/simulator" 
-      element={
-        <StrategySimulatorPage />
-      }
       />
 
       {/* FALLBACK */}

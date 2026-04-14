@@ -97,6 +97,14 @@ const DOCUMENT_LIBRARY = [
   },
 ];
 
+function buildProPricingPath(source = "documents", intent = "execute") {
+  return `/pricing?plan=pro&source=${source}&intent=${intent}`;
+}
+
+function buildPremiumPricingPath(source = "documents", intent = "export") {
+  return `/pricing?plan=premium&source=${source}&intent=${intent}`;
+}
+
 function readCompletionEngine() {
   try {
     return JSON.parse(localStorage.getItem(COMPLETION_STORAGE_KEY) || "{}");
@@ -134,37 +142,30 @@ function getCategoryOrder() {
 
 function getCategoryLabel(category, language) {
   const labels = {
-    identity: {
-      en: "Identity",
-      fr: "Identité",
-    },
-    education: {
-      en: "Education",
-      fr: "Études",
-    },
-    language: {
-      en: "Language",
-      fr: "Langues",
-    },
-    employment: {
-      en: "Employment",
-      fr: "Emploi",
-    },
-    financial: {
-      en: "Financial",
-      fr: "Financier",
-    },
-    family: {
-      en: "Family",
-      fr: "Famille",
-    },
-    travel: {
-      en: "Travel",
-      fr: "Voyage",
-    },
+    identity: { en: "Identity", fr: "Identité" },
+    education: { en: "Education", fr: "Études" },
+    language: { en: "Language", fr: "Langues" },
+    employment: { en: "Employment", fr: "Emploi" },
+    financial: { en: "Financial", fr: "Financier" },
+    family: { en: "Family", fr: "Famille" },
+    travel: { en: "Travel", fr: "Voyage" },
   };
 
   return labels?.[category]?.[language] || category;
+}
+
+function PageHeader({ brand, title, subtitle }) {
+  return (
+    <div className="mb-8 max-w-3xl">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+        {brand}
+      </p>
+      <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+        {title}
+      </h1>
+      <p className="mt-3 text-base leading-7 text-slate-600">{subtitle}</p>
+    </div>
+  );
 }
 
 function StatPill({ active, children }) {
@@ -181,6 +182,113 @@ function StatPill({ active, children }) {
   );
 }
 
+function CategoryNavButton({
+  active,
+  label,
+  count,
+  onClick,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
+        active
+          ? "border-blue-200 bg-blue-50 text-blue-800"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+      }`}
+    >
+      <span className="font-medium">{label}</span>
+      <span
+        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+          active
+            ? "bg-white text-blue-700"
+            : "bg-slate-100 text-slate-600"
+        }`}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
+function DocumentCard({
+  doc,
+  state,
+  text,
+  isPro,
+  onGenerate,
+  onReview,
+  onMarkDraft,
+  onMarkReviewed,
+  onMarkCompleted,
+  onReset,
+  language,
+}) {
+  return (
+    <Card padding="lg" className="h-full">
+      <div className="flex h-full flex-col">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">
+            {doc.title[language]}
+          </h3>
+
+          <p className="mt-2 text-sm leading-7 text-slate-600">
+            {doc.description[language]}
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <StatPill active={state.drafted}>{text.markDraft}</StatPill>
+            <StatPill active={state.reviewed}>{text.markReviewed}</StatPill>
+            <StatPill active={state.completed}>{text.markCompleted}</StatPill>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button variant="primary" onClick={onGenerate} fullWidth>
+              {text.generate}
+            </Button>
+
+            <Button variant="secondary" onClick={onReview} fullWidth>
+              {text.review}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Button variant="subtle" onClick={onMarkDraft} fullWidth>
+              {text.markDraft}
+            </Button>
+
+            <Button variant="subtle" onClick={onMarkReviewed} fullWidth>
+              {text.markReviewed}
+            </Button>
+
+            <Button variant="premium" onClick={onMarkCompleted} fullWidth>
+              {text.markCompleted}
+            </Button>
+          </div>
+
+          <Button variant="ghost" onClick={onReset} fullWidth>
+            {text.reset}
+          </Button>
+        </div>
+
+        {!isPro && (
+          <div className="mt-5">
+            <UpgradePrompt
+              compact
+              title={text.featureLocked}
+              body={text.featureLockedBody}
+              buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+            />
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default function SelfDocumentsPage() {
   const navigate = useNavigate();
   const { i18n } = useTranslation();
@@ -188,6 +296,7 @@ export default function SelfDocumentsPage() {
 
   const [engineVersion, setEngineVersion] = useState(0);
   const [access, setAccess] = useState(null);
+  const [activeCategory, setActiveCategory] = useState(getCategoryOrder()[0]);
 
   useEffect(() => {
     loadAccess();
@@ -232,22 +341,41 @@ export default function SelfDocumentsPage() {
     };
   }, [engine]);
 
+  const groupedDocuments = useMemo(() => {
+    return getCategoryOrder().map((category) => ({
+      category,
+      label: getCategoryLabel(category, language),
+      documents: DOCUMENT_LIBRARY.filter((doc) => doc.category === category),
+    }));
+  }, [language]);
+
+  const activeGroup = useMemo(() => {
+    return (
+      groupedDocuments.find((group) => group.category === activeCategory) ||
+      groupedDocuments[0]
+    );
+  }, [groupedDocuments, activeCategory]);
+
   function handleOpenGenerator(id) {
     if (!isPro) {
-      navigate("/pricing");
+      navigate(buildProPricingPath("documents", "execute"));
       return;
     }
 
-    navigate(`/documents/generator?checklist_id=${id}`);
+    navigate(
+      `/documents/generator?checklist_id=${id}&source=documents&intent=execute`
+    );
   }
 
   function handleOpenReview(id) {
     if (!isPro) {
-      navigate("/pricing");
+      navigate(buildProPricingPath("documents", "improve"));
       return;
     }
 
-    navigate(`/documents/review?checklist_id=${id}`);
+    navigate(
+      `/documents/review?checklist_id=${id}&source=documents&intent=improve`
+    );
   }
 
   function updateDocument(id, patch) {
@@ -299,10 +427,10 @@ export default function SelfDocumentsPage() {
         brand: "NorthBridgeAI",
         title: "Mes documents",
         subtitle:
-          "Suivez votre progression documentaire, préparez vos brouillons et passez à la révision lorsque vous êtes prêt.",
+          "Naviguez par catégorie, suivez votre progression et préparez vos brouillons sans avoir à parcourir une longue page.",
         copilotTitle: "Copilote IA Documents",
         copilotDesc:
-          "Obtenez une recommandation sur les documents à prioriser.",
+          "Obtenez une recommandation sur les documents à prioriser selon votre progression actuelle.",
         copilotButton: "Prioriser mes documents",
         upgradeTitle: "Débloquez la génération de documents",
         upgradeBody:
@@ -319,6 +447,13 @@ export default function SelfDocumentsPage() {
         reviewed: "Révisés",
         completed: "Complétés",
         total: "Total",
+        categoryTitle: "Catégories",
+        documentsInCategory: "Documents dans cette catégorie",
+        finalizeTitle: "Finalisez vos documents",
+        finalizeBody:
+          "Passez à Premium pour exporter vos documents en PDF prêt à être soumis.",
+        upgradeToPremium: "Passer à Premium",
+        noDocuments: "Aucun document dans cette catégorie.",
       };
     }
 
@@ -326,10 +461,10 @@ export default function SelfDocumentsPage() {
       brand: "NorthBridgeAI",
       title: "My Documents",
       subtitle:
-        "Track your document progress, prepare drafts, and move into review when you are ready.",
+        "Navigate by category, track your progress, and prepare drafts without scrolling through a long page.",
       copilotTitle: "Documents AI Copilot",
       copilotDesc:
-        "Get recommendations on which documents to prioritize.",
+        "Get recommendations on which documents to prioritize based on your current progress.",
       copilotButton: "Prioritize my documents",
       upgradeTitle: "Unlock document generation",
       upgradeBody:
@@ -346,22 +481,23 @@ export default function SelfDocumentsPage() {
       reviewed: "Reviewed",
       completed: "Completed",
       total: "Total",
+      categoryTitle: "Categories",
+      documentsInCategory: "Documents in this category",
+      finalizeTitle: "Finalize your documents",
+      finalizeBody:
+        "Upgrade to Premium to export clean, submission-ready PDFs.",
+      upgradeToPremium: "Upgrade to Premium",
+      noDocuments: "No documents in this category.",
     };
   }, [language]);
 
   return (
     <Layout>
-      <div className="mb-8 max-w-3xl">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
-          {text.brand}
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
-          {text.title}
-        </h1>
-        <p className="mt-3 text-base leading-7 text-slate-600">
-          {text.subtitle}
-        </p>
-      </div>
+      <PageHeader
+        brand={text.brand}
+        title={text.title}
+        subtitle={text.subtitle}
+      />
 
       <AICopilotCard
         title={text.copilotTitle}
@@ -370,8 +506,8 @@ export default function SelfDocumentsPage() {
         language={language}
         prompt={
           language === "fr"
-            ? "Analyse ma progression documentaire et dis-moi quoi prioriser."
-            : "Analyze my document progress and tell me what to prioritize."
+            ? "Analyse ma progression documentaire actuelle et indique-moi quelles catégories ou quels documents prioriser maintenant."
+            : "Analyze my current document progress and tell me which categories or documents I should prioritize now."
         }
         className="mb-6"
       />
@@ -381,6 +517,7 @@ export default function SelfDocumentsPage() {
           className="mb-6"
           title={text.upgradeTitle}
           body={text.upgradeBody}
+          buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
         />
       )}
 
@@ -422,92 +559,98 @@ export default function SelfDocumentsPage() {
         </Card>
       </div>
 
-      <div className="space-y-10">
-        {getCategoryOrder().map((category) => {
-          const docs = DOCUMENT_LIBRARY.filter((d) => d.category === category);
+      <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
+        <Card padding="lg" className="h-fit">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {text.categoryTitle}
+          </p>
 
-          if (!docs.length) return null;
+          <div className="mt-4 space-y-2">
+            {groupedDocuments.map((group) => (
+              <CategoryNavButton
+                key={group.category}
+                active={activeCategory === group.category}
+                label={group.label}
+                count={group.documents.length}
+                onClick={() => setActiveCategory(group.category)}
+              />
+            ))}
+          </div>
+        </Card>
 
-          return (
-            <section key={category}>
-              <div className="mb-4">
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-                  {getCategoryLabel(category, language)}
+        <div className="space-y-6">
+          <Card padding="lg">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+                  {text.documentsInCategory}
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                  {activeGroup?.label}
                 </h2>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {docs.map((doc) => {
-                  const state = getDocumentState(engine, doc.id);
-
-                  return (
-                    <Card key={doc.id} padding="lg">
-                      <h3 className="mb-2 text-lg font-semibold text-slate-900">
-                        {doc.title[language]}
-                      </h3>
-
-                      <p className="mb-4 text-sm leading-7 text-slate-600">
-                        {doc.description[language]}
-                      </p>
-
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        <StatPill active={state.drafted}>{text.markDraft}</StatPill>
-                        <StatPill active={state.reviewed}>{text.markReviewed}</StatPill>
-                        <StatPill active={state.completed}>{text.markCompleted}</StatPill>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="secondary"
-                          onClick={() => handleOpenGenerator(doc.id)}
-                        >
-                          {text.generate}
-                        </Button>
-
-                        <Button
-                          variant="secondary"
-                          onClick={() => handleOpenReview(doc.id)}
-                        >
-                          {text.review}
-                        </Button>
-
-                        <Button onClick={() => handleMarkDraft(doc.id)}>
-                          {text.markDraft}
-                        </Button>
-
-                        <Button onClick={() => handleMarkReviewed(doc.id)}>
-                          {text.markReviewed}
-                        </Button>
-
-                        <Button onClick={() => handleMarkCompleted(doc.id)}>
-                          {text.markCompleted}
-                        </Button>
-
-                        <Button
-                          variant="secondary"
-                          onClick={() => resetDocument(doc.id)}
-                        >
-                          {text.reset}
-                        </Button>
-                      </div>
-
-                      {!isPro && (
-                        <div className="mt-4">
-                          <UpgradePrompt
-                            compact
-                            title={text.featureLocked}
-                            body={text.featureLockedBody}
-                          />
-                        </div>
-                      )}
-                    </Card>
-                  );
-                })}
+              <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+                {activeGroup?.documents?.length || 0} / {stats.total}
               </div>
-            </section>
-          );
-        })}
+            </div>
+          </Card>
+
+          {activeGroup?.documents?.length ? (
+            <div className="grid gap-5 md:grid-cols-2">
+              {activeGroup.documents.map((doc) => {
+                const state = getDocumentState(engine, doc.id);
+
+                return (
+                  <DocumentCard
+                    key={doc.id}
+                    doc={doc}
+                    state={state}
+                    text={text}
+                    isPro={isPro}
+                    language={language}
+                    onGenerate={() => handleOpenGenerator(doc.id)}
+                    onReview={() => handleOpenReview(doc.id)}
+                    onMarkDraft={() => handleMarkDraft(doc.id)}
+                    onMarkReviewed={() => handleMarkReviewed(doc.id)}
+                    onMarkCompleted={() => handleMarkCompleted(doc.id)}
+                    onReset={() => resetDocument(doc.id)}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <Card padding="lg">
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
+                {text.noDocuments}
+              </div>
+            </Card>
+          )}
+        </div>
       </div>
+
+      {isPro && !isPremium && (
+        <Card variant="premium" padding="lg" className="mt-10">
+          <h3 className="text-xl font-semibold text-slate-900">
+            {text.finalizeTitle}
+          </h3>
+
+          <p className="mt-2 text-sm text-slate-600">
+            {text.finalizeBody}
+          </p>
+
+          <div className="mt-4 flex gap-3">
+            <Button
+              variant="premium"
+              onClick={() =>
+                navigate(buildPremiumPricingPath("documents", "export"))
+              }
+            >
+              {text.upgradeToPremium}
+            </Button>
+          </div>
+        </Card>
+      )}
     </Layout>
   );
 }
