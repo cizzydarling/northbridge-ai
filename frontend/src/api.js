@@ -268,8 +268,6 @@ export const getBillingPlans = () => api.get("/billing/plans");
 export const getAvailablePlans = getBillingPlans;
 
 export const getBillingStatus = () => api.get("/billing/me");
-export const getBillingAccess = () => api.get("/billing/access");
-export const getMyAccess = getBillingAccess;
 
 /**
  * Accepts either:
