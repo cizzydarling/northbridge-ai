@@ -121,13 +121,19 @@ export default function AuthPage() {
 
   const heroTitle =
     i18n.language === "fr"
-      ? "Une expérience d’immigration plus claire, moderne et guidée"
-      : "A clearer, more modern, and guided immigration experience";
+      ? "Planifiez votre immigration avec clarté et confiance"
+      : "Plan your immigration with clarity and confidence";
 
   const heroSubtitle =
     i18n.language === "fr"
-      ? "Accédez à votre profil, votre stratégie, vos documents et votre assistant IA dans un espace structuré et professionnel."
-      : "Access your profile, strategy, documents, and AI assistant in one structured and professional workspace.";
+      ? "NorthBridgeAI vous guide étape par étape avec une stratégie personnalisée, des actions concrètes et un accompagnement intelligent."
+      : "NorthBridgeAI guides you step-by-step with a personalized strategy, clear actions, and intelligent support.";
+
+  const isSuccessMessage =
+    message &&
+    (message.toLowerCase().includes("success") ||
+      message.toLowerCase().includes("successfully") ||
+      message.toLowerCase().includes("succès"));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -165,27 +171,27 @@ export default function AuthPage() {
 
               <div className="mt-10 grid max-w-xl gap-4 sm:grid-cols-3">
                 <FeatureStat
-                  value={i18n.language === "fr" ? "Guidé" : "Guided"}
+                  value="AI"
                   label={
                     i18n.language === "fr"
-                      ? "Prochaines étapes claires"
-                      : "Clear next steps"
+                      ? "Stratégie intelligente"
+                      : "Smart strategy engine"
                   }
                 />
                 <FeatureStat
-                  value={i18n.language === "fr" ? "Simple" : "Simple"}
+                  value="Step-by-step"
                   label={
                     i18n.language === "fr"
-                      ? "Expérience fluide"
-                      : "Smooth experience"
+                      ? "Guidance claire"
+                      : "Clear guidance"
                   }
                 />
                 <FeatureStat
-                  value={i18n.language === "fr" ? "Fiable" : "Trusted"}
+                  value="Real-time"
                   label={
                     i18n.language === "fr"
-                      ? "Cadre professionnel"
-                      : "Professional structure"
+                      ? "Actions personnalisées"
+                      : "Personalized actions"
                   }
                 />
               </div>
@@ -195,21 +201,22 @@ export default function AuthPage() {
               <PreviewCard
                 title={
                   i18n.language === "fr"
-                    ? "Stratégie personnalisée"
-                    : "Personalized strategy"
+                    ? "Votre stratégie complète"
+                    : "Your full strategy"
                 }
                 text={
                   i18n.language === "fr"
-                    ? "Obtenez une lecture claire de votre position, de vos forces et de vos prochaines étapes."
-                    : "Get a clear read on your position, strengths, and recommended next actions."
+                    ? "Comprenez exactement où vous en êtes et ce que vous devez faire ensuite."
+                    : "Understand exactly where you stand and what to do next."
                 }
               />
+
               <PreviewCard
-                title={i18n.language === "fr" ? "Assistant IA" : "AI Assistant"}
+                title={i18n.language === "fr" ? "Copilote IA" : "AI Copilot"}
                 text={
                   i18n.language === "fr"
-                    ? "Recevez des réponses guidées selon votre profil et votre progression."
-                    : "Receive guided answers based on your profile and your progress."
+                    ? "Posez vos questions et recevez des réponses adaptées à votre profil."
+                    : "Ask questions and get answers tailored to your profile."
                 }
                 featured
               />
@@ -330,7 +337,7 @@ export default function AuthPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <Input
                   label={t("auth.email")}
                   type="email"
@@ -366,20 +373,27 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                <Button type="submit" disabled={loading} className="h-12 w-full">
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="h-12 w-full text-base font-semibold"
+                >
                   {loading
                     ? t("auth.pleaseWait")
                     : isLogin
-                    ? t("auth.login")
-                    : t("auth.register")}
+                    ? i18n.language === "fr"
+                      ? "Accéder à mon espace"
+                      : "Access my workspace"
+                    : i18n.language === "fr"
+                    ? "Créer mon compte"
+                    : "Create my account"}
                 </Button>
               </form>
 
               {message && (
                 <div
                   className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
-                    message.toLowerCase().includes("success") ||
-                    message.toLowerCase().includes("successfully")
+                    isSuccessMessage
                       ? "border border-green-200 bg-green-50 text-green-700"
                       : "border border-red-200 bg-red-50 text-red-700"
                   }`}
@@ -402,6 +416,12 @@ export default function AuthPage() {
                     ? t("auth.switchToRegister")
                     : t("auth.switchToLogin")}
                 </Button>
+
+                <p className="mt-4 text-center text-xs text-slate-500">
+                  {i18n.language === "fr"
+                    ? "Aucune donnée n’est partagée. Plateforme sécurisée."
+                    : "Your data is secure. No information is shared."}
+                </p>
 
                 <p className="mt-4 text-center text-sm text-slate-500">
                   {i18n.language === "fr"

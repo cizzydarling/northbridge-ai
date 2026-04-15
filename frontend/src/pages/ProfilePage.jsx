@@ -54,31 +54,17 @@ const PROVINCES = [
 
 function SectionIntro({ eyebrow, title, body }) {
   return (
-    <div>
+    <div className="flex flex-col gap-2">
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
         {eyebrow}
       </p>
-      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      <h2 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
         {title}
       </h2>
-      {body ? <p className="mt-2 text-sm leading-7 text-slate-600">{body}</p> : null}
+      {body ? (
+        <p className="max-w-2xl text-sm leading-6 text-slate-600">{body}</p>
+      ) : null}
     </div>
-  );
-}
-
-function SectionNavButton({ active, label, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
-        active
-          ? "border-blue-200 bg-blue-50 text-blue-700"
-          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-      }`}
-    >
-      <span className="font-medium">{label}</span>
-    </button>
   );
 }
 
@@ -243,6 +229,7 @@ export default function ProfilePage() {
         noAlternatives: "Aucune autre option disponible.",
         onboardingBanner:
           "Complétez votre profil pour débloquer votre stratégie personnalisée.",
+        navTitle: "Navigation",
       };
     }
 
@@ -331,6 +318,7 @@ export default function ProfilePage() {
       noAlternatives: "No alternative options available.",
       onboardingBanner:
         "Complete your profile to unlock your personalized strategy.",
+      navTitle: "Navigation",
     };
   }, [language, isOnboarding]);
 
@@ -602,7 +590,7 @@ export default function ProfilePage() {
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
             NorthBridgeAI
           </p>
-          <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
             {pageText.title}
           </h1>
           <p className="mt-3 text-base leading-7 text-slate-600">
@@ -670,26 +658,52 @@ Return:
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
-            <Card padding="lg" className="h-fit">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {pageText.sections}
+            <Card padding="lg" className="xl:sticky xl:top-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {pageText.navTitle}
               </p>
 
-              <div className="mt-4 space-y-2">
+              <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:hidden">
                 {sections.map((section) => (
-                  <SectionNavButton
+                  <button
                     key={section.id}
-                    active={activeSection === section.id}
-                    label={section.label}
+                    type="button"
                     onClick={() => setActiveSection(section.id)}
-                  />
+                    className={`shrink-0 rounded-full border px-3 py-2 text-sm transition ${
+                      activeSection === section.id
+                        ? "border-blue-200 bg-blue-50 text-blue-700 font-semibold"
+                        : "border-slate-200 bg-white text-slate-600"
+                    }`}
+                  >
+                    {section.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-4 hidden space-y-1.5 xl:block">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setActiveSection(section.id)}
+                    className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                      activeSection === section.id
+                        ? "bg-blue-50 text-blue-700 font-semibold"
+                        : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {section.label}
+                  </button>
                 ))}
               </div>
             </Card>
 
-            <div className="space-y-6">
+            <div
+              key={activeSection}
+              className="space-y-6 animate-[fadeIn_.18s_ease-out]"
+            >
               {activeSection === "personal" && (
-                <Card variant="default" padding="lg" className="space-y-6">
+                <Card padding="lg" className="space-y-6">
                   <SectionIntro
                     eyebrow={pageText.personalInfo}
                     title={pageText.personalInfo}
@@ -778,7 +792,7 @@ Return:
               )}
 
               {activeSection === "immigration" && (
-                <Card variant="default" padding="lg" className="space-y-6">
+                <Card padding="lg" className="space-y-6">
                   <SectionIntro
                     eyebrow={pageText.immigrationProfile}
                     title={pageText.immigrationProfile}

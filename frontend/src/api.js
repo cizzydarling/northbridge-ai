@@ -268,7 +268,14 @@ export const getBillingPlans = () => api.get("/billing/plans");
 export const getAvailablePlans = getBillingPlans;
 
 export const getBillingStatus = () => api.get("/billing/me");
+export const getBillingAccess = () => api.get("/billing/access");
+export const getMyAccess = getBillingAccess;
 
+/**
+ * Accepts either:
+ * - a string plan, e.g. "pro"
+ * - a payload object, e.g. { plan: "pro", subscription_status: "active" }
+ */
 export const devSetPlan = (planOrPayload, subscription_status = "active") => {
   const payload =
     typeof planOrPayload === "object" && planOrPayload !== null
@@ -281,6 +288,11 @@ export const devSetPlan = (planOrPayload, subscription_status = "active") => {
 export const setMyPlanForTesting = (plan) =>
   api.post("/billing/dev/set-plan", { plan });
 
+/**
+ * Accepts either:
+ * - a string plan, e.g. "pro"
+ * - a payload object, e.g. { plan: "pro" }
+ */
 export const createCheckoutSession = (planOrPayload) => {
   const payload =
     typeof planOrPayload === "object" && planOrPayload !== null

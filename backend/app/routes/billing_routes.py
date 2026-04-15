@@ -161,6 +161,43 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
     data = event["data"]["object"]
 
+# ---------------------------
+# DEV PLAN SWITCH (TESTING ONLY)
+# ---------------------------
+
+@router.post("/dev/set-plan")
+def dev_set_plan(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if APP_ENV != "development":
+        raise HTTPException(status_code=403, detail="Not allowed in production")
+
+    plan = payload.get("plan", "free")
+    subscription_status = payload.get("subscription_status", "active")
+
+    if plan not in ["free", "pro", "premium", "individual_pro", "individual_premium"]:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+
+    # Normalize plans
+    if plan == "pro":
+        plan = "individual_pro"
+    elif plan == "premium":
+        plan = "individual_premium"
+
+    current_user.plan = plan
+    current_user.subscription_status = subscription_status
+
+    db.commit()
+    db.refresh(current_user)
+
+    return {
+        "message": "Plan updated (dev mode)",
+        "plan": current_user.plan,
+        "subscription_status": current_user.subscription_status,
+    }    
+
     # ---------------------------
     # CHECKOUT COMPLETE
     # ---------------------------

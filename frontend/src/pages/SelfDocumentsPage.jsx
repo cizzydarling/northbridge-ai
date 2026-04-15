@@ -160,10 +160,12 @@ function PageHeader({ brand, title, subtitle }) {
       <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
         {brand}
       </p>
-      <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+      <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
         {title}
       </h1>
-      <p className="mt-3 text-base leading-7 text-slate-600">{subtitle}</p>
+      <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+        {subtitle}
+      </p>
     </div>
   );
 }
@@ -182,33 +184,39 @@ function StatPill({ active, children }) {
   );
 }
 
-function CategoryNavButton({
-  active,
-  label,
-  count,
-  onClick,
-}) {
+function CategoryNavButton({ active, label, count, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
+      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
         active
-          ? "border-blue-200 bg-blue-50 text-blue-800"
-          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+          ? "bg-blue-50 text-blue-800"
+          : "text-slate-700 hover:bg-slate-50"
       }`}
     >
-      <span className="font-medium">{label}</span>
+      <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
       <span
         className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-          active
-            ? "bg-white text-blue-700"
-            : "bg-slate-100 text-slate-600"
+          active ? "bg-white text-blue-700" : "bg-slate-100 text-slate-600"
         }`}
       >
         {count}
       </span>
     </button>
+  );
+}
+
+function SummaryStatCard({ label, value }) {
+  return (
+    <Card padding="lg">
+      <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
+        {value}
+      </p>
+    </Card>
   );
 }
 
@@ -454,6 +462,9 @@ export default function SelfDocumentsPage() {
           "Passez à Premium pour exporter vos documents en PDF prêt à être soumis.",
         upgradeToPremium: "Passer à Premium",
         noDocuments: "Aucun document dans cette catégorie.",
+        sectionLabel: "Espace documentaire",
+        categoryCount: "Catégorie",
+        navTitle: "Navigation",
       };
     }
 
@@ -488,6 +499,9 @@ export default function SelfDocumentsPage() {
         "Upgrade to Premium to export clean, submission-ready PDFs.",
       upgradeToPremium: "Upgrade to Premium",
       noDocuments: "No documents in this category.",
+      sectionLabel: "Document workspace",
+      categoryCount: "Category",
+      navTitle: "Navigation",
     };
   }, [language]);
 
@@ -521,83 +535,74 @@ export default function SelfDocumentsPage() {
         />
       )}
 
-      <div className="mb-8 grid gap-4 md:grid-cols-4">
-        <Card padding="lg">
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-            {text.total}
-          </p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-            {stats.total}
-          </p>
-        </Card>
-
-        <Card padding="lg">
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-            {text.drafted}
-          </p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-            {stats.drafted}
-          </p>
-        </Card>
-
-        <Card padding="lg">
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-            {text.reviewed}
-          </p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-            {stats.reviewed}
-          </p>
-        </Card>
-
-        <Card padding="lg">
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-            {text.completed}
-          </p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-            {stats.completed}
-          </p>
-        </Card>
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryStatCard label={text.total} value={stats.total} />
+        <SummaryStatCard label={text.drafted} value={stats.drafted} />
+        <SummaryStatCard label={text.reviewed} value={stats.reviewed} />
+        <SummaryStatCard label={text.completed} value={stats.completed} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
-        <Card padding="lg" className="h-fit">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-            {text.categoryTitle}
-          </p>
+      <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
+        <div className="space-y-6">
+          <Card padding="lg" className="xl:sticky xl:top-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              {text.navTitle}
+            </p>
 
-          <div className="mt-4 space-y-2">
-            {groupedDocuments.map((group) => (
-              <CategoryNavButton
-                key={group.category}
-                active={activeCategory === group.category}
-                label={group.label}
-                count={group.documents.length}
-                onClick={() => setActiveCategory(group.category)}
-              />
-            ))}
-          </div>
-        </Card>
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:hidden">
+              {groupedDocuments.map((group) => (
+                <button
+                  key={group.category}
+                  type="button"
+                  onClick={() => setActiveCategory(group.category)}
+                  className={`shrink-0 rounded-full border px-3 py-2 text-sm transition ${
+                    activeCategory === group.category
+                      ? "border-blue-200 bg-blue-50 text-blue-700 font-semibold"
+                      : "border-slate-200 bg-white text-slate-600"
+                  }`}
+                >
+                  {group.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 hidden space-y-1.5 xl:block">
+              {groupedDocuments.map((group) => (
+                <CategoryNavButton
+                  key={group.category}
+                  active={activeCategory === group.category}
+                  label={group.label}
+                  count={group.documents.length}
+                  onClick={() => setActiveCategory(group.category)}
+                />
+              ))}
+            </div>
+          </Card>
+        </div>
 
         <div className="space-y-6">
           <Card padding="lg">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
-                  {text.documentsInCategory}
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
+                  {text.sectionLabel}
                 </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
                   {activeGroup?.label}
                 </h2>
               </div>
 
-              <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
-                {activeGroup?.documents?.length || 0} / {stats.total}
+              <div className="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+                {text.categoryCount}: {activeGroup?.documents?.length || 0}
               </div>
             </div>
           </Card>
 
           {activeGroup?.documents?.length ? (
-            <div className="grid gap-5 md:grid-cols-2">
+            <div
+              key={activeCategory}
+              className="grid gap-5 md:grid-cols-2 animate-[fadeIn_.18s_ease-out]"
+            >
               {activeGroup.documents.map((doc) => {
                 const state = getDocumentState(engine, doc.id);
 
@@ -635,9 +640,7 @@ export default function SelfDocumentsPage() {
             {text.finalizeTitle}
           </h3>
 
-          <p className="mt-2 text-sm text-slate-600">
-            {text.finalizeBody}
-          </p>
+          <p className="mt-2 text-sm text-slate-600">{text.finalizeBody}</p>
 
           <div className="mt-4 flex gap-3">
             <Button

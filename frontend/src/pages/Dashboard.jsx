@@ -303,6 +303,13 @@ export default function Dashboard() {
         dashboard: "Tableau de bord",
         subtitle:
           "Suivez votre progression et avancez avec plus de clarté.",
+        overviewLabel: "Vue d’ensemble",
+        overviewTitleReady: "Votre dossier prend forme",
+        overviewTitlePending: "Préparez votre stratégie personnalisée",
+        overviewBodyReady:
+          "Retrouvez ici vos indicateurs clés, votre meilleure voie actuelle et les prochaines actions recommandées.",
+        overviewBodyPending:
+          "Complétez davantage votre profil pour débloquer une stratégie plus précise et des recommandations plus utiles.",
         accountSummary: "Résumé du compte",
         currentPlan: "Plan actuel",
         billingStatus: "Statut d’abonnement",
@@ -316,16 +323,16 @@ export default function Dashboard() {
         yes: "Oui",
         no: "Non",
         profileCompletion: "Complétion du profil",
-        currentCrsScore: "Score CRS actuel",
+        currentCrsScore: "Score CRS",
         bestPathway: "Meilleur parcours",
-        topImprovement: "Amélioration prioritaire",
+        topImprovement: "Priorité d’amélioration",
         noStrategy: "Stratégie non disponible",
         noImprovement: "Aucune recommandation pour le moment",
         noPathway: "Aucun parcours détecté",
-        latestStrategy: "Dernière stratégie calculée",
+        latestStrategy: "Dernier résultat stratégique",
         bestImmigrationOption: "Meilleure option actuelle",
-        nextOptimization: "Prochaine optimisation recommandée",
-        nextSteps: "Prochaines étapes",
+        nextOptimization: "Meilleure prochaine optimisation",
+        nextSteps: "Actions rapides",
         strategySnapshot: "Aperçu stratégique",
         recommendedPrograms: "Programmes recommandés",
         noPrograms: "Aucun programme disponible pour le moment.",
@@ -338,7 +345,7 @@ export default function Dashboard() {
         reviewDocument: "Révision IA",
         strategySummary: "Résumé stratégique",
         profileNeedsWork:
-          "Complétez davantage votre profil pour améliorer la qualité de la stratégie.",
+          "Complétez davantage votre profil pour améliorer la qualité des résultats.",
         strategyLoading: "Chargement de votre stratégie personnalisée...",
         noStrategyYet:
           "Votre stratégie n’est pas encore prête. Ajoutez plus d’informations dans votre profil pour générer un résultat exploitable.",
@@ -350,12 +357,24 @@ export default function Dashboard() {
         premiumBody:
           "Débloquez l’export PDF et une couche de finition plus forte pour votre dossier.",
         goPremium: "Passer à Premium",
+        focusCard: "Focus principal",
+        strategyAvailable: "Stratégie disponible",
+        profileInProgress: "Profil en progression",
+        nextRecommendedAction: "Action recommandée",
+        completeProfile: "Compléter le profil",
       };
     }
 
     return {
       dashboard: "Dashboard",
       subtitle: "Track your progress and move forward with more clarity.",
+      overviewLabel: "Overview",
+      overviewTitleReady: "Your case is taking shape",
+      overviewTitlePending: "Prepare your personalized strategy",
+      overviewBodyReady:
+        "See your key metrics, strongest current pathway, and recommended next actions at a glance.",
+      overviewBodyPending:
+        "Complete more of your profile to unlock a more precise strategy and stronger recommendations.",
       accountSummary: "Account summary",
       currentPlan: "Current plan",
       billingStatus: "Subscription status",
@@ -369,7 +388,7 @@ export default function Dashboard() {
       yes: "Yes",
       no: "No",
       profileCompletion: "Profile completion",
-      currentCrsScore: "Current CRS score",
+      currentCrsScore: "CRS score",
       bestPathway: "Best pathway",
       topImprovement: "Top improvement",
       noStrategy: "No strategy available",
@@ -378,7 +397,7 @@ export default function Dashboard() {
       latestStrategy: "Latest strategy result",
       bestImmigrationOption: "Best immigration option",
       nextOptimization: "Best next optimization opportunity",
-      nextSteps: "Next steps",
+      nextSteps: "Quick actions",
       strategySnapshot: "Strategy snapshot",
       recommendedPrograms: "Recommended programs",
       noPrograms: "No programs available.",
@@ -403,6 +422,11 @@ export default function Dashboard() {
       premiumBody:
         "Unlock PDF export and a stronger finishing layer for your case.",
       goPremium: "Go Premium",
+      focusCard: "Main focus",
+      strategyAvailable: "Strategy available",
+      profileInProgress: "Profile in progress",
+      nextRecommendedAction: "Recommended action",
+      completeProfile: "Complete profile",
     };
   }, [language]);
 
@@ -458,6 +482,21 @@ export default function Dashboard() {
     },
   ];
 
+  const recommendedAction = !profile
+    ? {
+        label: pageText.completeProfile,
+        onClick: () => navigate("/profile"),
+      }
+    : hasStrategy
+    ? {
+        label: pageText.openStrategy,
+        onClick: () => navigate("/strategy"),
+      }
+    : {
+        label: pageText.updateProfile,
+        onClick: () => navigate("/profile"),
+      };
+
   if (loading) {
     return (
       <Layout>
@@ -470,16 +509,16 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
               {pageText.dashboard}
             </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
               {pageText.dashboard}
             </h1>
-            <p className="mt-3 text-base leading-7 text-slate-600">
+            <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
               {pageText.subtitle}
             </p>
           </div>
@@ -499,14 +538,61 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-          <div className="space-y-6">
+        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+          <div className="space-y-8">
+            <Card variant="default" padding="lg" className="overflow-hidden">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-3xl">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    {pageText.overviewLabel}
+                  </p>
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 md:text-[30px]">
+                    {hasStrategy
+                      ? bestPathway || pageText.overviewTitleReady
+                      : pageText.overviewTitlePending}
+                  </h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+                    {heroSummary ||
+                      (hasStrategy
+                        ? pageText.overviewBodyReady
+                        : pageText.overviewBodyPending)}
+                  </p>
+                </div>
+
+                <div className="grid min-w-full grid-cols-1 gap-3 sm:min-w-[320px] sm:grid-cols-2 lg:max-w-[360px]">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {pageText.currentCrsScore}
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                      {hasStrategy ? crsScore ?? "—" : "—"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {pageText.nextRecommendedAction}
+                    </p>
+                    <div className="mt-3">
+                      <Button
+                        variant="primary"
+                        onClick={recommendedAction.onClick}
+                        className="w-full justify-center"
+                      >
+                        {recommendedAction.label}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <StatCard
                 label={pageText.profileCompletion}
                 value={`${profileCompletion}%`}
                 description={pageText.profileNeedsWork}
-                valueClassName="text-3xl"
+                valueClassName="text-2xl"
                 tone={profileCompletion >= 85 ? "success" : "warning"}
               />
 
@@ -514,15 +600,17 @@ export default function Dashboard() {
                 label={pageText.currentCrsScore}
                 value={hasStrategy ? crsScore ?? "—" : "—"}
                 description={pageText.latestStrategy}
-                valueClassName="text-3xl"
+                valueClassName="text-4xl font-bold"
                 tone={hasStrategy ? "info" : "default"}
               />
 
               <StatCard
                 label={pageText.bestPathway}
-                value={hasStrategy ? bestPathway || pageText.noPathway : pageText.noStrategy}
+                value={
+                  hasStrategy ? bestPathway || pageText.noPathway : pageText.noStrategy
+                }
                 description={pageText.bestImmigrationOption}
-                valueClassName="text-lg"
+                valueClassName="text-base md:text-lg"
                 tone={hasStrategy ? "success" : "default"}
               />
 
@@ -534,15 +622,17 @@ export default function Dashboard() {
                     : pageText.noStrategy
                 }
                 description={pageText.nextOptimization}
-                valueClassName="text-base"
+                valueClassName="text-sm md:text-base"
                 tone={hasStrategy ? "warning" : "default"}
               />
             </div>
 
             <Card variant="default" padding="lg">
-              <h2 className="text-2xl font-semibold text-slate-900">
-                {pageText.nextSteps}
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-xl font-semibold text-slate-900">
+                  {pageText.nextSteps}
+                </h2>
+              </div>
 
               <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {quickActions.map((item) => (
@@ -557,9 +647,16 @@ export default function Dashboard() {
             </Card>
 
             <Card variant="default" padding="lg">
-              <h2 className="text-2xl font-semibold text-slate-900">
-                {pageText.strategySnapshot}
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-xl font-semibold text-slate-900">
+                  {pageText.strategySnapshot}
+                </h2>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
+                  {hasStrategy
+                    ? pageText.strategyAvailable
+                    : pageText.profileInProgress}
+                </span>
+              </div>
 
               {strategyLoading ? (
                 <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
@@ -569,7 +666,7 @@ export default function Dashboard() {
                 <>
                   {heroSummary ? (
                     <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm leading-7 text-slate-700">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                         {pageText.strategySummary}
                       </p>
                       <p className="mt-2">{heroSummary}</p>
@@ -577,13 +674,13 @@ export default function Dashboard() {
                   ) : null}
 
                   <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                       {pageText.recommendedPrograms}
                     </p>
 
                     {recommendations.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        {recommendations.slice(0, 3).map((item, index) => {
+                      <div className="mt-3 grid gap-2 md:grid-cols-2">
+                        {recommendations.slice(0, 4).map((item, index) => {
                           const label =
                             typeof item === "string"
                               ? item
@@ -609,6 +706,35 @@ export default function Dashboard() {
                     )}
                   </div>
 
+                  {nextSteps.length > 0 ? (
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        {pageText.nextSteps}
+                      </p>
+
+                      <div className="mt-3 space-y-2">
+                        {nextSteps.slice(0, 3).map((item, index) => {
+                          const label =
+                            typeof item === "string"
+                              ? item
+                              : item?.label ||
+                                item?.title ||
+                                item?.action ||
+                                "Next step";
+
+                          return (
+                            <div
+                              key={`${label}-${index}`}
+                              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                            >
+                              {label}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="mt-5">
                     <Button onClick={() => navigate("/strategy")}>
                       {pageText.openStrategy}
@@ -624,7 +750,7 @@ export default function Dashboard() {
 
             {!paidAccess && hasStrategy && (
               <Card variant="warning" padding="lg">
-                <h3 className="text-xl font-semibold text-slate-900">
+                <h3 className="text-lg font-semibold text-slate-900">
                   {pageText.unlockTitle}
                 </h3>
                 <p className="mt-2 text-sm leading-7 text-slate-700">
@@ -644,7 +770,7 @@ export default function Dashboard() {
 
             {paidAccess && !isPremium && (
               <Card variant="premium" padding="lg">
-                <h3 className="text-xl font-semibold text-slate-900">
+                <h3 className="text-lg font-semibold text-slate-900">
                   {pageText.premiumTitle}
                 </h3>
                 <p className="mt-2 text-sm leading-7 text-slate-700">
@@ -665,8 +791,8 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-6">
-            <Card variant="default" padding="lg">
-              <h2 className="text-2xl font-semibold text-slate-900">
+            <Card variant="default" padding="lg" className="xl:sticky xl:top-6">
+              <h2 className="text-xl font-semibold text-slate-900">
                 {pageText.accountSummary}
               </h2>
 

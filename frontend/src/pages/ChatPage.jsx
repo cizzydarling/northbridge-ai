@@ -125,6 +125,60 @@ function normalizeInsights(items) {
     .slice(0, 3);
 }
 
+function HeaderBadge({ children, tone = "default" }) {
+  const styles =
+    tone === "primary"
+      ? "border-blue-200 bg-blue-50 text-blue-700"
+      : "border-slate-200 bg-slate-50 text-slate-700";
+
+  return (
+    <div
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${styles}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function StarterPromptButton({ prompt, onClick, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {prompt}
+    </button>
+  );
+}
+
+function MessageBubble({ role, content }) {
+  const isUser = role === "user";
+
+  return (
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-7 shadow-sm ${
+          isUser
+            ? "bg-blue-900 text-white"
+            : "border border-slate-200 bg-white text-slate-800"
+        }`}
+      >
+        <pre className="whitespace-pre-wrap font-sans">{content}</pre>
+      </div>
+    </div>
+  );
+}
+
+function SidebarSectionTitle({ children }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+      {children}
+    </p>
+  );
+}
+
 export default function ChatPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -203,6 +257,8 @@ export default function ChatPage() {
         useThisPrompt: "Utiliser",
         quickNav: "Navigation rapide",
         quickNavTitle: "Aller directement à une section",
+        chatPanelTitle: "Conversation",
+        composerTitle: "Votre message",
       };
     }
 
@@ -230,6 +286,8 @@ export default function ChatPage() {
       useThisPrompt: "Use this prompt",
       quickNav: "Quick navigation",
       quickNavTitle: "Jump directly to a section",
+      chatPanelTitle: "Conversation",
+      composerTitle: "Your message",
     };
   }, [firstName, language]);
 
@@ -389,46 +447,52 @@ export default function ChatPage() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-8">
-          <p className="text-sm font-semibold text-blue-600">{ui.eyebrow}</p>
-          <h1 className="mt-1 text-3xl font-bold text-slate-900">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 max-w-3xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+            {ui.eyebrow}
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
             {ui.title}
           </h1>
-          <p className="mt-2 text-sm text-slate-600">{ui.subtitle}</p>
+          <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+            {ui.subtitle}
+          </p>
 
           <div className="mt-4 flex flex-wrap gap-3">
-            <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-              {ui.assistantBadge}
-            </div>
+            <HeaderBadge tone="primary">{ui.assistantBadge}</HeaderBadge>
 
             {sourceTitle ? (
-              <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+              <HeaderBadge>
                 {ui.sourceLabel}: {sourceTitle}
-              </div>
+              </HeaderBadge>
             ) : null}
           </div>
         </div>
 
-        <div className="mb-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
           <Card className="overflow-hidden p-0">
-            <div className="border-b border-slate-200 bg-white px-4 py-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="border-b border-slate-200 bg-white px-5 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 {ui.starterTitle}
               </p>
-              <div className="flex flex-wrap gap-2">
+
+              <div className="mt-3 flex flex-wrap gap-2">
                 {starterPrompts.map((prompt, index) => (
-                  <button
+                  <StarterPromptButton
                     key={`${prompt}-${index}`}
-                    type="button"
-                    onClick={() => handleStarterPromptClick(prompt)}
+                    prompt={prompt}
                     disabled={loading}
-                    className="rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {prompt}
-                  </button>
+                    onClick={() => handleStarterPromptClick(prompt)}
+                  />
                 ))}
               </div>
+            </div>
+
+            <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {ui.chatPanelTitle}
+              </p>
             </div>
 
             <div className="h-[520px] space-y-4 overflow-y-auto bg-slate-50 p-6">
@@ -439,24 +503,11 @@ export default function ChatPage() {
               )}
 
               {messages.map((message, index) => (
-                <div
+                <MessageBubble
                   key={index}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-7 shadow-sm ${
-                      message.role === "user"
-                        ? "bg-blue-900 text-white"
-                        : "border border-slate-200 bg-white text-slate-800"
-                    }`}
-                  >
-                    <pre className="whitespace-pre-wrap font-sans">
-                      {message.content}
-                    </pre>
-                  </div>
-                </div>
+                  role={message.role}
+                  content={message.content}
+                />
               ))}
 
               {loading && (
@@ -471,10 +522,10 @@ export default function ChatPage() {
             </div>
 
             {(lastInsights.length > 0 || lastSuggestedActions.length > 0) && (
-              <div className="border-t border-slate-200 bg-white px-4 py-4">
+              <div className="border-t border-slate-200 bg-white px-5 py-4">
                 {lastInsights.length > 0 && (
                   <div className="mb-4">
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                       {ui.insightsTitle}
                     </p>
                     <div className="space-y-2">
@@ -492,7 +543,7 @@ export default function ChatPage() {
 
                 {lastSuggestedActions.length > 0 && (
                   <div>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                       {ui.suggestedActions}
                     </p>
 
@@ -513,7 +564,11 @@ export default function ChatPage() {
               </div>
             )}
 
-            <div className="border-t border-slate-200 bg-white p-4">
+            <div className="border-t border-slate-200 bg-white p-5">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {ui.composerTitle}
+              </p>
+
               <div className="flex gap-3">
                 <textarea
                   rows={3}
@@ -534,9 +589,7 @@ export default function ChatPage() {
 
           <div className="space-y-6">
             <Card className="p-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {ui.helperTitle}
-              </p>
+              <SidebarSectionTitle>{ui.helperTitle}</SidebarSectionTitle>
               <h2 className="mt-2 text-xl font-semibold text-slate-900">
                 {language === "fr"
                   ? "Posez de meilleures questions"
@@ -567,9 +620,7 @@ export default function ChatPage() {
             </Card>
 
             <Card className="p-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {ui.quickNav}
-              </p>
+              <SidebarSectionTitle>{ui.quickNav}</SidebarSectionTitle>
               <h2 className="mt-2 text-xl font-semibold text-slate-900">
                 {ui.quickNavTitle}
               </h2>

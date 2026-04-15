@@ -24,6 +24,26 @@ function PageHeader({ title, subtitle }) {
   );
 }
 
+function SideNav({ items, active, setActive }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {items.map((item) => (
+        <button
+          key={item.key}
+          onClick={() => setActive(item.key)}
+          className={`text-left rounded-xl px-4 py-3 text-sm font-medium transition ${
+            active === item.key
+              ? "bg-blue-50 text-blue-700 border border-blue-200"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function SelfApplicationPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
@@ -34,10 +54,10 @@ export default function SelfApplicationPage() {
   const [access, setAccess] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [activeTab, setActiveTab] = useState("priority");
 
   useEffect(() => {
     loadPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 
   async function loadPage() {
@@ -89,14 +109,12 @@ export default function SelfApplicationPage() {
 
   const primaryRecommendation =
     workspace?.decision?.primary_recommendation ||
-    workspace?.decision?.priority_label ||
     workspace?.strategy?.advisor_summary ||
     workspace?.eligibility?.summary ||
     null;
 
   const nextSteps =
     workspace?.strategy?.next_steps ||
-    workspace?.eligibility?.next_steps ||
     workspace?.decision?.suggested_next_actions ||
     [];
 
@@ -108,42 +126,33 @@ export default function SelfApplicationPage() {
   const checklist = workspace?.checklist || [];
 
   const text = useMemo(() => {
-    if (language === "fr") {
-      return {
-        title: "Votre parcours d’application",
-        subtitle:
-          "Suivez votre progression et exécutez votre stratégie étape par étape.",
-        priority: "Priorité actuelle",
-        nextActions: "Prochaines actions",
-        pathways: "Voies recommandées",
-        checklist: "Checklist active",
-        noData: "Aucune donnée disponible.",
-        openDocs: "Gérer mes documents",
-        openForms: "Ouvrir Forms Studio",
-        openStrategy: "Voir ma stratégie",
-        upgradeDecisionTitle: "Débloquez le moteur de décision",
-        upgradeDecisionBody:
-          "Passez à Pro pour obtenir des priorités intelligentes et des recommandations avancées.",
-      };
-    }
-
-    return {
-      title: "Your Application Journey",
-      subtitle:
-        "Track your progress and execute your strategy step by step.",
-      priority: "Current priority",
-      nextActions: "Next actions",
-      pathways: "Recommended pathways",
-      checklist: "Active checklist",
-      noData: "No data available.",
-      openDocs: "Manage my documents",
-      openForms: "Open Forms Studio",
-      openStrategy: "View my strategy",
-      upgradeDecisionTitle: "Unlock decision engine",
-      upgradeDecisionBody:
-        "Upgrade to Pro to unlock smart prioritization and advanced execution guidance.",
-    };
+    return language === "fr"
+      ? {
+          title: "Votre parcours d’application",
+          subtitle: "Exécutez votre stratégie étape par étape.",
+          priority: "Priorité",
+          nextActions: "Actions",
+          pathways: "Voies",
+          checklist: "Checklist",
+          noData: "Aucune donnée",
+        }
+      : {
+          title: "Your Application Journey",
+          subtitle: "Execute your strategy step by step.",
+          priority: "Priority",
+          nextActions: "Actions",
+          pathways: "Pathways",
+          checklist: "Checklist",
+          noData: "No data",
+        };
   }, [language]);
+
+  const navItems = [
+    { key: "priority", label: text.priority },
+    { key: "actions", label: text.nextActions },
+    { key: "pathways", label: text.pathways },
+    { key: "checklist", label: text.checklist },
+  ];
 
   if (loading) {
     return (
@@ -166,145 +175,131 @@ export default function SelfApplicationPage() {
       {!hasDecisionEngine && (
         <UpgradePrompt
           className="mb-6"
-          title={text.upgradeDecisionTitle}
-          body={text.upgradeDecisionBody}
-          buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+          title="Unlock decision engine"
+          body="Upgrade to Pro for full execution guidance."
+          buttonLabel="View pricing"
         />
       )}
 
       <AICopilotCard
-        title={
-          language === "fr"
-            ? "Copilote IA d’application"
-            : "Application AI Copilot"
-        }
-        description={
-          language === "fr"
-            ? "Obtenez des recommandations sur vos prochaines actions."
-            : "Get guidance on your next best actions."
-        }
-        buttonLabel={
-          language === "fr"
-            ? "Optimiser mon parcours"
-            : "Optimize my journey"
-        }
+        title="AI Copilot"
+        description="Get your next best action."
+        buttonLabel="Optimize"
         language={language}
-        prompt={
-          language === "fr"
-            ? "Analyse mon parcours d’immigration et dis-moi quelle est la prochaine meilleure action."
-            : "Analyze my immigration journey and tell me the next best action."
-        }
+        prompt="Analyze my immigration journey and tell me next best step."
         premiumLocked={!hasAdvancedCopilot}
-        premiumTitle={
-          language === "fr"
-            ? "Débloquez le copilote avancé"
-            : "Unlock advanced AI copilot"
-        }
-        premiumBody={
-          language === "fr"
-            ? "Passez à Pro pour des recommandations plus profondes."
-            : "Upgrade to Pro for deeper recommendations."
-        }
         className="mb-6"
       />
 
-      {workspace ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card variant="premium" padding="lg">
-            <h2 className="text-lg font-semibold text-slate-900">
-              {text.priority}
-            </h2>
-
-            <p className="mt-3 text-sm leading-7 text-slate-700">
-              {primaryRecommendation || text.noData}
-            </p>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={() => navigate("/strategy")}>
-                {text.openStrategy}
-              </Button>
-              <Button variant="secondary" onClick={() => navigate("/forms")}>
-                {text.openForms}
-              </Button>
-            </div>
+      {workspace && (
+        <div className="grid lg:grid-cols-[260px_1fr] gap-6">
+          {/* SIDE NAV */}
+          <Card className="h-fit p-4">
+            <SideNav
+              items={navItems}
+              active={activeTab}
+              setActive={setActiveTab}
+            />
           </Card>
 
+          {/* CONTENT PANEL */}
           <Card padding="lg">
-            <h2 className="text-lg font-semibold text-slate-900">
-              {text.nextActions}
-            </h2>
+            {activeTab === "priority" && (
+              <>
+                <h2 className="text-xl font-semibold mb-4">
+                  {text.priority}
+                </h2>
+                <p className="text-slate-700">
+                  {primaryRecommendation || text.noData}
+                </p>
 
-            <div className="mt-3 space-y-2">
-              {nextSteps.length > 0 ? (
-                nextSteps.map((step, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700"
-                  >
-                    {step}
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500">{text.noData}</p>
-              )}
-            </div>
-          </Card>
+                <div className="mt-6 flex gap-3">
+                  <Button onClick={() => navigate("/strategy")}>
+                    Strategy
+                  </Button>
+                  <Button variant="secondary" onClick={() => navigate("/forms")}>
+                    Forms
+                  </Button>
+                </div>
+              </>
+            )}
 
-          <Card padding="lg">
-            <h2 className="text-lg font-semibold text-slate-900">
-              {text.pathways}
-            </h2>
+            {activeTab === "actions" && (
+              <>
+                <h2 className="text-xl font-semibold mb-4">
+                  {text.nextActions}
+                </h2>
+                <div className="space-y-2">
+                  {nextSteps.length > 0 ? (
+                    nextSteps.map((s, i) => (
+                      <div
+                        key={i}
+                        className="p-3 border rounded-lg text-sm"
+                      >
+                        {s}
+                      </div>
+                    ))
+                  ) : (
+                    <p>{text.noData}</p>
+                  )}
+                </div>
+              </>
+            )}
 
-            <div className="mt-3 space-y-2">
-              {pathways.length > 0 ? (
-                pathways.map((pathway, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700"
-                  >
-                    {pathway}
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500">{text.noData}</p>
-              )}
-            </div>
-          </Card>
+            {activeTab === "pathways" && (
+              <>
+                <h2 className="text-xl font-semibold mb-4">
+                  {text.pathways}
+                </h2>
+                <div className="space-y-2">
+                  {pathways.length > 0 ? (
+                    pathways.map((p, i) => (
+                      <div
+                        key={i}
+                        className="p-3 border rounded-lg text-sm"
+                      >
+                        {p}
+                      </div>
+                    ))
+                  ) : (
+                    <p>{text.noData}</p>
+                  )}
+                </div>
+              </>
+            )}
 
-          <Card padding="lg">
-            <h2 className="text-lg font-semibold text-slate-900">
-              {text.checklist}
-            </h2>
+            {activeTab === "checklist" && (
+              <>
+                <h2 className="text-xl font-semibold mb-4">
+                  {text.checklist}
+                </h2>
+                <div className="space-y-2">
+                  {checklist.length > 0 ? (
+                    checklist.map((c, i) => (
+                      <div
+                        key={i}
+                        className="p-3 border rounded-lg text-sm"
+                      >
+                        <div className="font-medium">{c.name}</div>
+                        <div className="text-slate-500 text-xs">
+                          {c.reason}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p>{text.noData}</p>
+                  )}
+                </div>
 
-            <div className="mt-3 space-y-2">
-              {checklist.length > 0 ? (
-                checklist.slice(0, 5).map((item, i) => (
-                  <div
-                    key={item.id || i}
-                    className="rounded-lg border border-slate-200 p-3 text-sm"
-                  >
-                    <div className="font-medium text-slate-900">
-                      {item.name}
-                    </div>
-                    {item.reason ? (
-                      <div className="mt-1 text-slate-600">{item.reason}</div>
-                    ) : null}
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500">{text.noData}</p>
-              )}
-            </div>
-
-            <div className="mt-5">
-              <Button onClick={() => navigate("/self/documents")}>
-                {text.openDocs}
-              </Button>
-            </div>
+                <div className="mt-6">
+                  <Button onClick={() => navigate("/self/documents")}>
+                    Documents
+                  </Button>
+                </div>
+              </>
+            )}
           </Card>
         </div>
-      ) : (
-        <div className="text-sm text-slate-500">{text.noData}</div>
       )}
     </Layout>
   );

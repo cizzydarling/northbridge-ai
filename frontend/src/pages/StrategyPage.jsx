@@ -13,9 +13,6 @@ import {
   getMyStrategyLite,
 } from "../api";
 
-/* ===============================
-   DOCUMENT COMPLETION ENGINE (READ ONLY)
-================================ */
 const COMPLETION_STORAGE_KEY = "nbai_document_completion_engine_v1";
 
 function readCompletionEngine() {
@@ -34,9 +31,6 @@ function buildPremiumPricingPath(source = "strategy", intent = "export") {
   return `/pricing?plan=premium&source=${source}&intent=${intent}`;
 }
 
-/* ===============================
-   SMART PRIORITY ENGINE
-================================ */
 function buildPriorityRecommendation(strategyData, documentStats, language) {
   const nextSteps = Array.isArray(strategyData?.next_steps)
     ? strategyData.next_steps
@@ -298,7 +292,7 @@ function PageHeaderBlock({ brand, title, subtitle }) {
       <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
         {brand}
       </p>
-      <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+      <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
         {title}
       </h1>
       <p className="mt-3 text-base leading-7 text-slate-600">{subtitle}</p>
@@ -308,29 +302,13 @@ function PageHeaderBlock({ brand, title, subtitle }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
         {label}
       </p>
       <p className="mt-2 text-2xl font-semibold tracking-tight text-blue-900">
         {value}
       </p>
-    </div>
-  );
-}
-
-function StrategyHeroStat({ label, value, subvalue }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-        {value}
-      </p>
-      {subvalue ? (
-        <p className="mt-2 text-sm leading-6 text-slate-600">{subvalue}</p>
-      ) : null}
     </div>
   );
 }
@@ -351,7 +329,7 @@ function ListCard({ title, items, emptyLabel }) {
           {safeItems.map((item, i) => (
             <li
               key={i}
-              className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm leading-7 text-slate-700"
+              className="rounded-xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-700 shadow-sm"
             >
               {item}
             </li>
@@ -378,7 +356,7 @@ function RiskCard({ title, items, emptyLabel, language }) {
           {safeItems.map((item, i) => (
             <div
               key={`${item?.risk || "risk"}-${i}`}
-              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
             >
               <p className="text-sm font-semibold text-slate-900">
                 {item?.risk || "--"}
@@ -423,7 +401,7 @@ function RoadmapCard({ title, items, emptyLabel, language }) {
           {safeItems.map((item, index) => (
             <div
               key={`${item?.title || "roadmap"}-${index}`}
-              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
@@ -488,7 +466,7 @@ function BlurredSection({
 }) {
   return (
     <div className="relative">
-      <div className="pointer-events-none select-none blur-[3px]">
+      <div className="pointer-events-none select-none blur-[5px] opacity-70">
         {children}
       </div>
 
@@ -606,7 +584,7 @@ function ProvinceCard({ title, items, emptyLabel }) {
           {safeItems.map((item, index) => (
             <div
               key={`${item?.province || "province"}-${item?.program || index}`}
-              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
@@ -752,6 +730,27 @@ function StrategyPaywallHero({
   );
 }
 
+function SidebarButton({ active, label, onClick, locked = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
+        active
+          ? "bg-blue-100 text-blue-900 shadow-sm"
+          : "text-slate-600 hover:bg-slate-100"
+      }`}
+    >
+      <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
+      {locked ? (
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+          Lock
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 export default function StrategyPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
@@ -767,6 +766,7 @@ export default function StrategyPage() {
   const [engineVersion, setEngineVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
 
   useEffect(() => {
     const forceRefresh = localStorage.getItem("nbai_force_refresh");
@@ -963,7 +963,6 @@ export default function StrategyPage() {
           "Votre stratégie personnalisée basée sur votre profil, votre admissibilité et votre progression documentaire.",
         overview: "Aperçu stratégique",
         crs: "Score CRS",
-        crsBand: "Force du profil",
         strategyHeadline: "Lecture stratégique",
         bestPathway: "Meilleur parcours actuel",
         topImprovement: "Amélioration prioritaire",
@@ -976,7 +975,6 @@ export default function StrategyPage() {
         roadmap: "Feuille de route",
         riskAnalysis: "Risques à surveiller",
         noc: "Signal CNP",
-        nocInsights: "Analyse CNP",
         provinceRecommendations: "Provinces recommandées",
         documentsProgress: "Progression des documents",
         completed: "Complétés",
@@ -1043,12 +1041,6 @@ export default function StrategyPage() {
         blurRiskBody:
           "Comprenez ce qui peut ralentir votre dossier et comment réduire ces risques.",
         unlockNow: "Débloquer maintenant",
-        scoreImproveTitle: "Découvrez jusqu’où votre score pourrait monter",
-        scoreImproveBody:
-          "Débloquez le simulateur avancé pour tester différents scénarios d’amélioration avant d’agir.",
-        simulatorTitle: "Simulateur de score",
-        simulatorButton: "Ouvrir le simulateur",
-        simulatorLockedButton: "Débloquer le simulateur",
         teer: "TEER",
         strategicValue: "Valeur stratégique",
         highDemandOccupation: "Profession en demande",
@@ -1059,6 +1051,8 @@ export default function StrategyPage() {
         premiumExportTitle: "Débloquez l’export PDF premium",
         premiumExportPrimary: "Passer à Premium",
         premiumExportSecondary: "Voir les plans",
+        navTitle: "Navigation",
+        lockedShort: "Verrouillé",
       };
     }
 
@@ -1069,7 +1063,6 @@ export default function StrategyPage() {
         "Your personalized strategy based on your profile, eligibility, and document progress.",
       overview: "Strategy overview",
       crs: "CRS Score",
-      crsBand: "Profile strength",
       strategyHeadline: "Strategic read",
       bestPathway: "Best current pathway",
       topImprovement: "Top improvement",
@@ -1082,7 +1075,6 @@ export default function StrategyPage() {
       roadmap: "Roadmap",
       riskAnalysis: "Risks to watch",
       noc: "NOC Signal",
-      nocInsights: "NOC Insight",
       provinceRecommendations: "Recommended Provinces",
       documentsProgress: "Document Progress",
       completed: "Completed",
@@ -1149,12 +1141,6 @@ export default function StrategyPage() {
       blurRiskBody:
         "Understand what may slow your case down and how to reduce those risks.",
       unlockNow: "Unlock Now",
-      scoreImproveTitle: "See how far your score could move",
-      scoreImproveBody:
-        "Unlock the advanced simulator to test improvement scenarios before you act.",
-      simulatorTitle: "Score simulator",
-      simulatorButton: "Open simulator",
-      simulatorLockedButton: "Unlock simulator",
       teer: "TEER",
       strategicValue: "Strategic value",
       highDemandOccupation: "High-demand occupation",
@@ -1165,8 +1151,32 @@ export default function StrategyPage() {
       premiumExportTitle: "Unlock premium PDF export",
       premiumExportPrimary: "Upgrade to Premium",
       premiumExportSecondary: "View plans",
+      navTitle: "Navigation",
+      lockedShort: "Locked",
     };
   }, [language]);
+
+  const sections = useMemo(
+    () => [
+      { key: "overview", label: text.overview, locked: false },
+      { key: "programs", label: text.programs, locked: !hasFullStrategy },
+      { key: "strengths", label: text.strengths, locked: false },
+      { key: "weaknesses", label: text.weaknesses, locked: !hasFullStrategy },
+      { key: "steps", label: text.nextSteps, locked: !hasFullStrategy },
+      { key: "roadmap", label: text.roadmap, locked: !hasFullStrategy },
+      {
+        key: "province",
+        label: text.provinceRecommendations,
+        locked: !hasFullStrategy,
+      },
+      { key: "risks", label: text.riskAnalysis, locked: !hasFullStrategy },
+    ],
+    [text, hasFullStrategy]
+  );
+
+  const activeSectionLabel =
+    sections.find((section) => section.key === activeSection)?.label ||
+    text.overview;
 
   if (loading) {
     return (
@@ -1209,10 +1219,7 @@ export default function StrategyPage() {
             <Button variant="primary" onClick={() => navigate("/profile")}>
               {text.openProfile}
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => navigate("/documents")}
-            >
+            <Button variant="secondary" onClick={() => navigate("/documents")}>
               {text.openDocuments}
             </Button>
           </div>
@@ -1266,9 +1273,7 @@ export default function StrategyPage() {
               <PlanChip active={access?.is_pro && !access?.is_premium}>
                 Pro
               </PlanChip>
-              <PlanChip active={access?.is_premium}>
-                Premium
-              </PlanChip>
+              <PlanChip active={access?.is_premium}>Premium</PlanChip>
             </div>
           </div>
 
@@ -1318,36 +1323,61 @@ export default function StrategyPage() {
         </div>
       </Card>
 
-      <Card variant="premium" padding="lg" className="mb-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-          {text.overview}
-        </p>
+      <div className="mb-8 rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-6 shadow-sm">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+              {text.overview}
+            </p>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
-          <StrategyHeroStat
-            label={text.crs}
-            value={strategy?.crs_score ?? "--"}
-            subvalue={strategy?.crs_band?.label || ""}
-          />
-          <StrategyHeroStat
-            label={text.bestPathway}
-            value={bestPathwayName}
-            subvalue={strategy?.best_pathway?.confidence || ""}
-          />
-          <StrategyHeroStat
-            label={text.topImprovement}
-            value={topImprovement}
-          />
-        </div>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+              {strategy?.best_pathway?.name || bestPathwayName}
+            </h2>
 
-        {strategy?.strategy_headline ? (
-          <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
-            <p className="text-sm leading-7 text-blue-900">
-              {strategy.strategy_headline}
+            <p className="mt-2 max-w-xl text-sm text-slate-600">
+              {strategy?.strategy_headline ||
+                (language === "fr"
+                  ? "Votre stratégie est basée sur votre profil et vos opportunités actuelles."
+                  : "Your strategy is built from your profile and current opportunities.")}
             </p>
           </div>
-        ) : null}
-      </Card>
+
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={() => navigate("/documents")}>
+              {text.openDocuments}
+            </Button>
+
+            {!canExportPdf && (
+              <Button variant="secondary" onClick={() => navigate(premiumPath)}>
+                {text.exportPdf}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">{text.crs}</p>
+            <p className="text-2xl font-semibold text-slate-900">
+              {strategy?.crs_score ?? "--"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">{text.topImprovement}</p>
+            <p className="text-sm font-medium text-slate-900">
+              {topImprovement}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-slate-500">{text.confidence}</p>
+            <p className="text-sm font-medium text-slate-900">
+              {strategy?.best_pathway?.confidence || "--"}
+            </p>
+          </div>
+        </div>
+      </div>
 
       <ScoreSimulatorTeaser
         language={language}
@@ -1409,100 +1439,49 @@ export default function StrategyPage() {
         />
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
         <div className="space-y-6">
-          {(strategy?.strategy_headline || strategy?.best_pathway?.name) && (
-            <Card padding="lg">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {text.strategyHeadline}
-              </p>
+          <Card padding="lg" className="xl:sticky xl:top-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              {text.navTitle}
+            </p>
 
-              {strategy?.strategy_headline ? (
-                <p className="mt-3 text-base leading-7 text-slate-700">
-                  {strategy.strategy_headline}
-                </p>
-              ) : null}
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:hidden">
+              {sections.map((section) => (
+                <button
+                  key={section.key}
+                  type="button"
+                  onClick={() => setActiveSection(section.key)}
+                  className={`shrink-0 rounded-full border px-3 py-2 text-sm transition ${
+                    activeSection === section.key
+                      ? "border-blue-200 bg-blue-50 text-blue-700 font-semibold"
+                      : "border-slate-200 bg-white text-slate-600"
+                  }`}
+                >
+                  {section.label}
+                </button>
+              ))}
+            </div>
 
-              {strategy?.best_pathway?.name ? (
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    {text.bestPathway}
-                  </p>
-                  <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
-                    {strategy.best_pathway.name}
-                  </p>
-
-                  {strategy?.best_pathway?.confidence ? (
-                    <div className="mt-3 inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                      {text.confidence}: {strategy.best_pathway.confidence}
-                    </div>
-                  ) : null}
-
-                  {Array.isArray(strategy?.best_pathway?.reasons) &&
-                  strategy.best_pathway.reasons.length > 0 ? (
-                    hasFullStrategy ? (
-                      <div className="mt-4 space-y-2">
-                        {strategy.best_pathway.reasons.map((reason, index) => (
-                          <div
-                            key={`${reason}-${index}`}
-                            className="rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 text-slate-700"
-                          >
-                            {reason}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="mt-4">
-                        <BlurredSection
-                          title={
-                            language === "fr"
-                              ? "Débloquez la logique complète du meilleur parcours"
-                              : "Unlock the full best-pathway logic"
-                          }
-                          body={
-                            language === "fr"
-                              ? "Voyez pourquoi ce parcours est recommandé et quels signaux renforcent votre dossier."
-                              : "See why this pathway is recommended and which signals strengthen your case."
-                          }
-                          buttonLabel={text.unlockNow}
-                          onUpgrade={() => navigate(proPath)}
-                        >
-                          <div className="space-y-2">
-                            {strategy.best_pathway.reasons.map((reason, index) => (
-                              <div
-                                key={`${reason}-${index}`}
-                                className="rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 text-slate-700"
-                              >
-                                {reason}
-                              </div>
-                            ))}
-                          </div>
-                        </BlurredSection>
-                      </div>
-                    )
-                  ) : null}
-                </div>
-              ) : null}
-
-              {strategy?.timeline_summary ? (
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    {text.timeline}
-                  </p>
-                  <p className="mt-2 text-sm leading-7 text-slate-700">
-                    {strategy.timeline_summary}
-                  </p>
-                </div>
-              ) : null}
-            </Card>
-          )}
+            <div className="mt-4 hidden space-y-1.5 xl:block">
+              {sections.map((section) => (
+                <SidebarButton
+                  key={section.key}
+                  active={activeSection === section.key}
+                  label={section.label}
+                  locked={section.locked}
+                  onClick={() => setActiveSection(section.key)}
+                />
+              ))}
+            </div>
+          </Card>
 
           <Card padding="lg">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               {text.currentPlan}
             </p>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="mt-5 grid gap-4">
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                 <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
                   {text.currentPlanValue}
@@ -1584,366 +1563,357 @@ export default function StrategyPage() {
               <Stat label={text.total} value={documentStats.total} />
             </div>
           </Card>
-
-          {!hasDecisionEngine && (
-            <UpgradePrompt
-              title={text.decisionPromptTitle}
-              body={text.decisionPromptBody}
-              buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
-            />
-          )}
-
-          {!canExportPdf && (
-            <UpgradePrompt
-              title={text.premiumPromptTitle}
-              body={text.premiumPromptBody}
-              buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
-            />
-          )}
-
-          <Card variant="premium" padding="lg" className="space-y-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {text.priorityTitle}
-            </p>
-            <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
-              {priority.title}
-            </h2>
-
-            <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-800">
-                {text.priorityReason}
-              </p>
-              <p className="mt-2 text-sm leading-7 text-amber-900">
-                {priority.reason}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {text.recommendedActions}
-              </p>
-              <div className="mt-3 space-y-2.5">
-                {priority.actions.map((action, index) => (
-                  <div
-                    key={`${action}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700"
-                  >
-                    {action}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-1">
-              <Button onClick={() => navigate(priority.route)}>
-                {text.openPriorityRoute}
-              </Button>
-            </div>
-          </Card>
-
-          {(noc?.noc_code ||
-            noc?.occupation ||
-            nocAdvantage?.has_noc ||
-            typeof nocAdvantage?.teer === "number") && (
-            <Card padding="lg" className="space-y-5">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  {text.noc}
-                </p>
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
-                  {noc?.noc_code
-                    ? `${noc.noc_code} — ${noc.noc_title || noc.occupation || ""}`
-                    : nocAdvantage?.noc_code
-                    ? `${nocAdvantage.noc_code}`
-                    : noc?.occupation || "--"}
-                </h2>
-                {typeof noc?.teer === "number" ? (
-                  <p className="mt-2 text-sm text-slate-600">TEER {noc.teer}</p>
-                ) : typeof nocAdvantage?.teer === "number" &&
-                  nocAdvantage.teer >= 0 ? (
-                  <p className="mt-2 text-sm text-slate-600">
-                    {text.teer} {nocAdvantage.teer}
-                  </p>
-                ) : null}
-              </div>
-
-              {(typeof nocAdvantage?.teer === "number" && nocAdvantage.teer >= 0) ||
-              typeof nocAdvantage?.strategic_value === "string" ||
-              typeof nocAdvantage?.is_high_demand === "boolean" ? (
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Stat
-                    label={text.teer}
-                    value={
-                      typeof nocAdvantage?.teer === "number" &&
-                      nocAdvantage.teer >= 0
-                        ? nocAdvantage.teer
-                        : "--"
-                    }
-                  />
-                  <Stat
-                    label={text.strategicValue}
-                    value={nocAdvantage?.strategic_value || "--"}
-                  />
-                  <Stat
-                    label={text.highDemandOccupation}
-                    value={
-                      typeof nocAdvantage?.is_high_demand === "boolean"
-                        ? nocAdvantage.is_high_demand
-                          ? text.yes
-                          : text.no
-                        : "--"
-                    }
-                  />
-                </div>
-              ) : null}
-
-              {Array.isArray(nocAdvantage?.signals) &&
-              nocAdvantage.signals.length > 0 ? (
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {text.whyThisMatters}
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    {nocAdvantage.signals.map((item, index) => (
-                      <div
-                        key={`${item}-${index}`}
-                        className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700"
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {Array.isArray(nocAdvantage?.recommendations) &&
-              nocAdvantage.recommendations.length > 0 ? (
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {text.recommendedNocActions}
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    {nocAdvantage.recommendations.map((item, index) => (
-                      <div
-                        key={`${item}-${index}`}
-                        className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-7 text-blue-900"
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </Card>
-          )}
-
-          {hasFullStrategy ? (
-            <ProvinceCard
-              title={text.provinceRecommendations}
-              items={provinceRecommendations}
-              emptyLabel={text.noItems}
-            />
-          ) : (
-            <BlurredSection
-              title={text.blurProvinceTitle}
-              body={text.blurProvinceBody}
-              buttonLabel={text.unlockNow}
-              onUpgrade={() => navigate(proPath)}
-            >
-              <ProvinceCard
-                title={text.provinceRecommendations}
-                items={
-                  provinceRecommendations.length
-                    ? provinceRecommendations
-                    : [
-                        language === "fr"
-                          ? {
-                              province: "Ontario",
-                              program: "Volet Tech de l’OINP",
-                              chance: "Élevée",
-                              reason:
-                                "Cette province pourrait bien correspondre à votre profil.",
-                            }
-                          : {
-                              province: "Ontario",
-                              program: "OINP Tech Draw",
-                              chance: "High",
-                              reason:
-                                "This province may align well with your profile.",
-                            },
-                      ]
-                }
-                emptyLabel={text.noItems}
-              />
-            </BlurredSection>
-          )}
-
-          {hasFullStrategy ? (
-            <RoadmapCard
-              title={text.roadmap}
-              items={strategy?.roadmap}
-              emptyLabel={text.noItems}
-              language={language}
-            />
-          ) : (
-            <BlurredSection
-              title={text.blurRoadmapTitle}
-              body={text.blurRoadmapBody}
-              buttonLabel={text.unlockNow}
-              onUpgrade={() => navigate(proPath)}
-            >
-              <RoadmapCard
-                title={text.roadmap}
-                items={
-                  Array.isArray(strategy?.roadmap) && strategy.roadmap.length
-                    ? strategy.roadmap
-                    : [
-                        language === "fr"
-                          ? {
-                              title: "Améliorer le score linguistique",
-                              estimated_crs_gain: 28,
-                              difficulty: "Moyen",
-                              reason:
-                                "L’amélioration linguistique est l’un des leviers les plus rapides.",
-                            }
-                          : {
-                              title: "Improve language score",
-                              estimated_crs_gain: 28,
-                              difficulty: "Medium",
-                              reason:
-                                "Language improvement is one of the fastest levers.",
-                            },
-                      ]
-                }
-                emptyLabel={text.noItems}
-                language={language}
-              />
-            </BlurredSection>
-          )}
-
-          {hasFullStrategy ? (
-            <RiskCard
-              title={text.riskAnalysis}
-              items={strategy?.risk_analysis}
-              emptyLabel={text.noItems}
-              language={language}
-            />
-          ) : (
-            <BlurredSection
-              title={text.blurRiskTitle}
-              body={text.blurRiskBody}
-              buttonLabel={text.unlockNow}
-              onUpgrade={() => navigate(proPath)}
-            >
-              <RiskCard
-                title={text.riskAnalysis}
-                items={
-                  Array.isArray(strategy?.risk_analysis) && strategy.risk_analysis.length
-                    ? strategy.risk_analysis
-                    : [
-                        language === "fr"
-                          ? {
-                              risk: "Plafond du score linguistique",
-                              impact:
-                                "Un score linguistique insuffisant peut limiter votre compétitivité.",
-                              mitigation:
-                                "Viser un score CLB/NCLC 9+ au prochain test.",
-                            }
-                          : {
-                              risk: "Language score ceiling",
-                              impact:
-                                "A lower language result can limit overall competitiveness.",
-                              mitigation:
-                                "Target CLB 9+ on a retake.",
-                            },
-                      ]
-                }
-                emptyLabel={text.noItems}
-                language={language}
-              />
-            </BlurredSection>
-          )}
         </div>
 
-        <div className="space-y-6">
-          {hasFullStrategy ? (
-            <ListCard
-              title={text.programs}
-              items={strategy?.recommended_programs}
-              emptyLabel={text.noItems}
-            />
-          ) : (
-            <BlurredSection
-              title={text.blurProgramsTitle}
-              body={text.blurProgramsBody}
-              buttonLabel={text.unlockNow}
-              onUpgrade={() => navigate(proPath)}
-            >
+        <div
+          key={activeSection}
+          className="space-y-6 animate-[fadeIn_.18s_ease-out]"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+              {activeSectionLabel}
+            </h2>
+
+            {sections.find((section) => section.key === activeSection)?.locked ? (
+              <span className="inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                {text.lockedShort}
+              </span>
+            ) : null}
+          </div>
+
+          {activeSection === "overview" && (
+            <div className="space-y-6">
+              {(strategy?.strategy_headline || strategy?.best_pathway?.name) && (
+                <Card padding="lg">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    {text.strategyHeadline}
+                  </p>
+
+                  {strategy?.strategy_headline ? (
+                    <p className="mt-3 text-base leading-7 text-slate-700">
+                      {strategy.strategy_headline}
+                    </p>
+                  ) : null}
+
+                  {strategy?.best_pathway?.name ? (
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        {text.bestPathway}
+                      </p>
+                      <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+                        {strategy.best_pathway.name}
+                      </p>
+
+                      {strategy?.best_pathway?.confidence ? (
+                        <div className="mt-3 inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                          {text.confidence}: {strategy.best_pathway.confidence}
+                        </div>
+                      ) : null}
+
+                      {Array.isArray(strategy?.best_pathway?.reasons) &&
+                      strategy.best_pathway.reasons.length > 0 ? (
+                        hasFullStrategy ? (
+                          <div className="mt-4 space-y-2">
+                            {strategy.best_pathway.reasons.map((reason, index) => (
+                              <div
+                                key={`${reason}-${index}`}
+                                className="rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 text-slate-700"
+                              >
+                                {reason}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-4">
+                            <BlurredSection
+                              title={
+                                language === "fr"
+                                  ? "Débloquez la logique complète du meilleur parcours"
+                                  : "Unlock the full best-pathway logic"
+                              }
+                              body={
+                                language === "fr"
+                                  ? "Voyez pourquoi ce parcours est recommandé et quels signaux renforcent votre dossier."
+                                  : "See why this pathway is recommended and which signals strengthen your case."
+                              }
+                              buttonLabel={text.unlockNow}
+                              onUpgrade={() => navigate(proPath)}
+                            >
+                              <div className="space-y-2">
+                                {strategy.best_pathway.reasons.map((reason, index) => (
+                                  <div
+                                    key={`${reason}-${index}`}
+                                    className="rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 text-slate-700"
+                                  >
+                                    {reason}
+                                  </div>
+                                ))}
+                              </div>
+                            </BlurredSection>
+                          </div>
+                        )
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {strategy?.timeline_summary ? (
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        {text.timeline}
+                      </p>
+                      <p className="mt-2 text-sm leading-7 text-slate-700">
+                        {strategy.timeline_summary}
+                      </p>
+                    </div>
+                  ) : null}
+                </Card>
+              )}
+
+              <Card
+                variant="premium"
+                padding="lg"
+                className="space-y-5 border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  {text.priorityTitle}
+                </p>
+                <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
+                  {priority.title}
+                </h2>
+
+                <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-800">
+                    {text.priorityReason}
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-amber-900">
+                    {priority.reason}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {text.recommendedActions}
+                  </p>
+                  <div className="mt-3 space-y-2.5">
+                    {priority.actions.map((action, index) => (
+                      <div
+                        key={`${action}-${index}`}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-700 shadow-sm"
+                      >
+                        {action}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <Button onClick={() => navigate(priority.route)}>
+                    {text.openPriorityRoute}
+                  </Button>
+                </div>
+              </Card>
+
+              {(noc?.noc_code ||
+                noc?.occupation ||
+                nocAdvantage?.has_noc ||
+                typeof nocAdvantage?.teer === "number") && (
+                <Card padding="lg" className="space-y-5">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {text.noc}
+                    </p>
+                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
+                      {noc?.noc_code
+                        ? `${noc.noc_code} — ${noc.noc_title || noc.occupation || ""}`
+                        : nocAdvantage?.noc_code
+                        ? `${nocAdvantage.noc_code}`
+                        : noc?.occupation || "--"}
+                    </h2>
+                    {typeof noc?.teer === "number" ? (
+                      <p className="mt-2 text-sm text-slate-600">TEER {noc.teer}</p>
+                    ) : typeof nocAdvantage?.teer === "number" &&
+                      nocAdvantage.teer >= 0 ? (
+                      <p className="mt-2 text-sm text-slate-600">
+                        {text.teer} {nocAdvantage.teer}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {(typeof nocAdvantage?.teer === "number" &&
+                    nocAdvantage.teer >= 0) ||
+                  typeof nocAdvantage?.strategic_value === "string" ||
+                  typeof nocAdvantage?.is_high_demand === "boolean" ? (
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <Stat
+                        label={text.teer}
+                        value={
+                          typeof nocAdvantage?.teer === "number" &&
+                          nocAdvantage.teer >= 0
+                            ? nocAdvantage.teer
+                            : "--"
+                        }
+                      />
+                      <Stat
+                        label={text.strategicValue}
+                        value={nocAdvantage?.strategic_value || "--"}
+                      />
+                      <Stat
+                        label={text.highDemandOccupation}
+                        value={
+                          typeof nocAdvantage?.is_high_demand === "boolean"
+                            ? nocAdvantage.is_high_demand
+                              ? text.yes
+                              : text.no
+                            : "--"
+                        }
+                      />
+                    </div>
+                  ) : null}
+
+                  {Array.isArray(nocAdvantage?.signals) &&
+                  nocAdvantage.signals.length > 0 ? (
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {text.whyThisMatters}
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {nocAdvantage.signals.map((item, index) => (
+                          <div
+                            key={`${item}-${index}`}
+                            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-700 shadow-sm"
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {Array.isArray(nocAdvantage?.recommendations) &&
+                  nocAdvantage.recommendations.length > 0 ? (
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {text.recommendedNocActions}
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {nocAdvantage.recommendations.map((item, index) => (
+                          <div
+                            key={`${item}-${index}`}
+                            className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-7 text-blue-900"
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </Card>
+              )}
+
+              {!hasDecisionEngine && (
+                <UpgradePrompt
+                  title={text.decisionPromptTitle}
+                  body={text.decisionPromptBody}
+                  buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+                />
+              )}
+
+              {!canExportPdf && (
+                <UpgradePrompt
+                  title={text.premiumPromptTitle}
+                  body={text.premiumPromptBody}
+                  buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+                />
+              )}
+            </div>
+          )}
+
+          {activeSection === "programs" &&
+            (hasFullStrategy ? (
               <ListCard
                 title={text.programs}
-                items={
-                  strategy?.recommended_programs?.length
-                    ? strategy.recommended_programs
-                    : ["Express Entry", "Provincial Nominee Program", "Work Permit"]
-                }
+                items={strategy?.recommended_programs}
                 emptyLabel={text.noItems}
               />
-            </BlurredSection>
-          )}
+            ) : (
+              <BlurredSection
+                title={text.blurProgramsTitle}
+                body={text.blurProgramsBody}
+                buttonLabel={text.unlockNow}
+                onUpgrade={() => navigate(proPath)}
+              >
+                <ListCard
+                  title={text.programs}
+                  items={
+                    strategy?.recommended_programs?.length
+                      ? strategy.recommended_programs
+                      : ["Express Entry", "Provincial Nominee Program", "Work Permit"]
+                  }
+                  emptyLabel={text.noItems}
+                />
+              </BlurredSection>
+            ))}
 
-          <ListCard
-            title={text.strengths}
-            items={strategy?.strengths}
-            emptyLabel={text.noItems}
-          />
-
-          {hasFullStrategy ? (
+          {activeSection === "strengths" && (
             <ListCard
-              title={text.weaknesses}
-              items={strategy?.weaknesses}
+              title={text.strengths}
+              items={strategy?.strengths}
               emptyLabel={text.noItems}
             />
-          ) : (
-            <BlurredSection
-              title={text.blurWeaknessesTitle}
-              body={text.blurWeaknessesBody}
-              buttonLabel={text.unlockNow}
-              onUpgrade={() => navigate(proPath)}
-            >
+          )}
+
+          {activeSection === "weaknesses" &&
+            (hasFullStrategy ? (
               <ListCard
                 title={text.weaknesses}
-                items={
-                  strategy?.weaknesses?.length
-                    ? strategy.weaknesses
-                    : [
-                        language === "fr"
-                          ? "Écart potentiel de score linguistique"
-                          : "Potential language score gap",
-                        language === "fr"
-                          ? "Preuves de travail à renforcer"
-                          : "Work evidence may need strengthening",
-                      ]
-                }
+                items={strategy?.weaknesses}
                 emptyLabel={text.noItems}
               />
-            </BlurredSection>
-          )}
+            ) : (
+              <BlurredSection
+                title={text.blurWeaknessesTitle}
+                body={text.blurWeaknessesBody}
+                buttonLabel={text.unlockNow}
+                onUpgrade={() => navigate(proPath)}
+              >
+                <ListCard
+                  title={text.weaknesses}
+                  items={
+                    strategy?.weaknesses?.length
+                      ? strategy.weaknesses
+                      : [
+                          language === "fr"
+                            ? "Écart potentiel de score linguistique"
+                            : "Potential language score gap",
+                          language === "fr"
+                            ? "Preuves de travail à renforcer"
+                            : "Work evidence may need strengthening",
+                        ]
+                  }
+                  emptyLabel={text.noItems}
+                />
+              </BlurredSection>
+            ))}
 
-          {hasFullStrategy ? (
-            <ListCard
-              title={text.nextSteps}
-              items={strategy?.next_steps}
-              emptyLabel={text.noItems}
-            />
-          ) : (
-            <div>
+          {activeSection === "steps" &&
+            (hasFullStrategy ? (
               <ListCard
                 title={text.nextSteps}
-                items={Array.isArray(strategy?.next_steps) ? strategy.next_steps.slice(0, 1) : []}
+                items={strategy?.next_steps}
                 emptyLabel={text.noItems}
               />
+            ) : (
+              <div className="space-y-4">
+                <ListCard
+                  title={text.nextSteps}
+                  items={
+                    Array.isArray(strategy?.next_steps)
+                      ? strategy.next_steps.slice(0, 1)
+                      : []
+                  }
+                  emptyLabel={text.noItems}
+                />
 
-              <div className="mt-4">
                 <BlurredSection
                   title={text.blurStepsTitle}
                   body={text.blurStepsBody}
@@ -1969,8 +1939,137 @@ export default function StrategyPage() {
                   />
                 </BlurredSection>
               </div>
-            </div>
-          )}
+            ))}
+
+          {activeSection === "roadmap" &&
+            (hasFullStrategy ? (
+              <RoadmapCard
+                title={text.roadmap}
+                items={strategy?.roadmap}
+                emptyLabel={text.noItems}
+                language={language}
+              />
+            ) : (
+              <BlurredSection
+                title={text.blurRoadmapTitle}
+                body={text.blurRoadmapBody}
+                buttonLabel={text.unlockNow}
+                onUpgrade={() => navigate(proPath)}
+              >
+                <RoadmapCard
+                  title={text.roadmap}
+                  items={
+                    Array.isArray(strategy?.roadmap) && strategy.roadmap.length
+                      ? strategy.roadmap
+                      : [
+                          language === "fr"
+                            ? {
+                                title: "Améliorer le score linguistique",
+                                estimated_crs_gain: 28,
+                                difficulty: "Moyen",
+                                reason:
+                                  "L’amélioration linguistique est l’un des leviers les plus rapides.",
+                              }
+                            : {
+                                title: "Improve language score",
+                                estimated_crs_gain: 28,
+                                difficulty: "Medium",
+                                reason:
+                                  "Language improvement is one of the fastest levers.",
+                              },
+                        ]
+                  }
+                  emptyLabel={text.noItems}
+                  language={language}
+                />
+              </BlurredSection>
+            ))}
+
+          {activeSection === "province" &&
+            (hasFullStrategy ? (
+              <ProvinceCard
+                title={text.provinceRecommendations}
+                items={provinceRecommendations}
+                emptyLabel={text.noItems}
+              />
+            ) : (
+              <BlurredSection
+                title={text.blurProvinceTitle}
+                body={text.blurProvinceBody}
+                buttonLabel={text.unlockNow}
+                onUpgrade={() => navigate(proPath)}
+              >
+                <ProvinceCard
+                  title={text.provinceRecommendations}
+                  items={
+                    provinceRecommendations.length
+                      ? provinceRecommendations
+                      : [
+                          language === "fr"
+                            ? {
+                                province: "Ontario",
+                                program: "Volet Tech de l’OINP",
+                                chance: "Élevée",
+                                reason:
+                                  "Cette province pourrait bien correspondre à votre profil.",
+                              }
+                            : {
+                                province: "Ontario",
+                                program: "OINP Tech Draw",
+                                chance: "High",
+                                reason:
+                                  "This province may align well with your profile.",
+                              },
+                        ]
+                  }
+                  emptyLabel={text.noItems}
+                />
+              </BlurredSection>
+            ))}
+
+          {activeSection === "risks" &&
+            (hasFullStrategy ? (
+              <RiskCard
+                title={text.riskAnalysis}
+                items={strategy?.risk_analysis}
+                emptyLabel={text.noItems}
+                language={language}
+              />
+            ) : (
+              <BlurredSection
+                title={text.blurRiskTitle}
+                body={text.blurRiskBody}
+                buttonLabel={text.unlockNow}
+                onUpgrade={() => navigate(proPath)}
+              >
+                <RiskCard
+                  title={text.riskAnalysis}
+                  items={
+                    Array.isArray(strategy?.risk_analysis) &&
+                    strategy.risk_analysis.length
+                      ? strategy.risk_analysis
+                      : [
+                          language === "fr"
+                            ? {
+                                risk: "Plafond du score linguistique",
+                                impact:
+                                  "Un score linguistique insuffisant peut limiter votre compétitivité.",
+                                mitigation:
+                                  "Viser un score CLB/NCLC 9+ au prochain test.",
+                              }
+                            : {
+                                risk: "Language score ceiling",
+                                impact:
+                                  "A lower language result can limit overall competitiveness.",
+                                mitigation: "Target CLB 9+ on a retake.",
+                              },
+                        ]
+                  }
+                  emptyLabel={text.noItems}
+                  language={language}
+                />
+              </BlurredSection>
+            ))}
         </div>
       </div>
     </Layout>

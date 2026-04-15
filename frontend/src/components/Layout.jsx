@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { getCurrentUserLocal, logoutUser, getBillingAccess } from "../api";
 import Button from "../components/ui/Button";
+import OnboardingModal from "../components/OnboardingModal";
 
 function normalizePlan(plan) {
   const value = String(plan || "").trim().toLowerCase();
@@ -52,9 +53,9 @@ function DesktopNavItem({ to, active, children }) {
   return (
     <Link
       to={to}
-      className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+      className={`inline-flex items-center rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
         active
-          ? "bg-blue-50 text-blue-900 ring-1 ring-blue-100"
+          ? "bg-blue-50 text-blue-900"
           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
       }`}
     >
@@ -68,9 +69,9 @@ function MobileNavButton({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
+      className={`block w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
         active
-          ? "bg-blue-50 text-blue-900 ring-1 ring-blue-100"
+          ? "bg-blue-50 text-blue-900"
           : "bg-slate-50 text-slate-700 hover:bg-slate-100"
       }`}
     >
@@ -307,13 +308,13 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-6">
-          <div className="flex min-w-0 items-center gap-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-white text-slate-900">
+      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+          <div className="flex min-w-0 items-center gap-6 lg:gap-8">
             <Link to="/dashboard" className="shrink-0">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-900 text-sm font-bold text-white shadow-sm shadow-blue-900/10">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-900 text-sm font-bold text-white shadow-sm shadow-blue-900/10">
                   NB
                 </div>
                 <div className="min-w-0">
@@ -347,9 +348,9 @@ export default function Layout({ children }) {
                     setToolsOpen((prev) => !prev);
                     setAccountOpen(false);
                   }}
-                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                  className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
                     toolsItems.some((item) => isActive(item.path))
-                      ? "bg-blue-50 text-blue-900 ring-1 ring-blue-100"
+                      ? "bg-blue-50 text-blue-900"
                       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   }`}
                 >
@@ -358,7 +359,7 @@ export default function Layout({ children }) {
                 </button>
 
                 {toolsOpen && (
-                  <div className="absolute left-0 top-12 z-50 w-72 rounded-3xl border border-slate-200 bg-white p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
+                  <div className="absolute left-0 top-12 z-50 w-72 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
                     <div className="px-3 pb-2 pt-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                         {language === "fr" ? "Outils" : "Tools"}
@@ -370,7 +371,7 @@ export default function Layout({ children }) {
                         key={item.path}
                         type="button"
                         onClick={() => goTo(item.path)}
-                        className={`block w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
+                        className={`block w-full rounded-xl px-4 py-3 text-left text-sm transition ${
                           isActive(item.path)
                             ? "bg-blue-50 text-blue-900"
                             : "text-slate-700 hover:bg-slate-50"
@@ -389,7 +390,7 @@ export default function Layout({ children }) {
             {effectivePlan === "free" && (
               <Button
                 variant="primary"
-                className="hidden h-11 rounded-2xl px-5 shadow-sm md:inline-flex"
+                className="hidden h-10 rounded-xl px-4 shadow-sm md:inline-flex"
                 onClick={handleUpgradeClick}
               >
                 {language === "fr" ? "Passer à Pro" : "Upgrade"}
@@ -399,7 +400,7 @@ export default function Layout({ children }) {
             {effectivePlan === "pro" && (
               <Button
                 variant="primary"
-                className="hidden h-11 rounded-2xl px-5 shadow-sm md:inline-flex"
+                className="hidden h-10 rounded-xl px-4 shadow-sm md:inline-flex"
                 onClick={handleUpgradeClick}
               >
                 {language === "fr" ? "Passer à Premium" : "Go Premium"}
@@ -409,7 +410,7 @@ export default function Layout({ children }) {
             {effectivePlan === "premium" && (
               <Button
                 variant="primary"
-                className="hidden h-11 rounded-2xl px-5 shadow-sm md:inline-flex"
+                className="hidden h-10 rounded-xl px-4 shadow-sm md:inline-flex"
                 onClick={() => navigate("/chat")}
               >
                 {t("nav.aiAssistant")}
@@ -423,7 +424,7 @@ export default function Layout({ children }) {
                   setAccountOpen((prev) => !prev);
                   setToolsOpen(false);
                 }}
-                className={`flex h-11 items-center gap-3 rounded-2xl border px-3.5 transition-all duration-200 ${
+                className={`flex h-10 items-center gap-3 rounded-xl border px-3 transition-all duration-200 ${
                   accountOpen
                     ? "border-blue-100 bg-blue-50/80 text-blue-900"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -441,8 +442,8 @@ export default function Layout({ children }) {
               </button>
 
               {accountOpen && (
-                <div className="absolute right-0 top-14 z-50 w-80 rounded-3xl border border-slate-200 bg-white p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
-                  <div className="rounded-2xl bg-slate-50/80 px-4 py-4">
+                <div className="absolute right-0 top-14 z-50 w-80 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
+                  <div className="rounded-xl bg-slate-50/80 px-4 py-4">
                     <p className="truncate text-sm font-semibold text-slate-900">
                       {displayName}
                     </p>
@@ -463,7 +464,7 @@ export default function Layout({ children }) {
                     <button
                       type="button"
                       onClick={() => goTo("/pricing")}
-                      className={`block w-full rounded-2xl px-4 py-3 text-left text-sm transition ${
+                      className={`block w-full rounded-xl px-4 py-3 text-left text-sm transition ${
                         isActive("/pricing") || isActive("/billing")
                           ? "bg-blue-50 text-blue-900"
                           : "text-slate-700 hover:bg-slate-50"
@@ -484,7 +485,7 @@ export default function Layout({ children }) {
                       <button
                         type="button"
                         onClick={() => switchLanguage("en")}
-                        className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
+                        className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                           i18n.language === "en"
                             ? "bg-blue-900 text-white"
                             : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -495,7 +496,7 @@ export default function Layout({ children }) {
                       <button
                         type="button"
                         onClick={() => switchLanguage("fr")}
-                        className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
+                        className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                           i18n.language === "fr"
                             ? "bg-blue-900 text-white"
                             : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -510,7 +511,7 @@ export default function Layout({ children }) {
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="block w-full rounded-2xl px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                      className="block w-full rounded-xl px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                     >
                       {t("nav.logout")}
                     </button>
@@ -526,7 +527,7 @@ export default function Layout({ children }) {
                 setToolsOpen(false);
                 setAccountOpen(false);
               }}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 xl:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 xl:hidden"
               aria-label={language === "fr" ? "Ouvrir le menu" : "Open menu"}
             >
               <span className="text-lg leading-none">☰</span>
@@ -537,7 +538,7 @@ export default function Layout({ children }) {
 
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 xl:hidden">
-          <div className="absolute inset-0 bg-slate-900/45 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
 
           <div
             ref={mobileMenuPanelRef}
@@ -556,7 +557,7 @@ export default function Layout({ children }) {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 aria-label={language === "fr" ? "Fermer le menu" : "Close menu"}
               >
                 <span className="text-lg leading-none">×</span>
@@ -564,7 +565,7 @@ export default function Layout({ children }) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-5">
-              <div className="mb-7 rounded-3xl bg-slate-50 p-4">
+              <div className="mb-7 rounded-2xl bg-slate-50 p-4">
                 <div className="mb-3 flex items-center gap-2">
                   {!loadingPlan && (
                     <PlanPill plan={effectivePlan} language={language} />
@@ -576,7 +577,7 @@ export default function Layout({ children }) {
 
                 <Button
                   variant="primary"
-                  className="h-11 w-full justify-center rounded-2xl"
+                  className="h-10 w-full justify-center rounded-xl"
                   onClick={() =>
                     goTo(
                       effectivePlan === "premium"
@@ -661,7 +662,7 @@ export default function Layout({ children }) {
                   <button
                     type="button"
                     onClick={() => switchLanguage("en")}
-                    className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
+                    className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                       i18n.language === "en"
                         ? "bg-blue-900 text-white"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -672,7 +673,7 @@ export default function Layout({ children }) {
                   <button
                     type="button"
                     onClick={() => switchLanguage("fr")}
-                    className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
+                    className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
                       i18n.language === "fr"
                         ? "bg-blue-900 text-white"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -688,7 +689,7 @@ export default function Layout({ children }) {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                className="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
                 {t("nav.logout")}
               </button>
@@ -697,9 +698,14 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      <main className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:py-10">
-        {children}
-      </main>
+      <>
+        {/* 🔥 Onboarding Modal (auto-trigger for new users) */}
+        <OnboardingModal />
+
+        <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 lg:py-10">
+          <div className="mx-auto max-w-5xl">{children}</div>
+        </main>
+      </>
     </div>
   );
 }
