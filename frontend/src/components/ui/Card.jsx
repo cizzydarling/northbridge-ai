@@ -8,7 +8,10 @@ export default function Card({
   onClick,
   interactive = false,
 }) {
-  const base = "rounded-[28px] border transition-all duration-200";
+  const isInteractive = interactive || Boolean(onClick);
+
+  const base =
+    "rounded-[28px] border transition-all duration-200 will-change-transform";
 
   const variants = {
     default:
@@ -20,7 +23,7 @@ export default function Card({
     glass:
       "border-white/30 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.10)]",
     premium:
-      "border-blue-100 bg-gradient-to-br from-white to-blue-50/40 shadow-[0_18px_60px_rgba(15,23,42,0.08)]",
+      "border-blue-100 bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/50 shadow-[0_18px_60px_rgba(15,23,42,0.08)]",
     success:
       "border-emerald-200 bg-emerald-50/40 shadow-[0_12px_40px_rgba(15,23,42,0.05)]",
     warning:
@@ -38,23 +41,24 @@ export default function Card({
   };
 
   const hoverStyles =
-    hover || interactive
+    hover || isInteractive
       ? "hover:-translate-y-[2px] hover:shadow-[0_22px_70px_rgba(15,23,42,0.10)]"
       : "";
 
-  const interactiveStyles =
-    interactive || onClick
-      ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200"
-      : "";
+  const interactiveStyles = isInteractive
+    ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 active:scale-[0.995]"
+    : "";
+
+  const Element = isInteractive && Component === "div" ? "button" : Component;
 
   return (
-    <Component
+    <Element
       onClick={onClick}
       className={`${base} ${variants[variant] || variants.default} ${
         paddings[padding] || paddings.md
       } ${hoverStyles} ${interactiveStyles} ${className}`}
     >
       {children}
-    </Component>
+    </Element>
   );
 }

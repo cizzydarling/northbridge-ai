@@ -1,3 +1,4 @@
+import StrategyProgressCard from "../components/StrategyProgressCard";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -11,6 +12,7 @@ import {
   getBillingAccess,
   getMyStrategy,
   getMyStrategyLite,
+  sendAIMessage,
 } from "../api";
 
 const COMPLETION_STORAGE_KEY = "nbai_document_completion_engine_v1";
@@ -29,6 +31,49 @@ function buildProPricingPath(source = "strategy", intent = "execute") {
 
 function buildPremiumPricingPath(source = "strategy", intent = "export") {
   return `/pricing?plan=premium&source=${source}&intent=${intent}`;
+}
+
+function readTabFromSearch(searchParams) {
+  const allowed = ["overview", "execution", "pathways", "risks"];
+  const raw = String(searchParams.get("tab") || "").toLowerCase();
+  return allowed.includes(raw) ? raw : "overview";
+}
+
+function getScoreBand(score, language) {
+  const safeScore = Number(score || 0);
+  if (!safeScore) return language === "fr" ? "À préciser" : "Needs context";
+  if (safeScore >= 500) return language === "fr" ? "Très fort" : "Very strong";
+  if (safeScore >= 470) return language === "fr" ? "Fort" : "Strong";
+  if (safeScore >= 430) return language === "fr" ? "Compétitif" : "Competitive";
+  return language === "fr" ? "À renforcer" : "Needs improvement";
+}
+
+function getConfidenceLabel(confidence, language) {
+  const value = String(confidence || "").trim().toLowerCase();
+  if (!value) return "--";
+
+  if (language === "fr") {
+    if (value.includes("high")) return "Élevée";
+    if (value.includes("medium")) return "Modérée";
+    if (value.includes("low")) return "Faible";
+  }
+
+  return confidence;
+}
+
+function getTimelineLabel(timeline, language) {
+  if (!timeline) return "--";
+
+  if (typeof timeline === "string") return timeline;
+
+  const min = timeline?.estimated_pr_timeline_min_months;
+  const max = timeline?.estimated_pr_timeline_max_months;
+
+  if (typeof min !== "undefined" && typeof max !== "undefined") {
+    return language === "fr" ? `${min} à ${max} mois` : `${min} to ${max} months`;
+  }
+
+  return timeline?.readiness || "--";
 }
 
 function buildPriorityRecommendation(strategyData, documentStats, language) {
@@ -288,8 +333,8 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
 
 function PageHeaderBlock({ brand, title, subtitle }) {
   return (
-    <div className="mb-8 max-w-3xl">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+    <div className="mb-6 max-w-3xl">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
         {brand}
       </p>
       <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
@@ -300,16 +345,84 @@ function PageHeaderBlock({ brand, title, subtitle }) {
   );
 }
 
+function HeroMetric({ label, value, subvalue, dark = false }) {
+  const safeValue = typeof value === "object" ? "--" : value;
+  const safeSubvalue = typeof subvalue === "object" ? "" : subvalue;
+
+  return (
+    <div
+      className={`rounded-[24px] border p-5 ${
+        dark
+          ? "border-white/10 bg-white/10 backdrop-blur-sm"
+          : "border-slate-200 bg-white"
+      }`}
+    >
+      <p
+        className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
+          dark ? "text-blue-100" : "text-slate-500"
+        }`}
+      >
+        {label}
+      </p>
+
+      <p
+        className={`mt-2 break-words text-3xl font-semibold tracking-tight ${
+          dark ? "text-white" : "text-slate-900"
+        }`}
+      >
+        {safeValue || "--"}
+      </p>
+
+      {safeSubvalue ? (
+        <p
+          className={`mt-2 text-sm leading-6 ${
+            dark ? "text-blue-100" : "text-slate-600"
+          }`}
+        >
+          {safeSubvalue}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function Stat({ label, value }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-blue-900">
+      <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-blue-900">
         {value}
       </p>
     </div>
+  );
+}
+
+function MiniStat({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function ConfidencePill({ value }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-blue-400/20 px-3 py-1.5 text-xs font-semibold text-white">
+      {value || "--"}
+    </span>
+  );
+}
+
+function SectionTitle({ children }) {
+  return (
+    <h3 className="text-xl font-semibold tracking-tight text-slate-900">
+      {children}
+    </h3>
   );
 }
 
@@ -317,19 +430,15 @@ function ListCard({ title, items, emptyLabel }) {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
-    <Card padding="lg">
-      {title ? (
-        <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
-          {title}
-        </h3>
-      ) : null}
+    <Card padding="lg" className="rounded-[28px]">
+      {title ? <SectionTitle>{title}</SectionTitle> : null}
 
       {safeItems.length > 0 ? (
         <ul className={title ? "mt-4 space-y-3" : "space-y-3"}>
           {safeItems.map((item, i) => (
             <li
               key={i}
-              className="rounded-xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-700 shadow-sm"
+              className="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-700 shadow-sm"
             >
               {item}
             </li>
@@ -346,10 +455,8 @@ function RiskCard({ title, items, emptyLabel, language }) {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
-    <Card padding="lg">
-      <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
-        {title}
-      </h3>
+    <Card padding="lg" className="rounded-[28px]">
+      <SectionTitle>{title}</SectionTitle>
 
       {safeItems.length > 0 ? (
         <div className="mt-4 space-y-3">
@@ -391,46 +498,52 @@ function RoadmapCard({ title, items, emptyLabel, language }) {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
-    <Card padding="lg">
-      <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
-        {title}
-      </h3>
+    <Card padding="lg" className="rounded-[28px]">
+      <SectionTitle>{title}</SectionTitle>
 
       {safeItems.length > 0 ? (
-        <div className="mt-4 space-y-3">
+        <div className="mt-6 space-y-4">
           {safeItems.map((item, index) => (
-            <div
-              key={`${item?.title || "roadmap"}-${index}`}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {item?.title || "--"}
-                  </p>
-                  {item?.reason ? (
-                    <p className="mt-2 text-sm leading-7 text-slate-700">
-                      {item.reason}
-                    </p>
-                  ) : null}
+            <div key={`${item?.title || "roadmap"}-${index}`} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700">
+                  {index + 1}
                 </div>
+                {index < safeItems.length - 1 ? (
+                  <div className="mt-2 h-full min-h-[52px] w-px bg-slate-200" />
+                ) : null}
+              </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {typeof item?.estimated_crs_gain !== "undefined" ? (
-                    <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                      {item.estimated_crs_gain > 0
-                        ? `+${item.estimated_crs_gain} CRS`
-                        : language === "fr"
-                        ? "Impact stratégique"
-                        : "Strategic step"}
-                    </span>
-                  ) : null}
+              <div className="flex-1 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-base font-semibold text-slate-900">
+                      {item?.title || "--"}
+                    </p>
+                    {item?.reason ? (
+                      <p className="mt-2 text-sm leading-7 text-slate-700">
+                        {item.reason}
+                      </p>
+                    ) : null}
+                  </div>
 
-                  {item?.difficulty ? (
-                    <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                      {item.difficulty}
-                    </span>
-                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {typeof item?.estimated_crs_gain !== "undefined" ? (
+                      <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                        {item.estimated_crs_gain > 0
+                          ? `+${item.estimated_crs_gain} CRS`
+                          : language === "fr"
+                          ? "Impact stratégique"
+                          : "Strategic step"}
+                      </span>
+                    ) : null}
+
+                    {item?.difficulty ? (
+                      <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                        {item.difficulty}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
@@ -443,17 +556,391 @@ function RoadmapCard({ title, items, emptyLabel, language }) {
   );
 }
 
+function ProvinceCard({ title, items, emptyLabel }) {
+  const safeItems = Array.isArray(items) ? items : [];
+
+  return (
+    <Card padding="lg" className="rounded-[28px]">
+      <SectionTitle>{title}</SectionTitle>
+
+      {safeItems.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {safeItems.map((item, index) => (
+            <div
+              key={`${item?.province || "province"}-${item?.program || index}`}
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {item?.province || "--"}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {item?.program || "--"}
+                  </p>
+                </div>
+
+                <div className="inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                  {item?.chance || "--"}
+                </div>
+              </div>
+
+              {typeof item?.score !== "undefined" ? (
+                <p className="mt-3 text-xs uppercase tracking-[0.12em] text-slate-500">
+                  Score: {item.score}
+                </p>
+              ) : null}
+
+              {item?.reason ? (
+                <p className="mt-3 text-sm leading-7 text-slate-700">
+                  {item.reason}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-slate-500">{emptyLabel}</p>
+      )}
+    </Card>
+  );
+}
+
+function InsightCard({ eyebrow, title, body, chips = [], actions = null }) {
+  return (
+    <Card padding="lg" className="h-full rounded-[28px]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+        {eyebrow}
+      </p>
+      <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+        {title || "--"}
+      </h3>
+
+      {body ? (
+        <p className="mt-3 text-sm leading-7 text-slate-700">{body}</p>
+      ) : null}
+
+      {chips.length > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {chips.map((chip, index) => (
+            <span
+              key={`${chip}-${index}`}
+              className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {actions ? <div className="mt-5">{actions}</div> : null}
+    </Card>
+  );
+}
+
+function NocSignalCard({
+  language,
+  nocProfile,
+  nocAdvantage,
+  onReviewProfile,
+  onUpgrade,
+  locked = false,
+}) {
+  const resolvedCode =
+    nocProfile?.resolved_noc_code || nocAdvantage?.noc_code || "";
+  const resolvedTitle =
+    nocProfile?.resolved_title || nocAdvantage?.resolved_title || "";
+  const confidenceRaw =
+    nocProfile?.suggested_confidence ??
+    nocAdvantage?.suggested_confidence ??
+    0;
+  const confidence =
+    typeof confidenceRaw === "number"
+      ? `${Math.round(confidenceRaw * 100)}%`
+      : "--";
+
+  const strategicValue = nocAdvantage?.strategic_value || "--";
+
+  const chips = [
+    resolvedCode ? `${language === "fr" ? "CNP" : "NOC"} ${resolvedCode}` : null,
+    typeof nocAdvantage?.teer === "number" && nocAdvantage.teer >= 0
+      ? `TEER ${nocAdvantage.teer}`
+      : null,
+    confidenceRaw
+      ? `${language === "fr" ? "Confiance" : "Confidence"} ${confidence}`
+      : null,
+    strategicValue !== "--"
+      ? `${
+          language === "fr" ? "Valeur stratégique" : "Strategic value"
+        } ${strategicValue}`
+      : null,
+    typeof nocAdvantage?.is_high_demand === "boolean"
+      ? `${
+          language === "fr" ? "En demande" : "High demand"
+        } ${
+          nocAdvantage.is_high_demand
+            ? language === "fr"
+              ? "Oui"
+              : "Yes"
+            : language === "fr"
+            ? "Non"
+            : "No"
+        }`
+      : null,
+  ].filter(Boolean);
+
+  const reasons = Array.isArray(nocAdvantage?.signals)
+    ? nocAdvantage.signals
+    : [];
+
+  const body =
+    reasons[0] ||
+    (language === "fr"
+      ? "Ajoutez ou confirmez les détails de votre rôle pour améliorer la précision des parcours ciblés."
+      : "Add or confirm your role details to improve targeted pathway accuracy.");
+
+  const card = (
+    <InsightCard
+      eyebrow={language === "fr" ? "Signal CNP" : "NOC Signal"}
+      title={
+        resolvedTitle
+          ? `${resolvedCode ? `${resolvedCode} — ` : ""}${resolvedTitle}`
+          : resolvedCode || "--"
+      }
+      body={body}
+      chips={chips}
+      actions={
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={onReviewProfile}>
+            {language === "fr" ? "Vérifier mon profil" : "Review my profile"}
+          </Button>
+        </div>
+      }
+    />
+  );
+
+  if (!locked) return card;
+
+  return (
+    <BlurredSection
+      title={language === "fr" ? "Débloquez l’analyse CNP" : "Unlock NOC analysis"}
+      body={
+        language === "fr"
+          ? "Voyez comment votre profession et votre CNP influencent réellement vos meilleures voies."
+          : "See how your occupation and detected NOC are influencing your strongest pathways."
+      }
+      onUpgrade={onUpgrade}
+      buttonLabel={language === "fr" ? "Débloquer" : "Unlock"}
+    >
+      {card}
+    </BlurredSection>
+  );
+}
+
+function BestPathwayCard({ language, bestPathway, onOpenDocuments }) {
+  const reasons = Array.isArray(bestPathway?.reasons)
+    ? bestPathway.reasons
+    : [];
+
+  return (
+    <Card
+      variant="soft"
+      padding="lg"
+      className="rounded-[28px] border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+        {language === "fr" ? "Meilleur parcours" : "Best pathway"}
+      </p>
+
+      <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="max-w-2xl">
+          <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
+            {bestPathway?.name || "--"}
+          </h3>
+          {reasons[0] ? (
+            <p className="mt-3 text-sm leading-7 text-slate-700">
+              {reasons[0]}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {bestPathway?.confidence ? (
+            <span className="inline-flex rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700">
+              {language === "fr" ? "Confiance" : "Confidence"}:{" "}
+              {bestPathway.confidence}
+            </span>
+          ) : null}
+          {typeof bestPathway?.score !== "undefined" ? (
+            <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+              Score: {bestPathway.score}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {Array.isArray(reasons) && reasons.length > 0 ? (
+        <div className="mt-5 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {language === "fr"
+              ? "Pourquoi cette voie fonctionne"
+              : "Why this pathway works"}
+          </p>
+
+          {reasons.slice(0, 3).map((reason, index) => (
+            <div
+              key={`${reason}-${index}`}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-700"
+            >
+              • {reason}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-5">
+        <Button onClick={onOpenDocuments}>
+          {language === "fr" ? "Préparer mes documents" : "Prepare my documents"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function TimelineCard({ timeline, language, title, noItemsLabel }) {
+  if (!timeline) {
+    return (
+      <Card padding="lg" className="rounded-[28px]">
+        <SectionTitle>{title}</SectionTitle>
+        <p className="mt-4 text-sm text-slate-500">{noItemsLabel}</p>
+      </Card>
+    );
+  }
+
+  if (typeof timeline === "string") {
+    return (
+      <Card padding="lg" className="rounded-[28px]">
+        <SectionTitle>{title}</SectionTitle>
+        <p className="mt-4 text-sm leading-7 text-slate-700">{timeline}</p>
+      </Card>
+    );
+  }
+
+  const steps = Array.isArray(timeline?.timeline_steps)
+    ? timeline.timeline_steps
+    : [];
+
+  return (
+    <Card padding="lg" className="rounded-[28px]">
+      <SectionTitle>{title}</SectionTitle>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <Stat
+          label={language === "fr" ? "Préparation" : "Readiness"}
+          value={timeline?.readiness || "--"}
+        />
+        <Stat
+          label={language === "fr" ? "Minimum" : "Minimum"}
+          value={
+            typeof timeline?.estimated_pr_timeline_min_months !== "undefined"
+              ? `${timeline.estimated_pr_timeline_min_months}m`
+              : "--"
+          }
+        />
+        <Stat
+          label={language === "fr" ? "Maximum" : "Maximum"}
+          value={
+            typeof timeline?.estimated_pr_timeline_max_months !== "undefined"
+              ? `${timeline.estimated_pr_timeline_max_months}m`
+              : "--"
+          }
+        />
+      </div>
+
+      {steps.length > 0 ? (
+        <div className="mt-5 space-y-3">
+          {steps.map((step, index) => (
+            <div
+              key={`${step?.title || "step"}-${index}`}
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+            >
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <p className="text-sm font-semibold text-slate-900">
+                  {step?.title || "--"}
+                </p>
+                <span className="inline-flex w-fit rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                  {step?.estimated_time_min_months ?? "--"}–
+                  {step?.estimated_time_max_months ?? "--"}{" "}
+                  {language === "fr" ? "mois" : "months"}
+                </span>
+              </div>
+              {step?.reason ? (
+                <p className="mt-2 text-sm leading-7 text-slate-700">
+                  {step.reason}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
 function PlanChip({ active = false, children }) {
   return (
     <span
-      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+      className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ${
         active
-          ? "border-blue-200 bg-blue-50 text-blue-700"
-          : "border-slate-200 bg-white text-slate-600"
+          ? "bg-white text-blue-900"
+          : "border border-white/20 bg-white/10 text-blue-100"
       }`}
     >
       {children}
     </span>
+  );
+}
+
+function TopTabButton({ active, label, onClick, locked = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm shadow-sm transition-all duration-200 ${
+        active
+          ? "border-blue-200 bg-blue-50 text-blue-700 shadow-[0_8px_24px_rgba(37,99,235,0.10)]"
+          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+      }`}
+    >
+      <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
+
+      {locked ? (
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+          Lock
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function SidebarButton({ active, label, onClick, locked = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm transition ${
+        active
+          ? "bg-blue-50 text-blue-900 ring-1 ring-blue-200"
+          : "text-slate-600 hover:bg-slate-50"
+      }`}
+    >
+      <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
+      {locked ? (
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+          Lock
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -476,6 +963,7 @@ function BlurredSection({
           <p className="mt-2 text-sm text-amber-800">{body}</p>
 
           <button
+            type="button"
             onClick={onUpgrade}
             className="mt-4 rounded-xl bg-amber-600 px-5 py-2 text-sm text-white"
           >
@@ -526,7 +1014,7 @@ function ScoreSimulatorTeaser({
 
   if (hasFullStrategy) {
     return (
-      <Card padding="lg">
+      <Card padding="lg" className="rounded-[28px]">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           {copy.eyebrow}
         </p>
@@ -545,7 +1033,7 @@ function ScoreSimulatorTeaser({
   }
 
   return (
-    <Card variant="premium" padding="lg">
+    <Card variant="premium" padding="lg" className="rounded-[28px]">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {copy.eyebrow}
       </p>
@@ -566,58 +1054,6 @@ function ScoreSimulatorTeaser({
           <Button onClick={onUpgrade}>{copy.cta}</Button>
         </div>
       </div>
-    </Card>
-  );
-}
-
-function ProvinceCard({ title, items, emptyLabel }) {
-  const safeItems = Array.isArray(items) ? items : [];
-
-  return (
-    <Card padding="lg">
-      <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
-        {title}
-      </h3>
-
-      {safeItems.length > 0 ? (
-        <div className="mt-4 space-y-3">
-          {safeItems.map((item, index) => (
-            <div
-              key={`${item?.province || "province"}-${item?.program || index}`}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {item?.province || "--"}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {item?.program || "--"}
-                  </p>
-                </div>
-
-                <div className="inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                  {item?.chance || "--"}
-                </div>
-              </div>
-
-              {typeof item?.score !== "undefined" ? (
-                <p className="mt-3 text-xs uppercase tracking-[0.12em] text-slate-500">
-                  Score: {item.score}
-                </p>
-              ) : null}
-
-              {item?.reason ? (
-                <p className="mt-3 text-sm leading-7 text-slate-700">
-                  {item.reason}
-                </p>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-4 text-sm text-slate-500">{emptyLabel}</p>
-      )}
     </Card>
   );
 }
@@ -683,9 +1119,9 @@ function StrategyPaywallHero({
     <Card
       variant="soft"
       padding="lg"
-      className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+      className="mb-6 rounded-[28px] border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
     >
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid items-start gap-6 xl:grid-cols-[280px_1fr]">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
             {copy.eyebrow}
@@ -730,31 +1166,512 @@ function StrategyPaywallHero({
   );
 }
 
-function SidebarButton({ active, label, onClick, locked = false }) {
+function SectionChrome({ activeTab, activeSectionLabel, lockedLabel, text }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
-        active
-          ? "bg-blue-100 text-blue-900 shadow-sm"
-          : "text-slate-600 hover:bg-slate-100"
-      }`}
-    >
-      <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
-      {locked ? (
-        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
-          Lock
+    <div className="flex flex-col gap-3 rounded-[28px] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          {activeTab === "execution"
+            ? text.execution
+            : activeTab === "pathways"
+            ? text.pathways
+            : text.risksTab}
+        </p>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+          {activeSectionLabel}
+        </h2>
+      </div>
+
+      {lockedLabel ? (
+        <span className="inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+          {lockedLabel}
         </span>
       ) : null}
-    </button>
+    </div>
   );
+}
+
+function HeroSignalChip({ label, value, tone = "default" }) {
+  const tones = {
+    default: "border-white/15 bg-white/10 text-white",
+    strong: "border-emerald-300/20 bg-emerald-400/15 text-emerald-50",
+    medium: "border-amber-300/20 bg-amber-400/15 text-amber-50",
+    info: "border-blue-300/20 bg-blue-400/15 text-blue-50",
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border px-4 py-3 backdrop-blur-sm ${
+        tones[tone] || tones.default
+      }`}
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-80">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold">{value || "--"}</p>
+    </div>
+  );
+}
+
+function StrategyActionBar({
+  language,
+  canExportPdf,
+  exportingPdf,
+  onOpenDocuments,
+  onExportPdf,
+  onAnalyzeStrategy,
+  onUpgrade,
+}) {
+  const text =
+    language === "fr"
+      ? {
+          label: "Actions rapides",
+          openDocuments: "Gérer mes documents",
+          exportPdf: "Télécharger le PDF",
+          exporting: "Téléchargement...",
+          analyze: "Analyser avec l’IA",
+          upgrade: "Voir les tarifs",
+        }
+      : {
+          label: "Quick actions",
+          openDocuments: "Manage my documents",
+          exportPdf: "Download PDF",
+          exporting: "Downloading...",
+          analyze: "Analyze with AI",
+          upgrade: "View pricing",
+        };
+
+  return (
+    <div className="sticky top-[72px] z-20 mb-6">
+      <div className="rounded-[24px] border border-slate-200 bg-white/90 px-4 py-3 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+            {text.label}
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" onClick={onOpenDocuments}>
+              {text.openDocuments}
+            </Button>
+
+            {canExportPdf ? (
+              <Button size="sm" onClick={onExportPdf} loading={exportingPdf}>
+                {exportingPdf ? text.exporting : text.exportPdf}
+              </Button>
+            ) : (
+              <Button variant="premium" size="sm" onClick={onUpgrade}>
+                {text.upgrade}
+              </Button>
+            )}
+
+            <Button variant="subtle" size="sm" onClick={onAnalyzeStrategy}>
+              {text.analyze}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroStatusCluster({ language, strategy, confidenceValue, timelineValue }) {
+  const text =
+    language === "fr"
+      ? {
+          title: "Statut du dossier",
+          score: "Score",
+          confidence: "Confiance",
+          timeline: "Délai",
+          profile: "Profil",
+        }
+      : {
+          title: "Case status",
+          score: "Score",
+          confidence: "Confidence",
+          timeline: "Timeline",
+          profile: "Profile",
+        };
+
+  const score = Number(strategy?.crs_score || 0);
+  const profileLabel =
+    score >= 500
+      ? language === "fr"
+        ? "Très fort"
+        : "Very strong"
+      : score >= 470
+      ? language === "fr"
+        ? "Fort"
+        : "Strong"
+      : score >= 430
+      ? language === "fr"
+        ? "Compétitif"
+        : "Competitive"
+      : language === "fr"
+      ? "À renforcer"
+      : "Needs improvement";
+
+  const timelineLabel = getTimelineLabel(timelineValue, language);
+
+  return (
+    <div className="rounded-[28px] border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100">
+        {text.title}
+      </p>
+
+      <div className="mt-4 grid gap-3">
+        <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-blue-100/80">
+            {text.score}
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-white">
+            {strategy?.crs_score ?? "--"}
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-blue-100/80">
+              {text.confidence}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-white">
+              {confidenceValue || "--"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-blue-100/80">
+              {text.timeline}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-white">
+              {timelineLabel}
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-blue-100/80">
+            {text.profile}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-white">
+            {profileLabel}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StrategySectionState({
+  language,
+  title,
+  body,
+  actionLabel,
+  onAction,
+  tone = "default",
+}) {
+  const toneClasses = {
+    default: "border-slate-200 bg-white text-slate-900",
+    locked: "border-amber-200 bg-amber-50 text-amber-900",
+    info: "border-blue-200 bg-blue-50 text-blue-900",
+  };
+
+  return (
+    <Card
+      padding="lg"
+      className={`rounded-[28px] ${toneClasses[tone] || toneClasses.default}`}
+    >
+      <div className="max-w-2xl">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          {language === "fr" ? "État de section" : "Section status"}
+        </p>
+
+        <h3 className="mt-3 text-2xl font-semibold tracking-tight">
+          {title}
+        </h3>
+
+        {body ? (
+          <p className="mt-3 text-sm leading-7 text-slate-700">{body}</p>
+        ) : null}
+
+        {actionLabel && onAction ? (
+          <div className="mt-5">
+            <Button onClick={onAction}>{actionLabel}</Button>
+          </div>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+function StrategyAIDrawer({
+  open,
+  onClose,
+  language,
+  onAsk,
+  loading,
+  error,
+  messages = [],
+  input,
+  setInput,
+  promptSuggestions = [],
+}) {
+  const text =
+    language === "fr"
+      ? {
+          title: "Assistant stratégique IA",
+          subtitle:
+            "Posez une question sur votre stratégie, vos risques ou vos prochaines actions.",
+          close: "Fermer",
+          ask: "Analyser ma stratégie",
+          loading: "Analyse en cours...",
+          suggestions: "Questions suggérées",
+          insights: "Points clés",
+          empty:
+            "Ouvrez le tiroir pour obtenir une lecture IA plus approfondie.",
+        }
+      : {
+          title: "AI Strategy Assistant",
+          subtitle:
+            "Ask for help about your strategy, risks, or next best actions.",
+          close: "Close",
+          ask: "Analyze my strategy",
+          loading: "Analyzing...",
+          suggestions: "Suggested questions",
+          insights: "Key insights",
+          empty: "Open the drawer to get a deeper AI reading.",
+          
+        };
+
+  return (
+    <>
+      <div
+        className={`fixed inset-0 z-40 bg-slate-950/35 transition-opacity duration-300 ${
+          open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={onClose}
+      />
+
+      <aside
+        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-xl transform flex-col border-l border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] transition-transform duration-300 ${
+          open ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="border-b border-slate-200 px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+                NorthBridgeAI
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                {text.title}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {text.subtitle}
+              </p>
+            </div>
+
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              {text.close}
+            </Button>
+          </div>
+
+          <div className="mt-4">
+            <Button variant="premium" onClick={onAsk} loading={loading}>
+              {loading ? text.loading : text.ask}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {!loading && !error && messages.length === 0 ? (
+            <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
+              {text.empty}
+            </div>
+          ) : null}
+
+          {promptSuggestions.length > 0 ? (
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-slate-900">
+                {text.suggestions}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {promptSuggestions.map((suggestion, index) => (
+                  <button
+                    key={`${suggestion.intent}-${index}`}
+                    type="button"
+                    onClick={() => onAsk(suggestion)}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:shadow-sm"
+                  >
+                    {suggestion.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="space-y-3">
+            {messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={`max-w-[90%] rounded-[24px] px-4 py-3 text-sm leading-7 ${
+                  message.role === "user"
+                    ? "ml-auto bg-blue-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-700 shadow-sm"
+                }`}
+              >
+                <p className="whitespace-pre-line">{message.content}</p>
+              </div>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="mt-3 max-w-[90%] rounded-[24px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+              {text.loading}
+            </div>
+          ) : null}
+
+          {!loading && error ? (
+            <div className="mt-3 rounded-[24px] border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
+        </div>
+        <div className="border-t border-slate-200 px-6 py-4">
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onAsk(input);
+                }
+              }}
+              placeholder={
+                language === "fr"
+                  ? "Posez une question sur votre stratégie..."
+                  : "Ask a question about your strategy..."
+              }
+              className="flex-1 rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+            />
+
+            <Button
+              variant="premium"
+              onClick={() => onAsk(input)}
+              disabled={!String(input || "").trim() || loading}
+            >
+              {language === "fr" ? "Envoyer" : "Send"}
+            </Button>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function buildStrategyDrawerContext({
+  strategy,
+  language,
+  confidenceValue,
+  timelineValue,
+  priority,
+}) {
+  const parts = [];
+
+  parts.push(
+    language === "fr"
+      ? "Contexte stratégique NorthBridgeAI"
+      : "NorthBridgeAI strategy context"
+  );
+
+  if (strategy?.crs_score) {
+    parts.push(
+      language === "fr"
+        ? `Score CRS: ${strategy.crs_score}`
+        : `CRS score: ${strategy.crs_score}`
+    );
+  }
+
+  if (strategy?.best_pathway?.name) {
+    parts.push(
+      language === "fr"
+        ? `Meilleur parcours: ${strategy.best_pathway.name}`
+        : `Best pathway: ${strategy.best_pathway.name}`
+    );
+  }
+
+  if (confidenceValue) {
+    parts.push(
+      language === "fr"
+        ? `Confiance: ${confidenceValue}`
+        : `Confidence: ${confidenceValue}`
+    );
+  }
+
+  if (timelineValue) {
+    parts.push(
+      language === "fr"
+        ? `Délai estimé: ${getTimelineLabel(timelineValue, language)}`
+        : `Estimated timeline: ${getTimelineLabel(timelineValue, language)}`
+    );
+  }
+
+  if (Array.isArray(strategy?.recommended_programs) && strategy.recommended_programs.length) {
+    parts.push(
+      language === "fr"
+        ? `Programmes recommandés: ${strategy.recommended_programs.join(" | ")}`
+        : `Recommended programs: ${strategy.recommended_programs.join(" | ")}`
+    );
+  }
+
+  if (Array.isArray(strategy?.next_steps) && strategy.next_steps.length) {
+    parts.push(
+      language === "fr"
+        ? `Prochaines étapes: ${strategy.next_steps.join(" | ")}`
+        : `Next steps: ${strategy.next_steps.join(" | ")}`
+    );
+  }
+
+  if (Array.isArray(strategy?.weaknesses) && strategy.weaknesses.length) {
+    parts.push(
+      language === "fr"
+        ? `Faiblesses: ${strategy.weaknesses.join(" | ")}`
+        : `Weaknesses: ${strategy.weaknesses.join(" | ")}`
+    );
+  }
+
+  if (Array.isArray(strategy?.strengths) && strategy.strengths.length) {
+    parts.push(
+      language === "fr"
+        ? `Forces: ${strategy.strengths.join(" | ")}`
+        : `Strengths: ${strategy.strengths.join(" | ")}`
+    );
+  }
+
+  if (priority?.title) {
+    parts.push(
+      language === "fr"
+        ? `Priorité actuelle: ${priority.title}`
+        : `Current priority: ${priority.title}`
+    );
+  }
+
+  if (priority?.reason) {
+    parts.push(
+      language === "fr"
+        ? `Pourquoi maintenant: ${priority.reason}`
+        : `Why now: ${priority.reason}`
+    );
+  }
+
+  return parts.join("\n");
 }
 
 export default function StrategyPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const source = searchParams.get("source") || "";
@@ -766,7 +1683,14 @@ export default function StrategyPage() {
   const [engineVersion, setEngineVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [activeTab, setActiveTab] = useState(() => readTabFromSearch(searchParams));
   const [activeSection, setActiveSection] = useState("overview");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [drawerMessages, setDrawerMessages] = useState([]);
+  const [drawerInput, setDrawerInput] = useState("");
+  const [drawerError, setDrawerError] = useState("");
+  
 
   useEffect(() => {
     const forceRefresh = localStorage.getItem("nbai_force_refresh");
@@ -787,14 +1711,42 @@ export default function StrategyPage() {
       setEngineVersion((prev) => prev + 1);
     }
 
+    function handleRefresh() {
+      loadPage();
+    }
+
     window.addEventListener("nbai-document-engine-updated", handleEngineUpdate);
+    window.addEventListener("nbai-strategy-refresh", handleRefresh);
+
     return () => {
-      window.removeEventListener(
-        "nbai-document-engine-updated",
-        handleEngineUpdate
-      );
+      window.removeEventListener("nbai-document-engine-updated", handleEngineUpdate);
+      window.removeEventListener("nbai-strategy-refresh", handleRefresh);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const urlTab = readTabFromSearch(searchParams);
+    if (urlTab !== activeTab) setActiveTab(urlTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    const firstSectionByTab = {
+      overview: "overview",
+      execution: "steps",
+      pathways: "programs",
+      risks: "risks",
+    };
+    setActiveSection(firstSectionByTab[activeTab] || "overview");
+  }, [activeTab]);
+
+  function switchTab(tab) {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", tab);
+    setSearchParams(next, { replace: true });
+  }
 
   async function loadPage() {
     try {
@@ -835,11 +1787,9 @@ export default function StrategyPage() {
         setAccess(accessRes.value?.data || null);
       } else {
         const status = accessRes.reason?.response?.status;
-
         if (status !== 404) {
           console.error(accessRes.reason);
         }
-
         setAccess(null);
       }
     } catch (err) {
@@ -893,12 +1843,182 @@ export default function StrategyPage() {
     }
   }
 
+  async function handleAnalyzeStrategyDrawer(customMessage) {
+    const isObjectPrompt =
+      customMessage && typeof customMessage === "object" && !Array.isArray(customMessage);
+
+    const promptLabel = isObjectPrompt
+      ? String(customMessage.label || "").trim()
+      : String(customMessage || drawerInput || "").trim();
+
+    const promptIntent = isObjectPrompt
+      ? String(customMessage.intent || "").trim().toLowerCase()
+      : "";
+
+    const defaultPrompt =
+      language === "fr"
+        ? "Analyse ma stratégie actuelle."
+        : "Analyze my current strategy.";
+
+    const userQuestion = promptLabel || defaultPrompt;
+
+    const intentInstruction =
+      language === "fr"
+        ? {
+            pathway:
+              "Concentre-toi sur le meilleur parcours, pourquoi il est le plus fort, et ce qui le rend crédible.",
+            risk:
+              "Concentre-toi uniquement sur les principaux risques, blocages ou faiblesses les plus importants.",
+            optimization:
+              "Concentre-toi sur les améliorations qui auraient le plus grand impact sur le dossier.",
+            documents:
+              "Concentre-toi sur les documents à préparer ou à renforcer ensuite.",
+          }[promptIntent] || "Réponds de façon directe et ciblée."
+        : {
+            pathway:
+              "Focus on the strongest pathway, why it is strongest, and what makes it credible.",
+            risk:
+              "Focus only on the biggest risks, blockers, or weaknesses.",
+            optimization:
+              "Focus on the improvements that would have the greatest impact on the case.",
+            documents:
+              "Focus on which documents should be prepared or strengthened next.",
+          }[promptIntent] || "Answer directly and stay focused.";
+
+    try {
+      setDrawerOpen(true);
+      setDrawerLoading(true);
+      setDrawerError("");
+
+      const nextUserMessage = {
+        role: "user",
+        content: userQuestion,
+      };
+
+      const nextHistory = [...drawerMessages, nextUserMessage];
+      setDrawerMessages(nextHistory);
+      setDrawerInput("");
+
+      const contextualMessage =
+        language === "fr"
+          ? `
+  Tu es l'assistant stratégique de NorthBridgeAI.
+
+  Utilise le contexte suivant pour répondre précisément à la question de l’utilisateur.
+  Ne répète pas toujours le même résumé global.
+  Réponds directement à la question posée.
+  Sois spécifique, concret et actionnable.
+
+  Instruction d’intention:
+  ${intentInstruction}
+
+  ${strategyDrawerContext}
+
+  Question utilisateur:
+  ${userQuestion}
+          `.trim()
+          : `
+  You are NorthBridgeAI's strategy assistant.
+
+  Use the following context to answer the user's question precisely.
+  Do not keep repeating the same overall summary.
+  Answer the specific question being asked.
+  Be concrete, specific, and actionable.
+
+  Intent instruction:
+  ${intentInstruction}
+
+  ${strategyDrawerContext}
+
+  User question:
+  ${userQuestion}
+          `.trim();
+
+      const response = await sendAIMessage({
+        message: contextualMessage,
+        chat_history: nextHistory.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        language,
+      });
+
+      const data = response?.data || {};
+
+      const assistantReply =
+        data.reply || data.summary || data.overall_assessment || data.message || "";
+
+      const fallbackInsights = Array.isArray(data.insights)
+        ? data.insights
+        : [
+            ...(Array.isArray(data.pathways) ? data.pathways : []),
+            ...(Array.isArray(data.strengths) ? data.strengths : []),
+          ].slice(0, 4);
+
+      const insightText = fallbackInsights
+        .map((item) =>
+          typeof item === "string"
+            ? item
+            : String(item?.label || item?.title || item?.text || "").trim()
+        )
+        .filter(Boolean)
+        .join("\n• ");
+
+      const finalReply = assistantReply || (insightText ? `• ${insightText}` : "");
+
+      if (!finalReply) {
+        setDrawerError(
+          language === "fr"
+            ? "Impossible de générer une analyse pour le moment."
+            : "Unable to generate an analysis right now."
+        );
+        return;
+      }
+
+      setDrawerMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: finalReply,
+        },
+      ]);
+    } catch (err) {
+      console.error(err);
+      setDrawerError(
+        err?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          (language === "fr"
+            ? "Impossible de charger l’analyse IA."
+            : "Unable to load AI analysis.")
+      );
+    } finally {
+      setDrawerLoading(false);
+    }
+  }
+
   const strategy = data || null;
+  const timelineValue =
+    strategy?.estimated_timeline ||
+    strategy?.timeline_estimate ||
+    strategy?.timeline_summary ||
+    null;
+
+  const probabilityEstimate = strategy?.probability_estimate || {};
+  const confidenceValue =
+    getConfidenceLabel(
+      strategy?.best_pathway?.confidence || probabilityEstimate?.confidence,
+      language
+    ) || "--";
+
+  const probabilityValue =
+    probabilityEstimate?.overall_probability ||
+    probabilityEstimate?.score ||
+    probabilityEstimate?.probability ||
+    "--";
+
   const noc = strategy?.noc_summary || {};
   const nocAdvantage = strategy?.noc_advantage || {};
-  const provinceRecommendations = Array.isArray(
-    strategy?.province_recommendations
-  )
+  const provinceRecommendations = Array.isArray(strategy?.province_recommendations)
     ? strategy.province_recommendations
     : [];
 
@@ -913,9 +2033,28 @@ export default function StrategyPage() {
     };
   }, [engineVersion]);
 
+  const progress = useMemo(() => {
+      if (!documentStats.total) return 0;
+      return Math.round(
+        ((documentStats.completed + documentStats.reviewed * 0.5) /
+          documentStats.total) *
+          100
+      );
+    }, [documentStats]);
+
   const priority = useMemo(() => {
     return buildPriorityRecommendation(strategy || {}, documentStats, language);
   }, [strategy, documentStats, language]);
+
+  const strategyDrawerContext = useMemo(() => {
+  return buildStrategyDrawerContext({
+    strategy,
+    language,
+    confidenceValue,
+    timelineValue,
+    priority,
+  });
+}, [strategy, language, confidenceValue, timelineValue, priority]);
 
   const hasFullStrategy = Boolean(access?.can_view_full_strategy);
   const hasDecisionEngine =
@@ -936,12 +2075,12 @@ export default function StrategyPage() {
   }, [access, language]);
 
   const showTopPaywallHero = !hasFullStrategy;
-
   const proPath = buildProPricingPath("strategy", intent || "execute");
   const premiumPath = buildPremiumPricingPath("strategy", "export");
 
   const bestPathwayName =
     strategy?.best_pathway?.name ||
+    strategy?.top_recommendation?.name ||
     (Array.isArray(strategy?.recommended_programs) &&
     strategy.recommended_programs.length > 0
       ? strategy.recommended_programs[0]
@@ -954,19 +2093,229 @@ export default function StrategyPage() {
       ? "Aucune optimisation prioritaire détectée"
       : "No priority improvement detected";
 
+  const profileStrengthTone =
+  Number(strategy?.crs_score || 0) >= 500
+    ? "strong"
+    : Number(strategy?.crs_score || 0) >= 430
+    ? "info"
+    : "medium";
+
+const confidenceTone =
+  String(confidenceValue || "").toLowerCase().includes("high") ||
+  String(confidenceValue || "").toLowerCase().includes("élev")
+    ? "strong"
+    : String(confidenceValue || "").toLowerCase().includes("mod") ||
+      String(confidenceValue || "").toLowerCase().includes("medium")
+    ? "medium"
+    : "info";
+
+const heroTimelinePreview = getTimelineLabel(timelineValue, language);
+
+  const heroSummary =
+    strategy?.strategy_headline ||
+    strategy?.advisor_summary ||
+    (language === "fr"
+      ? "Votre stratégie est basée sur votre profil et vos opportunités actuelles."
+      : "Your strategy is built from your profile and current opportunities.");
+
+  const bestPathway = strategy?.best_pathway || null;
+  const nocProfile = strategy?.noc_profile || {};
+  const previewProvince =
+    Array.isArray(strategy?.province_recommendations) &&
+    strategy.province_recommendations.length > 0
+      ? strategy.province_recommendations[0]
+      : null;
+
+  const overviewCards = useMemo(() => {
+    return [
+      {
+        key: "best-pathway",
+        node: (
+          <BestPathwayCard
+            language={language}
+            bestPathway={
+              bestPathway || {
+                name: bestPathwayName,
+                confidence: confidenceValue,
+                reasons: heroSummary ? [heroSummary] : [],
+              }
+            }
+            onOpenDocuments={() =>
+              navigate(
+                `/documents?pathway=${encodeURIComponent(
+                  bestPathway?.name || ""
+                )}`
+              )
+            }
+          />
+        ),
+      },
+      {
+        key: "noc-signal",
+        node: (
+          <NocSignalCard
+            language={language}
+            nocProfile={nocProfile}
+            nocAdvantage={nocAdvantage}
+            locked={!hasFullStrategy}
+            onReviewProfile={() => navigate("/profile")}
+            onUpgrade={() => navigate(proPath)}
+          />
+        ),
+      },
+      {
+        key: "province-preview",
+        node: hasFullStrategy ? (
+          <InsightCard
+            eyebrow={
+              language === "fr"
+                ? "Province recommandée"
+                : "Recommended province"
+            }
+            title={
+              previewProvince
+                ? `${previewProvince.province || "--"}${
+                    previewProvince.program ? ` — ${previewProvince.program}` : ""
+                  }`
+                : "--"
+            }
+            body={
+              previewProvince?.reason ||
+              (language === "fr"
+                ? "Une recommandation provinciale apparaîtra ici lorsqu’elle sera disponible."
+                : "A provincial recommendation will appear here when available.")
+            }
+            chips={[
+              previewProvince?.chance
+                ? `${language === "fr" ? "Chance" : "Chance"}: ${
+                    previewProvince.chance
+                  }`
+                : null,
+              typeof previewProvince?.score !== "undefined"
+                ? `Score: ${previewProvince.score}`
+                : null,
+            ].filter(Boolean)}
+            actions={
+              <Button variant="secondary" onClick={() => switchTab("pathways")}>
+                {language === "fr" ? "Voir les provinces" : "View provinces"}
+              </Button>
+            }
+          />
+        ) : (
+          <BlurredSection
+            title={
+              language === "fr"
+                ? "Débloquez vos provinces cibles"
+                : "Unlock your target provinces"
+            }
+            body={
+              language === "fr"
+                ? "Voyez quelles provinces et quels volets semblent les plus adaptés à votre profil."
+                : "See which provinces and streams appear to fit your profile best."
+            }
+            onUpgrade={() => navigate(proPath)}
+            buttonLabel={language === "fr" ? "Débloquer" : "Unlock Now"}
+          >
+            <InsightCard
+              eyebrow={
+                language === "fr"
+                  ? "Province recommandée"
+                  : "Recommended province"
+              }
+              title={
+                previewProvince
+                  ? `${previewProvince.province || "--"}${
+                      previewProvince.program ? ` — ${previewProvince.program}` : ""
+                    }`
+                  : language === "fr"
+                  ? "Province cible"
+                  : "Target province"
+              }
+              body={
+                previewProvince?.reason ||
+                (language === "fr"
+                  ? "Débloquez la recommandation provinciale complète."
+                  : "Unlock the full province recommendation.")
+              }
+              chips={[
+                previewProvince?.chance
+                  ? `${language === "fr" ? "Chance" : "Chance"}: ${
+                      previewProvince.chance
+                    }`
+                  : null,
+              ].filter(Boolean)}
+            />
+          </BlurredSection>
+        ),
+      },
+    ];
+  }, [
+    language,
+    bestPathway,
+    bestPathwayName,
+    confidenceValue,
+    heroSummary,
+    nocProfile,
+    nocAdvantage,
+    hasFullStrategy,
+    previewProvince,
+    navigate,
+    proPath,
+  ]);
+
+  const emptyStateCopy =
+  language === "fr"
+    ? {
+        noProgramsTitle: "Aucun programme recommandé pour le moment",
+        noProgramsBody:
+          "Complétez davantage votre profil ou améliorez vos données stratégiques pour obtenir une lecture plus précise.",
+        noProvinceTitle: "Aucune province cible affichée pour le moment",
+        noProvinceBody:
+          "Les recommandations provinciales apparaîtront ici lorsqu’un meilleur alignement sera détecté.",
+        noRiskTitle: "Aucun risque majeur affiché pour le moment",
+        noRiskBody:
+          "Les risques détectés dans votre dossier apparaîtront ici avec leurs stratégies d’atténuation.",
+        noStepsTitle: "Aucune prochaine étape disponible",
+        noStepsBody:
+          "Lorsque votre stratégie aura plus de profondeur, vos prochaines actions apparaîtront ici.",
+        completeProfile: "Compléter mon profil",
+        upgrade: "Voir les tarifs",
+      }
+    : {
+        noProgramsTitle: "No recommended programs yet",
+        noProgramsBody:
+          "Complete more of your profile or improve your strategic inputs to unlock a more precise read.",
+        noProvinceTitle: "No province targets shown yet",
+        noProvinceBody:
+          "Provincial recommendations will appear here when a stronger fit is detected.",
+        noRiskTitle: "No major risks shown yet",
+        noRiskBody:
+          "Detected risks in your case will appear here along with mitigation strategies.",
+        noStepsTitle: "No next steps available yet",
+        noStepsBody:
+          "As your strategy gains more depth, your next actions will appear here.",
+        completeProfile: "Complete my profile",
+        upgrade: "View pricing",
+      };
+
   const text = useMemo(() => {
     if (language === "fr") {
       return {
         brand: "NorthBridgeAI",
         title: "Votre stratégie",
         subtitle:
-          "Votre stratégie personnalisée basée sur votre profil, votre admissibilité et votre progression documentaire.",
-        overview: "Aperçu stratégique",
+          "Votre lecture stratégique premium, structurée autour de vos meilleures voies, de vos risques et des actions qui ont le plus d’impact.",
+        overview: "Aperçu",
+        execution: "Exécution",
+        pathways: "Parcours",
+        risksTab: "Risques",
         crs: "Score CRS",
+        crsBand: "Force du profil",
         strategyHeadline: "Lecture stratégique",
-        bestPathway: "Meilleur parcours actuel",
-        topImprovement: "Amélioration prioritaire",
-        confidence: "Niveau de confiance",
+        bestPathway: "Meilleur parcours",
+        topImprovement: "Priorité d’amélioration",
+        confidence: "Confiance",
+        probability: "Probabilité",
         timeline: "Délai estimé",
         programs: "Programmes recommandés",
         strengths: "Forces",
@@ -975,8 +2324,8 @@ export default function StrategyPage() {
         roadmap: "Feuille de route",
         riskAnalysis: "Risques à surveiller",
         noc: "Signal CNP",
+        nocInsights: "Analyse CNP",
         provinceRecommendations: "Provinces recommandées",
-        documentsProgress: "Progression des documents",
         completed: "Complétés",
         reviewed: "Révisés",
         total: "Suivis",
@@ -988,12 +2337,12 @@ export default function StrategyPage() {
         noData: "Aucune stratégie n’est encore disponible.",
         noItems: "Aucun élément disponible pour le moment.",
         emptyBody:
-          "Commencez par compléter votre profil ou continuez vers l’espace de documents pour construire votre dossier.",
+          "Commencez par compléter votre profil pour générer une stratégie exploitable.",
         openProfile: "Compléter mon profil",
         launchEyebrow: "Forfaits",
         launchTitle: "Votre stratégie devient plus puissante à mesure que vous avancez",
         launchBody:
-          "Le mode Gratuit vous aide à comprendre votre position. Pro débloque la stratégie complète et le moteur de décision. Premium devient la couche de finition pour un flux plus complet avec export PDF.",
+          "Le mode Gratuit aide à comprendre votre position. Pro débloque la stratégie complète et le moteur de décision. Premium ajoute la finition et l’export PDF.",
         freeTitle: "Gratuit",
         proTitle: "Pro — 39 $ / 30 jours",
         premiumTitle: "Premium — 99 $ / 90 jours",
@@ -1002,24 +2351,14 @@ export default function StrategyPage() {
         premiumLabel: "Finaliser",
         fullStrategyPromptTitle: "Débloquez la stratégie complète",
         fullStrategyPromptBody:
-          "Passez à Pro pour débloquer la stratégie complète, des recommandations plus profondes et une meilleure orientation d’exécution.",
+          "Passez à Pro pour débloquer les recommandations détaillées, la feuille de route et les risques.",
         decisionPromptTitle: "Débloquez le moteur de décision",
         decisionPromptBody:
-          "Passez à Pro pour débloquer les recommandations prioritaires, les prochaines actions avancées et une guidance plus exploitable.",
+          "Passez à Pro pour débloquer des priorités plus intelligentes et une guidance plus exploitable.",
         premiumPromptTitle: "Débloquez l’export PDF",
         premiumPromptBody:
-          "Passez à Premium pour ajouter l’export PDF et une couche de finalisation plus forte à votre préparation.",
+          "Passez à Premium pour exporter votre stratégie et finaliser votre dossier.",
         currentPlan: "Plan actuel",
-        currentPlanValue: "Votre accès",
-        strategyVisibility: "Visibilité de la stratégie",
-        basicView: "Vue de base",
-        fullView: "Vue complète",
-        exportValue: "Export PDF",
-        locked: "Verrouillé",
-        unlocked: "Débloqué",
-        loadingMessage: "Chargement...",
-        exportHint:
-          "Premium est le niveau de finition pour les utilisateurs qui veulent sortir du mode exploration et produire un dossier plus partageable.",
         exportPdf: "Télécharger le PDF",
         exportingPdf: "Téléchargement...",
         blurProgramsTitle: "Débloquez vos meilleures voies d’immigration",
@@ -1048,11 +2387,15 @@ export default function StrategyPage() {
         no: "Non",
         whyThisMatters: "Pourquoi c’est important",
         recommendedNocActions: "Actions liées au CNP",
-        premiumExportTitle: "Débloquez l’export PDF premium",
         premiumExportPrimary: "Passer à Premium",
-        premiumExportSecondary: "Voir les plans",
         navTitle: "Navigation",
         lockedShort: "Verrouillé",
+        bestPathwayPreview: "Aperçu du meilleur parcours",
+        recommendedProvince: "Province recommandée",
+        reviewMyProfile: "Vérifier mon profil",
+        prepareDocuments: "Préparer mes documents",
+        unlockNocAnalysis: "Débloquez l’analyse CNP",
+        unlockProvinceTargets: "Débloquez vos provinces cibles",
       };
     }
 
@@ -1060,13 +2403,18 @@ export default function StrategyPage() {
       brand: "NorthBridgeAI",
       title: "Your Strategy",
       subtitle:
-        "Your personalized strategy based on your profile, eligibility, and document progress.",
-      overview: "Strategy overview",
+        "Your premium strategic read, organized around your strongest pathways, risks, and the actions that create the most impact.",
+      overview: "Overview",
+      execution: "Execution",
+      pathways: "Pathways",
+      risksTab: "Risks",
       crs: "CRS Score",
+      crsBand: "Profile strength",
       strategyHeadline: "Strategic read",
-      bestPathway: "Best current pathway",
+      bestPathway: "Best pathway",
       topImprovement: "Top improvement",
       confidence: "Confidence",
+      probability: "Probability",
       timeline: "Estimated timeline",
       programs: "Recommended Programs",
       strengths: "Strengths",
@@ -1075,8 +2423,8 @@ export default function StrategyPage() {
       roadmap: "Roadmap",
       riskAnalysis: "Risks to watch",
       noc: "NOC Signal",
+      nocInsights: "NOC analysis",
       provinceRecommendations: "Recommended Provinces",
-      documentsProgress: "Document Progress",
       completed: "Completed",
       reviewed: "Reviewed",
       total: "Tracked",
@@ -1088,12 +2436,12 @@ export default function StrategyPage() {
       noData: "No strategy is available yet.",
       noItems: "No items available yet.",
       emptyBody:
-        "Start by completing your profile or continue to the documents workspace to begin building your case.",
+        "Start by completing your profile to generate a usable strategy.",
       openProfile: "Complete my profile",
       launchEyebrow: "Packages",
       launchTitle: "Your strategy gets stronger as you move forward",
       launchBody:
-        "Free helps you understand where you stand. Pro unlocks the full strategy and decision engine. Premium becomes the finishing layer for a fuller preparation flow with PDF export.",
+        "Free helps you understand where you stand. Pro unlocks the full strategy and decision engine. Premium adds finishing value and PDF export.",
       freeTitle: "Free",
       proTitle: "Pro — $39 / 30 days",
       premiumTitle: "Premium — $99 / 90 days",
@@ -1102,24 +2450,14 @@ export default function StrategyPage() {
       premiumLabel: "Finish",
       fullStrategyPromptTitle: "Unlock full strategy",
       fullStrategyPromptBody:
-        "Upgrade to Pro to unlock the full strategy, deeper recommendations, and stronger execution guidance.",
+        "Upgrade to Pro to unlock detailed recommendations, roadmap, and risk analysis.",
       decisionPromptTitle: "Unlock the decision engine",
       decisionPromptBody:
-        "Upgrade to Pro to unlock smarter priorities, advanced next steps, and more actionable guidance.",
+        "Upgrade to Pro to unlock smarter priorities and more actionable guidance.",
       premiumPromptTitle: "Unlock PDF export",
       premiumPromptBody:
-        "Upgrade to Premium to add PDF export and a stronger finishing layer to your preparation workflow.",
+        "Upgrade to Premium to export your strategy and finish your case package.",
       currentPlan: "Current plan",
-      currentPlanValue: "Your access",
-      strategyVisibility: "Strategy visibility",
-      basicView: "Basic view",
-      fullView: "Full view",
-      exportValue: "PDF export",
-      locked: "Locked",
-      unlocked: "Unlocked",
-      loadingMessage: "Loading...",
-      exportHint:
-        "Premium is the finishing tier for users who want to move beyond exploration and produce a more shareable case package.",
       exportPdf: "Download PDF",
       exportingPdf: "Downloading...",
       blurProgramsTitle: "Unlock your best immigration pathways",
@@ -1148,35 +2486,60 @@ export default function StrategyPage() {
       no: "No",
       whyThisMatters: "Why this matters",
       recommendedNocActions: "NOC-related actions",
-      premiumExportTitle: "Unlock premium PDF export",
       premiumExportPrimary: "Upgrade to Premium",
-      premiumExportSecondary: "View plans",
       navTitle: "Navigation",
       lockedShort: "Locked",
+      bestPathwayPreview: "Best pathway preview",
+      recommendedProvince: "Recommended province",
+      reviewMyProfile: "Review my profile",
+      prepareDocuments: "Prepare my documents",
+      unlockNocAnalysis: "Unlock NOC analysis",
+      unlockProvinceTargets: "Unlock your target provinces",
     };
   }, [language]);
 
-  const sections = useMemo(
+  const topTabs = useMemo(
     () => [
       { key: "overview", label: text.overview, locked: false },
-      { key: "programs", label: text.programs, locked: !hasFullStrategy },
-      { key: "strengths", label: text.strengths, locked: false },
-      { key: "weaknesses", label: text.weaknesses, locked: !hasFullStrategy },
-      { key: "steps", label: text.nextSteps, locked: !hasFullStrategy },
-      { key: "roadmap", label: text.roadmap, locked: !hasFullStrategy },
-      {
-        key: "province",
-        label: text.provinceRecommendations,
-        locked: !hasFullStrategy,
-      },
-      { key: "risks", label: text.riskAnalysis, locked: !hasFullStrategy },
+      { key: "execution", label: text.execution, locked: !hasFullStrategy },
+      { key: "pathways", label: text.pathways, locked: !hasFullStrategy },
+      { key: "risks", label: text.risksTab, locked: !hasFullStrategy },
     ],
     [text, hasFullStrategy]
   );
 
+  const sectionsByTab = useMemo(
+    () => ({
+      overview: [{ key: "overview", label: text.overview, locked: false }],
+      execution: [
+        { key: "steps", label: text.nextSteps, locked: !hasFullStrategy },
+        { key: "roadmap", label: text.roadmap, locked: !hasFullStrategy },
+        { key: "strengths", label: text.strengths, locked: false },
+        { key: "weaknesses", label: text.weaknesses, locked: !hasFullStrategy },
+      ],
+      pathways: [
+        { key: "programs", label: text.programs, locked: !hasFullStrategy },
+        {
+          key: "province",
+          label: text.provinceRecommendations,
+          locked: !hasFullStrategy,
+        },
+      ],
+      risks: [{ key: "risks", label: text.riskAnalysis, locked: !hasFullStrategy }],
+    }),
+    [text, hasFullStrategy]
+  );
+
+  const visibleSections = sectionsByTab[activeTab] || sectionsByTab.overview;
   const activeSectionLabel =
-    sections.find((section) => section.key === activeSection)?.label ||
+    visibleSections.find((section) => section.key === activeSection)?.label ||
     text.overview;
+
+  const activeLockedLabel = visibleSections.find(
+    (section) => section.key === activeSection
+  )?.locked
+    ? text.lockedShort
+    : "";
 
   if (loading) {
     return (
@@ -1184,7 +2547,7 @@ export default function StrategyPage() {
         <div className="flex justify-center py-24">
           <div className="rounded-[28px] border border-slate-200 bg-white px-10 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <p className="text-lg font-medium text-slate-700">
-              {text.loadingMessage}
+              {language === "fr" ? "Chargement..." : "Loading..."}
             </p>
           </div>
         </div>
@@ -1207,7 +2570,7 @@ export default function StrategyPage() {
           subtitle={text.subtitle}
         />
 
-        <Card variant="soft" padding="lg" className="max-w-2xl">
+        <Card variant="soft" padding="lg" className="max-w-2xl rounded-[28px]">
           <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
             {text.noData}
           </h2>
@@ -1253,17 +2616,21 @@ export default function StrategyPage() {
         />
       )}
 
-      <Card variant="soft" padding="lg" className="mb-6">
-        <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
-              {text.launchEyebrow}
+      <Card
+        variant="soft"
+        padding="lg"
+        className="mb-6 overflow-hidden rounded-[32px] border-slate-200 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 text-white shadow-xl"
+      >
+        <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-200">
+              {text.strategyHeadline}
             </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-              {text.launchTitle}
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+              {bestPathwayName}
             </h2>
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              {text.launchBody}
+            <p className="mt-3 max-w-xl text-sm leading-7 text-blue-100 md:text-base">
+              {heroSummary}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -1274,654 +2641,252 @@ export default function StrategyPage() {
                 Pro
               </PlanChip>
               <PlanChip active={access?.is_premium}>Premium</PlanChip>
+              <ConfidencePill value={confidenceValue} />
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <HeroSignalChip
+                label={text.crsBand}
+                value={getScoreBand(strategy?.crs_score, language)}
+                tone={profileStrengthTone}
+              />
+              <HeroSignalChip
+                label={text.confidence}
+                value={confidenceValue}
+                tone={confidenceTone}
+              />
+              <HeroSignalChip
+                label={text.timeline}
+                value={heroTimelinePreview}
+                tone="info"
+              />
+              <HeroSignalChip
+                label={text.topImprovement}
+                value={topImprovement}
+                tone="default"
+              />
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button onClick={() => navigate("/documents")} className="h-11 px-5">
+                {text.openDocuments}
+              </Button>
+              {canExportPdf ? (
+                <Button
+                  variant="secondary"
+                  onClick={handleExportPdf}
+                  disabled={exportingPdf}
+                  className="h-11 px-5"
+                >
+                  {exportingPdf ? text.exportingPdf : text.exportPdf}
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(premiumPath)}
+                  className="h-11 px-5"
+                >
+                  {text.exportPdf}
+                </Button>
+              )}
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-1">
-            <div className="rounded-[24px] border border-slate-200 bg-white p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {text.freeLabel}
-              </p>
-              <h3 className="mt-2 text-lg font-semibold tracking-tight text-slate-900">
-                {text.freeTitle}
-              </h3>
-              <p className="mt-2 text-sm leading-7 text-slate-600">
-                {language === "fr"
-                  ? "Comprenez votre position et explorez vos premières priorités."
-                  : "Understand where you stand and explore your first priorities."}
-              </p>
-            </div>
-
-            <div className="rounded-[24px] border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
-                {text.proLabel}
-              </p>
-              <h3 className="mt-2 text-lg font-semibold tracking-tight text-slate-900">
-                {text.proTitle}
-              </h3>
-              <p className="mt-2 text-sm leading-7 text-slate-600">
-                {language === "fr"
-                  ? "Débloquez la stratégie complète et exécutez plus vite."
-                  : "Unlock the full strategy and move into execution faster."}
-              </p>
-            </div>
-
-            <div className="rounded-[24px] border border-slate-200 bg-white p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {text.premiumLabel}
-              </p>
-              <h3 className="mt-2 text-lg font-semibold tracking-tight text-slate-900">
-                {text.premiumTitle}
-              </h3>
-              <p className="mt-2 text-sm leading-7 text-slate-600">
-                {language === "fr"
-                  ? "Ajoutez la finition, l’export et une préparation plus complète."
-                  : "Add finishing value, export, and a more complete preparation layer."}
-              </p>
-            </div>
+          <div className="xl:max-w-sm xl:justify-self-end">
+            <HeroStatusCluster
+              language={language}
+              strategy={strategy}
+              confidenceValue={confidenceValue}
+              timelineValue={timelineValue}
+            />
           </div>
         </div>
       </Card>
 
-      <div className="mb-8 rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-6 shadow-sm">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
-              {text.overview}
-            </p>
-
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-              {strategy?.best_pathway?.name || bestPathwayName}
-            </h2>
-
-            <p className="mt-2 max-w-xl text-sm text-slate-600">
-              {strategy?.strategy_headline ||
-                (language === "fr"
-                  ? "Votre stratégie est basée sur votre profil et vos opportunités actuelles."
-                  : "Your strategy is built from your profile and current opportunities.")}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => navigate("/documents")}>
-              {text.openDocuments}
-            </Button>
-
-            {!canExportPdf && (
-              <Button variant="secondary" onClick={() => navigate(premiumPath)}>
-                {text.exportPdf}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-500">{text.crs}</p>
-            <p className="text-2xl font-semibold text-slate-900">
-              {strategy?.crs_score ?? "--"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-500">{text.topImprovement}</p>
-            <p className="text-sm font-medium text-slate-900">
-              {topImprovement}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-500">{text.confidence}</p>
-            <p className="text-sm font-medium text-slate-900">
-              {strategy?.best_pathway?.confidence || "--"}
-            </p>
-          </div>
-        </div>
+      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Stat label={text.bestPathway} value={bestPathwayName || "--"} />
+        <Stat label={text.topImprovement} value={topImprovement || "--"} />
+        <Stat label={text.confidence} value={confidenceValue} />
+        <Stat label={text.probability} value={probabilityValue} />
       </div>
 
-      <ScoreSimulatorTeaser
+      <div className="mb-6 flex flex-wrap gap-2">
+        {topTabs.map((tab) => (
+          <TopTabButton
+            key={tab.key}
+            active={activeTab === tab.key}
+            label={tab.label}
+            locked={tab.locked}
+            onClick={() => switchTab(tab.key)}
+          />
+        ))}
+      </div>
+      <StrategyActionBar
         language={language}
-        currentScore={strategy?.crs_score}
-        hasFullStrategy={hasFullStrategy}
-        onUpgrade={() =>
-          navigate(hasSimulatorAccess ? "/strategy/simulator" : proPath)
-        }
+        canExportPdf={canExportPdf}
+        exportingPdf={exportingPdf}
+        onOpenDocuments={() => navigate("/documents")}
+        onExportPdf={handleExportPdf}
+        onAnalyzeStrategy={handleAnalyzeStrategyDrawer}
+        onUpgrade={() => navigate(premiumPath)}
       />
 
-      <div className="mt-6" />
-
-      {!hasFullStrategy && (
-        <UpgradePrompt
-          className="mb-6"
-          title={text.fullStrategyPromptTitle}
-          body={text.fullStrategyPromptBody}
-          buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
-        />
-      )}
-
-      <AICopilotCard
-        title={language === "fr" ? "Copilote IA stratégie" : "AI Strategy Copilot"}
-        description={
-          hasAdvancedCopilot
-            ? language === "fr"
-              ? "Comprenez votre stratégie plus en profondeur et optimisez vos prochaines actions."
-              : "Understand your strategy more deeply and optimize your next actions."
-            : language === "fr"
-            ? "Obtenez une lecture stratégique plus approfondie de votre dossier."
-            : "Get a deeper strategic read of your case."
-        }
-        buttonLabel={
-          language === "fr" ? "Analyser ma stratégie" : "Analyze my strategy"
-        }
-        language={language}
-        prompt={
-          language === "fr"
-            ? "Analyse ma stratégie d'immigration et propose les meilleures améliorations possibles."
-            : "Analyze my immigration strategy and suggest the best improvements possible."
-        }
-        className="mb-6"
-      />
-
-      {!hasAdvancedCopilot && (
-        <UpgradePrompt
-          className="mb-6"
-          title={
-            language === "fr"
-              ? "Débloquez le copilote avancé"
-              : "Unlock advanced AI copilot"
-          }
-          body={
-            language === "fr"
-              ? "Passez à Pro ou Premium pour une guidance plus profonde et plus exploitable."
-              : "Upgrade to Pro or Premium for deeper, more actionable guidance."
-          }
-          buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
-        />
-      )}
-
-      <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
+      {activeTab === "overview" && (
         <div className="space-y-6">
-          <Card padding="lg" className="xl:sticky xl:top-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {text.navTitle}
-            </p>
+          <ScoreSimulatorTeaser
+            language={language}
+            currentScore={strategy?.crs_score}
+            hasFullStrategy={hasFullStrategy}
+            onUpgrade={() =>
+              navigate(hasSimulatorAccess ? "/strategy/simulator" : proPath)
+            }
+          />
 
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:hidden">
-              {sections.map((section) => (
-                <button
-                  key={section.key}
-                  type="button"
-                  onClick={() => setActiveSection(section.key)}
-                  className={`shrink-0 rounded-full border px-3 py-2 text-sm transition ${
-                    activeSection === section.key
-                      ? "border-blue-200 bg-blue-50 text-blue-700 font-semibold"
-                      : "border-slate-200 bg-white text-slate-600"
-                  }`}
-                >
-                  {section.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4 hidden space-y-1.5 xl:block">
-              {sections.map((section) => (
-                <SidebarButton
-                  key={section.key}
-                  active={activeSection === section.key}
-                  label={section.label}
-                  locked={section.locked}
-                  onClick={() => setActiveSection(section.key)}
-                />
-              ))}
-            </div>
-          </Card>
-
-          <Card padding="lg">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {text.currentPlan}
-            </p>
-
-            <div className="mt-5 grid gap-4">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-                  {text.currentPlanValue}
-                </p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-                  {currentPlanLabel}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-                  {text.strategyVisibility}
-                </p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-                  {hasFullStrategy ? text.fullView : text.basicView}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-                  {text.exportValue}
-                </p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-                  {canExportPdf ? text.unlocked : text.locked}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              {canExportPdf ? (
-                <Button
-                  onClick={handleExportPdf}
-                  disabled={exportingPdf}
-                  className="shadow-md transition hover:scale-[1.02]"
-                >
-                  {exportingPdf ? text.exportingPdf : text.exportPdf}
-                </Button>
-              ) : null}
-
-              <Button variant="secondary" onClick={() => navigate("/documents")}>
-                {text.openDocuments}
-              </Button>
-            </div>
-
-            {!canExportPdf && (
-              <div className="mt-5 rounded-[24px] border border-amber-200 bg-amber-50 p-5">
-                <p className="text-sm font-semibold text-amber-900">
-                  {text.premiumExportTitle}
-                </p>
-
-                <p className="mt-2 text-sm text-amber-800">
-                  {text.exportHint}
-                </p>
-
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Button onClick={() => navigate(premiumPath)}>
-                    {text.premiumExportPrimary}
-                  </Button>
-
-                  <Button
-                    variant="secondary"
-                    onClick={() => navigate(premiumPath)}
-                  >
-                    {text.premiumExportSecondary}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          <Card padding="lg">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {text.documentsProgress}
-            </p>
-
-            <div className="mt-5 grid grid-cols-3 gap-4">
-              <Stat label={text.completed} value={documentStats.completed} />
-              <Stat label={text.reviewed} value={documentStats.reviewed} />
-              <Stat label={text.total} value={documentStats.total} />
-            </div>
-          </Card>
-        </div>
-
-        <div
-          key={activeSection}
-          className="space-y-6 animate-[fadeIn_.18s_ease-out]"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
-              {activeSectionLabel}
-            </h2>
-
-            {sections.find((section) => section.key === activeSection)?.locked ? (
-              <span className="inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                {text.lockedShort}
-              </span>
-            ) : null}
+          <div className="grid gap-5 xl:grid-cols-3">
+            {overviewCards.map((card) => (
+              <div key={card.key}>{card.node}</div>
+            ))}
           </div>
 
-          {activeSection === "overview" && (
-            <div className="space-y-6">
-              {(strategy?.strategy_headline || strategy?.best_pathway?.name) && (
-                <Card padding="lg">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    {text.strategyHeadline}
-                  </p>
-
-                  {strategy?.strategy_headline ? (
-                    <p className="mt-3 text-base leading-7 text-slate-700">
-                      {strategy.strategy_headline}
-                    </p>
-                  ) : null}
-
-                  {strategy?.best_pathway?.name ? (
-                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                        {text.bestPathway}
-                      </p>
-                      <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
-                        {strategy.best_pathway.name}
-                      </p>
-
-                      {strategy?.best_pathway?.confidence ? (
-                        <div className="mt-3 inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                          {text.confidence}: {strategy.best_pathway.confidence}
-                        </div>
-                      ) : null}
-
-                      {Array.isArray(strategy?.best_pathway?.reasons) &&
-                      strategy.best_pathway.reasons.length > 0 ? (
-                        hasFullStrategy ? (
-                          <div className="mt-4 space-y-2">
-                            {strategy.best_pathway.reasons.map((reason, index) => (
-                              <div
-                                key={`${reason}-${index}`}
-                                className="rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 text-slate-700"
-                              >
-                                {reason}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="mt-4">
-                            <BlurredSection
-                              title={
-                                language === "fr"
-                                  ? "Débloquez la logique complète du meilleur parcours"
-                                  : "Unlock the full best-pathway logic"
-                              }
-                              body={
-                                language === "fr"
-                                  ? "Voyez pourquoi ce parcours est recommandé et quels signaux renforcent votre dossier."
-                                  : "See why this pathway is recommended and which signals strengthen your case."
-                              }
-                              buttonLabel={text.unlockNow}
-                              onUpgrade={() => navigate(proPath)}
-                            >
-                              <div className="space-y-2">
-                                {strategy.best_pathway.reasons.map((reason, index) => (
-                                  <div
-                                    key={`${reason}-${index}`}
-                                    className="rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7 text-slate-700"
-                                  >
-                                    {reason}
-                                  </div>
-                                ))}
-                              </div>
-                            </BlurredSection>
-                          </div>
-                        )
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {strategy?.timeline_summary ? (
-                    <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                        {text.timeline}
-                      </p>
-                      <p className="mt-2 text-sm leading-7 text-slate-700">
-                        {strategy.timeline_summary}
-                      </p>
-                    </div>
-                  ) : null}
-                </Card>
-              )}
-
-              <Card
-                variant="premium"
-                padding="lg"
-                className="space-y-5 border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  {text.priorityTitle}
-                </p>
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
-                  {priority.title}
-                </h2>
-
-                <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-800">
-                    {text.priorityReason}
-                  </p>
-                  <p className="mt-2 text-sm leading-7 text-amber-900">
-                    {priority.reason}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {text.recommendedActions}
-                  </p>
-                  <div className="mt-3 space-y-2.5">
-                    {priority.actions.map((action, index) => (
-                      <div
-                        key={`${action}-${index}`}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-700 shadow-sm"
-                      >
-                        {action}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-1">
-                  <Button onClick={() => navigate(priority.route)}>
-                    {text.openPriorityRoute}
-                  </Button>
-                </div>
-              </Card>
-
-              {(noc?.noc_code ||
-                noc?.occupation ||
-                nocAdvantage?.has_noc ||
-                typeof nocAdvantage?.teer === "number") && (
-                <Card padding="lg" className="space-y-5">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      {text.noc}
-                    </p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
-                      {noc?.noc_code
-                        ? `${noc.noc_code} — ${noc.noc_title || noc.occupation || ""}`
-                        : nocAdvantage?.noc_code
-                        ? `${nocAdvantage.noc_code}`
-                        : noc?.occupation || "--"}
-                    </h2>
-                    {typeof noc?.teer === "number" ? (
-                      <p className="mt-2 text-sm text-slate-600">TEER {noc.teer}</p>
-                    ) : typeof nocAdvantage?.teer === "number" &&
-                      nocAdvantage.teer >= 0 ? (
-                      <p className="mt-2 text-sm text-slate-600">
-                        {text.teer} {nocAdvantage.teer}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  {(typeof nocAdvantage?.teer === "number" &&
-                    nocAdvantage.teer >= 0) ||
-                  typeof nocAdvantage?.strategic_value === "string" ||
-                  typeof nocAdvantage?.is_high_demand === "boolean" ? (
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <Stat
-                        label={text.teer}
-                        value={
-                          typeof nocAdvantage?.teer === "number" &&
-                          nocAdvantage.teer >= 0
-                            ? nocAdvantage.teer
-                            : "--"
-                        }
-                      />
-                      <Stat
-                        label={text.strategicValue}
-                        value={nocAdvantage?.strategic_value || "--"}
-                      />
-                      <Stat
-                        label={text.highDemandOccupation}
-                        value={
-                          typeof nocAdvantage?.is_high_demand === "boolean"
-                            ? nocAdvantage.is_high_demand
-                              ? text.yes
-                              : text.no
-                            : "--"
-                        }
-                      />
-                    </div>
-                  ) : null}
-
-                  {Array.isArray(nocAdvantage?.signals) &&
-                  nocAdvantage.signals.length > 0 ? (
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {text.whyThisMatters}
-                      </p>
-                      <div className="mt-3 space-y-2">
-                        {nocAdvantage.signals.map((item, index) => (
-                          <div
-                            key={`${item}-${index}`}
-                            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-700 shadow-sm"
-                          >
-                            {item}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {Array.isArray(nocAdvantage?.recommendations) &&
-                  nocAdvantage.recommendations.length > 0 ? (
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {text.recommendedNocActions}
-                      </p>
-                      <div className="mt-3 space-y-2">
-                        {nocAdvantage.recommendations.map((item, index) => (
-                          <div
-                            key={`${item}-${index}`}
-                            className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-7 text-blue-900"
-                          >
-                            {item}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </Card>
-              )}
-
-              {!hasDecisionEngine && (
-                <UpgradePrompt
-                  title={text.decisionPromptTitle}
-                  body={text.decisionPromptBody}
-                  buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
-                />
-              )}
-
-              {!canExportPdf && (
-                <UpgradePrompt
-                  title={text.premiumPromptTitle}
-                  body={text.premiumPromptBody}
-                  buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
-                />
-              )}
-            </div>
-          )}
-
-          {activeSection === "programs" &&
-            (hasFullStrategy ? (
-              <ListCard
-                title={text.programs}
-                items={strategy?.recommended_programs}
-                emptyLabel={text.noItems}
-              />
-            ) : (
-              <BlurredSection
-                title={text.blurProgramsTitle}
-                body={text.blurProgramsBody}
-                buttonLabel={text.unlockNow}
-                onUpgrade={() => navigate(proPath)}
-              >
-                <ListCard
-                  title={text.programs}
-                  items={
-                    strategy?.recommended_programs?.length
-                      ? strategy.recommended_programs
-                      : ["Express Entry", "Provincial Nominee Program", "Work Permit"]
-                  }
-                  emptyLabel={text.noItems}
-                />
-              </BlurredSection>
-            ))}
-
-          {activeSection === "strengths" && (
-            <ListCard
-              title={text.strengths}
-              items={strategy?.strengths}
-              emptyLabel={text.noItems}
+          {!hasFullStrategy && (
+            <UpgradePrompt
+              className="mb-0"
+              title={text.fullStrategyPromptTitle}
+              body={text.fullStrategyPromptBody}
+              buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
             />
           )}
 
-          {activeSection === "weaknesses" &&
-            (hasFullStrategy ? (
-              <ListCard
-                title={text.weaknesses}
-                items={strategy?.weaknesses}
-                emptyLabel={text.noItems}
-              />
-            ) : (
-              <BlurredSection
-                title={text.blurWeaknessesTitle}
-                body={text.blurWeaknessesBody}
-                buttonLabel={text.unlockNow}
-                onUpgrade={() => navigate(proPath)}
-              >
-                <ListCard
-                  title={text.weaknesses}
-                  items={
-                    strategy?.weaknesses?.length
-                      ? strategy.weaknesses
-                      : [
-                          language === "fr"
-                            ? "Écart potentiel de score linguistique"
-                            : "Potential language score gap",
-                          language === "fr"
-                            ? "Preuves de travail à renforcer"
-                            : "Work evidence may need strengthening",
-                        ]
-                  }
-                  emptyLabel={text.noItems}
-                />
-              </BlurredSection>
-            ))}
+          <AICopilotCard
+            title={
+              language === "fr" ? "Copilote IA stratégie" : "AI Strategy Copilot"
+            }
+            description={
+              hasAdvancedCopilot
+                ? language === "fr"
+                  ? "Comprenez votre stratégie plus en profondeur et optimisez vos prochaines actions."
+                  : "Understand your strategy more deeply and optimize your next actions."
+                : language === "fr"
+                ? "Obtenez une lecture stratégique plus approfondie de votre dossier."
+                : "Get a deeper strategic read of your case."
+            }
+            buttonLabel={
+              language === "fr" ? "Analyser ma stratégie" : "Analyze my strategy"
+            }
+            language={language}
+            prompt={
+              language === "fr"
+                ? "Analyse ma stratégie d'immigration et propose les meilleures améliorations possibles."
+                : "Analyze my immigration strategy and suggest the best improvements possible."
+            }
+          />
 
-          {activeSection === "steps" &&
-            (hasFullStrategy ? (
-              <ListCard
-                title={text.nextSteps}
-                items={strategy?.next_steps}
-                emptyLabel={text.noItems}
-              />
-            ) : (
-              <div className="space-y-4">
-                <ListCard
-                  title={text.nextSteps}
-                  items={
-                    Array.isArray(strategy?.next_steps)
-                      ? strategy.next_steps.slice(0, 1)
-                      : []
-                  }
-                  emptyLabel={text.noItems}
-                />
+          {!hasAdvancedCopilot && (
+            <UpgradePrompt
+              className="mb-0"
+              title={
+                language === "fr"
+                  ? "Débloquez le copilote avancé"
+                  : "Unlock advanced AI copilot"
+              }
+              body={
+                language === "fr"
+                  ? "Passez à Pro ou Premium pour une guidance plus profonde et plus exploitable."
+                  : "Upgrade to Pro or Premium for deeper, more actionable guidance."
+              }
+              buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+            />
+          )}
+        </div>
+      )}
 
+      {activeTab !== "overview" && (
+        <div className="grid items-start gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="xl:sticky xl:top-24 xl:self-start">
+            <div className="flex flex-col gap-5">
+              <Card padding="md" className="overflow-hidden rounded-[28px]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  {text.navTitle}
+                </p>
+
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1 xl:hidden">
+                  {visibleSections.map((section) => (
+                    <button
+                      key={section.key}
+                      type="button"
+                      onClick={() => setActiveSection(section.key)}
+                      className={`shrink-0 rounded-full border px-3 py-2 text-sm ${
+                        activeSection === section.key
+                          ? "border-blue-200 bg-blue-50 font-semibold text-blue-700"
+                          : "border-slate-200 bg-white text-slate-600"
+                      }`}
+                    >
+                      {section.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-3 hidden space-y-1.5 xl:block">
+                  {visibleSections.map((section) => (
+                    <SidebarButton
+                      key={section.key}
+                      active={activeSection === section.key}
+                      label={section.label}
+                      locked={section.locked}
+                      onClick={() => setActiveSection(section.key)}
+                    />
+                  ))}
+                </div>
+              </Card>
+
+              <StrategyProgressCard
+                language={language}
+                progress={progress}
+                documentStats={documentStats}
+                priority={priority}
+                onOpenPriority={() => navigate(priority.route)}
+              />
+            </div>
+          </div>
+
+          <div className="min-w-0 space-y-5">
+            <SectionChrome
+              activeTab={activeTab}
+              activeSectionLabel={activeSectionLabel}
+              lockedLabel={activeLockedLabel}
+              text={text}
+            />
+
+            {activeTab === "execution" && activeSection === "steps" &&
+              (hasFullStrategy ? (
+                (
+                  Array.isArray(strategy?.next_steps) && strategy.next_steps.length > 0
+                    ? (
+                      <ListCard
+                        title={text.nextSteps}
+                        items={strategy?.next_steps}
+                        emptyLabel={text.noItems}
+                      />
+                    )
+                    : (
+                      <StrategySectionState
+                        language={language}
+                        title={emptyStateCopy.noStepsTitle}
+                        body={emptyStateCopy.noStepsBody}
+                        actionLabel={emptyStateCopy.completeProfile}
+                        onAction={() => navigate("/profile")}
+                        tone="info"
+                      />
+                    )
+                )
+              ) : (
                 <BlurredSection
                   title={text.blurStepsTitle}
                   body={text.blurStepsBody}
-                  buttonLabel={text.unlockNow}
+                  buttonLabel={language === "fr" ? "Débloquer" : "Unlock Now"}
                   onUpgrade={() => navigate(proPath)}
                 >
                   <ListCard
-                    title=""
+                    title={text.nextSteps}
                     items={
                       language === "fr"
                         ? [
@@ -1938,140 +2903,478 @@ export default function StrategyPage() {
                     emptyLabel={text.noItems}
                   />
                 </BlurredSection>
-              </div>
-            ))}
+              ))}
 
-          {activeSection === "roadmap" &&
-            (hasFullStrategy ? (
-              <RoadmapCard
-                title={text.roadmap}
-                items={strategy?.roadmap}
-                emptyLabel={text.noItems}
-                language={language}
-              />
-            ) : (
-              <BlurredSection
-                title={text.blurRoadmapTitle}
-                body={text.blurRoadmapBody}
-                buttonLabel={text.unlockNow}
-                onUpgrade={() => navigate(proPath)}
-              >
+            {activeTab === "execution" && activeSection === "roadmap" &&
+              (hasFullStrategy ? (
                 <RoadmapCard
                   title={text.roadmap}
-                  items={
-                    Array.isArray(strategy?.roadmap) && strategy.roadmap.length
-                      ? strategy.roadmap
-                      : [
-                          language === "fr"
-                            ? {
-                                title: "Améliorer le score linguistique",
-                                estimated_crs_gain: 28,
-                                difficulty: "Moyen",
-                                reason:
-                                  "L’amélioration linguistique est l’un des leviers les plus rapides.",
-                              }
-                            : {
-                                title: "Improve language score",
-                                estimated_crs_gain: 28,
-                                difficulty: "Medium",
-                                reason:
-                                  "Language improvement is one of the fastest levers.",
-                              },
-                        ]
-                  }
+                  items={strategy?.roadmap}
                   emptyLabel={text.noItems}
                   language={language}
                 />
-              </BlurredSection>
-            ))}
+              ) : (
+                <BlurredSection
+                  title={text.blurRoadmapTitle}
+                  body={text.blurRoadmapBody}
+                  buttonLabel={text.unlockNow}
+                  onUpgrade={() => navigate(proPath)}
+                >
+                  <RoadmapCard
+                    title={text.roadmap}
+                    items={
+                      Array.isArray(strategy?.roadmap) && strategy.roadmap.length
+                        ? strategy.roadmap
+                        : [
+                            language === "fr"
+                              ? {
+                                  title: "Améliorer le score linguistique",
+                                  estimated_crs_gain: 28,
+                                  difficulty: "Moyen",
+                                  reason:
+                                    "L’amélioration linguistique est l’un des leviers les plus rapides.",
+                                }
+                              : {
+                                  title: "Improve language score",
+                                  estimated_crs_gain: 28,
+                                  difficulty: "Medium",
+                                  reason:
+                                    "Language improvement is one of the fastest levers.",
+                                },
+                          ]
+                    }
+                    emptyLabel={text.noItems}
+                    language={language}
+                  />
+                </BlurredSection>
+              ))}
 
-          {activeSection === "province" &&
-            (hasFullStrategy ? (
-              <ProvinceCard
-                title={text.provinceRecommendations}
-                items={provinceRecommendations}
-                emptyLabel={text.noItems}
-              />
-            ) : (
-              <BlurredSection
-                title={text.blurProvinceTitle}
-                body={text.blurProvinceBody}
-                buttonLabel={text.unlockNow}
-                onUpgrade={() => navigate(proPath)}
-              >
-                <ProvinceCard
-                  title={text.provinceRecommendations}
-                  items={
-                    provinceRecommendations.length
-                      ? provinceRecommendations
-                      : [
-                          language === "fr"
-                            ? {
-                                province: "Ontario",
-                                program: "Volet Tech de l’OINP",
-                                chance: "Élevée",
-                                reason:
-                                  "Cette province pourrait bien correspondre à votre profil.",
-                              }
-                            : {
-                                province: "Ontario",
-                                program: "OINP Tech Draw",
-                                chance: "High",
-                                reason:
-                                  "This province may align well with your profile.",
-                              },
-                        ]
-                  }
+            {activeTab === "execution" && activeSection === "strengths" && (
+              <div className="space-y-5">
+                <ListCard
+                  title={text.strengths}
+                  items={strategy?.strengths}
                   emptyLabel={text.noItems}
                 />
-              </BlurredSection>
-            ))}
 
-          {activeSection === "risks" &&
-            (hasFullStrategy ? (
-              <RiskCard
-                title={text.riskAnalysis}
-                items={strategy?.risk_analysis}
-                emptyLabel={text.noItems}
-                language={language}
-              />
-            ) : (
-              <BlurredSection
-                title={text.blurRiskTitle}
-                body={text.blurRiskBody}
-                buttonLabel={text.unlockNow}
-                onUpgrade={() => navigate(proPath)}
-              >
+                <TimelineCard
+                  timeline={timelineValue}
+                  language={language}
+                  title={text.timeline}
+                  noItemsLabel={text.noItems}
+                />
+
+                <Card
+                  variant="premium"
+                  padding="lg"
+                  className="space-y-5 rounded-[28px] border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    {text.priorityTitle}
+                  </p>
+                  <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
+                    {priority.title}
+                  </h2>
+
+                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-800">
+                      {text.priorityReason}
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-amber-900">
+                      {priority.reason}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {text.recommendedActions}
+                    </p>
+                    <div className="mt-3 space-y-2.5">
+                      {priority.actions.map((action, index) => (
+                        <div
+                          key={`${action}-${index}`}
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-700 shadow-sm"
+                        >
+                          {action}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <Button onClick={() => navigate(priority.route)}>
+                      {text.openPriorityRoute}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {activeTab === "execution" && activeSection === "weaknesses" &&
+              (hasFullStrategy ? (
+                <ListCard
+                  title={text.weaknesses}
+                  items={strategy?.weaknesses}
+                  emptyLabel={text.noItems}
+                />
+              ) : (
+                <BlurredSection
+                  title={text.blurWeaknessesTitle}
+                  body={text.blurWeaknessesBody}
+                  buttonLabel={text.unlockNow}
+                  onUpgrade={() => navigate(proPath)}
+                >
+                  <ListCard
+                    title={text.weaknesses}
+                    items={
+                      strategy?.weaknesses?.length
+                        ? strategy.weaknesses
+                        : [
+                            language === "fr"
+                              ? "Écart potentiel de score linguistique"
+                              : "Potential language score gap",
+                            language === "fr"
+                              ? "Preuves de travail à renforcer"
+                              : "Work evidence may need strengthening",
+                          ]
+                    }
+                    emptyLabel={text.noItems}
+                  />
+                </BlurredSection>
+              ))}
+
+            {activeTab === "pathways" && activeSection === "programs" &&
+              (hasFullStrategy ? (
+                Array.isArray(strategy?.recommended_programs) &&
+                strategy.recommended_programs.length > 0 ? (
+                  <div className="space-y-5">
+                    <ListCard
+                      title={text.programs}
+                      items={strategy?.recommended_programs}
+                      emptyLabel={text.noItems}
+                    />
+
+                    {(noc?.noc_code ||
+                      noc?.occupation ||
+                      nocAdvantage?.has_noc ||
+                      typeof nocAdvantage?.teer === "number") && (
+                      <Card padding="lg" className="space-y-5 rounded-[28px]">
+                        <SectionTitle>{text.nocInsights}</SectionTitle>
+
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            {text.noc}
+                          </p>
+                          <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-900">
+                            {nocProfile?.resolved_noc_code
+                              ? `${nocProfile.resolved_noc_code} — ${
+                                  nocProfile.resolved_title || ""
+                                }`
+                              : noc?.noc_code
+                              ? `${noc.noc_code} — ${noc.noc_title || noc.occupation || ""}`
+                              : nocAdvantage?.noc_code
+                              ? `${nocAdvantage.noc_code}`
+                              : noc?.occupation || "--"}
+                          </h2>
+
+                          {typeof noc?.teer === "number" ? (
+                            <p className="mt-2 text-sm text-slate-600">TEER {noc.teer}</p>
+                          ) : typeof nocAdvantage?.teer === "number" &&
+                            nocAdvantage.teer >= 0 ? (
+                            <p className="mt-2 text-sm text-slate-600">
+                              {text.teer} {nocAdvantage.teer}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {typeof nocProfile?.suggested_confidence === "number" ? (
+                            <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                              {text.confidence}:{" "}
+                              {Math.round(nocProfile.suggested_confidence * 100)}%
+                            </span>
+                          ) : null}
+
+                          {Array.isArray(nocAdvantage?.category_tags) &&
+                          nocAdvantage.category_tags.length > 0
+                            ? nocAdvantage.category_tags.slice(0, 3).map((tag, index) => (
+                                <span
+                                  key={`${tag}-${index}`}
+                                  className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                                >
+                                  {tag}
+                                </span>
+                              ))
+                            : null}
+                        </div>
+
+                        {(typeof nocAdvantage?.teer === "number" &&
+                          nocAdvantage.teer >= 0) ||
+                        typeof nocAdvantage?.strategic_value === "string" ||
+                        typeof nocAdvantage?.is_high_demand === "boolean" ? (
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <Stat
+                              label={text.teer}
+                              value={
+                                typeof nocAdvantage?.teer === "number" &&
+                                nocAdvantage.teer >= 0
+                                  ? nocAdvantage.teer
+                                  : "--"
+                              }
+                            />
+                            <Stat
+                              label={text.strategicValue}
+                              value={nocAdvantage?.strategic_value || "--"}
+                            />
+                            <Stat
+                              label={text.highDemandOccupation}
+                              value={
+                                typeof nocAdvantage?.is_high_demand === "boolean"
+                                  ? nocAdvantage.is_high_demand
+                                    ? text.yes
+                                    : text.no
+                                  : "--"
+                              }
+                            />
+                          </div>
+                        ) : null}
+
+                        {Array.isArray(nocAdvantage?.signals) &&
+                        nocAdvantage.signals.length > 0 ? (
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {text.whyThisMatters}
+                            </p>
+                            <div className="mt-3 space-y-2">
+                              {nocAdvantage.signals.map((item, index) => (
+                                <div
+                                  key={`${item}-${index}`}
+                                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700"
+                                >
+                                  {item}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {Array.isArray(nocAdvantage?.recommendations) &&
+                        nocAdvantage.recommendations.length > 0 ? (
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {text.recommendedNocActions}
+                            </p>
+                            <div className="mt-3 space-y-2">
+                              {nocAdvantage.recommendations.map((item, index) => (
+                                <div
+                                  key={`${item}-${index}`}
+                                  className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-7 text-blue-900"
+                                >
+                                  {item}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </Card>
+                    )}
+                  </div>
+                ) : (
+                  <StrategySectionState
+                    language={language}
+                    title={emptyStateCopy.noProgramsTitle}
+                    body={emptyStateCopy.noProgramsBody}
+                    actionLabel={emptyStateCopy.completeProfile}
+                    onAction={() => navigate("/profile")}
+                    tone="info"
+                  />
+                )
+              ) : (
+                <BlurredSection
+                  title={text.blurProgramsTitle}
+                  body={text.blurProgramsBody}
+                  buttonLabel={text.unlockNow}
+                  onUpgrade={() => navigate(proPath)}
+                >
+                  <ListCard
+                    title={text.programs}
+                    items={
+                      strategy?.recommended_programs?.length
+                        ? strategy.recommended_programs
+                        : ["Express Entry", "Provincial Nominee Program", "Work Permit"]
+                    }
+                    emptyLabel={text.noItems}
+                  />
+                </BlurredSection>
+              ))}
+
+            {activeTab === "pathways" && activeSection === "province" &&
+              (hasFullStrategy ? (
+                provinceRecommendations.length > 0 ? (
+                  <ProvinceCard
+                    title={text.provinceRecommendations}
+                    items={provinceRecommendations}
+                    emptyLabel={text.noItems}
+                  />
+                ) : (
+                  <StrategySectionState
+                    language={language}
+                    title={emptyStateCopy.noProvinceTitle}
+                    body={emptyStateCopy.noProvinceBody}
+                    actionLabel={emptyStateCopy.completeProfile}
+                    onAction={() => navigate("/profile")}
+                    tone="info"
+                  />
+                )
+              ) : (
+                <BlurredSection
+                  title={text.blurProvinceTitle}
+                  body={text.blurProvinceBody}
+                  buttonLabel={text.unlockNow}
+                  onUpgrade={() => navigate(proPath)}
+                >
+                  <ProvinceCard
+                    title={text.provinceRecommendations}
+                    items={
+                      provinceRecommendations.length
+                        ? provinceRecommendations
+                        : [
+                            language === "fr"
+                              ? {
+                                  province: "Ontario",
+                                  program: "Volet Tech de l’OINP",
+                                  chance: "Élevée",
+                                  reason:
+                                    "Cette province pourrait bien correspondre à votre profil.",
+                                }
+                              : {
+                                  province: "Ontario",
+                                  program: "OINP Tech Draw",
+                                  chance: "High",
+                                  reason:
+                                    "This province may align well with your profile.",
+                                },
+                          ]
+                    }
+                    emptyLabel={text.noItems}
+                  />
+                </BlurredSection>
+              ))}
+
+            {activeTab === "risks" && activeSection === "risks" &&
+              (hasFullStrategy ? (
+                Array.isArray(strategy?.risk_analysis) && strategy.risk_analysis.length > 0 ? (
                 <RiskCard
                   title={text.riskAnalysis}
-                  items={
-                    Array.isArray(strategy?.risk_analysis) &&
-                    strategy.risk_analysis.length
-                      ? strategy.risk_analysis
-                      : [
-                          language === "fr"
-                            ? {
-                                risk: "Plafond du score linguistique",
-                                impact:
-                                  "Un score linguistique insuffisant peut limiter votre compétitivité.",
-                                mitigation:
-                                  "Viser un score CLB/NCLC 9+ au prochain test.",
-                              }
-                            : {
-                                risk: "Language score ceiling",
-                                impact:
-                                  "A lower language result can limit overall competitiveness.",
-                                mitigation: "Target CLB 9+ on a retake.",
-                              },
-                        ]
-                  }
+                  items={strategy?.risk_analysis}
                   emptyLabel={text.noItems}
                   language={language}
                 />
-              </BlurredSection>
-            ))}
+              ) : (
+                <StrategySectionState
+                  language={language}
+                  title={emptyStateCopy.noRiskTitle}
+                  body={emptyStateCopy.noRiskBody}
+                  actionLabel={emptyStateCopy.completeProfile}
+                  onAction={() => navigate("/profile")}
+                  tone="info"
+                />
+              )
+            ) : (
+                <BlurredSection
+                  title={text.blurRiskTitle}
+                  body={text.blurRiskBody}
+                  buttonLabel={text.unlockNow}
+                  onUpgrade={() => navigate(proPath)}
+                >
+                  <RiskCard
+                    title={text.riskAnalysis}
+                    items={
+                      Array.isArray(strategy?.risk_analysis) &&
+                      strategy.risk_analysis.length
+                        ? strategy.risk_analysis
+                        : [
+                            language === "fr"
+                              ? {
+                                  risk: "Plafond du score linguistique",
+                                  impact:
+                                    "Un score linguistique insuffisant peut limiter votre compétitivité.",
+                                  mitigation:
+                                    "Viser un score CLB/NCLC 9+ au prochain test.",
+                                }
+                              : {
+                                  risk: "Language score ceiling",
+                                  impact:
+                                    "A lower language result can limit overall competitiveness.",
+                                  mitigation: "Target CLB 9+ on a retake.",
+                                },
+                          ]
+                    }
+                    emptyLabel={text.noItems}
+                    language={language}
+                  />
+                </BlurredSection>
+              ))}
+
+            {!hasDecisionEngine && activeTab === "execution" && (
+              <UpgradePrompt
+                title={text.decisionPromptTitle}
+                body={text.decisionPromptBody}
+                buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+              />
+            )}
+
+            {!canExportPdf && activeTab !== "overview" && (
+              <UpgradePrompt
+                title={text.premiumPromptTitle}
+                body={text.premiumPromptBody}
+                buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
+      <StrategyAIDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        language={language}
+        onAsk={handleAnalyzeStrategyDrawer}
+        loading={drawerLoading}
+        error={drawerError}
+        messages={drawerMessages}
+        input={drawerInput}
+        setInput={setDrawerInput}
+        promptSuggestions={[
+          {
+            label:
+              language === "fr"
+                ? "Quelle est ma meilleure voie d’immigration ?"
+                : "What is my strongest immigration pathway?",
+            intent: "pathway",
+          },
+          {
+            label:
+              language === "fr"
+                ? "Quel est mon plus grand risque actuellement ?"
+                : "What is my biggest risk right now?",
+            intent: "risk",
+          },
+          {
+            label:
+              language === "fr"
+                ? "Quelle amélioration aurait le plus grand impact ?"
+                : "Which improvement would have the biggest impact?",
+            intent: "optimization",
+          },
+          {
+            label:
+              language === "fr"
+                ? "Quels documents devrais-je préparer ensuite ?"
+                : "Which documents should I prepare next?",
+            intent: "documents",
+          },
+        ]}
+      />
     </Layout>
   );
 }

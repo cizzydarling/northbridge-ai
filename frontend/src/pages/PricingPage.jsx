@@ -89,7 +89,7 @@ function ValueCard({ title, body }) {
 function FeatureListItem({ children, highlighted = false }) {
   return (
     <div
-      className={`rounded-2xl border px-4 py-3 text-sm ${
+      className={`rounded-2xl border px-4 py-2.5 text-sm leading-6 ${
         highlighted
           ? "border-blue-100 bg-blue-50 text-slate-700"
           : "border-slate-200 bg-slate-50 text-slate-700"
@@ -100,7 +100,39 @@ function FeatureListItem({ children, highlighted = false }) {
   );
 }
 
-function ComparisonValue({ children, emphasized = false }) {
+function ComparisonValue({ value, emphasized = false, language = "en" }) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (normalized === "yes" || normalized === "oui") {
+    return (
+      <span
+        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+          emphasized
+            ? "bg-blue-50 text-blue-700"
+            : "bg-emerald-50 text-emerald-700"
+        }`}
+      >
+        ✓
+      </span>
+    );
+  }
+
+  if (normalized === "no" || normalized === "non") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+        —
+      </span>
+    );
+  }
+
+  if (normalized === "limited" || normalized === "limité") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+        {language === "fr" ? "Limité" : "Limited"}
+      </span>
+    );
+  }
+
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -109,7 +141,7 @@ function ComparisonValue({ children, emphasized = false }) {
           : "bg-slate-100 text-slate-600"
       }`}
     >
-      {children}
+      {value}
     </span>
   );
 }
@@ -129,7 +161,7 @@ function PlanCard({
   const shouldHighlight = Boolean(isHighlighted && !isCurrent);
 
   const highlightStyle = isRecommended
-    ? "border-blue-400 ring-2 ring-blue-200"
+    ? "border-blue-400 ring-2 ring-blue-200 bg-gradient-to-b from-white to-blue-50/40 shadow-[0_22px_70px_rgba(37,99,235,0.10)]"
     : shouldHighlight
     ? "border-amber-300 ring-2 ring-amber-200"
     : isFeatured
@@ -138,16 +170,16 @@ function PlanCard({
 
   return (
     <div
-      className={`relative flex h-full flex-col rounded-[32px] border bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.06)] transition ${highlightStyle}`}
+      className={`relative flex h-full flex-col rounded-[30px] border bg-white p-7 shadow-[0_18px_60px_rgba(15,23,42,0.07)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_70px_rgba(15,23,42,0.10)] ${highlightStyle}`}
     >
       {isRecommended && (
-        <div className="absolute -top-3 left-7 rounded-full bg-blue-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
+        <div className="absolute -top-3 left-5 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
           {text.recommendationPill}
         </div>
       )}
 
       {isFeatured && (
-        <div className="absolute -top-3 right-7 rounded-full bg-blue-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
+        <div className="absolute -top-3 right-5 rounded-full bg-blue-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
           {text.mostPopular}
         </div>
       )}
@@ -166,14 +198,14 @@ function PlanCard({
         </div>
       )}
 
-      <div className="mb-6">
+      <div className="mb-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           {plan.audience}
         </p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
+        <h2 className="mt-2.5 text-[28px] md:text-[30px] font-semibold tracking-tight text-slate-900">
           {plan.title}
         </h2>
-        <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
+        <p className="mt-2.5 text-[34px] md:text-[38px] font-semibold tracking-tight text-slate-900">
           {plan.price}
         </p>
         {plan.subprice ? (
@@ -181,9 +213,17 @@ function PlanCard({
             {plan.subprice}
           </p>
         ) : null}
-        <p className="mt-3 text-sm leading-7 text-slate-600">
+        <p className="mt-3 text-sm leading-6 text-slate-600">
           {plan.description}
         </p>
+
+        {isRecommended ? (
+          <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            {language === "fr"
+              ? "C’est le meilleur point de départ pour débloquer votre stratégie complète et commencer l’exécution."
+              : "This is the best starting point to unlock your full strategy and begin execution."}
+          </div>
+        ) : null}
       </div>
 
       <div className="mb-6">
@@ -191,7 +231,7 @@ function PlanCard({
           {text.includedFeatures}
         </p>
 
-        <div className="mt-4 space-y-2.5">
+        <div className="mt-3.5 space-y-2">
           {plan.features.map((feature, index) => (
             <FeatureListItem
               key={`${plan.key}-${index}`}
@@ -205,7 +245,7 @@ function PlanCard({
 
       {plan.fitNote ? (
         <div
-          className={`mb-6 rounded-[22px] border px-4 py-4 text-sm leading-7 ${
+          className={`mb-5 rounded-[22px] border px-4 py-3.5 text-sm leading-6 ${
             isRecommended
               ? "border-blue-200 bg-blue-50 text-slate-700"
               : "border-slate-200 bg-white text-slate-700"
@@ -239,7 +279,7 @@ function PlanCard({
         )}
 
         {plan.key === "pro" && !isCurrent && (
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-2.5 text-[11px] leading-5 text-slate-500">
             {language === "fr"
               ? "Recommandé pour débloquer immédiatement votre stratégie complète"
               : "Recommended to unlock your full strategy immediately"}
@@ -358,31 +398,63 @@ export default function PricingPage() {
   }
 
   async function handleCheckout(plan) {
-    try {
-      setCheckoutLoadingPlan(plan);
-      setMessage("");
+  try {
+    setCheckoutLoadingPlan(plan);
+    setMessage("");
 
-      const backendPlan = toBackendPlan(plan);
-      const res = await createCheckoutSession({ plan: backendPlan });
-      const url = res?.data?.url;
+    const isDevEnvironment =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      import.meta.env.DEV;
 
-      if (!url) {
-        throw new Error("Missing checkout URL");
-      }
+    const backendPlan = toBackendPlan(plan);
 
-      window.location.href = url;
-    } catch (err) {
-      console.error(err);
+    // 🔥 DEV MODE → instant upgrade (no Stripe)
+    if (isDevEnvironment) {
+      await devSetPlan({
+        plan: backendPlan,
+        subscription_status: backendPlan === "free" ? null : "active",
+      });
+
+      await refreshCurrentUser();
+      await loadBillingPage();
+
+      // 🔥 notify entire app
+      window.dispatchEvent(new Event("userUpdated"));
+      window.dispatchEvent(new Event("nbai-strategy-refresh"));
+      window.dispatchEvent(new Event("nbai-document-engine-updated"));
+
       setMessage(
-        err?.response?.data?.detail ||
-          (language === "fr"
-            ? "Impossible de démarrer le paiement."
-            : "Unable to start checkout.")
+        language === "fr"
+          ? "Plan activé instantanément (mode développement)."
+          : "Plan activated instantly (development mode)."
       );
-    } finally {
-      setCheckoutLoadingPlan("");
+
+      navigate("/dashboard");
+      return;
     }
+
+    // 🔥 PRODUCTION → Stripe
+    const res = await createCheckoutSession({ plan: backendPlan });
+    const url = res?.data?.url;
+
+    if (!url) {
+      throw new Error("Missing checkout URL");
+    }
+
+    window.location.href = url;
+  } catch (err) {
+    console.error(err);
+    setMessage(
+      err?.response?.data?.detail ||
+        (language === "fr"
+          ? "Impossible de démarrer le paiement."
+          : "Unable to start checkout.")
+    );
+  } finally {
+    setCheckoutLoadingPlan("");
   }
+}
 
   async function handlePortal() {
     try {
@@ -411,36 +483,40 @@ export default function PricingPage() {
   }
 
   async function handleDevPlanSwitch(plan) {
-    try {
-      setDevSwitchLoading(plan);
-      setMessage("");
+  try {
+    setDevSwitchLoading(plan);
+    setMessage("");
 
-      const backendPlan = toBackendPlan(plan);
-      await devSetPlan({
-        plan: backendPlan,
-        subscription_status: backendPlan === "free" ? null : "active",
-      });
+    const backendPlan = toBackendPlan(plan);
+    await devSetPlan({
+      plan: backendPlan,
+      subscription_status: backendPlan === "free" ? null : "active",
+    });
 
-      await refreshCurrentUser();
-      await loadBillingPage();
+    await refreshCurrentUser();
+    await loadBillingPage();
 
-      setMessage(
-        language === "fr"
-          ? "Plan mis à jour pour le développement."
-          : "Plan updated for development."
-      );
-    } catch (err) {
-      console.error(err);
-      setMessage(
-        err?.response?.data?.detail ||
-          (language === "fr"
-            ? "Impossible de changer le plan de test."
-            : "Unable to switch the test plan.")
-      );
-    } finally {
-      setDevSwitchLoading("");
-    }
+    window.dispatchEvent(new Event("userUpdated"));
+    window.dispatchEvent(new Event("nbai-strategy-refresh"));
+    window.dispatchEvent(new Event("nbai-document-engine-updated"));
+
+    setMessage(
+      language === "fr"
+        ? "Plan mis à jour pour le développement."
+        : "Plan updated for development."
+    );
+  } catch (err) {
+    console.error(err);
+    setMessage(
+      err?.response?.data?.detail ||
+        (language === "fr"
+          ? "Impossible de changer le plan de test."
+          : "Unable to switch the test plan.")
+    );
+  } finally {
+    setDevSwitchLoading("");
   }
+}
 
   const currentPlan = normalizePlan(access?.plan || billingStatus?.plan || "free");
   const rawPlan = billingStatus?.raw_plan || access?.raw_plan || "free";
@@ -486,7 +562,7 @@ export default function PricingPage() {
           "Pour les utilisateurs prêts à avancer maintenant avec la stratégie complète, les outils essentiels et une meilleure vitesse d’exécution.",
         premiumDesc:
           "Pour les utilisateurs qui préparent un dossier complet et veulent l’export PDF, plus de temps et une couche de finition plus forte.",
-        comparisonTitle: "Comparaison rapide",
+        comparisonTitle: "Ce que chaque plan débloque",
         strategy: "Stratégie complète",
         forms: "Téléchargement des formulaires",
         documents: "Génération de documents",
@@ -526,9 +602,9 @@ export default function PricingPage() {
           "Pro est conçu pour les utilisateurs qui veulent avancer rapidement avec les bons documents, formulaires et outils.",
         whyNowLine3:
           "Premium est conçu pour ceux qui veulent aller jusqu’au rendu final avec plus de temps et l’export PDF.",
-        paymentConfirmed: "Paiement confirmé",
+        paymentConfirmed: "Accès débloqué",
         paymentConfirmedBody:
-          "Votre accès vient d’être actualisé. Vous pouvez maintenant retourner au tableau de bord ou ouvrir votre stratégie.",
+          "Votre abonnement est actif. Vous pouvez maintenant revenir au tableau de bord, ouvrir votre stratégie complète et continuer l’exécution de votre dossier.",
         openDashboard: "Ouvrir le tableau de bord",
         openStrategy: "Ouvrir ma stratégie",
         strategyUnlockTitle: "Votre stratégie mérite une vraie exécution",
@@ -553,7 +629,7 @@ export default function PricingPage() {
           "Vous êtes arrivé ici pour l’export PDF ou une préparation plus complète. Premium est le meilleur choix pour cette étape.",
         quickDecision: "Décision rapide",
         quickDecisionTitle:
-          "Prêt à avancer ? Pro est le meilleur point de départ",
+          "Prêt à avancer ? Commencez avec Pro",
         quickDecisionBody:
           "La majorité des utilisateurs choisissent Pro pour débloquer leur stratégie complète et commencer l’exécution immédiatement.",
         quickDecisionCta: "Commencer avec Pro",
@@ -601,7 +677,7 @@ export default function PricingPage() {
         "For users ready to move now with the full strategy, essential tools, and faster execution.",
       premiumDesc:
         "For users preparing a fuller application who want PDF export, more time, and a stronger finishing layer.",
-      comparisonTitle: "Quick comparison",
+      comparisonTitle: "What each plan unlocks",
       strategy: "Full strategy",
       forms: "Forms download",
       documents: "Document generation",
@@ -640,9 +716,9 @@ export default function PricingPage() {
         "Pro is built for users who want to move forward quickly with the right documents, forms, and tools.",
       whyNowLine3:
         "Premium is built for users who want more time and PDF export to finish a fuller case package.",
-      paymentConfirmed: "Payment confirmed",
+      paymentConfirmed: "Access unlocked",
       paymentConfirmedBody:
-        "Your access has just been refreshed. You can now go back to the dashboard or open your strategy.",
+        "Your subscription is active. You can now return to the dashboard, open your full strategy, and continue executing your case.",
       openDashboard: "Open dashboard",
       openStrategy: "Open my strategy",
       strategyUnlockTitle: "Your strategy deserves real execution",
@@ -666,7 +742,7 @@ export default function PricingPage() {
         "You came here for PDF export or fuller preparation. Premium is the best fit for this step.",
       quickDecision: "Quick decision",
       quickDecisionTitle:
-        "Ready to move forward? Pro is the best starting point",
+        "Ready to move forward? Start with Pro",
       quickDecisionBody:
         "Most users choose Pro to unlock their full strategy and start execution immediately.",
       quickDecisionCta: "Start with Pro",
@@ -691,7 +767,7 @@ export default function PricingPage() {
         description: text.freeDesc,
         audience: text.explore,
         cta: text.startFree,
-        fitNote: text.freeFit,
+        fitNote: "",
         features: [
           language === "fr"
             ? "Profil et orientation de base"
@@ -702,9 +778,6 @@ export default function PricingPage() {
           language === "fr"
             ? "Prévisualisation des formulaires"
             : "Forms preview",
-          language === "fr"
-            ? "Outils IA limités"
-            : "Limited AI tools",
         ],
       },
       {
@@ -728,9 +801,6 @@ export default function PricingPage() {
           language === "fr"
             ? "Révision IA complète"
             : "Full AI review",
-          language === "fr"
-            ? "Outils IA avancés"
-            : "Advanced AI tools",
         ],
       },
       {
@@ -750,9 +820,6 @@ export default function PricingPage() {
           language === "fr"
             ? "Export PDF"
             : "PDF export",
-          language === "fr"
-            ? "Meilleur choix pour un dossier complet"
-            : "Best for a fuller case",
         ],
         badge: text.premiumBadge,
       },
@@ -766,45 +833,33 @@ export default function PricingPage() {
   }, [availablePlans, language, text]);
 
   const comparisonRows = useMemo(() => {
-    return [
-      {
-        label: text.strategy,
-        free: text.limited,
-        pro: text.yes,
-        premium: text.yes,
-      },
-      {
-        label: text.forms,
-        free: text.no,
-        pro: text.yes,
-        premium: text.yes,
-      },
-      {
-        label: text.documents,
-        free: text.limited,
-        pro: text.yes,
-        premium: text.yes,
-      },
-      {
-        label: text.review,
-        free: text.no,
-        pro: text.yes,
-        premium: text.yes,
-      },
-      {
-        label: text.copilots,
-        free: text.limited,
-        pro: text.yes,
-        premium: text.yes,
-      },
-      {
-        label: text.exports,
-        free: text.no,
-        pro: text.no,
-        premium: text.yes,
-      },
-    ];
-  }, [text]);
+  return [
+    {
+      label: text.strategy,
+      free: text.limited,
+      pro: text.yes,
+      premium: text.yes,
+    },
+    {
+      label: text.documents,
+      free: text.limited,
+      pro: text.yes,
+      premium: text.yes,
+    },
+    {
+      label: text.forms,
+      free: text.no,
+      pro: text.yes,
+      premium: text.yes,
+    },
+    {
+      label: text.exports,
+      free: text.no,
+      pro: text.no,
+      premium: text.yes,
+    },
+  ];
+}, [text]);
 
   const recommendedPlan = useMemo(() => {
     if (currentPlan === "premium") return null;
@@ -847,56 +902,84 @@ export default function PricingPage() {
   return (
     <Layout>
       {message && (
-        <div className="mb-6 rounded-[24px] border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
+        <div className="mb-5 rounded-[24px] border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
           {message}
         </div>
       )}
 
       {successRefreshing ? (
-        <SurfaceCard className="mb-6 border-green-200 bg-gradient-to-br from-green-50 to-white">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-green-700">
-            {text.paymentConfirmed}
-          </p>
-          <p className="mt-3 text-sm leading-7 text-slate-700">
-            {language === "fr"
-              ? "Actualisation de votre accès..."
-              : "Refreshing your access..."}
-          </p>
-        </SurfaceCard>
-      ) : null}
-
-      {showActiveSubscriptionCard ? (
-        <SurfaceCard className="mb-6 border-green-200 bg-gradient-to-br from-green-50 to-white">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-green-700">
-            {text.paymentConfirmed}
-          </p>
-          <p className="mt-3 text-sm leading-7 text-slate-700">
-            {text.paymentConfirmedBody}
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button onClick={() => navigate("/dashboard")} className="rounded-2xl">
-              {text.openDashboard}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => navigate("/strategy")}
-              className="rounded-2xl"
-            >
-              {text.openStrategy}
-            </Button>
+        <SurfaceCard className="mb-6 border-green-200 bg-gradient-to-br from-green-50 via-white to-white">
+          <div className="flex items-start gap-4">
+            <div className="mt-1 h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-green-700">
+                {text.paymentConfirmed}
+              </p>
+              <p className="mt-3 text-sm leading-7 text-slate-700">
+                {language === "fr"
+                  ? "Actualisation de votre accès et de vos fonctionnalités..."
+                  : "Refreshing your access and unlocked features..."}
+              </p>
+            </div>
           </div>
         </SurfaceCard>
       ) : null}
 
-      <div className="mb-10 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
+      {showActiveSubscriptionCard ? (
+        <SurfaceCard className="mb-6 border-green-200 bg-gradient-to-br from-green-50 via-white to-white">
+          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+            <div className="max-w-2xl">
+              <div className="inline-flex rounded-full bg-green-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                {text.paymentConfirmed}
+              </div>
+
+              <h2 className="mt-4 text-[30px] font-semibold tracking-tight text-slate-900">
+                {language === "fr"
+                  ? `Votre accès ${getDisplayPlan(currentPlan, language)} est actif`
+                  : `Your ${getDisplayPlan(currentPlan, language)} access is active`}
+              </h2>
+
+              <p className="mt-3 text-sm leading-7 text-slate-700">
+                {text.paymentConfirmedBody}
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <StatusPill active>{getDisplayPlan(currentPlan, language)}</StatusPill>
+                {subscriptionStatus ? (
+                  <StatusPill active>{subscriptionStatus}</StatusPill>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 md:w-[320px] md:grid-cols-1">
+              <Button
+                onClick={() => navigate("/dashboard")}
+                className="rounded-2xl"
+              >
+                {text.openDashboard}
+              </Button>
+
+              <Button
+                variant="secondary"
+                onClick={() => navigate("/strategy")}
+                className="rounded-2xl"
+              >
+                {text.openStrategy}
+              </Button>
+            </div>
+          </div>
+        </SurfaceCard>
+      ) : null}
+
+      <div className="mb-8 grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
         <div className="max-w-3xl">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
             {text.brand}
           </p>
-          <h1 className="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
+          <h1 className="text-[36px] font-semibold tracking-tight text-slate-900 md:text-[46px]">
             {text.title}
           </h1>
-          <p className="mt-4 text-base leading-7 text-slate-600">
+          <p className="mt-3 max-w-2xl text-[15px] leading-7 text-slate-600">
             {text.subtitle}
           </p>
 
@@ -904,22 +987,30 @@ export default function PricingPage() {
             <StatusPill active={currentPlan === "free"}>
               {text.freeTitle}
             </StatusPill>
-            <StatusPill active={currentPlan === "pro"}>
+            <StatusPill active={currentPlan === "pro"} featured={recommendedPlan === "pro"}>
               {text.proTitle}
             </StatusPill>
-            <StatusPill active={currentPlan === "premium"} featured>
+            <StatusPill active={currentPlan === "premium"} featured={recommendedPlan === "premium"}>
               {text.premiumTitle}
             </StatusPill>
           </div>
         </div>
 
-        <SurfaceCard className="h-fit">
+        <SurfaceCard className="h-fit border-blue-100 bg-gradient-to-br from-white to-blue-50">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             {text.summaryTitle}
           </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
+          <h2 className="mt-3 text-[32px] font-semibold tracking-tight text-slate-900">
             {getDisplayPlan(currentPlan, language)}
           </h2>
+
+          {currentPlan !== "free" ? (
+            <p className="mt-2 text-sm text-green-700">
+              {language === "fr"
+                ? "Fonctionnalités premium actives"
+                : "Premium features active"}
+            </p>
+          ) : null}
 
           <div className="mt-4 space-y-2 text-sm text-slate-600">
             <p>
@@ -939,15 +1030,21 @@ export default function PricingPage() {
           </div>
 
           {recommendedPlan ? (
-            <div className="mt-5 rounded-[22px] border border-blue-200 bg-blue-50 p-4">
+            <div className="mt-5 rounded-[22px] border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
                 {text.recommendedPlanLabel}
-              </p>
-              <p className="mt-2 text-sm leading-7 text-blue-900">
-                {recommendedPlanMessage}
-              </p>
+            </p>
+            <p className="mt-2 text-sm leading-7 text-blue-900">
+              {recommendedPlanMessage}
+            </p>
+
+            <div className="mt-4 flex items-center gap-2">
+              <span className="inline-flex rounded-full bg-blue-600 px-2.5 py-1 text-[11px] font-semibold text-white">
+                {recommendedPlan === "premium" ? text.premiumTitle : text.proTitle}
+              </span>
             </div>
-          ) : null}
+          </div>
+        ) : null}
 
           {hasStripeCustomer && currentPlan !== "free" && (
             <div className="mt-5">
@@ -984,12 +1081,12 @@ export default function PricingPage() {
         </SurfaceCard>
       ) : null}
 
-      <SurfaceCard className="mb-6 border-blue-300 bg-gradient-to-br from-blue-50 to-white">
+      <SurfaceCard className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white shadow-[0_16px_50px_rgba(37,99,235,0.06)]">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
           {text.quickDecision}
         </p>
 
-        <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+        <h2 className="mt-2 text-[28px] font-semibold tracking-tight text-slate-900">
           {text.quickDecisionTitle}
         </h2>
 
@@ -999,8 +1096,9 @@ export default function PricingPage() {
 
         <div className="mt-4">
           <Button
-            onClick={() => handleCheckout("pro")}
+            nClick={() => handleCheckout("pro")}
             disabled={checkoutLoadingPlan === "pro"}
+            className="rounded-2xl px-5"
           >
             {checkoutLoadingPlan === "pro"
               ? language === "fr"
@@ -1008,27 +1106,6 @@ export default function PricingPage() {
                 : "Loading..."
               : text.quickDecisionCta}
           </Button>
-        </div>
-      </SurfaceCard>
-
-      <SurfaceCard className="mb-6 border-amber-200 bg-gradient-to-br from-amber-50 to-white">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
-          {text.strategyUnlockTitle}
-        </p>
-        <p className="mt-4 text-sm leading-7 text-slate-700">
-          {text.strategyUnlockBody}
-        </p>
-      </SurfaceCard>
-
-      <SurfaceCard className="mb-6 border-amber-200 bg-gradient-to-br from-amber-50 to-white">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
-          {text.whyNowTitle}
-        </p>
-
-        <div className="mt-4 space-y-3 text-sm text-slate-700">
-          <p>{text.whyNowLine1}</p>
-          <p>{text.whyNowLine2}</p>
-          <p>{text.whyNowLine3}</p>
         </div>
       </SurfaceCard>
 
@@ -1043,25 +1120,29 @@ export default function PricingPage() {
         </div>
       </SurfaceCard>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {plans.map((plan) => (
-          <PlanCard
+          <div
             key={plan.key}
-            plan={plan}
-            text={text}
-            language={language}
-            isCurrent={currentPlan === plan.key}
-            isHighlighted={requestedPlan === plan.key}
-            loading={checkoutLoadingPlan === plan.key}
-            recommendedPlan={recommendedPlan}
-            onSelect={() => {
-              if (plan.key === "free") {
-                navigate("/dashboard");
-              } else {
-                handleCheckout(plan.key);
-              }
-            }}
-          />
+            className={plan.key === "premium" ? "md:col-span-2 xl:col-span-1" : ""}
+          >
+            <PlanCard
+              plan={plan}
+              text={text}
+              language={language}
+              isCurrent={currentPlan === plan.key}
+              isHighlighted={requestedPlan === plan.key}
+              loading={checkoutLoadingPlan === plan.key}
+              recommendedPlan={recommendedPlan}
+              onSelect={() => {
+                if (plan.key === "free") {
+                  navigate("/dashboard");
+                } else {
+                  handleCheckout(plan.key);
+                }
+              }}
+            />
+          </div>
         ))}
       </div>
 
@@ -1101,48 +1182,55 @@ export default function PricingPage() {
           {text.comparisonTitle}
         </p>
 
-        <div className="mt-5 overflow-x-auto">
-          <table className="min-w-full border-separate border-spacing-y-3">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 text-left text-sm font-semibold text-slate-600">
-                  {text.includedFeatures}
-                </th>
-                <th className="px-4 py-2 text-left text-sm font-semibold text-slate-600">
-                  {text.freeTitle}
-                </th>
-                <th className="px-4 py-2 text-left text-sm font-semibold text-slate-600">
-                  {text.proTitle}
-                </th>
-                <th className="px-4 py-2 text-left text-sm font-semibold text-slate-600">
-                  {text.premiumTitle}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparisonRows.map((row) => (
-                <tr key={row.label}>
-                  <td className="rounded-l-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900">
-                    {row.label}
-                  </td>
-                  <td className="border-y border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                    <ComparisonValue>{row.free}</ComparisonValue>
-                  </td>
-                  <td className="border-y border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                    <ComparisonValue emphasized>{row.pro}</ComparisonValue>
-                  </td>
-                  <td className="rounded-r-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                    <ComparisonValue emphasized>{row.premium}</ComparisonValue>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
+          <div className="min-w-[720px]">
+            <div className="grid grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr] bg-slate-50">
+              <div className="px-4 py-4 text-sm font-semibold text-slate-600">
+                {text.includedFeatures}
+            </div>
+            <div className="px-4 py-4 text-sm font-semibold text-slate-600">
+              {text.freeTitle}
+            </div>
+            <div className="px-4 py-4 text-sm font-semibold text-blue-700">
+              {text.proTitle}
+            </div>
+            <div className="px-4 py-4 text-sm font-semibold text-slate-600">
+              {text.premiumTitle}
+            </div>
+          </div>
+        </div>
+
+          {comparisonRows.map((row, index) => (
+            <div
+              key={row.label}
+              className={`grid grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr] items-center ${
+                index !== comparisonRows.length - 1 ? "border-t border-slate-200" : ""
+              }`}
+            >
+              <div
+                className={`px-4 py-4 text-sm font-medium text-slate-900 ${
+                  row.label === text.exports ? "text-blue-900" : ""
+                }`}
+              >
+                {row.label}
+              </div>
+              <div className="px-4 py-4 text-sm text-slate-700">
+                <ComparisonValue value={row.free} language={language} />
+              </div>
+              <div className="bg-blue-50/40 px-4 py-4 text-sm text-slate-700">
+                <ComparisonValue value={row.pro} emphasized language={language} />
+              </div>
+              <div className="px-4 py-4 text-sm text-slate-700">
+                <ComparisonValue value={row.premium} emphasized language={language} />
+              </div>
+            </div>
+          ))}
         </div>
       </SurfaceCard>
 
-      <SurfaceCard className="mt-8 text-center">
-        <h2 className="text-2xl font-semibold text-slate-900">
+    {currentPlan === "free" || currentPlan === "pro" ? (
+      <SurfaceCard className="mt-8 border-blue-200 bg-gradient-to-br from-blue-50 to-white text-center">
+        <h2 className="text-[30px] font-semibold tracking-tight text-slate-900">
           {text.bottomCtaTitle}
         </h2>
 
@@ -1150,10 +1238,11 @@ export default function PricingPage() {
           {text.bottomCtaBody}
         </p>
 
-        <div className="mt-5 flex flex-wrap justify-center gap-3">
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
           <Button
             onClick={() => handleCheckout("pro")}
             disabled={checkoutLoadingPlan === "pro"}
+            className="rounded-2xl px-5"
           >
             {checkoutLoadingPlan === "pro"
               ? language === "fr"
@@ -1166,6 +1255,7 @@ export default function PricingPage() {
             variant="secondary"
             onClick={() => handleCheckout("premium")}
             disabled={checkoutLoadingPlan === "premium"}
+            className="rounded-2xl px-5"
           >
             {checkoutLoadingPlan === "premium"
               ? language === "fr"
@@ -1175,7 +1265,11 @@ export default function PricingPage() {
           </Button>
         </div>
       </SurfaceCard>
+    ) : null}
 
+    {(window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      import.meta.env.DEV) && (
       <SurfaceCard className="mt-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           {text.devTools}
@@ -1222,6 +1316,7 @@ export default function PricingPage() {
           </Button>
         </div>
       </SurfaceCard>
+    )}
     </Layout>
   );
 }

@@ -42,6 +42,8 @@ def _build_profile_from_payload(current_user: User, payload: ProfileCreate) -> P
         occupation=payload.occupation,
         noc_code=payload.noc_code,
         preferred_province=payload.preferred_province,
+        job_description=payload.job_description,
+        job_duties=payload.job_duties,
     )
 
 
@@ -127,6 +129,8 @@ def update_my_profile(
     profile.studied_in_canada = payload.studied_in_canada
     profile.occupation = payload.occupation
     profile.noc_code = payload.noc_code
+    profile.job_description = payload.job_description
+    profile.job_duties = payload.job_duties
     profile.preferred_province = payload.preferred_province
 
     _sync_user_identity_from_profile(current_user, payload)

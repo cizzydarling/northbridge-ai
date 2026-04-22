@@ -169,7 +169,7 @@ function InfoRow({ label, value }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
       <p className="text-sm text-slate-500">{label}</p>
-      <p className="text-sm font-medium text-slate-900 text-right">{value}</p>
+      <p className="text-right text-sm font-medium text-slate-900">{value}</p>
     </div>
   );
 }
@@ -179,6 +179,41 @@ function QuickActionButton({ label, onClick, variant = "secondary" }) {
     <Button variant={variant} onClick={onClick} className="justify-center">
       {label}
     </Button>
+  );
+}
+
+function TopTabButton({ active, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-4 py-2 text-sm transition ${
+        active
+          ? "border-blue-200 bg-blue-50 font-semibold text-blue-700"
+          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MiniStat({ label, value }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 text-base font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function DashboardSectionTitle({ children }) {
+  return (
+    <h2 className="text-xl font-semibold tracking-tight text-slate-900">
+      {children}
+    </h2>
   );
 }
 
@@ -194,6 +229,7 @@ export default function Dashboard() {
   const [strategyLoading, setStrategyLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(getCurrentUserLocal());
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const currentPlanRaw = billing?.plan || currentUser?.plan || "free";
   const currentPlan = normalizePlan(currentPlanRaw);
@@ -227,7 +263,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const load = async () => {
+    async function load() {
       const token = getToken();
 
       if (!token) {
@@ -282,10 +318,21 @@ export default function Dashboard() {
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     load();
   }, [navigate]);
+
+  useEffect(() => {
+    function handleRefresh() {
+      window.location.reload();
+    }
+
+    window.addEventListener("nbai-strategy-refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("nbai-strategy-refresh", handleRefresh);
+    };
+  }, []);
 
   useEffect(() => {
     if (hasStrategy && !paidAccess) {
@@ -317,16 +364,14 @@ export default function Dashboard() {
         email: "Email",
         accountName: "Nom",
         active: "Actif",
-        inactive: "Inactif",
+        inactive: "Free access",
         unlocked: "Débloqué",
         locked: "Verrouillé",
-        yes: "Oui",
-        no: "Non",
         profileCompletion: "Complétion du profil",
         currentCrsScore: "Score CRS",
         bestPathway: "Meilleur parcours",
         topImprovement: "Priorité d’amélioration",
-        noStrategy: "Stratégie non disponible",
+        noStrategy: "Aucune stratégie disponible",
         noImprovement: "Aucune recommandation pour le moment",
         noPathway: "Aucun parcours détecté",
         latestStrategy: "Dernier résultat stratégique",
@@ -352,7 +397,7 @@ export default function Dashboard() {
         unlockTitle: "Débloquez l’exécution complète",
         unlockBody:
           "Passez à Pro pour utiliser les outils documents, formulaires, révision IA et avancer plus vite.",
-        upgrade: "Voir les tarifs",
+        upgrade: "Upgrade",
         premiumTitle: "Passez à Premium pour finaliser",
         premiumBody:
           "Débloquez l’export PDF et une couche de finition plus forte pour votre dossier.",
@@ -362,6 +407,14 @@ export default function Dashboard() {
         profileInProgress: "Profil en progression",
         nextRecommendedAction: "Action recommandée",
         completeProfile: "Compléter le profil",
+        tabOverview: "Aperçu",
+        tabExecution: "Exécution",
+        tabAccount: "Compte",
+        profileStateReady: "Prêt à avancer",
+        profileStatePending: "À compléter",
+        recommendedProgramsShort: "Programmes",
+        noSummary: "Commencez à construire votre stratégie",
+        freePlan: "Free Plan",
       };
     }
 
@@ -382,11 +435,9 @@ export default function Dashboard() {
       email: "Email",
       accountName: "Name",
       active: "Active",
-      inactive: "Inactive",
+      inactive: "Free access",
       unlocked: "Unlocked",
       locked: "Locked",
-      yes: "Yes",
-      no: "No",
       profileCompletion: "Profile completion",
       currentCrsScore: "CRS score",
       bestPathway: "Best pathway",
@@ -417,7 +468,7 @@ export default function Dashboard() {
       unlockTitle: "Unlock full execution",
       unlockBody:
         "Upgrade to Pro to use documents, forms, AI review, and move faster.",
-      upgrade: "View pricing",
+      upgrade: "Upgrade",
       premiumTitle: "Upgrade to Premium to finalize",
       premiumBody:
         "Unlock PDF export and a stronger finishing layer for your case.",
@@ -427,10 +478,18 @@ export default function Dashboard() {
       profileInProgress: "Profile in progress",
       nextRecommendedAction: "Recommended action",
       completeProfile: "Complete profile",
+      tabOverview: "Overview",
+      tabExecution: "Execution",
+      tabAccount: "Account",
+      profileStateReady: "Ready to move",
+      profileStatePending: "Needs work",
+      recommendedProgramsShort: "Programs",
+      noSummary: "Start building your strategy",
+      freePlan: "Free Plan",
     };
   }, [language]);
 
-  const heroSummary = strategyHeadline || summary || "";
+  const heroSummary = strategyHeadline || summary || pageText.noSummary;
 
   const subscriptionStatusLabel = billing?.subscription_status
     ? billing.subscription_status
@@ -442,6 +501,13 @@ export default function Dashboard() {
     currentUser?.first_name && currentUser?.last_name
       ? `${currentUser.first_name} ${currentUser.last_name}`
       : currentUser?.first_name || currentUser?.email || "—";
+
+  const displayPlanLabel =
+    currentPlan === "free"
+      ? pageText.freePlan
+      : currentPlan === "premium"
+      ? "Premium"
+      : "Pro";
 
   const quickActions = [
     {
@@ -501,7 +567,9 @@ export default function Dashboard() {
     return (
       <Layout>
         <div className="flex justify-center py-24">
-          <p className="text-lg">{language === "fr" ? "Chargement..." : "Loading..."}</p>
+          <p className="text-lg">
+            {language === "fr" ? "Chargement..." : "Loading..."}
+          </p>
         </div>
       </Layout>
     );
@@ -509,129 +577,314 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="space-y-8">
-        <div className="flex items-start justify-between gap-4">
-          <div className="max-w-3xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
-              {pageText.dashboard}
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-              {pageText.dashboard}
-            </h1>
-            <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
-              {pageText.subtitle}
-            </p>
-          </div>
-
-          <Button
-            variant="secondary"
-            onClick={() =>
-              navigate(
-                isPremium
-                  ? "/pricing"
-                  : "/pricing?plan=pro&source=dashboard&intent=execute"
-              )
-            }
-            className="hidden md:inline-flex"
-          >
-            {pageText.upgrade}
-          </Button>
+      <div className="space-y-6">
+        <div className="max-w-3xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+            {pageText.dashboard}
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
+            {pageText.dashboard}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+            {pageText.subtitle}
+          </p>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-          <div className="space-y-8">
-            <Card variant="default" padding="lg" className="overflow-hidden">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-3xl">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {pageText.overviewLabel}
-                  </p>
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 md:text-[30px]">
-                    {hasStrategy
-                      ? bestPathway || pageText.overviewTitleReady
-                      : pageText.overviewTitlePending}
-                  </h2>
-                  <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
-                    {heroSummary ||
-                      (hasStrategy
-                        ? pageText.overviewBodyReady
-                        : pageText.overviewBodyPending)}
-                  </p>
-                </div>
+        <Card variant="default" padding="lg" className="overflow-hidden">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                {pageText.overviewLabel}
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 md:text-[30px]">
+                {hasStrategy
+                  ? bestPathway || pageText.overviewTitleReady
+                  : pageText.overviewTitlePending}
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+                {heroSummary}
+              </p>
 
-                <div className="grid min-w-full grid-cols-1 gap-3 sm:min-w-[320px] sm:grid-cols-2 lg:max-w-[360px]">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      {pageText.currentCrsScore}
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-                      {hasStrategy ? crsScore ?? "—" : "—"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      {pageText.nextRecommendedAction}
-                    </p>
-                    <div className="mt-3">
-                      <Button
-                        variant="primary"
-                        onClick={recommendedAction.onClick}
-                        className="w-full justify-center"
-                      >
-                        {recommendedAction.label}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                  {displayPlanLabel}
+                </span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                  {hasStrategy
+                    ? pageText.strategyAvailable
+                    : pageText.profileInProgress}
+                </span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                  {profileCompletion}% {pageText.profileCompletion.toLowerCase()}
+                </span>
               </div>
-            </Card>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                label={pageText.profileCompletion}
-                value={`${profileCompletion}%`}
-                description={pageText.profileNeedsWork}
-                valueClassName="text-2xl"
-                tone={profileCompletion >= 85 ? "success" : "warning"}
-              />
-
-              <StatCard
-                label={pageText.currentCrsScore}
-                value={hasStrategy ? crsScore ?? "—" : "—"}
-                description={pageText.latestStrategy}
-                valueClassName="text-4xl font-bold"
-                tone={hasStrategy ? "info" : "default"}
-              />
-
-              <StatCard
-                label={pageText.bestPathway}
-                value={
-                  hasStrategy ? bestPathway || pageText.noPathway : pageText.noStrategy
-                }
-                description={pageText.bestImmigrationOption}
-                valueClassName="text-base md:text-lg"
-                tone={hasStrategy ? "success" : "default"}
-              />
-
-              <StatCard
-                label={pageText.topImprovement}
-                value={
-                  hasStrategy
-                    ? topImprovement || pageText.noImprovement
-                    : pageText.noStrategy
-                }
-                description={pageText.nextOptimization}
-                valueClassName="text-sm md:text-base"
-                tone={hasStrategy ? "warning" : "default"}
-              />
             </div>
 
+            <div className="grid min-w-full grid-cols-1 gap-3 sm:min-w-[320px] sm:grid-cols-2 lg:max-w-[360px]">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  {pageText.currentCrsScore}
+                </p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                  {hasStrategy ? crsScore ?? "—" : "—"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  {pageText.nextRecommendedAction}
+                </p>
+                <div className="mt-3">
+                  <Button
+                    variant="primary"
+                    onClick={recommendedAction.onClick}
+                    className="w-full justify-center"
+                  >
+                    {recommendedAction.label}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <div className="flex flex-wrap gap-2">
+          <TopTabButton
+            active={activeTab === "overview"}
+            label={pageText.tabOverview}
+            onClick={() => setActiveTab("overview")}
+          />
+          <TopTabButton
+            active={activeTab === "execution"}
+            label={pageText.tabExecution}
+            onClick={() => setActiveTab("execution")}
+          />
+          <TopTabButton
+            active={activeTab === "account"}
+            label={pageText.tabAccount}
+            onClick={() => setActiveTab("account")}
+          />
+        </div>
+
+        {activeTab === "overview" && (
+          <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                  label={pageText.profileCompletion}
+                  value={`${profileCompletion}%`}
+                  description={pageText.profileNeedsWork}
+                  valueClassName="text-2xl"
+                  tone={profileCompletion >= 85 ? "success" : "warning"}
+                />
+
+                <StatCard
+                  label={pageText.currentCrsScore}
+                  value={hasStrategy ? crsScore ?? "—" : "—"}
+                  description={pageText.latestStrategy}
+                  valueClassName="text-4xl font-bold"
+                  tone={hasStrategy ? "info" : "default"}
+                />
+
+                <StatCard
+                  label={pageText.bestPathway}
+                  value={
+                    hasStrategy ? bestPathway || pageText.noPathway : pageText.noStrategy
+                  }
+                  description={pageText.bestImmigrationOption}
+                  valueClassName="text-base md:text-lg"
+                  tone={hasStrategy ? "success" : "default"}
+                />
+
+                <StatCard
+                  label={pageText.topImprovement}
+                  value={
+                    hasStrategy
+                      ? topImprovement || pageText.noImprovement
+                      : pageText.noStrategy
+                  }
+                  description={pageText.nextOptimization}
+                  valueClassName="text-sm md:text-base"
+                  tone={hasStrategy ? "warning" : "default"}
+                />
+              </div>
+
+              <Card variant="default" padding="lg">
+                <div className="flex items-center justify-between gap-3">
+                  <DashboardSectionTitle>
+                    {pageText.strategySnapshot}
+                  </DashboardSectionTitle>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
+                    {hasStrategy
+                      ? pageText.strategyAvailable
+                      : pageText.profileInProgress}
+                  </span>
+                </div>
+
+                {strategyLoading ? (
+                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+                    {pageText.strategyLoading}
+                  </div>
+                ) : hasStrategy ? (
+                  <>
+                    {heroSummary ? (
+                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm leading-7 text-slate-700">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          {pageText.strategySummary}
+                        </p>
+                        <p className="mt-2">{heroSummary}</p>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        {pageText.recommendedPrograms}
+                      </p>
+
+                      {recommendations.length > 0 ? (
+                        <div className="mt-3 grid gap-2 md:grid-cols-2">
+                          {recommendations.slice(0, 4).map((item, index) => {
+                            const label =
+                              typeof item === "string"
+                                ? item
+                                : item?.name ||
+                                  item?.title ||
+                                  item?.program ||
+                                  "Recommendation";
+
+                            return (
+                              <div
+                                key={`${label}-${index}`}
+                                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                              >
+                                {label}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-slate-600">
+                          {pageText.noPrograms}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-5">
+                      <Button onClick={() => navigate("/strategy")}>
+                        {pageText.openStrategy}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+                    {pageText.noStrategyYet}
+                  </div>
+                )}
+              </Card>
+
+              {!paidAccess && hasStrategy && (
+                <Card variant="warning" padding="lg">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {pageText.unlockTitle}
+                  </h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-700">
+                    {pageText.unlockBody}
+                  </p>
+                  <div className="mt-4">
+                    <Button
+                      onClick={() =>
+                        navigate("/pricing?plan=pro&source=dashboard&intent=execute")
+                      }
+                    >
+                      {pageText.upgrade}
+                    </Button>
+                  </div>
+                </Card>
+              )}
+
+              {paidAccess && !isPremium && (
+                <Card variant="premium" padding="lg">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {pageText.premiumTitle}
+                  </h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-700">
+                    {pageText.premiumBody}
+                  </p>
+                  <div className="mt-4">
+                    <Button
+                      variant="premium"
+                      onClick={() =>
+                        navigate("/pricing?plan=premium&source=dashboard&intent=export")
+                      }
+                    >
+                      {pageText.goPremium}
+                    </Button>
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            <div className="space-y-6">
+              <Card variant="default" padding="md" className="xl:sticky xl:top-24">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {pageText.currentPlan}
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-slate-900">
+                      {displayPlanLabel}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <MiniStat
+                      label={pageText.profileCompletion}
+                      value={`${profileCompletion}%`}
+                    />
+                    <MiniStat
+                      label={pageText.currentCrsScore}
+                      value={hasStrategy ? crsScore ?? "—" : "—"}
+                    />
+                    <MiniStat
+                      label={pageText.recommendedProgramsShort}
+                      value={recommendations.length || 0}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() =>
+                        navigate(
+                          isPremium
+                            ? "/pricing"
+                            : "/pricing?plan=pro&source=dashboard&intent=execute"
+                        )
+                      }
+                    >
+                      {pageText.upgrade}
+                    </Button>
+
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => navigate("/strategy")}
+                    >
+                      {pageText.openStrategy}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "execution" && (
+          <div className="space-y-6">
             <Card variant="default" padding="lg">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xl font-semibold text-slate-900">
-                  {pageText.nextSteps}
-                </h2>
+                <DashboardSectionTitle>{pageText.nextSteps}</DashboardSectionTitle>
               </div>
 
               <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -646,160 +899,55 @@ export default function Dashboard() {
               </div>
             </Card>
 
-            <Card variant="default" padding="lg">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xl font-semibold text-slate-900">
-                  {pageText.strategySnapshot}
-                </h2>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
-                  {hasStrategy
-                    ? pageText.strategyAvailable
-                    : pageText.profileInProgress}
-                </span>
-              </div>
+            {hasStrategy && nextSteps.length > 0 ? (
+              <Card variant="default" padding="lg">
+                <DashboardSectionTitle>
+                  {pageText.nextRecommendedAction}
+                </DashboardSectionTitle>
 
-              {strategyLoading ? (
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
-                  {pageText.strategyLoading}
-                </div>
-              ) : hasStrategy ? (
-                <>
-                  {heroSummary ? (
-                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm leading-7 text-slate-700">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                        {pageText.strategySummary}
-                      </p>
-                      <p className="mt-2">{heroSummary}</p>
-                    </div>
-                  ) : null}
+                <div className="mt-5 space-y-2">
+                  {nextSteps.slice(0, 4).map((item, index) => {
+                    const label =
+                      typeof item === "string"
+                        ? item
+                        : item?.label ||
+                          item?.title ||
+                          item?.action ||
+                          "Next step";
 
-                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      {pageText.recommendedPrograms}
-                    </p>
-
-                    {recommendations.length > 0 ? (
-                      <div className="mt-3 grid gap-2 md:grid-cols-2">
-                        {recommendations.slice(0, 4).map((item, index) => {
-                          const label =
-                            typeof item === "string"
-                              ? item
-                              : item?.name ||
-                                item?.title ||
-                                item?.program ||
-                                "Recommendation";
-
-                          return (
-                            <div
-                              key={`${label}-${index}`}
-                              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
-                            >
-                              {label}
-                            </div>
-                          );
-                        })}
+                    return (
+                      <div
+                        key={`${label}-${index}`}
+                        className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                      >
+                        {label}
                       </div>
-                    ) : (
-                      <p className="mt-3 text-sm text-slate-600">
-                        {pageText.noPrograms}
-                      </p>
-                    )}
-                  </div>
-
-                  {nextSteps.length > 0 ? (
-                    <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-5 py-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                        {pageText.nextSteps}
-                      </p>
-
-                      <div className="mt-3 space-y-2">
-                        {nextSteps.slice(0, 3).map((item, index) => {
-                          const label =
-                            typeof item === "string"
-                              ? item
-                              : item?.label ||
-                                item?.title ||
-                                item?.action ||
-                                "Next step";
-
-                          return (
-                            <div
-                              key={`${label}-${index}`}
-                              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
-                            >
-                              {label}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-5">
-                    <Button onClick={() => navigate("/strategy")}>
-                      {pageText.openStrategy}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
-                  {pageText.noStrategyYet}
-                </div>
-              )}
-            </Card>
-
-            {!paidAccess && hasStrategy && (
-              <Card variant="warning" padding="lg">
-                <h3 className="text-lg font-semibold text-slate-900">
-                  {pageText.unlockTitle}
-                </h3>
-                <p className="mt-2 text-sm leading-7 text-slate-700">
-                  {pageText.unlockBody}
-                </p>
-                <div className="mt-4">
-                  <Button
-                    onClick={() =>
-                      navigate("/pricing?plan=pro&source=dashboard&intent=execute")
-                    }
-                  >
-                    {pageText.upgrade}
-                  </Button>
+                    );
+                  })}
                 </div>
               </Card>
-            )}
-
-            {paidAccess && !isPremium && (
-              <Card variant="premium" padding="lg">
-                <h3 className="text-lg font-semibold text-slate-900">
-                  {pageText.premiumTitle}
-                </h3>
-                <p className="mt-2 text-sm leading-7 text-slate-700">
-                  {pageText.premiumBody}
-                </p>
-                <div className="mt-4">
-                  <Button
-                    variant="premium"
-                    onClick={() =>
-                      navigate("/pricing?plan=premium&source=dashboard&intent=export")
-                    }
-                  >
-                    {pageText.goPremium}
-                  </Button>
+            ) : (
+              <Card variant="default" padding="lg">
+                <DashboardSectionTitle>
+                  {pageText.nextRecommendedAction}
+                </DashboardSectionTitle>
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+                  {pageText.noStrategyYet}
                 </div>
               </Card>
             )}
           </div>
+        )}
 
-          <div className="space-y-6">
-            <Card variant="default" padding="lg" className="xl:sticky xl:top-6">
-              <h2 className="text-xl font-semibold text-slate-900">
-                {pageText.accountSummary}
-              </h2>
+        {activeTab === "account" && (
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <Card variant="default" padding="lg">
+              <DashboardSectionTitle>{pageText.accountSummary}</DashboardSectionTitle>
 
               <div className="mt-4">
                 <InfoRow label={pageText.accountName} value={accountDisplayName} />
                 <InfoRow label={pageText.email} value={currentUser?.email || "—"} />
-                <InfoRow label={pageText.currentPlan} value={currentPlan} />
+                <InfoRow label={pageText.currentPlan} value={displayPlanLabel} />
                 <InfoRow
                   label={pageText.billingStatus}
                   value={subscriptionStatusLabel}
@@ -813,15 +961,47 @@ export default function Dashboard() {
               <div className="mt-5">
                 <Button
                   variant="secondary"
-                  fullWidth
                   onClick={() => navigate("/pricing")}
                 >
                   {pageText.managePlan}
                 </Button>
               </div>
             </Card>
+
+            <Card variant="default" padding="lg">
+              <DashboardSectionTitle>{pageText.profileCompletion}</DashboardSectionTitle>
+
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                <MiniStat
+                  label={pageText.profileCompletion}
+                  value={`${profileCompletion}%`}
+                />
+                <MiniStat
+                  label={pageText.currentPlan}
+                  value={displayPlanLabel}
+                />
+                <MiniStat
+                  label={pageText.premiumAccess}
+                  value={isPremium ? pageText.unlocked : pageText.locked}
+                />
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <p className="text-sm leading-7 text-slate-700">
+                  {profileCompletion >= 85
+                    ? pageText.profileStateReady
+                    : pageText.profileStatePending}
+                </p>
+              </div>
+
+              <div className="mt-5">
+                <Button onClick={() => navigate("/profile")}>
+                  {pageText.updateProfile}
+                </Button>
+              </div>
+            </Card>
           </div>
-        </div>
+        )}
       </div>
 
       <UpgradeModal

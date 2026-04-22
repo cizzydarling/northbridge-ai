@@ -171,32 +171,65 @@ def dev_set_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if APP_ENV != "development":
-        raise HTTPException(status_code=403, detail="Not allowed in production")
+    ensure_dev_mode()
 
-    plan = payload.get("plan", "free")
-    subscription_status = payload.get("subscription_status", "active")
+    selected_plan = (payload.get("plan") or "").strip().lower()
+    selected_status = (payload.get("subscription_status") or "active").strip().lower()
 
-    if plan not in ["free", "pro", "premium", "individual_pro", "individual_premium"]:
+    if not selected_plan:
+        raise HTTPException(status_code=400, detail="Plan is required")
+
+    normalized_to_raw = {
+        FREE_PLAN: "free",
+        PRO_PLAN: "individual_pro",
+        PREMIUM_PLAN: "individual_premium",
+        "free": "free",
+        "pro": "individual_pro",
+        "premium": "individual_premium",
+        "individual_pro": "individual_pro",
+        "individual_premium": "individual_premium",
+        "agent_pro": "agent_pro",
+    }
+
+    raw_selected_plan = normalized_to_raw.get(selected_plan)
+    if not raw_selected_plan:
         raise HTTPException(status_code=400, detail="Invalid plan")
 
-    # Normalize plans
-    if plan == "pro":
-        plan = "individual_pro"
-    elif plan == "premium":
-        plan = "individual_premium"
+    allowed_plans_by_role = {
+        "individual": ["free", "individual_pro", "individual_premium"],
+        "agent": ["free", "agent_pro"],
+        "admin": ["free", "individual_pro", "individual_premium", "agent_pro"],
+    }
 
-    current_user.plan = plan
-    current_user.subscription_status = subscription_status
+    allowed_plans = allowed_plans_by_role.get(current_user.role, ["free"])
+
+    if raw_selected_plan not in allowed_plans:
+        raise HTTPException(
+            status_code=403,
+            detail="This role cannot use the selected plan",
+        )
+
+    current_user.plan = raw_selected_plan
+    current_user.subscription_status = None if raw_selected_plan == "free" else selected_status
+
+    if raw_selected_plan == "free":
+        current_user.stripe_subscription_id = None
 
     db.commit()
     db.refresh(current_user)
 
     return {
-        "message": "Plan updated (dev mode)",
-        "plan": current_user.plan,
-        "subscription_status": current_user.subscription_status,
-    }    
+        "message": "Plan updated for development",
+        "user": {
+            "id": current_user.id,
+            "email": current_user.email,
+            "role": current_user.role,
+            "plan": get_user_plan(current_user),
+            "raw_plan": get_raw_user_plan(current_user),
+            "subscription_status": current_user.subscription_status,
+        },
+        "access": build_access_response(user=current_user),
+    }   
 
     # ---------------------------
     # CHECKOUT COMPLETE

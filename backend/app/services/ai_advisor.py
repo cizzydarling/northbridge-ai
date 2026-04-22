@@ -290,6 +290,9 @@ Règles:
 - n’utilise jamais l’anglais
 - ne mentionne jamais des limitations internes, de configuration ou d’indisponibilité
 - ne dis jamais que l’IA n’est pas configurée, pas prête ou pas disponible
+- réponds à la question précise de l’utilisateur, pas seulement à un résumé général de stratégie
+- si l’utilisateur pose une question sur un seul point, concentre-toi sur ce point
+- évite de répéter le même résumé global à chaque suivi
 
 {plan_block}
 
@@ -371,6 +374,9 @@ Rules:
 - never switch to French
 - never mention internal limitations, configuration, or service availability
 - never say the AI is not configured, not ready, or unavailable
+- answer the specific user question, not just a general strategy summary
+- if the user asks about one issue, focus on that issue
+- avoid repeating the same overall summary across different follow-up questions
 
 {plan_block}
 
@@ -461,9 +467,8 @@ Constraints:
 """
 
 
-def _build_user_prompt(
+def _build_user_context_block(
     *,
-    message: str,
     language: str,
     profile: Any,
     strategy: Optional[Dict[str, Any]],
@@ -478,9 +483,6 @@ def _build_user_prompt(
 
     if language == "fr":
         return f"""
-Message utilisateur:
-{message}
-
 Plan utilisateur:
 {plan}
 
@@ -495,14 +497,9 @@ Contexte demande:
 
 Contexte décisionnel:
 {decision_text}
+""".strip()
 
-Réponds uniquement en français.
-Utilise le contexte fourni pour personnaliser la réponse.
-"""
     return f"""
-User message:
-{message}
-
 User plan:
 {plan}
 
@@ -517,10 +514,7 @@ Application context:
 
 Decision context:
 {decision_text}
-
-Respond only in English.
-Use the supplied context to personalize the response.
-"""
+""".strip()
 
 
 def _build_strategy_prompt(
@@ -691,7 +685,7 @@ def _normalize_action(
     if isinstance(action, str):
         label = action.strip()
         if not label:
-          return None
+            return None
         return {
             "label": label,
             "route": _infer_route_from_action_label(label, matter_type=matter_type),
@@ -915,6 +909,38 @@ def generate_ai_chat_reply(
             application_context=application_context,
         )
 
+    context_block = _build_user_context_block(
+        language=language,
+        profile=profile,
+        strategy=strategy,
+        application_context=application_context,
+        decision_context=decision_context,
+        plan=plan,
+    )
+
+    if language == "fr":
+        final_user_prompt = f"""
+{context_block}
+
+Question de l’utilisateur:
+{message}
+
+Réponds à la question précise.
+Ne répète pas toujours le même résumé global.
+Sois spécifique, concret et actionnable.
+""".strip()
+    else:
+        final_user_prompt = f"""
+{context_block}
+
+User question:
+{message}
+
+Answer the specific question.
+Do not keep repeating the same overall summary.
+Be specific, concrete, and actionable.
+""".strip()
+
     try:
         messages: List[Dict[str, str]] = [
             {"role": "system", "content": _build_chat_system_prompt(language, plan)}
@@ -926,15 +952,7 @@ def generate_ai_chat_reply(
         messages.append(
             {
                 "role": "user",
-                "content": _build_user_prompt(
-                    message=message,
-                    language=language,
-                    profile=profile,
-                    strategy=strategy,
-                    application_context=application_context,
-                    decision_context=decision_context,
-                    plan=plan,
-                ),
+                "content": final_user_prompt,
             }
         )
 

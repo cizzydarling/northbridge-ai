@@ -264,16 +264,11 @@ export const refreshCurrentUser = async () => {
    BILLING
 ========================= */
 
-export const getBillingPlans = () => api.get("/billing/plans");
-export const getAvailablePlans = getBillingPlans;
-
 export const getBillingStatus = () => api.get("/billing/me");
 
-/**
- * Accepts either:
- * - a string plan, e.g. "pro"
- * - a payload object, e.g. { plan: "pro", subscription_status: "active" }
- */
+export const getAvailablePlans = () => api.get("/billing/plans");
+export const getBillingPlans = getAvailablePlans;
+
 export const devSetPlan = (planOrPayload, subscription_status = "active") => {
   const payload =
     typeof planOrPayload === "object" && planOrPayload !== null
@@ -283,14 +278,6 @@ export const devSetPlan = (planOrPayload, subscription_status = "active") => {
   return api.post("/billing/dev/set-plan", payload);
 };
 
-export const setMyPlanForTesting = (plan) =>
-  api.post("/billing/dev/set-plan", { plan });
-
-/**
- * Accepts either:
- * - a string plan, e.g. "pro"
- * - a payload object, e.g. { plan: "pro" }
- */
 export const createCheckoutSession = (planOrPayload) => {
   const payload =
     typeof planOrPayload === "object" && planOrPayload !== null
@@ -309,12 +296,69 @@ export const createBillingPortalSession = createPortalSession;
    PERSONAL PROFILE
 ========================= */
 
+export const normalizeProfilePayload = (payload = {}) => {
+  const normalized = {
+    ...payload,
+    first_name: payload.first_name?.trim() || null,
+    last_name: payload.last_name?.trim() || null,
+    nationality: payload.nationality?.trim() || null,
+    current_country: payload.current_country?.trim() || null,
+    current_city: payload.current_city?.trim() || null,
+    phone_number: payload.phone_number?.trim() || null,
+    date_of_birth: payload.date_of_birth || null,
+    marital_status: payload.marital_status || null,
+    preferred_language:
+      String(payload.preferred_language || getLanguage()).toLowerCase().startsWith("fr")
+        ? "fr"
+        : "en",
+
+    age:
+      payload.age === "" || payload.age === null || payload.age === undefined
+        ? null
+        : Number(payload.age),
+
+    language_score:
+      payload.language_score === "" ||
+      payload.language_score === null ||
+      payload.language_score === undefined
+        ? null
+        : Number(payload.language_score),
+
+    experience_years:
+      payload.experience_years === "" ||
+      payload.experience_years === null ||
+      payload.experience_years === undefined
+        ? null
+        : Number(payload.experience_years),
+
+    education: payload.education?.trim() || null,
+    occupation: payload.occupation?.trim() || null,
+    noc_code: payload.noc_code?.trim() || null,
+
+    job_description: payload.job_description?.trim() || null,
+    job_duties: payload.job_duties?.trim() || null,
+
+    preferred_province: payload.preferred_province || null,
+
+    has_job_offer: Boolean(payload.has_job_offer),
+    has_canadian_experience: Boolean(payload.has_canadian_experience),
+    studied_in_canada: Boolean(payload.studied_in_canada),
+  };
+
+  return normalized;
+};
+
 export const getMyProfile = () => api.get("/profiles/me");
 
 /* Auto-created at registration now */
-export const createProfile = (payload) => api.put("/profiles/me", payload);
-export const saveMyProfile = (payload) => api.put("/profiles/me", payload);
-export const updateMyProfile = (payload) => api.put("/profiles/me", payload);
+export const createProfile = (payload) =>
+  api.put("/profiles/me", normalizeProfilePayload(payload));
+
+export const saveMyProfile = (payload) =>
+  api.put("/profiles/me", normalizeProfilePayload(payload));
+
+export const updateMyProfile = (payload) =>
+  api.put("/profiles/me", normalizeProfilePayload(payload));
 
 /* =========================
    SELF WORKSPACE
@@ -425,7 +469,6 @@ export const exportMyStrategyPdf = (language = getLanguage()) =>
 
 export const downloadStrategyReport = exportMyStrategyPdf;
 
-// ✅ FIXED: single definition only
 export const getMyStrategyLite = (language = getLanguage()) =>
   api.get(`/self/strategy?language=${language}`);
 
@@ -467,6 +510,63 @@ export const downloadAIDocumentDocx = (payload) =>
 
 export const generateDocument = generateAIDocument;
 
+export const fixAIDocumentIssues = (payload) =>
+  api.post("/ai/generate-document", {
+    ...payload,
+    mode: "fix_all",
+  });
+
+export const improveAIDocumentIntro = (payload) =>
+  api.post("/ai/generate-document", {
+    ...payload,
+    mode: "improve_intro",
+  });
+
+export const improveAIDocumentBody = (payload) =>
+  api.post("/ai/generate-document", {
+    ...payload,
+    mode: "improve_body",
+  });
+
+export const improveAIDocumentConclusion = (payload) =>
+  api.post("/ai/generate-document", {
+    ...payload,
+    mode: "improve_conclusion",
+  });
+
+export const scoreAIDocumentConfidence = (payload) =>
+  api.post("/ai/generate-document", {
+    ...payload,
+    mode: "confidence",
+  });
+
+/* ===============================
+   AI DOCUMENT ENHANCEMENTS
+=============================== */
+
+export const explainAIDocument = (payload) =>
+  api.post("/ai/generate-document", {
+    ...payload,
+    mode: "explain",
+  });
+
+export const makeAIDocumentOfficerReady = (payload) =>
+  api.post("/ai/generate-document", {
+    ...payload,
+    mode: "officer_ready",
+  });
+
+export const generateAIDocumentSections = (payload) =>
+  api.post("/ai/generate-document", {
+    ...payload,
+    mode: "sections",
+  });
+
+/* Backward/forward-compatible aliases */
+export const explainDocument = explainAIDocument;
+export const makeDocumentOfficerReady = makeAIDocumentOfficerReady;
+export const generateDocumentSections = generateAIDocumentSections;
+
 /* ===============================
    AI DOCUMENT EXPORT (PDF)
 =============================== */
@@ -476,7 +576,7 @@ export const exportAIDocumentPdf = (payload) =>
     responseType: "blob",
   });
 
-export const exportDocumentPdf = exportAIDocumentPdf; 
+export const exportDocumentPdf = exportAIDocumentPdf;
 
 /* =========================
    DOCUMENT REVIEW AI
@@ -528,7 +628,17 @@ export const downloadFormsPackage = (payload) =>
    NOC
 ========================= */
 
-export const suggestNOC = (payload) => api.post("/noc/suggest", payload);
+export const suggestNOC = (payload) =>
+  api.post("/noc/suggest", {
+    occupation: payload?.occupation?.trim() || "",
+    job_description: payload?.job_description?.trim() || "",
+    duties: Array.isArray(payload?.duties)
+      ? payload.duties
+          .map((item) => String(item || "").trim())
+          .filter(Boolean)
+      : [],
+    top_k: payload?.top_k || 3,
+  });
 
 export const getNOCDetails = (nocCode) => api.get(`/noc/${nocCode}`);
 

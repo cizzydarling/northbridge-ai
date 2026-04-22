@@ -24,14 +24,16 @@ function buildPremiumPricingPath(source = "forms", intent = "export") {
 
 function PageHeader({ brand, title, subtitle }) {
   return (
-    <div className="mb-8 max-w-3xl">
+    <div className="mb-6 max-w-3xl">
       <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
         {brand}
       </p>
-      <h1 className="text-4xl font-semibold tracking-tight text-slate-900">
+      <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
         {title}
       </h1>
-      <p className="mt-3 text-base leading-7 text-slate-600">{subtitle}</p>
+      <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+        {subtitle}
+      </p>
     </div>
   );
 }
@@ -45,6 +47,22 @@ function SectionIntro({ eyebrow, title, body }) {
       <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
         {title}
       </h2>
+      {body ? (
+        <p className="mt-2 text-sm leading-7 text-slate-600">{body}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function StepHeader({ step, title, body }) {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-bold uppercase tracking-[0.12em] text-blue-600">
+          {step}
+        </span>
+        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+      </div>
       {body ? <p className="mt-2 text-sm leading-7 text-slate-600">{body}</p> : null}
     </div>
   );
@@ -144,8 +162,12 @@ function MonetizationCard({ title, subtitle, items, accent = "default" }) {
 
   return (
     <div className={`rounded-[24px] border p-5 ${accentClass}`}>
-      <h3 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h3>
-      {subtitle ? <p className="mt-2 text-sm leading-7 text-slate-600">{subtitle}</p> : null}
+      <h3 className="text-lg font-semibold tracking-tight text-slate-900">
+        {title}
+      </h3>
+      {subtitle ? (
+        <p className="mt-2 text-sm leading-7 text-slate-600">{subtitle}</p>
+      ) : null}
 
       <div className="mt-4 space-y-2">
         {items.map((item, index) => (
@@ -157,6 +179,37 @@ function MonetizationCard({ title, subtitle, items, accent = "default" }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function SummaryMetric({ label, value, accent = "default" }) {
+  const accentClass =
+    accent === "good"
+      ? "bg-emerald-50 border-emerald-200"
+      : accent === "focus"
+      ? "bg-blue-50 border-blue-200"
+      : "bg-slate-50/80 border-slate-200";
+
+  return (
+    <div className={`rounded-2xl border p-4 ${accentClass}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function CompletionBar({ score }) {
+  return (
+    <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
+      <div
+        className="h-2 rounded-full bg-blue-600 transition-all duration-300"
+        style={{ width: `${score || 0}%` }}
+      />
     </div>
   );
 }
@@ -382,7 +435,12 @@ export default function FormsPage() {
       application_type: selectedApplicationType,
       representative_used: representativeUsed,
     };
-  }, [savedApplicationData, inlineApplicationData, selectedApplicationType, representativeUsed]);
+  }, [
+    savedApplicationData,
+    inlineApplicationData,
+    selectedApplicationType,
+    representativeUsed,
+  ]);
 
   useEffect(() => {
     loadApplicationTypes();
@@ -477,7 +535,8 @@ export default function FormsPage() {
           ...localDraft,
         });
 
-        const inferredApplicationType = mapMatterTypeToApplicationType(savedApplication);
+        const inferredApplicationType =
+          mapMatterTypeToApplicationType(savedApplication);
         if (inferredApplicationType) {
           setSelectedApplicationType(inferredApplicationType);
         }
@@ -637,7 +696,8 @@ export default function FormsPage() {
   const canDownloadForms = Boolean(access?.can_download_forms);
   const canUseFormsAI = Boolean(access?.can_use_forms_ai_assistant);
   const previewAllowsDownload = Boolean(preview?.download_enabled);
-  const showDownloadButton = Boolean(preview && canDownloadForms && previewAllowsDownload);
+  const showDownloadButton =
+    Boolean(preview && canDownloadForms && previewAllowsDownload);
   const shouldShowUpgradePrompt = Boolean(preview && !showDownloadButton);
 
   const aiMissingCount = Array.isArray(preview?.missing_fields)
@@ -715,7 +775,8 @@ export default function FormsPage() {
           "Idéal pour finaliser rapidement",
         ],
         premiumTitle: "Premium — 99 $ / 90 jours",
-        premiumSubtitle: "Pour une préparation plus complète sur une plus longue période",
+        premiumSubtitle:
+          "Pour une préparation plus complète sur une plus longue période",
         premiumItems: [
           "Tout ce qui est inclus dans Pro",
           "Fenêtre de travail plus longue",
@@ -750,6 +811,10 @@ export default function FormsPage() {
           "Passez à la génération de documents pour compléter votre dossier.",
         continueToDocuments: "Continuer vers les documents",
         unlockPdfPremium: "Débloquer PDF (Premium)",
+        finalStepTitle: "Étape finale : générer votre dossier",
+        aiStrong: "Votre dossier est solide",
+        aiGaps: (count) => `Vous avez ${count} écarts critiques`,
+        docsShort: "dossiers",
       };
     }
 
@@ -854,6 +919,10 @@ export default function FormsPage() {
         "Move to document generation to complete your application.",
       continueToDocuments: "Continue to Document Generator",
       unlockPdfPremium: "Unlock PDF (Premium)",
+      finalStepTitle: "Final step: generate your package",
+      aiStrong: "Your package is strong",
+      aiGaps: (count) => `You have ${count} critical gaps`,
+      docsShort: "docs",
     };
   }, [language]);
 
@@ -871,61 +940,20 @@ export default function FormsPage() {
         subtitle={pageText.subtitle}
       />
 
-      <Card variant="soft" padding="lg" className="mb-8">
-        <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-          <div>
-            <SectionIntro
-              eyebrow={pageText.launchEyebrow}
-              title={pageText.launchTitle}
-              body={pageText.launchBody}
-            />
-
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <PlanPill active={!access?.is_pro && !access?.is_premium}>
-                {pageText.freeTitle}
-              </PlanPill>
-              <PlanPill active={access?.is_pro && !access?.is_premium}>
-                Pro
-              </PlanPill>
-              <PlanPill active={access?.is_premium}>
-                Premium
-              </PlanPill>
-            </div>
-
-            <p className="mt-5 text-sm leading-7 text-slate-600">{pageText.workspaceValue}</p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-1">
-            <MonetizationCard
-              title={pageText.freeTitle}
-              subtitle={pageText.freeSubtitle}
-              items={pageText.freeItems}
-            />
-            <MonetizationCard
-              title={pageText.proTitle}
-              subtitle={pageText.proSubtitle}
-              items={pageText.proItems}
-              accent="featured"
-            />
-            <MonetizationCard
-              title={pageText.premiumTitle}
-              subtitle={pageText.premiumSubtitle}
-              items={pageText.premiumItems}
-            />
-          </div>
-        </div>
-      </Card>
+      <div className="mb-6 max-w-2xl">
+        <p className="text-sm leading-7 text-slate-600">{pageText.workspaceValue}</p>
+      </div>
 
       <div className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="space-y-6">
+        <div className="space-y-6 xl:sticky xl:top-24 self-start">
           <Card variant="premium" padding="lg">
-            <SectionIntro
-              eyebrow={pageText.setupEyebrow}
+            <StepHeader
+              step="STEP 1"
               title={pageText.setupTitle}
               body={pageText.setupBody}
             />
 
-            <div className="mt-6 space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   {pageText.applicationType}
@@ -936,9 +964,7 @@ export default function FormsPage() {
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
                   disabled={loadingTypes}
                 >
-                  <option value="">
-                    {pageText.selectApplicationType}
-                  </option>
+                  <option value="">{pageText.selectApplicationType}</option>
                   {applicationTypes.map((item) => (
                     <option key={item.value} value={item.value}>
                       {item.label}
@@ -962,7 +988,9 @@ export default function FormsPage() {
                 </p>
 
                 {accessLoading ? (
-                  <p className="mt-3 text-sm text-slate-600">{pageText.loadingAccess}</p>
+                  <p className="mt-3 text-sm text-slate-600">
+                    {pageText.loadingAccess}
+                  </p>
                 ) : (
                   <>
                     <p className="mt-2 text-lg font-semibold tracking-tight text-slate-900">
@@ -996,74 +1024,151 @@ export default function FormsPage() {
                   </>
                 )}
               </div>
+            </div>
+          </Card>
 
-              <div className="flex flex-wrap items-center gap-3">
+          <Card padding="lg">
+            <StepHeader
+              step="STEP 2"
+              title={pageText.inlineTitle}
+              body={pageText.inlineBody}
+            />
+
+            {loadingSavedApp ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm text-slate-500">
+                {pageText.loadingSaved}
+              </div>
+            ) : activeFields.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {activeFields.map((field) => (
+                  <div
+                    key={field.name}
+                    className={field.type === "textarea" ? "md:col-span-2" : ""}
+                  >
+                    {field.type !== "checkbox" && (
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        {field.label}
+                      </label>
+                    )}
+                    <FieldInput
+                      field={field}
+                      value={mergedApplicationData[field.name]}
+                      onChange={handleInlineFieldChange}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                {pageText.noInlineFields}
+              </div>
+            )}
+
+            <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <p className="text-sm font-medium text-blue-800">
+                {pageText.finalStepTitle}
+              </p>
+
+              <div className="mt-3">
                 <Button
                   onClick={handlePreviewPackage}
                   disabled={previewLoading || !selectedApplicationType}
+                  className="w-full"
                 >
                   {previewLoading ? pageText.previewing : pageText.preview}
                 </Button>
-
-                {showDownloadButton ? (
-                  <Button
-                    variant="secondary"
-                    onClick={handleDownloadPackage}
-                    disabled={downloadLoading}
-                  >
-                    {downloadLoading ? pageText.downloading : pageText.download}
-                  </Button>
-                ) : null}
-
-                <span className="text-xs text-slate-500">
-                  {savingInline ? pageText.autosaving : pageText.autosave}
-                </span>
               </div>
+
+              <p className="mt-3 text-xs text-blue-700">
+                {savingInline ? pageText.autosaving : pageText.autosave}
+              </p>
             </div>
           </Card>
 
           <Card padding="lg">
             <SectionIntro
-              eyebrow={pageText.inlineEyebrow}
-              title={pageText.inlineTitle}
-              body={pageText.inlineBody}
+              eyebrow={pageText.launchEyebrow}
+              title={pageText.launchTitle}
+              body={pageText.launchBody}
             />
 
-            <div className="mt-6">
-              {loadingSavedApp ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm text-slate-500">
-                  {pageText.loadingSaved}
-                </div>
-              ) : activeFields.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {activeFields.map((field) => (
-                    <div
-                      key={field.name}
-                      className={field.type === "textarea" ? "md:col-span-2" : ""}
-                    >
-                      {field.type !== "checkbox" && (
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          {field.label}
-                        </label>
-                      )}
-                      <FieldInput
-                        field={field}
-                        value={mergedApplicationData[field.name]}
-                        onChange={handleInlineFieldChange}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                  {pageText.noInlineFields}
-                </div>
-              )}
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <PlanPill active={!access?.is_pro && !access?.is_premium}>
+                {pageText.freeTitle}
+              </PlanPill>
+              <PlanPill active={access?.is_pro && !access?.is_premium}>
+                Pro
+              </PlanPill>
+              <PlanPill active={access?.is_premium}>Premium</PlanPill>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <MonetizationCard
+                title={pageText.freeTitle}
+                subtitle={pageText.freeSubtitle}
+                items={pageText.freeItems}
+              />
+              <MonetizationCard
+                title={pageText.proTitle}
+                subtitle={pageText.proSubtitle}
+                items={pageText.proItems}
+                accent="featured"
+              />
+              <MonetizationCard
+                title={pageText.premiumTitle}
+                subtitle={pageText.premiumSubtitle}
+                items={pageText.premiumItems}
+              />
             </div>
           </Card>
 
-          {preview && (
-            <div className="space-y-4">
+          <div className="text-xs leading-6 text-slate-500">
+            {pageText.disclaimer}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {preview ? (
+            <>
+              <Card padding="lg">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
+                      {pageText.summaryEyebrow}
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                      {preview?.summary?.application_label || pageText.summaryTitle}
+                    </h2>
+                  </div>
+                  <ProgressBadge score={preview?.summary?.completeness_score ?? 0} />
+                </div>
+
+                <CompletionBar score={preview?.summary?.completeness_score ?? 0} />
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <SummaryMetric
+                    label={pageText.formsCount}
+                    value={preview?.summary?.forms_count ?? 0}
+                    accent="focus"
+                  />
+                  <SummaryMetric
+                    label={pageText.completeness}
+                    value={`${preview?.summary?.completeness_score ?? 0}%`}
+                    accent={
+                      (preview?.summary?.completeness_score ?? 0) >= 85
+                        ? "good"
+                        : "default"
+                    }
+                  />
+                </div>
+
+                {preview?.summary?.download_note ? (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700">
+                    {preview.summary.download_note}
+                  </div>
+                ) : null}
+              </Card>
+
               {shouldShowUpgradePrompt && (
                 <UpgradePrompt
                   title={pageText.upgradeTitle}
@@ -1100,7 +1205,7 @@ export default function FormsPage() {
                     {pageText.packageReadyBody}
                   </p>
 
-                  <div className="mt-4 flex gap-3">
+                  <div className="mt-4 flex flex-wrap gap-3">
                     <Button
                       onClick={() =>
                         navigate("/documents/generator?source=forms&intent=execute")
@@ -1120,47 +1225,6 @@ export default function FormsPage() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          <div className="text-xs leading-6 text-slate-500">{pageText.disclaimer}</div>
-        </div>
-
-        <div className="space-y-6">
-          {preview ? (
-            <>
-              <Card padding="lg">
-                <SectionIntro
-                  eyebrow={pageText.summaryEyebrow}
-                  title={preview?.summary?.application_label || pageText.summaryTitle}
-                />
-
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      {pageText.formsCount}
-                    </p>
-                    <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
-                      {preview?.summary?.forms_count ?? 0}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      {pageText.completeness}
-                    </p>
-                    <div className="mt-3">
-                      <ProgressBadge score={preview?.summary?.completeness_score ?? 0} />
-                    </div>
-                  </div>
-                </div>
-
-                {preview?.summary?.download_note ? (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700">
-                    {preview.summary.download_note}
-                  </div>
-                ) : null}
-              </Card>
 
               <Card variant="soft" padding="lg">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1177,53 +1241,69 @@ export default function FormsPage() {
                   <ProgressBadge score={preview?.summary?.completeness_score ?? 0} />
                 </div>
 
-                <div className="mt-5 rounded-[24px] border border-blue-200 bg-blue-50 px-5 py-4 text-sm leading-7 text-blue-900">
-                  {aiMissingCount === 1
-                    ? pageText.aiSummarySingle
-                    : pageText.aiSummaryMulti(aiMissingCount)}
+                <div className="mt-5 rounded-[24px] border border-blue-200 bg-blue-50 px-5 py-4">
+                  <p className="text-lg font-semibold text-slate-900">
+                    {aiMissingCount === 0
+                      ? pageText.aiStrong
+                      : pageText.aiGaps(aiMissingCount)}
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-blue-900">
+                    {aiMissingCount === 1
+                      ? pageText.aiSummarySingle
+                      : pageText.aiSummaryMulti(aiMissingCount)}
+                  </p>
                 </div>
 
                 <div className="mt-4 rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-700">
-                  {canDownloadForms ? pageText.aiPromptEnabled : pageText.aiPromptLocked}
+                  {canDownloadForms
+                    ? pageText.aiPromptEnabled
+                    : pageText.aiPromptLocked}
                 </div>
               </Card>
 
               <Card padding="lg">
-                <SectionIntro eyebrow={pageText.formsTitle} title={pageText.formsTitle} />
+                <SectionIntro
+                  eyebrow={pageText.formsTitle}
+                  title={pageText.formsTitle}
+                />
 
                 <div className="mt-5 space-y-4">
                   {(preview?.forms || []).map((form) => (
-                    <div
+                    <details
                       key={form.code}
-                      className="rounded-[24px] border border-slate-200 bg-white p-5"
+                      className="rounded-[20px] border border-slate-200 bg-white p-4"
                     >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                          {form.code}
-                        </span>
+                      <summary className="cursor-pointer list-none">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                            {form.code}
+                          </span>
 
-                        <span
-                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                            form.ready
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          {form.ready ? pageText.ready : pageText.notReady}
-                        </span>
+                          <span
+                            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                              form.ready
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-amber-200 bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {form.ready ? pageText.ready : pageText.notReady}
+                          </span>
 
-                        <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                          {form.required ? pageText.required : pageText.conditional}
-                        </span>
-                      </div>
+                          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                            {form.required
+                              ? pageText.required
+                              : pageText.conditional}
+                          </span>
+                        </div>
 
-                      <h3 className="mt-4 text-xl font-semibold tracking-tight text-slate-900">
-                        {form.title}
-                      </h3>
+                        <h3 className="mt-4 text-xl font-semibold tracking-tight text-slate-900">
+                          {form.title}
+                        </h3>
 
-                      <p className="mt-2 text-sm leading-7 text-slate-600">
-                        {form.description}
-                      </p>
+                        <p className="mt-2 text-sm leading-7 text-slate-600">
+                          {form.description}
+                        </p>
+                      </summary>
 
                       <div className="mt-5 grid gap-5 xl:grid-cols-2">
                         <div>
@@ -1233,15 +1313,19 @@ export default function FormsPage() {
 
                           <div className="mt-3 space-y-2">
                             {Object.entries(form.mapped_fields || {}).length > 0 ? (
-                              Object.entries(form.mapped_fields || {}).map(([key, value]) => (
-                                <div
-                                  key={key}
-                                  className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700"
-                                >
-                                  <span className="font-semibold text-slate-900">{key}</span>:{" "}
-                                  {String(value || "—")}
-                                </div>
-                              ))
+                              Object.entries(form.mapped_fields || {}).map(
+                                ([key, value]) => (
+                                  <div
+                                    key={key}
+                                    className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700"
+                                  >
+                                    <span className="font-semibold text-slate-900">
+                                      {key}
+                                    </span>
+                                    : {String(value || "—")}
+                                  </div>
+                                )
+                              )
                             ) : (
                               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
                                 {pageText.noMappedFields}
@@ -1273,7 +1357,7 @@ export default function FormsPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </details>
                   ))}
                 </div>
               </Card>
@@ -1291,7 +1375,8 @@ export default function FormsPage() {
                         key={`${item.form_code}-${item.field}-${index}`}
                         className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
                       >
-                        <span className="font-semibold">{item.form_code}</span> — {item.field}
+                        <span className="font-semibold">{item.form_code}</span> —{" "}
+                        {item.field}
                       </div>
                     ))
                   ) : (

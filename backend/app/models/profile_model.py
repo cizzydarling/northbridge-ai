@@ -29,8 +29,14 @@ class Profile(Base):
     has_job_offer = Column(Boolean, default=False)
     has_canadian_experience = Column(Boolean, default=False)
     studied_in_canada = Column(Boolean, default=False)
+
     occupation = Column(String, nullable=True)
     noc_code = Column(String, nullable=True)
+
+    # 🔥 NEW (critical for AI accuracy)
+    job_description = Column(String, nullable=True)
+    job_duties = Column(String, nullable=True)
+
     preferred_province = Column(String, nullable=True)
 
     user = relationship("User", back_populates="profile")

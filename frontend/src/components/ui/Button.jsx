@@ -15,7 +15,7 @@ export default function Button({
   const isDisabled = disabled || loading;
 
   const base =
-    "inline-flex items-center justify-center whitespace-nowrap rounded-2xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60";
+    "inline-flex items-center justify-center whitespace-nowrap rounded-2xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
   const widthClass = fullWidth ? "w-full" : "";
 
@@ -27,19 +27,19 @@ export default function Button({
 
   const variants = {
     primary:
-      "bg-blue-900 text-white shadow-sm shadow-blue-900/10 hover:bg-blue-800 active:scale-[0.98]",
+      "bg-blue-900 text-white shadow-sm shadow-blue-900/10 hover:bg-blue-800 hover:shadow-md active:scale-[0.98]",
 
     secondary:
-      "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50 active:scale-[0.98]",
+      "border border-slate-300 bg-white text-slate-900 shadow-sm hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98]",
 
     ghost:
       "text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98]",
 
     danger:
-      "border border-red-200 bg-white text-red-600 hover:bg-red-50 active:scale-[0.98]",
+      "border border-red-200 bg-white text-red-600 shadow-sm hover:bg-red-50 hover:border-red-300 active:scale-[0.98]",
 
     white:
-      "bg-white text-slate-900 shadow-sm hover:bg-slate-100 active:scale-[0.98]",
+      "bg-white text-slate-900 shadow-sm hover:bg-slate-100 hover:shadow-md active:scale-[0.98]",
 
     outlineLight:
       "border border-white/80 text-white hover:bg-white hover:text-slate-900 active:scale-[0.98]",
@@ -48,7 +48,7 @@ export default function Button({
       "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.98]",
 
     premium:
-      "bg-gradient-to-r from-blue-900 to-blue-700 text-white shadow-md shadow-blue-900/20 hover:opacity-95 active:scale-[0.98]",
+      "bg-gradient-to-r from-blue-900 via-blue-800 to-blue-700 text-white shadow-md shadow-blue-900/20 hover:shadow-lg hover:shadow-blue-900/20 hover:opacity-95 active:scale-[0.98]",
   };
 
   const spinnerClassMap = {

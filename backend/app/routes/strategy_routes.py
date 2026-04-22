@@ -420,21 +420,37 @@ def build_strategy_payload(
 
     return {
         "crs_score": strategy.get("crs_score"),
+        "strategy_headline": strategy.get("strategy_headline"),
+
+        # 🔥 NEW — expose intelligence preview
+        "best_pathway": strategy.get("best_pathway"),
+        "noc_profile": {
+            "resolved_noc_code": (strategy.get("noc_profile") or {}).get("resolved_noc_code"),
+            "resolved_title": (strategy.get("noc_profile") or {}).get("resolved_title"),
+            "confidence": (strategy.get("noc_profile") or {}).get("suggested_confidence"),
+        },
+
         "recommended_programs": list(strategy.get("recommended_programs") or [])[:2],
         "strengths": list(strategy.get("strengths") or [])[:2],
         "weaknesses": list(strategy.get("weaknesses") or [])[:2],
         "next_steps": list(strategy.get("next_steps") or [])[:2],
+
+        # 🔥 show 1 province only (teaser)
+        "province_recommendations": (strategy.get("province_recommendations") or [])[:1],
+
         "advisor_summary": strategy.get("advisor_summary"),
-        "noc_summary": strategy.get("noc_summary") or {},
         "french_advantage": strategy.get("french_advantage") or {},
+
         "locked": True,
         "is_premium": False,
         "can_export_pdf": False,
+
         "upgrade_reason": t(
-            "Upgrade to Pro to unlock the full strategy and deeper guidance.",
-            "Passez à Pro pour débloquer la stratégie complète et une guidance plus approfondie.",
+            "Upgrade to Pro to unlock full strategy, detailed pathway scoring, and province targeting.",
+            "Passez à Pro pour débloquer la stratégie complète, le classement détaillé des voies et le ciblage provincial.",
             language,
         ),
+
         "export_upgrade_reason": t(
             "Upgrade to Premium to unlock PDF export.",
             "Passez à Premium pour débloquer l’export PDF.",

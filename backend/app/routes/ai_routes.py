@@ -220,6 +220,8 @@ def generate_document(
     language = _normalize_language(payload.language)
     is_premium = has_individual_pro(current_user)
 
+    mode = getattr(payload, "mode", "generate")
+
     profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found.")
@@ -241,6 +243,89 @@ def generate_document(
         language=language,
     )
 
+    # =========================
+    # MODE: EXPLAIN (WHY THIS WORKS)
+    # =========================
+    if mode == "explain":
+        result = generate_document_draft(
+            document_type=payload.document_type,
+            language=language,
+            tone="analysis",
+            additional_instructions=payload.additional_instructions,
+            profile=profile,
+            application={},
+            decision=decision,
+            strategy=strategy,
+        )
+
+        return {
+            "title": "Explanation",
+            "content": result["content"],
+            "language": language,
+            "is_premium": True,
+            "locked": False,
+        }
+
+    # =========================
+    # MODE: OFFICER READY
+    # =========================
+    if mode == "officer_ready":
+        result = generate_document_draft(
+            document_type=payload.document_type,
+            language=language,
+            tone="professional",
+            additional_instructions=payload.additional_instructions,
+            profile=profile,
+            application={},
+            decision=decision,
+            strategy=strategy,
+        )
+
+        return {
+            **result,
+            "is_premium": True,
+            "locked": False,
+        }
+
+    # =========================
+    # MODE: SECTIONS
+    # =========================
+    if mode == "sections":
+        result = generate_document_draft(
+            document_type=payload.document_type,
+            language=language,
+            tone=payload.tone,
+            additional_instructions=payload.additional_instructions,
+            profile=profile,
+            application={},
+            decision=decision,
+            strategy=strategy,
+        )
+
+        content = result.get("content", "")
+
+        paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
+
+        intro = paragraphs[0] if len(paragraphs) > 0 else ""
+        body = "\n\n".join(paragraphs[1:-1]) if len(paragraphs) > 2 else ""
+        conclusion = paragraphs[-1] if len(paragraphs) > 1 else ""
+
+        return {
+            "title": result["title"],
+            "content": content,
+            "sections": {
+                "intro": intro,
+                "body": body,
+                "conclusion": conclusion,
+            },
+            "language": language,
+            "is_premium": True,
+            "locked": False,
+        }
+
+    # =========================
+    # DEFAULT MODE (EXISTING)
+    # =========================
     result = generate_document_draft(
         document_type=payload.document_type,
         language=language,
@@ -254,6 +339,7 @@ def generate_document(
         decision=decision,
         strategy=strategy,
         context_overrides=payload.context_overrides,
+        mode=mode,
     )
 
     saved_doc = GeneratedDocument(

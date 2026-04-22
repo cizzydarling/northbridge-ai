@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { getCurrentUserLocal, logoutUser, getBillingAccess } from "../api";
 import Button from "../components/ui/Button";
 import OnboardingModal from "../components/OnboardingModal";
+import DevPlanSwitcher from "../components/DevPlanSwitcher";
 
 function normalizePlan(plan) {
   const value = String(plan || "").trim().toLowerCase();
@@ -98,6 +99,11 @@ export default function Layout({ children }) {
   const toolsRef = useRef(null);
   const accountRef = useRef(null);
   const mobileMenuPanelRef = useRef(null);
+
+  const isDevEnvironment =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    import.meta.env.DEV;
 
   useEffect(() => {
     const handleUserUpdate = () => {
@@ -217,7 +223,12 @@ export default function Layout({ children }) {
 
     if (firstName && lastName) return `${firstName} ${lastName}`;
     if (firstName) return firstName;
-    return currentUser?.email || t("common.unknown");
+
+    if (currentUser?.email) {
+      return currentUser.email.split("@")[0];
+    }
+
+    return t("common.unknown");
   }, [currentUser, t]);
 
   const primaryNavItems = isAgentWorkspace
@@ -319,7 +330,7 @@ export default function Layout({ children }) {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900">
-                    {t("app.name")}
+                    {displayName}
                   </p>
                   <p className="truncate text-xs text-slate-500">
                     {isAgentWorkspace
@@ -386,11 +397,11 @@ export default function Layout({ children }) {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-3 md:gap-4">
             {effectivePlan === "free" && (
               <Button
                 variant="primary"
-                className="hidden h-10 rounded-xl px-4 shadow-sm md:inline-flex"
+                className="hidden h-10 rounded-xl px-4 shadow-md hover:shadow-lg transition md:inline-flex"
                 onClick={handleUpgradeClick}
               >
                 {language === "fr" ? "Passer à Pro" : "Upgrade"}
@@ -424,7 +435,7 @@ export default function Layout({ children }) {
                   setAccountOpen((prev) => !prev);
                   setToolsOpen(false);
                 }}
-                className={`flex h-10 items-center gap-3 rounded-xl border px-3 transition-all duration-200 ${
+                className={`flex h-10 items-center gap-2.5 rounded-xl border px-3 transition-all duration-200 ${
                   accountOpen
                     ? "border-blue-100 bg-blue-50/80 text-blue-900"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -433,12 +444,12 @@ export default function Layout({ children }) {
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-900 text-xs font-semibold text-white">
                   {displayName?.slice(0, 1).toUpperCase()}
                 </div>
-                <div className="hidden max-w-[170px] min-w-0 2xl:block">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                <div className="hidden max-w-[90px] min-w-0 2xl:block">
+                  <p className="truncate text-sm font-semibold text-slate-900">
                     {displayName}
                   </p>
                 </div>
-                <span className="text-[10px] text-slate-500">▾</span>
+                <span className="text-[10px] text-slate-400">▾</span>
               </button>
 
               {accountOpen && (
@@ -481,7 +492,7 @@ export default function Layout({ children }) {
                       {language === "fr" ? "Langue" : "Language"}
                     </p>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => switchLanguage("en")}
@@ -507,7 +518,13 @@ export default function Layout({ children }) {
                     </div>
                   </div>
 
-                  <div className="border-t border-slate-100 px-2 pt-2">
+                  <div className="border-t border-slate-100 px-2 pt-2 space-y-3">
+                    {isDevEnvironment && (
+                      <div className="px-2">
+                        <DevPlanSwitcher />
+                      </div>
+                    )}
+
                     <button
                       type="button"
                       onClick={handleLogout}
@@ -685,7 +702,9 @@ export default function Layout({ children }) {
               </div>
             </div>
 
-            <div className="border-t border-slate-200 p-5">
+            <div className="border-t border-slate-200 p-5 space-y-4">
+              {isDevEnvironment && <DevPlanSwitcher />}
+
               <button
                 type="button"
                 onClick={handleLogout}
@@ -699,7 +718,6 @@ export default function Layout({ children }) {
       )}
 
       <>
-        {/* 🔥 Onboarding Modal (auto-trigger for new users) */}
         <OnboardingModal />
 
         <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 lg:py-10">

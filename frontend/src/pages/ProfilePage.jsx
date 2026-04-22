@@ -36,6 +36,8 @@ const defaultForm = {
   studied_in_canada: false,
   occupation: "",
   noc_code: "",
+  job_description: "",
+  job_duties: "",
   preferred_province: "",
 };
 
@@ -107,11 +109,14 @@ export default function ProfilePage() {
         const response = await getMyProfile();
         const data = response.data;
 
-        setForm({
+        const hydrated = {
           ...defaultForm,
           ...data,
-        });
+        };
 
+        setForm(hydrated);
+        setNocDescription(hydrated.job_description || "");
+        setNocDutyInput(hydrated.job_duties || "");
         setProfileExists(true);
       } catch (err) {
         console.error(err);
@@ -226,10 +231,19 @@ export default function ProfilePage() {
         whyMatched: "Pourquoi ce CNP correspond",
         alternatives: "Autres options",
         useThisNoc: "Utiliser ce CNP",
+        applyDetailsToo: "Appliquer aussi la description",
         noAlternatives: "Aucune autre option disponible.",
         onboardingBanner:
           "Complétez votre profil pour débloquer votre stratégie personnalisée.",
         navTitle: "Navigation",
+        detectedNocCard: "Détection CNP",
+        detectedNocCardBody:
+          "Décrivez votre vrai rôle pour améliorer la précision du CNP détecté et des recommandations d’immigration.",
+        jobDetails: "Détails du poste",
+        jobDetailsBody:
+          "Ces détails renforcent la détection CNP et aident l’IA à comprendre votre rôle réel.",
+        saveJobDetailsHint:
+          "La description du poste et les responsabilités seront enregistrées dans votre profil.",
       };
     }
 
@@ -315,10 +329,19 @@ export default function ProfilePage() {
       whyMatched: "Why this matched",
       alternatives: "Other likely options",
       useThisNoc: "Use this NOC",
+      applyDetailsToo: "Apply details too",
       noAlternatives: "No alternative options available.",
       onboardingBanner:
         "Complete your profile to unlock your personalized strategy.",
       navTitle: "Navigation",
+      detectedNocCard: "NOC detection",
+      detectedNocCardBody:
+        "Describe your real role to improve detected NOC accuracy and immigration recommendations.",
+      jobDetails: "Job details",
+      jobDetailsBody:
+        "These details strengthen NOC detection and help the AI understand your real role.",
+      saveJobDetailsHint:
+        "Job description and responsibilities will be saved in your profile.",
     };
   }, [language, isOnboarding]);
 
@@ -408,6 +431,11 @@ export default function ProfilePage() {
     [pageText]
   );
 
+  const normalizedConfidence = useMemo(() => {
+    const raw = nocResult?.confidence || 0;
+    return Math.round(raw * 100);
+  }, [nocResult]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
@@ -471,15 +499,30 @@ export default function ProfilePage() {
     }
   };
 
-  const applySuggestedNoc = (noc) => {
+  const applySuggestedNoc = (noc, options = {}) => {
     if (!noc) return;
+
+    const shouldApplyDetails = Boolean(options.applyDetails);
+
     setForm((prev) => ({
       ...prev,
       noc_code: noc,
+      job_description: shouldApplyDetails ? nocDescription : prev.job_description,
+      job_duties: shouldApplyDetails ? nocDutyInput : prev.job_duties,
     }));
-    setMessage(
-      language === "fr" ? "CNP appliqué au profil." : "NOC applied to profile."
-    );
+
+    if (shouldApplyDetails) {
+      setMessage(
+        language === "fr"
+          ? "CNP et détails du poste appliqués au profil."
+          : "NOC and job details applied to profile."
+      );
+    } else {
+      setMessage(
+        language === "fr" ? "CNP appliqué au profil." : "NOC applied to profile."
+      );
+    }
+
     setActiveSection("immigration");
   };
 
@@ -505,6 +548,8 @@ export default function ProfilePage() {
         preferred_language: form.preferred_language || "en",
         occupation: form.occupation?.trim() || null,
         noc_code: form.noc_code?.trim() || null,
+        job_description: nocDescription?.trim() || null,
+        job_duties: nocDutyInput?.trim() || null,
         preferred_province: form.preferred_province || null,
       };
 
@@ -527,6 +572,12 @@ export default function ProfilePage() {
       window.dispatchEvent(new Event("userUpdated"));
 
       await refreshCurrentUser();
+
+      setForm((prev) => ({
+        ...prev,
+        job_description: payload.job_description || "",
+        job_duties: payload.job_duties || "",
+      }));
 
       setMessage(
         language === "fr"
@@ -878,6 +929,32 @@ Return:
                       onChange={handleChange}
                     />
 
+                    <div className="md:col-span-2 rounded-[24px] border border-blue-200 bg-blue-50 p-4">
+                      <p className="text-sm font-semibold text-blue-900">
+                        {pageText.detectedNocCard}
+                      </p>
+                      <p className="mt-1 text-sm text-blue-800">
+                        {pageText.detectedNocCardBody}
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setActiveSection("noc")}
+                        >
+                          {pageText.suggestNoc}
+                        </Button>
+
+                        {nocResult?.suggested_noc ? (
+                          <div className="inline-flex items-center rounded-full border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700">
+                            {nocResult.suggested_noc} — {nocResult.suggested_title} ·{" "}
+                            {pageText.confidence}: {normalizedConfidence}%
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
                     <div className="md:col-span-2">
                       <label className="mb-2 block text-sm font-medium text-slate-700">
                         {pageText.preferredProvince}
@@ -896,6 +973,59 @@ Return:
                         ))}
                       </select>
                     </div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-5">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {pageText.jobDetails}
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-slate-600">
+                      {pageText.jobDetailsBody}
+                    </p>
+
+                    <div className="mt-4 grid gap-4">
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                          {pageText.nocDescription}
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={nocDescription}
+                          onChange={(e) => {
+                            setNocDescription(e.target.value);
+                            setForm((prev) => ({
+                              ...prev,
+                              job_description: e.target.value,
+                            }));
+                          }}
+                          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                          placeholder={pageText.nocDescriptionPlaceholder}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                          {pageText.nocDuties}
+                        </label>
+                        <textarea
+                          rows={5}
+                          value={nocDutyInput}
+                          onChange={(e) => {
+                            setNocDutyInput(e.target.value);
+                            setForm((prev) => ({
+                              ...prev,
+                              job_duties: e.target.value,
+                            }));
+                          }}
+                          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                          placeholder={pageText.nocDutiesPlaceholder}
+                        />
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-xs text-slate-500">
+                      {pageText.saveJobDetailsHint}
+                    </p>
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-3">
@@ -948,7 +1078,13 @@ Return:
                       <textarea
                         rows={5}
                         value={nocDescription}
-                        onChange={(e) => setNocDescription(e.target.value)}
+                        onChange={(e) => {
+                          setNocDescription(e.target.value);
+                          setForm((prev) => ({
+                            ...prev,
+                            job_description: e.target.value,
+                          }));
+                        }}
                         className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                         placeholder={pageText.nocDescriptionPlaceholder}
                       />
@@ -961,7 +1097,13 @@ Return:
                       <textarea
                         rows={5}
                         value={nocDutyInput}
-                        onChange={(e) => setNocDutyInput(e.target.value)}
+                        onChange={(e) => {
+                          setNocDutyInput(e.target.value);
+                          setForm((prev) => ({
+                            ...prev,
+                            job_duties: e.target.value,
+                          }));
+                        }}
                         className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                         placeholder={pageText.nocDutiesPlaceholder}
                       />
@@ -995,8 +1137,7 @@ Return:
                               {pageText.teer}: {nocResult.teer}
                             </span>
                             <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                              {pageText.confidence}:{" "}
-                              {Math.round((nocResult.confidence || 0) * 100)}%
+                              {pageText.confidence}: {normalizedConfidence}%
                             </span>
                             <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                               {pageText.category}: {nocResult.broad_category}
@@ -1004,12 +1145,26 @@ Return:
                           </div>
                         </div>
 
-                        <div>
+                        <div className="flex flex-col gap-2">
                           <Button
                             type="button"
-                            onClick={() => applySuggestedNoc(nocResult.suggested_noc)}
+                            onClick={() =>
+                              applySuggestedNoc(nocResult.suggested_noc)
+                            }
                           >
                             {pageText.useThisNoc}
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() =>
+                              applySuggestedNoc(nocResult.suggested_noc, {
+                                applyDetails: true,
+                              })
+                            }
+                          >
+                            {pageText.applyDetailsToo}
                           </Button>
                         </div>
                       </div>
@@ -1050,13 +1205,24 @@ Return:
                                   {pageText.teer}: {alt.teer} · {pageText.confidence}:{" "}
                                   {Math.round((alt.confidence || 0) * 100)}%
                                 </p>
-                                <div className="mt-4">
+                                <div className="mt-4 flex flex-wrap gap-2">
                                   <Button
                                     type="button"
                                     variant="secondary"
                                     onClick={() => applySuggestedNoc(alt.noc)}
                                   >
                                     {pageText.useThisNoc}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="subtle"
+                                    onClick={() =>
+                                      applySuggestedNoc(alt.noc, {
+                                        applyDetails: true,
+                                      })
+                                    }
+                                  >
+                                    {pageText.applyDetailsToo}
                                   </Button>
                                 </div>
                               </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
@@ -156,11 +156,11 @@ function getCategoryLabel(category, language) {
 
 function PageHeader({ brand, title, subtitle }) {
   return (
-    <div className="mb-8 max-w-3xl">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+    <div className="mb-6 max-w-3xl">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
         {brand}
       </p>
-      <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
         {title}
       </h1>
       <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
@@ -187,18 +187,17 @@ function StatPill({ active, children }) {
 function CategoryNavButton({ active, label, count, onClick }) {
   return (
     <button
-      type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
+      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
         active
-          ? "bg-blue-50 text-blue-800"
-          : "text-slate-700 hover:bg-slate-50"
+          ? "bg-blue-50 font-semibold text-blue-700"
+          : "text-slate-600 hover:bg-slate-50"
       }`}
     >
-      <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
+      <span>{label}</span>
       <span
-        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-          active ? "bg-white text-blue-700" : "bg-slate-100 text-slate-600"
+        className={`text-xs font-medium ${
+          active ? "text-blue-700" : "text-slate-400"
         }`}
       >
         {count}
@@ -220,6 +219,122 @@ function SummaryStatCard({ label, value }) {
   );
 }
 
+function ProgressBadge({ value, text }) {
+  const percentage = Math.max(0, Math.min(100, Number(value || 0)));
+
+  return (
+    <Card padding="lg" className="border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+        {text.progressTitle}
+      </p>
+      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        {percentage}%
+      </h2>
+      <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
+        <div
+          className="h-2 rounded-full bg-blue-600 transition-all duration-300"
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <p className="mt-3 text-sm leading-7 text-slate-600">
+        {text.progressBody}
+      </p>
+    </Card>
+  );
+}
+
+function FirstRunHero({
+  language,
+  isPro,
+  isPremium,
+  text,
+  onPrimary,
+  onSecondary,
+}) {
+  const unlocked = isPro || isPremium;
+
+  return (
+    <Card
+      padding="lg"
+      className={`overflow-hidden ${
+        unlocked
+          ? "border-green-200 bg-gradient-to-br from-green-50 via-white to-white"
+          : "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white"
+      }`}
+    >
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <div
+            className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white ${
+              unlocked ? "bg-green-600" : "bg-blue-600"
+            }`}
+          >
+            {unlocked ? text.unlockedTitle : text.guidedTitle}
+          </div>
+
+          <h2 className="mt-4 text-[28px] font-semibold tracking-tight text-slate-900 md:text-[34px]">
+            {unlocked ? text.unlockedHeadline : text.guidedHeadline}
+          </h2>
+
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-700">
+            {unlocked ? text.unlockedBody : text.guidedBody}
+          </p>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <StatPill active={unlocked}>
+              {unlocked ? text.unlockedBadge : text.lockedBadge}
+            </StatPill>
+            {isPremium ? <StatPill active>{text.premiumBadge}</StatPill> : null}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={onPrimary}>{text.primaryAction}</Button>
+          <Button variant="secondary" onClick={onSecondary}>
+            {text.secondaryAction}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function NextStepCard({ text, firstIncompleteDoc, onStart, onForms, onReview }) {
+  return (
+    <Card padding="lg" className="border-slate-200 bg-white">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+        {text.nextStepTitle}
+      </p>
+      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        {text.nextStepHeadline}
+      </h2>
+      <p className="mt-3 text-sm leading-7 text-slate-600">
+        {firstIncompleteDoc
+          ? `${text.nextStepBody} ${firstIncompleteDoc.title[text.language]}.`
+          : text.nextStepNoDoc}
+      </p>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <Button onClick={onStart}>{text.primaryAction}</Button>
+        <Button variant="secondary" onClick={onForms}>
+          {text.formsAction}
+        </Button>
+        <Button variant="secondary" onClick={onReview}>
+          {text.reviewAction}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function DashboardSectionTitle({ children }) {
+  return (
+    <h2 className="text-xl font-semibold tracking-tight text-slate-900">
+      {children}
+    </h2>
+  );
+}
+
 function DocumentCard({
   doc,
   state,
@@ -233,15 +348,26 @@ function DocumentCard({
   onReset,
   language,
 }) {
-  return (
-    <Card padding="lg" className="h-full">
-      <div className="flex h-full flex-col">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">
-            {doc.title[language]}
-          </h3>
+  const progressCount = [
+    state.drafted,
+    state.reviewed,
+    state.completed,
+  ].filter(Boolean).length;
 
-          <p className="mt-2 text-sm leading-7 text-slate-600">
+  return (
+    <Card padding="lg" className="h-full transition hover:shadow-md">
+      <div className="flex h-full flex-col justify-between">
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-base font-semibold text-slate-900">
+              {doc.title[language]}
+            </h3>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+              {progressCount}/3
+            </span>
+          </div>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
             {doc.description[language]}
           </p>
 
@@ -250,55 +376,85 @@ function DocumentCard({
             <StatPill active={state.reviewed}>{text.markReviewed}</StatPill>
             <StatPill active={state.completed}>{text.markCompleted}</StatPill>
           </div>
+
+          {!isPro && (
+            <div className="mt-4">
+              <UpgradePrompt
+                compact
+                title={text.featureLocked}
+                body={text.featureLockedBody}
+              />
+            </div>
+          )}
         </div>
 
-        <div className="mt-5 space-y-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button variant="primary" onClick={onGenerate} fullWidth>
+        <div className="mt-5 space-y-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="primary" onClick={onGenerate} className="w-full justify-center">
               {text.generate}
             </Button>
 
-            <Button variant="secondary" onClick={onReview} fullWidth>
+            <Button variant="secondary" onClick={onReview} className="w-full justify-center">
               {text.review}
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <Button variant="subtle" onClick={onMarkDraft} fullWidth>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="subtle" onClick={onMarkDraft}>
               {text.markDraft}
             </Button>
 
-            <Button variant="subtle" onClick={onMarkReviewed} fullWidth>
+            <Button variant="subtle" onClick={onMarkReviewed}>
               {text.markReviewed}
             </Button>
 
-            <Button variant="premium" onClick={onMarkCompleted} fullWidth>
+            <Button variant="premium" onClick={onMarkCompleted}>
               {text.markCompleted}
             </Button>
           </div>
 
-          <Button variant="ghost" onClick={onReset} fullWidth>
+          <Button variant="ghost" onClick={onReset} className="w-full justify-center">
             {text.reset}
           </Button>
         </div>
-
-        {!isPro && (
-          <div className="mt-5">
-            <UpgradePrompt
-              compact
-              title={text.featureLocked}
-              body={text.featureLockedBody}
-              buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
-            />
-          </div>
-        )}
       </div>
+    </Card>
+  );
+}
+
+function PathwayBanner({ pathway, language }) {
+  if (!pathway) return null;
+
+  return (
+    <Card
+      padding="lg"
+      className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+        {language === "fr" ? "Parcours sélectionné" : "Selected pathway"}
+      </p>
+
+      <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+        {pathway}
+      </h2>
+
+      <p className="mt-3 text-sm text-slate-700">
+        {language === "fr"
+          ? "Ces documents sont adaptés à votre stratégie d’immigration."
+          : "These documents are aligned with your immigration strategy."}
+      </p>
     </Card>
   );
 }
 
 export default function SelfDocumentsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const pathway = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("pathway");
+}, [location.search]);
   const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
 
@@ -333,7 +489,7 @@ export default function SelfDocumentsPage() {
     }
   }
 
-  const isPro = Boolean(access?.is_pro);
+  const isPro = Boolean(access?.is_pro || access?.is_premium);
   const isPremium = Boolean(access?.is_premium);
 
   const engine = useMemo(() => readCompletionEngine(), [engineVersion]);
@@ -348,6 +504,12 @@ export default function SelfDocumentsPage() {
       completed: states.filter((item) => item.completed).length,
     };
   }, [engine]);
+
+  const overallProgress = useMemo(() => {
+    const totalPossible = DOCUMENT_LIBRARY.length * 3;
+    const done = stats.drafted + stats.reviewed + stats.completed;
+    return totalPossible > 0 ? Math.round((done / totalPossible) * 100) : 0;
+  }, [stats]);
 
   const groupedDocuments = useMemo(() => {
     return getCategoryOrder().map((category) => ({
@@ -364,6 +526,39 @@ export default function SelfDocumentsPage() {
     );
   }, [groupedDocuments, activeCategory]);
 
+  const firstIncompleteDoc = useMemo(() => {
+    const priorityMap = {
+      "Express Entry": [
+        "language_results",
+        "work_experience_records",
+        "education_records",
+        "proof_of_funds",
+      ],
+      "PNP": [
+        "work_experience_records",
+        "proof_of_funds",
+        "education_records",
+      ],
+    };
+
+    const priorities = pathway ? priorityMap[pathway] || [] : [];
+
+    const orderedDocs = [
+      ...priorities,
+      ...DOCUMENT_LIBRARY.map((d) => d.id),
+    ];
+
+  return orderedDocs
+    .map((id) =>
+      DOCUMENT_LIBRARY.find((doc) => doc.id === id)
+    )
+    .find((doc) => {
+      if (!doc) return false;
+      const state = getDocumentState(engine, doc.id);
+      return !state.completed;
+    });
+}, [engine, pathway]);
+
   function handleOpenGenerator(id) {
     if (!isPro) {
       navigate(buildProPricingPath("documents", "execute"));
@@ -377,12 +572,18 @@ export default function SelfDocumentsPage() {
 
   function handleOpenReview(id) {
     if (!isPro) {
-      navigate(buildProPricingPath("documents", "improve"));
+      navigate(
+        `/documents/generator?checklist_id=${id}&source=documents&intent=execute${
+          pathway ? `&pathway=${encodeURIComponent(pathway)}` : ""
+        }`
+      );
       return;
     }
 
     navigate(
-      `/documents/review?checklist_id=${id}&source=documents&intent=improve`
+      `/documents/review?checklist_id=${id}&source=documents&intent=improve${
+        pathway ? `&pathway=${encodeURIComponent(pathway)}` : ""
+      }`
     );
   }
 
@@ -432,10 +633,11 @@ export default function SelfDocumentsPage() {
   const text = useMemo(() => {
     if (language === "fr") {
       return {
+        language,
         brand: "NorthBridgeAI",
         title: "Mes documents",
         subtitle:
-          "Naviguez par catégorie, suivez votre progression et préparez vos brouillons sans avoir à parcourir une longue page.",
+          "Naviguez par catégorie, suivez votre progression et préparez vos brouillons avec un flux plus guidé.",
         copilotTitle: "Copilote IA Documents",
         copilotDesc:
           "Obtenez une recommandation sur les documents à prioriser selon votre progression actuelle.",
@@ -465,14 +667,38 @@ export default function SelfDocumentsPage() {
         sectionLabel: "Espace documentaire",
         categoryCount: "Catégorie",
         navTitle: "Navigation",
+        progressTitle: "Progression",
+        progressBody:
+          "Suivez l’avancement global de vos brouillons, révisions et documents finalisés.",
+        guidedTitle: "Flux guidé",
+        unlockedTitle: "Accès débloqué",
+        guidedHeadline: "Commencez par votre premier document prioritaire",
+        unlockedHeadline: "Vos outils documents sont maintenant disponibles",
+        guidedBody:
+          "Explorez vos catégories, ouvrez le générateur et marquez vos étapes à mesure que votre dossier progresse.",
+        unlockedBody:
+          "Générez, révisez et organisez vos documents plus rapidement avec un workflow orienté exécution.",
+        lockedBadge: "Pro requis",
+        unlockedBadge: "Exécution débloquée",
+        premiumBadge: "Premium actif",
+        primaryAction: "Ouvrir le générateur",
+        secondaryAction: "Voir Forms Studio",
+        nextStepTitle: "Étape recommandée",
+        nextStepHeadline: "Voici votre meilleure prochaine action",
+        nextStepBody: "Le prochain document à traiter est",
+        nextStepNoDoc:
+          "Tous vos documents semblent complétés. Vous pouvez maintenant revoir ou finaliser votre dossier.",
+        formsAction: "Forms Studio",
+        reviewAction: "Révision IA",
       };
     }
 
     return {
+      language,
       brand: "NorthBridgeAI",
       title: "My Documents",
       subtitle:
-        "Navigate by category, track your progress, and prepare drafts without scrolling through a long page.",
+        "Navigate by category, track your progress, and prepare drafts with a more guided workflow.",
       copilotTitle: "Documents AI Copilot",
       copilotDesc:
         "Get recommendations on which documents to prioritize based on your current progress.",
@@ -502,6 +728,29 @@ export default function SelfDocumentsPage() {
       sectionLabel: "Document workspace",
       categoryCount: "Category",
       navTitle: "Navigation",
+      progressTitle: "Progress",
+      progressBody:
+        "Track your overall draft, review, and completion progress across the document workspace.",
+      guidedTitle: "Guided workflow",
+      unlockedTitle: "Access unlocked",
+      guidedHeadline: "Start with your highest-priority first document",
+      unlockedHeadline: "Your document tools are now available",
+      guidedBody:
+        "Explore categories, open the generator, and mark each step as your case progresses.",
+      unlockedBody:
+        "Generate, review, and organize your documents faster with an execution-focused workflow.",
+      lockedBadge: "Pro required",
+      unlockedBadge: "Execution unlocked",
+      premiumBadge: "Premium active",
+      primaryAction: "Open generator",
+      secondaryAction: "View Forms Studio",
+      nextStepTitle: "Recommended next step",
+      nextStepHeadline: "Here is your best next action",
+      nextStepBody: "The next document to work on is",
+      nextStepNoDoc:
+        "Your documents look completed. You can now review or finalize your case.",
+      formsAction: "Forms Studio",
+      reviewAction: "AI Review",
     };
   }, [language]);
 
@@ -511,6 +760,20 @@ export default function SelfDocumentsPage() {
         brand={text.brand}
         title={text.title}
         subtitle={text.subtitle}
+      />
+      <PathwayBanner pathway={pathway} language={language} />
+
+      <FirstRunHero
+        language={language}
+        isPro={isPro}
+        isPremium={isPremium}
+        text={text}
+        onPrimary={() =>
+          firstIncompleteDoc
+            ? handleOpenGenerator(firstIncompleteDoc.id)
+            : navigate("/documents/generator")
+        }
+        onSecondary={() => navigate("/forms")}
       />
 
       <AICopilotCard
@@ -535,14 +798,31 @@ export default function SelfDocumentsPage() {
         />
       )}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <SummaryStatCard label={text.total} value={stats.total} />
         <SummaryStatCard label={text.drafted} value={stats.drafted} />
         <SummaryStatCard label={text.reviewed} value={stats.reviewed} />
         <SummaryStatCard label={text.completed} value={stats.completed} />
+        <ProgressBadge value={overallProgress} text={text} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
+      <NextStepCard
+        text={text}
+        firstIncompleteDoc={firstIncompleteDoc}
+        onStart={() =>
+          firstIncompleteDoc
+            ? handleOpenGenerator(firstIncompleteDoc.id)
+            : navigate("/documents/generator")
+        }
+        onForms={() => navigate("/forms")}
+        onReview={() =>
+          firstIncompleteDoc
+            ? handleOpenReview(firstIncompleteDoc.id)
+            : navigate("/documents/review")
+        }
+      />
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[260px_1fr]">
         <div className="space-y-6">
           <Card padding="lg" className="xl:sticky xl:top-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -582,19 +862,19 @@ export default function SelfDocumentsPage() {
 
         <div className="space-y-6">
           <Card padding="lg">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
                   {text.sectionLabel}
                 </p>
-                <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+                <h2 className="mt-1 text-xl font-semibold text-slate-900">
                   {activeGroup?.label}
                 </h2>
               </div>
 
-              <div className="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
-                {text.categoryCount}: {activeGroup?.documents?.length || 0}
-              </div>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-500">
+                {activeGroup?.documents?.length} docs
+              </span>
             </div>
           </Card>
 
@@ -635,12 +915,18 @@ export default function SelfDocumentsPage() {
       </div>
 
       {isPro && !isPremium && (
-        <Card variant="premium" padding="lg" className="mt-10">
+        <Card
+          variant="premium"
+          padding="lg"
+          className="mt-10 bg-gradient-to-br from-violet-50 via-white to-white"
+        >
           <h3 className="text-xl font-semibold text-slate-900">
             {text.finalizeTitle}
           </h3>
 
-          <p className="mt-2 text-sm text-slate-600">{text.finalizeBody}</p>
+          <p className="mt-2 text-sm leading-7 text-slate-600">
+            {text.finalizeBody}
+          </p>
 
           <div className="mt-4 flex gap-3">
             <Button

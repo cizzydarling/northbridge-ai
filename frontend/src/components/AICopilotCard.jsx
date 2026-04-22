@@ -48,13 +48,7 @@ function normalizeActions(value) {
 function extractReply(data) {
   if (!data || typeof data !== "object") return "";
 
-  return (
-    data.reply ||
-    data.summary ||
-    data.overall_assessment ||
-    data.message ||
-    ""
-  );
+  return data.reply || data.summary || data.overall_assessment || data.message || "";
 }
 
 function extractInsights(data) {
@@ -84,6 +78,22 @@ function extractActions(data) {
   return [];
 }
 
+function SparkBadge({ children }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+      {children}
+    </span>
+  );
+}
+
+function InsightItem({ item }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-700 shadow-sm">
+      {item}
+    </div>
+  );
+}
+
 export default function AICopilotCard({
   title = "AI Copilot",
   description = "Get AI guidance based on your current NorthBridgeAI context.",
@@ -105,22 +115,32 @@ export default function AICopilotCard({
     if (lang === "fr") {
       return {
         eyebrow: "Copilote IA",
+        badge: "Guidance live",
         thinking: "Analyse en cours...",
         error: "Impossible de charger la réponse IA pour le moment.",
         keyInsights: "Points clés",
         suggestedActions: "Actions suggérées",
         empty:
           "Cliquez pour obtenir une guidance IA adaptée à cette page.",
+        readyTitle: "Lecture stratégique instantanée",
+        readyBody:
+          "Le copilote transforme le contexte de cette page en recommandations plus claires, plus ciblées et plus exploitables.",
+        resultTitle: "Réponse IA",
       };
     }
 
     return {
       eyebrow: "AI Copilot",
+      badge: "Live guidance",
       thinking: "Thinking...",
       error: "Unable to load AI response right now.",
       keyInsights: "Key insights",
       suggestedActions: "Suggested actions",
       empty: "Click to get AI guidance tailored to this page.",
+      readyTitle: "Instant strategic read",
+      readyBody:
+        "The copilot turns this page context into clearer, more targeted, more actionable recommendations.",
+      resultTitle: "AI response",
     };
   }, [lang]);
 
@@ -162,9 +182,7 @@ export default function AICopilotCard({
     } catch (err) {
       console.error(err);
       setError(
-        err?.response?.data?.detail ||
-          err?.response?.data?.message ||
-          text.error
+        err?.response?.data?.detail || err?.response?.data?.message || text.error
       );
     } finally {
       setLoading(false);
@@ -179,41 +197,60 @@ export default function AICopilotCard({
   return (
     <Card
       variant="glass"
-      className={`border border-blue-100 p-6 ${className}`}
+      className={`overflow-hidden border border-blue-100/80 bg-gradient-to-br from-white/90 via-white/80 to-blue-50/50 ${className}`}
+      padding="lg"
     >
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
-              {text.eyebrow}
-            </p>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div className="max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <SparkBadge>{text.eyebrow}</SparkBadge>
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">
+                {text.badge}
+              </span>
+            </div>
 
-            <h2 className="mt-2 text-xl font-semibold text-slate-900">
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">
               {title}
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {description}
-            </p>
+            <p className="mt-2 text-sm leading-7 text-slate-600">{description}</p>
+
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-900">
+                {text.readyTitle}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {text.readyBody}
+              </p>
+            </div>
           </div>
 
-          <Button onClick={handleAsk} disabled={loading}>
-            {loading ? text.thinking : buttonLabel}
-          </Button>
+          <div className="shrink-0">
+            <Button onClick={handleAsk} loading={loading} variant="premium">
+              {loading ? text.thinking : buttonLabel}
+            </Button>
+          </div>
         </div>
 
         {(loading || error || reply) && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              {text.resultTitle}
+            </p>
+
             {loading ? (
-              <p className="text-sm text-slate-500">{text.thinking}</p>
+              <p className="mt-3 text-sm text-slate-500">{text.thinking}</p>
             ) : null}
 
             {!loading && error ? (
-              <div className="text-sm text-red-600">{error}</div>
+              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
             ) : null}
 
             {!loading && !error && reply ? (
-              <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
+              <p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-700">
                 {reply}
               </p>
             ) : null}
@@ -228,12 +265,7 @@ export default function AICopilotCard({
 
             <div className="mt-3 space-y-2">
               {insights.map((item, idx) => (
-                <div
-                  key={`${item}-${idx}`}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
-                >
-                  {item}
-                </div>
+                <InsightItem key={`${item}-${idx}`} item={item} />
               ))}
             </div>
           </div>
@@ -251,9 +283,9 @@ export default function AICopilotCard({
                   key={`${action.label}-${idx}`}
                   type="button"
                   onClick={() => handleActionClick(action)}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                  className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${
                     action.route
-                      ? "border-slate-300 bg-white hover:bg-slate-50 hover:shadow-sm"
+                      ? "border-slate-300 bg-white text-slate-900 hover:bg-slate-50 hover:shadow-sm"
                       : "cursor-default border-slate-200 bg-slate-50 text-slate-700"
                   }`}
                 >
@@ -265,7 +297,7 @@ export default function AICopilotCard({
         )}
 
         {!loading && !error && !hasContent && (
-          <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-4 text-sm text-slate-500">
             {text.empty}
           </div>
         )}

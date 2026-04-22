@@ -10,10 +10,17 @@ import {
   deleteDocument,
   downloadAIDocumentDocx,
   duplicateDocument,
+  explainAIDocument,
+  fixAIDocumentIssues,
   generateAIDocument,
   getBillingAccess,
   getDocument,
   getSavedDocuments,
+  improveAIDocumentBody,
+  improveAIDocumentConclusion,
+  improveAIDocumentIntro,
+  makeAIDocumentOfficerReady,
+  scoreAIDocumentConfidence,
   updateDocument,
 } from "../api";
 import { exportDocumentToPdf } from "../utils/documentPdf";
@@ -193,6 +200,57 @@ function buildContextualInstructions({
   return sections.filter(Boolean).join("\n\n");
 }
 
+function normalizeParagraphs(value) {
+  return String(value || "").replace(/\r/g, "").trim();
+}
+
+function splitContentIntoSections(content) {
+  const text = normalizeParagraphs(content);
+
+  if (!text) {
+    return {
+      intro: "",
+      body: "",
+      conclusion: "",
+    };
+  }
+
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (paragraphs.length <= 1) {
+    return {
+      intro: paragraphs[0] || "",
+      body: "",
+      conclusion: "",
+    };
+  }
+
+  if (paragraphs.length === 2) {
+    return {
+      intro: paragraphs[0] || "",
+      body: "",
+      conclusion: paragraphs[1] || "",
+    };
+  }
+
+  return {
+    intro: paragraphs[0] || "",
+    body: paragraphs.slice(1, -1).join("\n\n"),
+    conclusion: paragraphs[paragraphs.length - 1] || "",
+  };
+}
+
+function buildCombinedContentFromSections(sections) {
+  const intro = normalizeParagraphs(sections?.intro);
+  const body = normalizeParagraphs(sections?.body);
+  const conclusion = normalizeParagraphs(sections?.conclusion);
+
+  return [intro, body, conclusion].filter(Boolean).join("\n\n");
+}
+
 function scoreDocument({
   content,
   additionalInstructions,
@@ -268,6 +326,7 @@ function scoreDocument({
     /(because|therefore|however|specifically|in addition|as a result|car|donc|cependant|ainsi|de plus|par conséquent)/i.test(
       text
     );
+
   if (hasTransitionWords) {
     score += 10;
     strengths.push(
@@ -300,6 +359,7 @@ function scoreDocument({
 
   if (sourceContext?.noc) {
     const nocFound = lower.includes(String(sourceContext.noc).toLowerCase());
+
     if (nocFound) {
       score += 8;
       strengths.push(
@@ -317,6 +377,7 @@ function scoreDocument({
   }
 
   const hasFirstPerson = /\b(i|my|me|je|j’|j'|mon|ma|mes|moi)\b/i.test(text);
+
   if (hasFirstPerson) {
     score += 8;
     strengths.push(
@@ -536,10 +597,257 @@ function ScorePanel({ scoring, language }) {
   );
 }
 
+function SectionBuilder({
+  sections,
+  setSections,
+  language,
+  onImproveSection,
+  improvingSection,
+}) {
+  const text =
+    language === "fr"
+      ? {
+          eyebrow: "Constructeur par sections",
+          title: "Introduction, développement, conclusion",
+          body:
+            "Ajustez la structure du brouillon dans des blocs distincts pour mieux contrôler le message.",
+          intro: "Introduction",
+          introPlaceholder:
+            "Présentez l’objet du document, le contexte principal et votre intention.",
+          main: "Développement principal",
+          mainPlaceholder:
+            "Expliquez les faits, la chronologie, la logique et les éléments qui soutiennent votre dossier.",
+          conclusion: "Conclusion",
+          conclusionPlaceholder:
+            "Terminez avec une synthèse claire et crédible de votre demande ou explication.",
+          improveIntro: "Améliorer l’introduction",
+          improveBody: "Améliorer le développement",
+          improveConclusion: "Améliorer la conclusion",
+          improving: "Amélioration...",
+        }
+      : {
+          eyebrow: "Section builder",
+          title: "Introduction, body, conclusion",
+          body:
+            "Refine the draft in distinct blocks for better control over structure and messaging.",
+          intro: "Introduction",
+          introPlaceholder:
+            "Introduce the purpose of the document, the key context, and your intent.",
+          main: "Main body",
+          mainPlaceholder:
+            "Explain the facts, chronology, logic, and details that support your file.",
+          conclusion: "Conclusion",
+          conclusionPlaceholder:
+            "Close with a clear and credible summary of your request or explanation.",
+          improveIntro: "Improve introduction",
+          improveBody: "Improve body",
+          improveConclusion: "Improve conclusion",
+          improving: "Improving...",
+        };
+
+  return (
+    <Card padding="lg">
+      <SectionIntro
+        eyebrow={text.eyebrow}
+        title={text.title}
+        body={text.body}
+      />
+
+      <div className="mt-6 space-y-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            {text.intro}
+          </label>
+          <textarea
+            rows={5}
+            value={sections.intro}
+            onChange={(e) =>
+              setSections((prev) => ({ ...prev, intro: e.target.value }))
+            }
+            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+            placeholder={text.introPlaceholder}
+          />
+          <div className="mt-3">
+            <Button
+              variant="secondary"
+              onClick={() => onImproveSection("intro")}
+              disabled={improvingSection === "intro" || !sections.intro?.trim()}
+            >
+              {improvingSection === "intro"
+                ? text.improving
+                : text.improveIntro}
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            {text.main}
+          </label>
+          <textarea
+            rows={8}
+            value={sections.body}
+            onChange={(e) =>
+              setSections((prev) => ({ ...prev, body: e.target.value }))
+            }
+            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+            placeholder={text.mainPlaceholder}
+          />
+          <div className="mt-3">
+            <Button
+              variant="secondary"
+              onClick={() => onImproveSection("body")}
+              disabled={improvingSection === "body" || !sections.body?.trim()}
+            >
+              {improvingSection === "body"
+                ? text.improving
+                : text.improveBody}
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            {text.conclusion}
+          </label>
+          <textarea
+            rows={5}
+            value={sections.conclusion}
+            onChange={(e) =>
+              setSections((prev) => ({ ...prev, conclusion: e.target.value }))
+            }
+            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+            placeholder={text.conclusionPlaceholder}
+          />
+          <div className="mt-3">
+            <Button
+              variant="secondary"
+              onClick={() => onImproveSection("conclusion")}
+              disabled={
+                improvingSection === "conclusion" ||
+                !sections.conclusion?.trim()
+              }
+            >
+              {improvingSection === "conclusion"
+                ? text.improving
+                : text.improveConclusion}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function WhyThisWorksPanel({ explanation, language }) {
+  const text =
+    language === "fr"
+      ? {
+          eyebrow: "Pourquoi cela fonctionne",
+          title: "Explication de la logique du document",
+          body:
+            "Cette explication aide l’utilisateur à comprendre pourquoi le brouillon paraît plus crédible, structuré et persuasif.",
+        }
+      : {
+          eyebrow: "Why this works",
+          title: "Explanation of the draft logic",
+          body:
+            "This helps the user understand why the draft feels more credible, structured, and persuasive.",
+        };
+
+  return (
+    <Card variant="soft" padding="lg">
+      <SectionIntro eyebrow={text.eyebrow} title={text.title} body={text.body} />
+
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
+          {explanation}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function ConfidencePanel({ report, language }) {
+  return (
+    <Card variant="soft" padding="lg">
+      <SectionIntro
+        eyebrow={language === "fr" ? "Confiance" : "Confidence"}
+        title={
+          language === "fr"
+            ? "Évaluation de solidité"
+            : "Strength assessment"
+        }
+        body={
+          language === "fr"
+            ? "Cette analyse met en évidence le niveau global de solidité perçue du document."
+            : "This analysis highlights the document’s overall perceived strength."
+        }
+      />
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
+          {report}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function PremiumCommandBar({
+  language,
+  documentTypeLabel,
+  pathway,
+  sourceContext,
+  tone,
+  scoring,
+}) {
+  const items = [
+    {
+      label: language === "fr" ? "Document" : "Document",
+      value: documentTypeLabel || "--",
+    },
+    {
+      label: language === "fr" ? "Parcours" : "Pathway",
+      value: pathway || "--",
+    },
+    {
+      label: language === "fr" ? "CNP" : "NOC",
+      value: sourceContext?.noc || "--",
+    },
+    {
+      label: language === "fr" ? "Ton" : "Tone",
+      value: tone || "--",
+    },
+    {
+      label: language === "fr" ? "Score" : "Score",
+      value: scoring?.score ?? "--",
+    },
+  ];
+
+  return (
+    <Card
+      padding="lg"
+      className="mb-6 border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white"
+    >
+      <div className="grid gap-4 md:grid-cols-5">
+        {items.map((item) => (
+          <div key={item.label}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300">
+              {item.label}
+            </p>
+            <p className="mt-2 text-sm font-medium text-white">{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export default function DocumentGeneratorPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const pathway = searchParams.get("pathway") || "";
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const [access, setAccess] = useState(null);
@@ -550,6 +858,15 @@ export default function DocumentGeneratorPage() {
   const [drafts, setDrafts] = useState([]);
   const [selectedDraftId, setSelectedDraftId] = useState(null);
   const [generatorUsage, setGeneratorUsage] = useState(0);
+
+  const [sections, setSections] = useState({
+    intro: "",
+    body: "",
+    conclusion: "",
+  });
+
+  const [whyThisWorks, setWhyThisWorks] = useState("");
+  const [confidenceReport, setConfidenceReport] = useState("");
 
   const [sourceContext, setSourceContext] = useState({
     source: "",
@@ -567,6 +884,12 @@ export default function DocumentGeneratorPage() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [duplicatingDraft, setDuplicatingDraft] = useState(false);
   const [deletingDraft, setDeletingDraft] = useState(false);
+  const [explaining, setExplaining] = useState(false);
+  const [officerReadyLoading, setOfficerReadyLoading] = useState(false);
+  const [syncingSections, setSyncingSections] = useState(false);
+  const [fixingAll, setFixingAll] = useState(false);
+  const [improvingSection, setImprovingSection] = useState("");
+  const [scoringConfidence, setScoringConfidence] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -625,6 +948,28 @@ export default function DocumentGeneratorPage() {
     }
   }, [searchParams, language]);
 
+  useEffect(() => {
+    if (!result?.content) {
+      setSections({
+        intro: "",
+        body: "",
+        conclusion: "",
+      });
+      return;
+    }
+
+    if (result?.sections) {
+      setSections({
+        intro: result.sections.intro || "",
+        body: result.sections.body || "",
+        conclusion: result.sections.conclusion || "",
+      });
+      return;
+    }
+
+    setSections(splitContentIntoSections(result.content));
+  }, [result]);
+
   async function loadPage() {
     setGeneratorUsage(readGeneratorUsage());
     await Promise.all([loadDrafts(), loadAccess()]);
@@ -648,6 +993,72 @@ export default function DocumentGeneratorPage() {
     }
   }
 
+  const selectedDocumentMeta =
+    DOCUMENT_TYPES.find((item) => item.value === documentType) ||
+    DOCUMENT_TYPES[0];
+
+  const documentTypeLabel =
+    language === "fr" ? selectedDocumentMeta.fr : selectedDocumentMeta.en;
+
+  const locked = Boolean(result?.locked);
+  const upgradeReason =
+    result?.upgrade_reason ||
+    (language === "fr"
+      ? "Passez à Pro pour débloquer la génération complète, puis à Premium pour les exports PDF."
+      : "Upgrade to Pro to unlock full generation, then Premium for PDF exports.");
+
+  const canPreviewGenerator = Boolean(access?.can_preview_document_generator);
+  const canGenerateDocumentsFull = Boolean(access?.can_generate_documents_full);
+  const canDownloadDocx = Boolean(access?.can_download_document_docx);
+  const canExportPdf = Boolean(access?.can_export_pdf);
+  const canReviewDocumentsFull = Boolean(access?.can_review_documents_full);
+  const hasAdvancedCopilot = Boolean(access?.can_use_advanced_ai);
+
+  const remainingFreeGenerations = Math.max(
+    FREE_GENERATOR_LIMIT - generatorUsage,
+    0
+  );
+  const limitReached =
+    !canGenerateDocumentsFull && remainingFreeGenerations <= 0;
+  const nearLimit =
+    !canGenerateDocumentsFull &&
+    remainingFreeGenerations > 0 &&
+    remainingFreeGenerations <= 1;
+  const canGenerateMore =
+    canPreviewGenerator && (canGenerateDocumentsFull || !limitReached);
+
+  const proPath = buildProPricingPath("documents", "execute");
+  const premiumPath = buildPremiumPricingPath("documents", "export");
+
+  function getCurrentDraftContent() {
+    return buildCombinedContentFromSections(sections) || result?.content || "";
+  }
+
+  function updateResultContentFromSections(nextSections) {
+    const combined = buildCombinedContentFromSections(nextSections);
+
+    setSections(nextSections);
+    setResult((prev) => ({
+      ...(prev || {}),
+      title: prev?.title || documentTypeLabel,
+      content: combined,
+      sections: {
+        intro: nextSections.intro || "",
+        body: nextSections.body || "",
+        conclusion: nextSections.conclusion || "",
+      },
+    }));
+  }
+
+  function applyInstructionPreset(text) {
+    setAdditionalInstructions((prev) => {
+      const current = String(prev || "").trim();
+      if (!current) return text;
+      if (current.includes(text)) return current;
+      return `${current}\n\n${text}`;
+    });
+  }
+
   async function handleGenerate() {
     if (!canGenerateMore) {
       setResult({
@@ -664,6 +1075,8 @@ export default function DocumentGeneratorPage() {
       setLoading(true);
       setMessage("");
       setResult(null);
+      setWhyThisWorks("");
+      setConfidenceReport("");
       setSelectedDraftId(null);
 
       const contextualInstructions = buildContextualInstructions({
@@ -677,6 +1090,7 @@ export default function DocumentGeneratorPage() {
         language,
         tone,
         additional_instructions: contextualInstructions,
+        pathway,
       });
 
       setResult(res.data);
@@ -718,8 +1132,18 @@ export default function DocumentGeneratorPage() {
 
   async function handleCopy() {
     if (!result?.content) return;
-    await navigator.clipboard.writeText(result.content);
-    setMessage(language === "fr" ? "Document copié." : "Document copied.");
+
+    try {
+      await navigator.clipboard.writeText(getCurrentDraftContent());
+      setMessage(language === "fr" ? "Document copié." : "Document copied.");
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        language === "fr"
+          ? "Impossible de copier le document."
+          : "Failed to copy document."
+      );
+    }
   }
 
   async function handleDownloadWord() {
@@ -812,7 +1236,7 @@ export default function DocumentGeneratorPage() {
         documentTypeLabel,
         language,
         tone,
-        content: result.content,
+        content: getCurrentDraftContent(),
       });
 
       setMessage(
@@ -835,11 +1259,14 @@ export default function DocumentGeneratorPage() {
   async function handleOpenDraft(docId) {
     try {
       setMessage("");
+      setWhyThisWorks("");
+      setConfidenceReport("");
+
       const res = await getDocument(docId);
       const doc = res.data;
 
       setSelectedDraftId(doc.id);
-      setDocumentType(doc.document_type);
+      setDocumentType(doc.document_type || "letter_of_explanation");
       setTone(doc.tone || "professional");
       setAdditionalInstructions(doc.additional_instructions || "");
       setResult({
@@ -867,16 +1294,24 @@ export default function DocumentGeneratorPage() {
       setSavingDraft(true);
       setMessage("");
 
+      const currentContent = getCurrentDraftContent();
+
       const res = await updateDocument(selectedDraftId, {
-        content: result.content,
-        title: result.title,
+        content: currentContent,
+        title: result?.title || documentTypeLabel,
         tone,
         additional_instructions: additionalInstructions,
       });
 
       setResult((prev) => ({
-        ...prev,
-        ...res.data,
+        ...(prev || {}),
+        ...(res.data || {}),
+        content: currentContent,
+        sections: {
+          intro: sections.intro || "",
+          body: sections.body || "",
+          conclusion: sections.conclusion || "",
+        },
         is_premium: true,
         locked: false,
       }));
@@ -946,6 +1381,13 @@ export default function DocumentGeneratorPage() {
 
       setSelectedDraftId(null);
       setResult(null);
+      setWhyThisWorks("");
+      setConfidenceReport("");
+      setSections({
+        intro: "",
+        body: "",
+        conclusion: "",
+      });
 
       setMessage(language === "fr" ? "Brouillon supprimé." : "Draft deleted.");
     } catch (err) {
@@ -961,7 +1403,7 @@ export default function DocumentGeneratorPage() {
     }
   }
 
-  function handleOpenReview() {
+  async function handleOpenReview() {
     const params = new URLSearchParams();
     params.set("document_type", documentType);
 
@@ -976,57 +1418,265 @@ export default function DocumentGeneratorPage() {
       params.set("matter_type", sourceContext.matterType);
     }
     if (result?.content) {
-      params.set("content", encodeURIComponent(result.content));
+      params.set("content", getCurrentDraftContent());
     }
 
     navigate(`/documents/review?${params.toString()}`);
   }
 
-  function applyInstructionPreset(text) {
-    setAdditionalInstructions((prev) => {
-      const current = String(prev || "").trim();
-      if (!current) return text;
-      if (current.includes(text)) return current;
-      return `${current}\n\n${text}`;
-    });
+  async function handleExplainWhyThisWorks() {
+    const content = getCurrentDraftContent();
+    if (!content) return;
+
+    try {
+      setExplaining(true);
+      setMessage("");
+
+      const res = await explainAIDocument({
+        document_type: documentType,
+        language,
+        tone,
+        additional_instructions: content,
+      });
+
+      setWhyThisWorks(String(res?.data?.content || "").trim());
+      setMessage(
+        language === "fr"
+          ? "Explication générée."
+          : "Explanation generated."
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        language === "fr"
+          ? "Impossible de générer l’explication."
+          : "Failed to generate explanation."
+      );
+    } finally {
+      setExplaining(false);
+    }
   }
 
-  const selectedDocumentMeta =
-    DOCUMENT_TYPES.find((item) => item.value === documentType) ||
-    DOCUMENT_TYPES[0];
+  async function handleMakeOfficerReady() {
+    const content = getCurrentDraftContent();
+    if (!content) return;
 
-  const documentTypeLabel =
-    language === "fr" ? selectedDocumentMeta.fr : selectedDocumentMeta.en;
+    if (!hasAdvancedCopilot) {
+      navigate(proPath);
+      return;
+    }
 
-  const locked = Boolean(result?.locked);
-  const upgradeReason =
-    result?.upgrade_reason ||
-    (language === "fr"
-      ? "Passez à Pro pour débloquer la génération complète, puis à Premium pour les exports PDF."
-      : "Upgrade to Pro to unlock full generation, then Premium for PDF exports.");
+    try {
+      setOfficerReadyLoading(true);
+      setMessage("");
+      setWhyThisWorks("");
+      setConfidenceReport("");
 
-  const canPreviewGenerator = Boolean(access?.can_preview_document_generator);
-  const canGenerateDocumentsFull = Boolean(access?.can_generate_documents_full);
-  const canDownloadDocx = Boolean(access?.can_download_document_docx);
-  const canExportPdf = Boolean(access?.can_export_pdf);
-  const canReviewDocumentsFull = Boolean(access?.can_review_documents_full);
-  const hasAdvancedCopilot = Boolean(access?.can_use_advanced_ai);
+      const res = await makeAIDocumentOfficerReady({
+        document_type: documentType,
+        language,
+        tone,
+        additional_instructions: content,
+      });
 
-  const remainingFreeGenerations = Math.max(
-    FREE_GENERATOR_LIMIT - generatorUsage,
-    0
-  );
-  const limitReached =
-    !canGenerateDocumentsFull && remainingFreeGenerations <= 0;
-  const nearLimit =
-    !canGenerateDocumentsFull &&
-    remainingFreeGenerations > 0 &&
-    remainingFreeGenerations <= 1;
-  const canGenerateMore =
-    canPreviewGenerator && (canGenerateDocumentsFull || !limitReached);
+      const nextContent = String(res?.data?.content || "").trim();
+      const nextSections =
+        res?.data?.sections || splitContentIntoSections(nextContent);
 
-  const proPath = buildProPricingPath("documents", "execute");
-  const premiumPath = buildPremiumPricingPath("documents", "export");
+      setResult((prev) => ({
+        ...(prev || {}),
+        ...(res?.data || {}),
+        title: prev?.title || documentTypeLabel,
+        content: nextContent || prev?.content || "",
+        sections: nextSections,
+      }));
+
+      setMessage(
+        language === "fr"
+          ? "Document renforcé en version prête pour l’agent."
+          : "Document upgraded into an officer-ready version."
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        language === "fr"
+          ? "Impossible de produire la version officer-ready."
+          : "Failed to create the officer-ready version."
+      );
+    } finally {
+      setOfficerReadyLoading(false);
+    }
+  }
+
+  async function handleSyncSectionsToDraft() {
+    try {
+      setSyncingSections(true);
+      const combined = buildCombinedContentFromSections(sections);
+
+      setResult((prev) => ({
+        ...(prev || {}),
+        title: prev?.title || documentTypeLabel,
+        content: combined,
+        sections: {
+          intro: sections.intro || "",
+          body: sections.body || "",
+          conclusion: sections.conclusion || "",
+        },
+      }));
+
+      setMessage(
+        language === "fr"
+          ? "Sections fusionnées dans le brouillon."
+          : "Sections merged into the draft."
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        language === "fr"
+          ? "Impossible de synchroniser les sections."
+          : "Failed to sync sections."
+      );
+    } finally {
+      setSyncingSections(false);
+    }
+  }
+
+  async function handleFixAllIssues() {
+    const content = getCurrentDraftContent();
+    if (!content) return;
+
+    if (!hasAdvancedCopilot) {
+      navigate(proPath);
+      return;
+    }
+
+    try {
+      setFixingAll(true);
+      setMessage("");
+      setConfidenceReport("");
+
+      const res = await fixAIDocumentIssues({
+        document_type: documentType,
+        language,
+        tone,
+        additional_instructions: content,
+      });
+
+      const nextContent = String(res?.data?.content || "").trim();
+      const nextSections =
+        res?.data?.sections || splitContentIntoSections(nextContent);
+
+      setResult((prev) => ({
+        ...(prev || {}),
+        ...(res?.data || {}),
+        title: prev?.title || documentTypeLabel,
+        content: nextContent || prev?.content || "",
+        sections: nextSections,
+      }));
+
+      setMessage(
+        language === "fr"
+          ? "Le brouillon a été amélioré automatiquement."
+          : "The draft was improved automatically."
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        language === "fr"
+          ? "Impossible de corriger automatiquement le document."
+          : "Failed to fix the document automatically."
+      );
+    } finally {
+      setFixingAll(false);
+    }
+  }
+
+  async function handleImproveSection(sectionKey) {
+    const sectionValue = sections?.[sectionKey];
+    if (!sectionValue?.trim()) return;
+
+    if (!hasAdvancedCopilot) {
+      navigate(proPath);
+      return;
+    }
+
+    const apiMap = {
+      intro: improveAIDocumentIntro,
+      body: improveAIDocumentBody,
+      conclusion: improveAIDocumentConclusion,
+    };
+
+    try {
+      setImprovingSection(sectionKey);
+      setMessage("");
+
+      const res = await apiMap[sectionKey]({
+        document_type: documentType,
+        language,
+        tone,
+        additional_instructions: sectionValue,
+      });
+
+      const improved = String(res?.data?.content || "").trim();
+      if (!improved) return;
+
+      const nextSections = {
+        ...sections,
+        [sectionKey]: improved,
+      };
+
+      updateResultContentFromSections(nextSections);
+
+      setMessage(
+        language === "fr"
+          ? "Section améliorée."
+          : "Section improved."
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        language === "fr"
+          ? "Impossible d’améliorer cette section."
+          : "Failed to improve this section."
+      );
+    } finally {
+      setImprovingSection("");
+    }
+  }
+
+  async function handleScoreConfidence() {
+    const content = getCurrentDraftContent();
+    if (!content) return;
+
+    try {
+      setScoringConfidence(true);
+      setMessage("");
+
+      const res = await scoreAIDocumentConfidence({
+        document_type: documentType,
+        language,
+        tone,
+        additional_instructions: content,
+      });
+
+      setConfidenceReport(String(res?.data?.content || "").trim());
+
+      setMessage(
+        language === "fr"
+          ? "Analyse de confiance générée."
+          : "Confidence analysis generated."
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        language === "fr"
+          ? "Impossible de générer le score de confiance."
+          : "Failed to generate the confidence score."
+      );
+    } finally {
+      setScoringConfidence(false);
+    }
+  }
 
   const instructionPresets = useMemo(() => {
     if (language === "fr") {
@@ -1035,7 +1685,10 @@ export default function DocumentGeneratorPage() {
         "Mettez l’accent sur la cohérence du dossier.",
         "Expliquez les faits de manière chronologique.",
         "Soulignez les liens avec mon objectif principal.",
-      ];
+        sourceContext?.noc
+          ? `Adaptez le contenu à la CNP ${sourceContext.noc} sans inventer de faits.`
+          : null,
+      ].filter(Boolean);
     }
 
     return [
@@ -1043,8 +1696,11 @@ export default function DocumentGeneratorPage() {
       "Emphasize the consistency of my file.",
       "Explain the facts in chronological order.",
       "Highlight how the facts support my main objective.",
-    ];
-  }, [language]);
+      sourceContext?.noc
+        ? `Tailor the content to NOC ${sourceContext.noc} without inventing facts.`
+        : null,
+    ].filter(Boolean);
+  }, [language, sourceContext]);
 
   const pageText = useMemo(() => {
     if (language === "fr") {
@@ -1054,10 +1710,7 @@ export default function DocumentGeneratorPage() {
         subtitle:
           "Générez un brouillon personnalisé à partir de votre profil, de votre stratégie et de votre contexte de demande.",
         settings: "Paramètres",
-        preview: "Aperçu",
         myDrafts: "Mes brouillons",
-        output: "Résultat",
-        noDocument: "Aucun document généré",
         documentType: "Type de document",
         tone: "Ton",
         professional: "Professionnel",
@@ -1082,13 +1735,6 @@ export default function DocumentGeneratorPage() {
         deleting: "Suppression...",
         noDrafts: "Aucun brouillon enregistré pour le moment.",
         documentWillAppear: "Le document apparaîtra ici après génération.",
-        unlockTitle: "Débloquez le flux complet de rédaction",
-        unlockProTitle: "Passez à Pro pour continuer",
-        unlockProBody:
-          "Débloquez la génération complète, le téléchargement Word et la révision complète des documents.",
-        unlockPremiumTitle: "Débloquez l’export PDF",
-        unlockPremiumBody:
-          "Passez à Premium pour télécharger vos brouillons en PDF propre et partageable.",
         upgradeToPro: "Passer à Pro",
         upgradeToPremium: "Passer à Premium",
         helperBody:
@@ -1100,7 +1746,6 @@ export default function DocumentGeneratorPage() {
           "Passez ensuite en révision IA pour renforcer la qualité du contenu.",
         ],
         loadedOn: "Créé le",
-        openReview: "Ouvrir la révision IA",
         openDocuments: "Voir mes documents",
         checklistContext: "Contexte de la checklist",
         sourceContext: "Contexte transmis",
@@ -1140,6 +1785,22 @@ export default function DocumentGeneratorPage() {
         continueToReview: "Continuer vers la révision IA",
         unlockReview: "Débloquer la révision IA",
         improveBeforeExport: "Améliorer avant export",
+        sectionSync: "Fusionner les sections",
+        sectionSyncing: "Fusion...",
+        whyThisWorks: "Pourquoi cela fonctionne",
+        generatingExplanation: "Analyse...",
+        officerReady: "Le rendre officer-ready",
+        officerReadying: "Renforcement...",
+        nocTailoringTitle: "Moteur d’adaptation CNP",
+        nocTailoringBody:
+          "Le contenu sera orienté vers les responsabilités, compétences et la logique de parcours liées à votre CNP quand cela est pertinent.",
+        officerPromptTitle: "Débloquez la version officer-ready",
+        officerPromptBody:
+          "Passez à Pro pour réécrire automatiquement votre document dans une version plus claire, plus structurée et plus persuasive.",
+        fixAll: "Corriger tous les points",
+        fixingAll: "Correction...",
+        confidenceScore: "Score de confiance",
+        confidenceScoring: "Analyse...",
       };
     }
 
@@ -1149,10 +1810,7 @@ export default function DocumentGeneratorPage() {
       subtitle:
         "Generate a personalized draft from your profile, strategy, and application context.",
       settings: "Settings",
-      preview: "Preview",
       myDrafts: "My Drafts",
-      output: "Output",
-      noDocument: "No document generated",
       documentType: "Document type",
       tone: "Tone",
       professional: "Professional",
@@ -1177,13 +1835,6 @@ export default function DocumentGeneratorPage() {
       deleting: "Deleting...",
       noDrafts: "No saved drafts yet.",
       documentWillAppear: "Your document will appear here after generation.",
-      unlockTitle: "Unlock the full writing workflow",
-      unlockProTitle: "Upgrade to Pro to continue",
-      unlockProBody:
-        "Unlock full generation, Word download, and full document review.",
-      unlockPremiumTitle: "Unlock PDF export",
-      unlockPremiumBody:
-        "Upgrade to Premium to download your drafts as a clean, shareable PDF.",
       upgradeToPro: "Upgrade to Pro",
       upgradeToPremium: "Upgrade to Premium",
       helperBody:
@@ -1195,7 +1846,6 @@ export default function DocumentGeneratorPage() {
         "Then move into AI review to strengthen the content.",
       ],
       loadedOn: "Created on",
-      openReview: "Open AI review",
       openDocuments: "View my documents",
       checklistContext: "Checklist context",
       sourceContext: "Passed context",
@@ -1235,6 +1885,22 @@ export default function DocumentGeneratorPage() {
       continueToReview: "Continue to AI Review",
       unlockReview: "Unlock AI Review",
       improveBeforeExport: "Improve before export",
+      sectionSync: "Merge sections into draft",
+      sectionSyncing: "Merging...",
+      whyThisWorks: "Why this works",
+      generatingExplanation: "Analyzing...",
+      officerReady: "Make it officer-ready",
+      officerReadying: "Upgrading...",
+      nocTailoringTitle: "NOC tailoring engine",
+      nocTailoringBody:
+        "The draft will be steered toward responsibilities, skills, and case logic that align with your NOC where relevant.",
+      officerPromptTitle: "Unlock officer-ready rewriting",
+      officerPromptBody:
+        "Upgrade to Pro to automatically rewrite your document into a clearer, stronger, more persuasive version.",
+      fixAll: "Fix all issues",
+      fixingAll: "Fixing...",
+      confidenceScore: "Confidence score",
+      confidenceScoring: "Analyzing...",
     };
   }, [language, generatorUsage]);
 
@@ -1261,6 +1927,36 @@ export default function DocumentGeneratorPage() {
         brand={pageText.brand}
         title={pageText.title}
         subtitle={pageText.subtitle}
+      />
+
+      {pathway && (
+        <Card
+          padding="lg"
+          className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+            {language === "fr" ? "Parcours sélectionné" : "Selected pathway"}
+          </p>
+
+          <h2 className="mt-2 text-xl font-semibold text-slate-900">
+            {pathway}
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-700">
+            {language === "fr"
+              ? "Ce document sera généré en fonction de votre stratégie d’immigration."
+              : "This document will be generated based on your immigration strategy."}
+          </p>
+        </Card>
+      )}
+
+      <PremiumCommandBar
+        language={language}
+        documentTypeLabel={documentTypeLabel}
+        pathway={pathway}
+        sourceContext={sourceContext}
+        tone={tone}
+        scoring={scoring}
       />
 
       {!canGenerateDocumentsFull && (
@@ -1353,6 +2049,28 @@ export default function DocumentGeneratorPage() {
               </p>
             </div>
           )}
+
+          {sourceContext?.context && (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {language === "fr" ? "Contexte détaillé" : "Detailed context"}
+              </p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                {sourceContext.context}
+              </p>
+            </div>
+          )}
+
+          {sourceContext?.noc && (
+            <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                {pageText.nocTailoringTitle}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-blue-900">
+                {pageText.nocTailoringBody}
+              </p>
+            </div>
+          )}
         </Card>
       )}
 
@@ -1367,8 +2085,12 @@ export default function DocumentGeneratorPage() {
         language={language}
         prompt={
           language === "fr"
-            ? `Agis comme un copilote de rédaction pour ${documentTypeLabel}. Donne-moi ce qu’un bon document doit inclure, les erreurs à éviter, 3 actions concrètes, et 2 insights courts.`
-            : `Act as a writing copilot for ${documentTypeLabel}. Tell me what a strong document should include, what to avoid, 3 concrete actions, and 2 short insights.`
+            ? `Agis comme un copilote de rédaction pour ${documentTypeLabel}. Donne-moi ce qu’un bon document doit inclure, les erreurs à éviter, 3 actions concrètes, et 2 insights courts. ${
+                sourceContext?.noc ? `Adapte la réponse à la CNP ${sourceContext.noc}.` : ""
+              }`
+            : `Act as a writing copilot for ${documentTypeLabel}. Tell me what a strong document should include, what to avoid, 3 concrete actions, and 2 short insights. ${
+                sourceContext?.noc ? `Tailor the guidance to NOC ${sourceContext.noc}.` : ""
+              }`
         }
         premiumLocked={!hasAdvancedCopilot}
         premiumTitle={
@@ -1392,6 +2114,25 @@ export default function DocumentGeneratorPage() {
               title={pageText.settings}
               body={pageText.draftTipsTitle}
             />
+
+            <div className="mt-5 rounded-2xl border border-violet-200 bg-violet-50/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
+                {language === "fr" ? "Assistant stratégique" : "Strategy assistant"}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-violet-900">
+                {pathway
+                  ? language === "fr"
+                    ? `Ce brouillon sera orienté vers le parcours ${pathway}${
+                        sourceContext?.noc ? ` et la CNP ${sourceContext.noc}` : ""
+                      }.`
+                    : `This draft will be guided toward the ${pathway} pathway${
+                        sourceContext?.noc ? ` and NOC ${sourceContext.noc}` : ""
+                      }.`
+                  : language === "fr"
+                  ? "Ajoutez un contexte plus précis pour obtenir un brouillon plus stratégique."
+                  : "Add more precise context to get a more strategic draft."}
+              </p>
+            </div>
 
             <div className="mt-6 space-y-4">
               <div>
@@ -1547,81 +2288,128 @@ export default function DocumentGeneratorPage() {
                       {pageText.loadedOn}{" "}
                       {doc.created_at
                         ? new Date(doc.created_at).toLocaleDateString()
-                        : "—"}
+                        : ""}
                     </div>
                   </button>
                 ))
               ) : (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                   {pageText.noDrafts}
                 </div>
               )}
             </div>
           </Card>
+
+          <Card padding="lg">
+            <h2 className="text-xl font-semibold text-slate-900">
+              {pageText.draftTipsTitle}
+            </h2>
+
+            <div className="mt-5 space-y-3">
+              {pageText.draftTips.map((tip, index) => (
+                <div
+                  key={`${tip}-${index}`}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                >
+                  {tip}
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
 
         <div className="space-y-6">
-          <Card variant="premium" padding="lg">
+          <Card variant="soft" padding="lg">
             <SectionIntro
               eyebrow={pageText.outputEyebrow}
               title={pageText.outputTitle}
               body={pageText.outputBody}
             />
 
-            {result?.content ? (
+            {locked ? (
+              <div className="mt-6">
+                <UpgradePrompt
+                  title={language === "fr" ? "Fonction verrouillée" : "Feature locked"}
+                  body={upgradeReason}
+                  buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+                />
+              </div>
+            ) : result?.content ? (
               <>
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        {language === "fr" ? "Titre" : "Title"}
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                        {result?.title || documentTypeLabel}
+                      </h3>
+                    </div>
+
+                    {scoring && (
+                      <span
+                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${scoring.ratingClassName}`}
+                      >
+                        {scoring.rating}
+                      </span>
+                    )}
+                  </div>
+
                   <textarea
-                    value={result.content}
+                    rows={18}
+                    value={getCurrentDraftContent()}
                     onChange={(e) =>
-                      setResult((prev) => ({ ...prev, content: e.target.value }))
+                      updateResultContentFromSections(
+                        splitContentIntoSections(e.target.value)
+                      )
                     }
-                    className="min-h-[360px] w-full resize-y border-none bg-transparent text-sm leading-7 text-slate-700 outline-none"
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm leading-7 text-slate-800 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
 
-                <div className="mt-5 flex flex-wrap gap-3">
+                <div className="mt-4 flex flex-wrap gap-3">
                   <Button variant="secondary" onClick={handleCopy}>
                     {pageText.copy}
                   </Button>
 
-                  {selectedDraftId ? (
-                    <>
-                      <Button onClick={handleSaveDraft} disabled={savingDraft}>
-                        {savingDraft ? pageText.saving : pageText.save}
-                      </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={handleSaveDraft}
+                    disabled={savingDraft || !selectedDraftId}
+                  >
+                    {savingDraft ? pageText.saving : pageText.save}
+                  </Button>
 
-                      <Button
-                        variant="secondary"
-                        onClick={handleDuplicateDraft}
-                        disabled={duplicatingDraft}
-                      >
-                        {duplicatingDraft ? pageText.duplicating : pageText.duplicate}
-                      </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={handleDuplicateDraft}
+                    disabled={duplicatingDraft || !selectedDraftId}
+                  >
+                    {duplicatingDraft ? pageText.duplicating : pageText.duplicate}
+                  </Button>
 
-                      <Button
-                        variant="danger"
-                        onClick={handleDeleteDraft}
-                        disabled={deletingDraft}
-                      >
-                        {deletingDraft ? pageText.deleting : pageText.delete}
-                      </Button>
-                    </>
-                  ) : null}
+                  <Button
+                    variant="secondary"
+                    onClick={handleDeleteDraft}
+                    disabled={deletingDraft || !selectedDraftId}
+                  >
+                    {deletingDraft ? pageText.deleting : pageText.delete}
+                  </Button>
 
                   {canReviewDocumentsFull ? (
-                    <Button onClick={handleOpenReview}>
+                    <Button variant="secondary" onClick={handleOpenReview}>
                       {pageText.continueToReview}
                     </Button>
                   ) : (
-                    <Button onClick={() => navigate(proPath)}>
+                    <Button variant="secondary" onClick={() => navigate(proPath)}>
                       {pageText.unlockReview}
                     </Button>
                   )}
                 </div>
 
                 {!canReviewDocumentsFull && (
-                  <div className="mt-5">
+                  <div className="mt-4">
                     <UpgradePrompt
                       title={pageText.reviewPromptTitle}
                       body={pageText.reviewPromptBody}
@@ -1629,82 +2417,120 @@ export default function DocumentGeneratorPage() {
                     />
                   </div>
                 )}
-
-                {result?.content && canGenerateDocumentsFull && !canExportPdf && (
-                  <div className="mt-5 rounded-[24px] border border-purple-200 bg-purple-50 p-5">
-                    <h3 className="text-lg font-semibold text-purple-900">
-                      {pageText.finalPremiumTitle}
-                    </h3>
-
-                    <p className="mt-2 text-sm text-purple-800">
-                      {pageText.finalPremiumBody}
-                    </p>
-
-                    <div className="mt-4 flex gap-3">
-                      <Button onClick={() => navigate(premiumPath)}>
-                        {pageText.upgradeToPremium}
-                      </Button>
-
-                      <Button variant="secondary" onClick={handleOpenReview}>
-                        {pageText.improveBeforeExport}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {locked && (
-                  <div className="mt-5">
-                    <UpgradePrompt
-                      title={pageText.unlockTitle}
-                      body={upgradeReason}
-                      buttonLabel={
-                        canGenerateDocumentsFull
-                          ? pageText.upgradeToPremium
-                          : pageText.upgradeToPro
-                      }
-                    />
-                  </div>
-                )}
               </>
             ) : (
-              <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
+              <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-10 text-sm text-slate-500">
                 {pageText.documentWillAppear}
               </div>
             )}
           </Card>
 
-          {scoring && <ScorePanel scoring={scoring} language={language} />}
+          {result?.content && !locked && (
+            <>
+              {scoring && <ScorePanel scoring={scoring} language={language} />}
 
-          {result?.content && (
-            <Card variant="soft" padding="lg">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {pageText.draftTipsTitle}
-              </p>
-              <div className="mt-4 space-y-2">
-                {pageText.draftTips.map((tip, index) => (
-                  <div
-                    key={index}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+              <SectionBuilder
+                sections={sections}
+                setSections={setSections}
+                language={language}
+                onImproveSection={handleImproveSection}
+                improvingSection={improvingSection}
+              />
+
+              <Card padding="lg">
+                <SectionIntro
+                  eyebrow={language === "fr" ? "Actions IA" : "AI actions"}
+                  title={language === "fr" ? "Renforcer le brouillon" : "Strengthen the draft"}
+                  body={
+                    language === "fr"
+                      ? "Utilisez ces actions pour rendre le document plus clair, plus structuré et plus convaincant."
+                      : "Use these actions to make the document clearer, better structured, and more persuasive."
+                  }
+                />
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Button
+                    variant="secondary"
+                    onClick={handleSyncSectionsToDraft}
+                    disabled={syncingSections}
                   >
-                    {tip}
-                  </div>
-                ))}
-              </div>
+                    {syncingSections ? pageText.sectionSyncing : pageText.sectionSync}
+                  </Button>
 
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Button variant="secondary" onClick={() => navigate("/documents")}>
-                  {pageText.openDocuments}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => navigate(canGenerateDocumentsFull ? premiumPath : proPath)}
-                >
-                  {canGenerateDocumentsFull
-                    ? pageText.upgradeToPremium
-                    : pageText.upgradeToPro}
-                </Button>
-              </div>
-            </Card>
+                  <Button
+                    variant="secondary"
+                    onClick={handleExplainWhyThisWorks}
+                    disabled={explaining}
+                  >
+                    {explaining ? pageText.generatingExplanation : pageText.whyThisWorks}
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    onClick={handleScoreConfidence}
+                    disabled={scoringConfidence}
+                  >
+                    {scoringConfidence
+                      ? pageText.confidenceScoring
+                      : pageText.confidenceScore}
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    onClick={handleFixAllIssues}
+                    disabled={fixingAll}
+                  >
+                    {fixingAll ? pageText.fixingAll : pageText.fixAll}
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    onClick={handleMakeOfficerReady}
+                    disabled={officerReadyLoading}
+                  >
+                    {officerReadyLoading
+                      ? pageText.officerReadying
+                      : pageText.officerReady}
+                  </Button>
+                </div>
+
+                {!hasAdvancedCopilot && (
+                  <div className="mt-4">
+                    <UpgradePrompt
+                      title={pageText.officerPromptTitle}
+                      body={pageText.officerPromptBody}
+                      buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
+                    />
+                  </div>
+                )}
+              </Card>
+
+              {whyThisWorks && (
+                <WhyThisWorksPanel
+                  explanation={whyThisWorks}
+                  language={language}
+                />
+              )}
+
+              {confidenceReport && (
+                <ConfidencePanel report={confidenceReport} language={language} />
+              )}
+
+              {!canExportPdf && (
+                <Card variant="premium" padding="lg">
+                  <SectionIntro
+                    eyebrow={language === "fr" ? "Finalisation" : "Finalization"}
+                    title={pageText.finalPremiumTitle}
+                    body={pageText.finalPremiumBody}
+                  />
+                  <div className="mt-5">
+                    <Button onClick={() => navigate(premiumPath)}>
+                      {pageText.upgradeToPremium}
+                    </Button>
+                  </div>
+                </Card>
+              )}
+            </>
           )}
         </div>
       </div>

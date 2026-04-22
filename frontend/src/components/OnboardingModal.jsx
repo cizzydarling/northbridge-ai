@@ -1,27 +1,98 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import Card from "./ui/Card";
+import Button from "./ui/Button";
+import Input from "./ui/Input";
 import {
   getToken,
   getCurrentUserLocal,
   getMyProfile,
   updateMyProfile,
   refreshCurrentUser,
+  runSelfWorkspace,
 } from "../api";
-import Button from "./ui/Button";
-import Input from "./ui/Input";
-import Card from "./ui/Card";
 
-const DISMISS_KEY = "nbai_onboarding_modal_dismissed_until";
+const DISMISS_KEY = "nbai_onboarding_modal_dismissed_until_v3";
 
 const DEFAULT_FORM = {
   first_name: "",
   last_name: "",
+  nationality: "",
+  current_country: "",
+  current_city: "",
+  marital_status: "",
   preferred_language: "en",
+  age: "",
+  education: "",
+  language_score: "",
+  experience_years: "",
   occupation: "",
   noc_code: "",
   preferred_province: "",
 };
+
+const COUNTRIES = [
+  "Canada",
+  "United States",
+  "France",
+  "United Kingdom",
+  "India",
+  "Nigeria",
+  "Cameroon",
+  "Morocco",
+  "Algeria",
+  "Tunisia",
+  "Senegal",
+  "Ivory Coast",
+  "Other",
+];
+
+const MARITAL_STATUSES = [
+  { value: "single", en: "Single", fr: "Célibataire" },
+  { value: "married", en: "Married", fr: "Marié(e)" },
+  { value: "common_law", en: "Common-law", fr: "Union de fait" },
+  { value: "divorced", en: "Divorced", fr: "Divorcé(e)" },
+  { value: "widowed", en: "Widowed", fr: "Veuf / Veuve" },
+];
+
+const EDUCATION_LEVELS = [
+  {
+    value: "secondary",
+    en: "Secondary / High school",
+    fr: "Secondaire / Lycée",
+  },
+  {
+    value: "one_year",
+    en: "One-year post-secondary",
+    fr: "Postsecondaire d’un an",
+  },
+  {
+    value: "two_year",
+    en: "Two-year post-secondary",
+    fr: "Postsecondaire de deux ans",
+  },
+  {
+    value: "bachelor",
+    en: "Bachelor’s degree",
+    fr: "Baccalauréat / Licence",
+  },
+  {
+    value: "two_or_more",
+    en: "Two or more credentials",
+    fr: "Deux diplômes ou plus",
+  },
+  {
+    value: "masters",
+    en: "Master’s degree",
+    fr: "Maîtrise / Master",
+  },
+  {
+    value: "doctorate",
+    en: "Doctorate",
+    fr: "Doctorat",
+  },
+];
 
 const PROVINCES = [
   "Ontario",
@@ -36,15 +107,33 @@ const PROVINCES = [
   "Newfoundland and Labrador",
 ];
 
-function isProfileComplete(profile) {
-  if (!profile) return false;
+function computeProfileCompletion(profile) {
+  if (!profile) return 0;
 
-  return Boolean(
-    String(profile.first_name || "").trim() &&
-      String(profile.occupation || "").trim() &&
-      String(profile.noc_code || "").trim() &&
-      String(profile.preferred_province || "").trim()
-  );
+  const fields = [
+    profile.first_name,
+    profile.last_name,
+    profile.nationality,
+    profile.current_country,
+    profile.current_city,
+    profile.marital_status,
+    profile.preferred_language,
+    profile.age,
+    profile.education,
+    profile.language_score,
+    profile.experience_years,
+    profile.occupation,
+    profile.noc_code,
+    profile.preferred_province,
+  ];
+
+  const completed = fields.filter((value) => {
+    if (typeof value === "boolean") return true;
+    if (typeof value === "number") return !Number.isNaN(value);
+    return Boolean(String(value || "").trim());
+  }).length;
+
+  return Math.round((completed / fields.length) * 100);
 }
 
 function shouldSuppressModal() {
@@ -62,8 +151,47 @@ function suppressModalForHours(hours = 12) {
   localStorage.setItem(DISMISS_KEY, String(until));
 }
 
+function normalizeNumber(value) {
+  if (value === "" || value === null || typeof value === "undefined") return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function FieldGroup({ children }) {
+  return <div className="grid gap-4 md:grid-cols-2">{children}</div>;
+}
+
+function SelectField({ label, name, value, onChange, options, placeholder }) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-slate-700">
+        {label}
+      </label>
+      <select
+        name={name}
+        value={value}
+        onChange={onChange}
+        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => {
+          const optionValue = typeof option === "string" ? option : option.value;
+          const optionLabel = typeof option === "string" ? option : option.label;
+
+          return (
+            <option key={optionValue} value={optionValue}>
+              {optionLabel}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  );
+}
+
 export default function OnboardingModal() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
 
@@ -83,6 +211,42 @@ export default function OnboardingModal() {
           location.pathname === path || location.pathname.startsWith(path + "/")
       ),
     [location.pathname]
+  );
+
+  const translatedCountries = useMemo(
+    () =>
+      COUNTRIES.map((country) => ({
+        value: country,
+        label: country,
+      })),
+    []
+  );
+
+  const translatedEducation = useMemo(
+    () =>
+      EDUCATION_LEVELS.map((item) => ({
+        value: item.value,
+        label: language === "fr" ? item.fr : item.en,
+      })),
+    [language]
+  );
+
+  const translatedStatuses = useMemo(
+    () =>
+      MARITAL_STATUSES.map((item) => ({
+        value: item.value,
+        label: language === "fr" ? item.fr : item.en,
+      })),
+    [language]
+  );
+
+  const translatedProvinces = useMemo(
+    () =>
+      PROVINCES.map((province) => ({
+        value: province,
+        label: province,
+      })),
+    []
   );
 
   useEffect(() => {
@@ -122,24 +286,43 @@ export default function OnboardingModal() {
         setForm({
           first_name: profile.first_name || "",
           last_name: profile.last_name || "",
+          nationality: profile.nationality || "",
+          current_country: profile.current_country || "",
+          current_city: profile.current_city || "",
+          marital_status: profile.marital_status || "",
           preferred_language: profile.preferred_language || language,
+          age:
+            profile.age === null || typeof profile.age === "undefined"
+              ? ""
+              : String(profile.age),
+          education: profile.education || "",
+          language_score:
+            profile.language_score === null ||
+            typeof profile.language_score === "undefined"
+              ? ""
+              : String(profile.language_score),
+          experience_years:
+            profile.experience_years === null ||
+            typeof profile.experience_years === "undefined"
+              ? ""
+              : String(profile.experience_years),
           occupation: profile.occupation || "",
           noc_code: profile.noc_code || "",
           preferred_province: profile.preferred_province || "",
         });
 
+        const completion = computeProfileCompletion(profile);
+
         setTimeout(() => {
-            setOpen(!isProfileComplete(profile));
-        }, 500);
+          if (mounted) setOpen(completion < 65);
+        }, 350);
       } catch (err) {
         if (!mounted) return;
 
         if (err?.response?.status === 404) {
-          setOpen(true);
-          setForm((prev) => ({
-            ...prev,
-            preferred_language: language,
-          }));
+          setTimeout(() => {
+            if (mounted) setOpen(true);
+          }, 350);
         } else {
           console.error(err);
           setOpen(false);
@@ -161,6 +344,35 @@ export default function OnboardingModal() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function canGoStep2() {
+    return Boolean(
+      form.first_name.trim() &&
+        form.last_name.trim() &&
+        form.nationality &&
+        form.current_country &&
+        form.current_city.trim() &&
+        form.marital_status
+    );
+  }
+
+  function canGoStep3() {
+    return Boolean(
+      form.preferred_language &&
+        form.age !== "" &&
+        form.education &&
+        form.language_score !== "" &&
+        form.experience_years !== ""
+    );
+  }
+
+  function canSubmit() {
+    return Boolean(
+      form.occupation.trim() &&
+        form.noc_code.trim() &&
+        form.preferred_province
+    );
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     setLoading(true);
@@ -168,22 +380,50 @@ export default function OnboardingModal() {
 
     try {
       const payload = {
-        first_name: form.first_name?.trim() || null,
-        last_name: form.last_name?.trim() || null,
+        first_name: form.first_name.trim() || null,
+        last_name: form.last_name.trim() || null,
+        nationality: form.nationality || null,
+        current_country: form.current_country || null,
+        current_city: form.current_city.trim() || null,
+        marital_status: form.marital_status || null,
         preferred_language: form.preferred_language || language,
-        occupation: form.occupation?.trim() || null,
-        noc_code: form.noc_code?.trim() || null,
+        age: normalizeNumber(form.age),
+        education: form.education || null,
+        language_score: normalizeNumber(form.language_score),
+        experience_years: normalizeNumber(form.experience_years),
+        occupation: form.occupation.trim() || null,
+        noc_code: form.noc_code.trim() || null,
         preferred_province: form.preferred_province || null,
       };
 
       await updateMyProfile(payload);
       await refreshCurrentUser();
 
-      window.dispatchEvent(new Event("userUpdated"));
+      const workspacePayload = {
+        matter_type: "permanent_residence",
+        intake: {
+          ...payload,
+          application_type: "pr_pathway",
+        },
+      };
+
+      try {
+        await runSelfWorkspace(workspacePayload, payload.preferred_language || language);
+      } catch (strategyErr) {
+        console.error("Strategy workspace run failed:", strategyErr);
+      }
+
       localStorage.removeItem(DISMISS_KEY);
+
+      window.dispatchEvent(new Event("userUpdated"));
+      window.dispatchEvent(new Event("nbai-profile-completed"));
+      window.dispatchEvent(new Event("nbai-strategy-refresh"));
+      window.dispatchEvent(new Event("nbai-document-engine-updated"));
 
       setOpen(false);
       setMessage("");
+
+      navigate("/strategy?source=onboarding&intent=execute&tab=overview");
     } catch (err) {
       console.error(err);
       setMessage(
@@ -206,7 +446,7 @@ export default function OnboardingModal() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
-      <Card className="w-full max-w-2xl rounded-[32px] border border-slate-200 bg-white p-0 shadow-[0_20px_80px_rgba(15,23,42,0.18)]">
+      <Card className="w-full max-w-3xl rounded-[32px] border border-slate-200 bg-white p-0 shadow-[0_20px_80px_rgba(15,23,42,0.18)]">
         <div className="border-b border-slate-200 px-6 py-5">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
             NorthBridgeAI
@@ -218,109 +458,170 @@ export default function OnboardingModal() {
           </h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
             {language === "fr"
-              ? "Quelques informations suffisent pour débloquer une expérience plus guidée, une meilleure stratégie et des recommandations plus utiles."
-              : "A few details unlock a more guided experience, a better strategy, and more useful recommendations."}
+              ? "Quelques étapes suffisent pour débloquer automatiquement votre stratégie et votre tableau de bord."
+              : "A few steps are enough to automatically unlock your strategy and dashboard."}
           </p>
 
           <div className="mt-4 flex gap-2">
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                step === 1
-                  ? "bg-blue-50 text-blue-700"
-                  : "bg-slate-100 text-slate-500"
-              }`}
-            >
-              {language === "fr" ? "Étape 1" : "Step 1"}
-            </span>
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                step === 2
-                  ? "bg-blue-50 text-blue-700"
-                  : "bg-slate-100 text-slate-500"
-              }`}
-            >
-              {language === "fr" ? "Étape 2" : "Step 2"}
-            </span>
+            {[1, 2, 3].map((item) => (
+              <span
+                key={item}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  step === item
+                    ? "bg-blue-50 text-blue-700"
+                    : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {language === "fr" ? `Étape ${item}` : `Step ${item}`}
+              </span>
+            ))}
           </div>
         </div>
 
         <form onSubmit={handleSave} className="px-6 py-6">
           {step === 1 && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <Input
-                name="first_name"
-                label={language === "fr" ? "Prénom" : "First name"}
-                value={form.first_name}
-                onChange={handleChange}
-                required
-              />
-
-              <Input
-                name="last_name"
-                label={language === "fr" ? "Nom" : "Last name"}
-                value={form.last_name}
-                onChange={handleChange}
-              />
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {language === "fr" ? "Langue préférée" : "Preferred language"}
-                </label>
-                <select
-                  name="preferred_language"
-                  value={form.preferred_language}
+            <div className="space-y-4">
+              <FieldGroup>
+                <Input
+                  name="first_name"
+                  label={language === "fr" ? "Prénom" : "First name"}
+                  value={form.first_name}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="en">English</option>
-                  <option value="fr">Français</option>
-                </select>
-              </div>
+                  required
+                />
+                <Input
+                  name="last_name"
+                  label={language === "fr" ? "Nom" : "Last name"}
+                  value={form.last_name}
+                  onChange={handleChange}
+                  required
+                />
+                <SelectField
+                  name="nationality"
+                  label={language === "fr" ? "Nationalité" : "Nationality"}
+                  value={form.nationality}
+                  onChange={handleChange}
+                  options={translatedCountries}
+                  placeholder={language === "fr" ? "Choisissez" : "Choose"}
+                />
+                <SelectField
+                  name="current_country"
+                  label={language === "fr" ? "Pays actuel" : "Current country"}
+                  value={form.current_country}
+                  onChange={handleChange}
+                  options={translatedCountries}
+                  placeholder={language === "fr" ? "Choisissez" : "Choose"}
+                />
+                <Input
+                  name="current_city"
+                  label={language === "fr" ? "Ville actuelle" : "Current city"}
+                  value={form.current_city}
+                  onChange={handleChange}
+                  required
+                />
+                <SelectField
+                  name="marital_status"
+                  label={language === "fr" ? "Statut matrimonial" : "Marital status"}
+                  value={form.marital_status}
+                  onChange={handleChange}
+                  options={translatedStatuses}
+                  placeholder={language === "fr" ? "Choisissez" : "Choose"}
+                />
+              </FieldGroup>
             </div>
           )}
 
           {step === 2 && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <Input
-                name="occupation"
-                label={language === "fr" ? "Profession" : "Occupation"}
-                value={form.occupation}
-                onChange={handleChange}
-                required
-              />
-
-              <Input
-                name="noc_code"
-                label={language === "fr" ? "Code CNP" : "NOC code"}
-                value={form.noc_code}
-                onChange={handleChange}
-                required
-              />
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  {language === "fr"
-                    ? "Province préférée"
-                    : "Preferred province"}
-                </label>
-                <select
-                  name="preferred_province"
-                  value={form.preferred_province}
+            <div className="space-y-4">
+              <FieldGroup>
+                <SelectField
+                  name="preferred_language"
+                  label={language === "fr" ? "Langue préférée" : "Preferred language"}
+                  value={form.preferred_language}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  options={[
+                    { value: "en", label: "English" },
+                    { value: "fr", label: "Français" },
+                  ]}
+                  placeholder={language === "fr" ? "Choisissez" : "Choose"}
+                />
+                <Input
+                  name="age"
+                  type="number"
+                  label={language === "fr" ? "Âge" : "Age"}
+                  value={form.age}
+                  onChange={handleChange}
                   required
-                >
-                  <option value="">
-                    {language === "fr"
-                      ? "Choisissez une province"
-                      : "Select a province"}
-                  </option>
-                  {PROVINCES.map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
-                </select>
+                />
+                <SelectField
+                  name="education"
+                  label={language === "fr" ? "Niveau d’études" : "Education level"}
+                  value={form.education}
+                  onChange={handleChange}
+                  options={translatedEducation}
+                  placeholder={language === "fr" ? "Choisissez" : "Choose"}
+                />
+                <Input
+                  name="language_score"
+                  type="number"
+                  label={language === "fr" ? "Score linguistique" : "Language score"}
+                  value={form.language_score}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  name="experience_years"
+                  type="number"
+                  label={
+                    language === "fr"
+                      ? "Années d’expérience"
+                      : "Years of experience"
+                  }
+                  value={form.experience_years}
+                  onChange={handleChange}
+                  required
+                />
+              </FieldGroup>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <FieldGroup>
+                <Input
+                  name="occupation"
+                  label={language === "fr" ? "Profession" : "Occupation"}
+                  value={form.occupation}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  name="noc_code"
+                  label={language === "fr" ? "Code CNP" : "NOC code"}
+                  value={form.noc_code}
+                  onChange={handleChange}
+                  required
+                />
+                <div className="md:col-span-2">
+                  <SelectField
+                    name="preferred_province"
+                    label={language === "fr" ? "Province préférée" : "Preferred province"}
+                    value={form.preferred_province}
+                    onChange={handleChange}
+                    options={translatedProvinces}
+                    placeholder={
+                      language === "fr"
+                        ? "Choisissez une province"
+                        : "Choose a province"
+                    }
+                  />
+                </div>
+              </FieldGroup>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                {language === "fr"
+                  ? "Une fois enregistré, NorthBridgeAI générera automatiquement votre stratégie puis vous redirigera vers la page stratégie."
+                  : "Once saved, NorthBridgeAI will automatically generate your strategy and redirect you to the strategy page."}
               </div>
             </div>
           )}
@@ -337,17 +638,15 @@ export default function OnboardingModal() {
               onClick={handleCloseForNow}
               className="text-sm text-slate-500 transition hover:text-slate-800"
             >
-              {language === "fr"
-                ? "Continuer plus tard"
-                : "Continue later"}
+              {language === "fr" ? "Continuer plus tard" : "Continue later"}
             </button>
 
             <div className="flex gap-3">
-              {step === 2 ? (
+              {step > 1 ? (
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => setStep(1)}
+                  onClick={() => setStep((prev) => Math.max(1, prev - 1))}
                 >
                   {language === "fr" ? "Retour" : "Back"}
                 </Button>
@@ -357,21 +656,33 @@ export default function OnboardingModal() {
                 <Button
                   type="button"
                   onClick={() => setStep(2)}
-                  disabled={!form.first_name?.trim()}
+                  disabled={!canGoStep2()}
                 >
                   {language === "fr" ? "Suivant" : "Next"}
                 </Button>
-              ) : (
-                <Button type="submit" disabled={loading}>
+              ) : null}
+
+              {step === 2 ? (
+                <Button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  disabled={!canGoStep3()}
+                >
+                  {language === "fr" ? "Suivant" : "Next"}
+                </Button>
+              ) : null}
+
+              {step === 3 ? (
+                <Button type="submit" disabled={loading || !canSubmit()}>
                   {loading
                     ? language === "fr"
-                      ? "Enregistrement..."
-                      : "Saving..."
+                      ? "Génération..."
+                      : "Generating..."
                     : language === "fr"
-                    ? "Enregistrer et continuer"
-                    : "Save and continue"}
+                    ? "Générer ma stratégie"
+                    : "Generate my strategy"}
                 </Button>
-              )}
+              ) : null}
             </div>
           </div>
         </form>

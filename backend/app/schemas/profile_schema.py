@@ -25,6 +25,8 @@ class ProfileBase(BaseModel):
     studied_in_canada: Optional[bool] = False
     occupation: Optional[str] = None
     noc_code: Optional[str] = None
+    job_description: Optional[str] = None
+    job_duties: Optional[str] = None
     preferred_province: Optional[str] = None
 
 

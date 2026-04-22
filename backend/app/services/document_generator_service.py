@@ -153,7 +153,11 @@ Application context:
 """.strip()
 
 
-def build_decision_context(decision: Optional[dict], strategy: Optional[dict], language: str) -> str:
+def build_decision_context(
+    decision: Optional[dict],
+    strategy: Optional[dict],
+    language: str,
+) -> str:
     language = normalize_language(language)
     decision = decision or {}
     strategy = strategy or {}
@@ -259,7 +263,6 @@ Sincerely,
         "disclaimer": disclaimer,
     }
 
-
 def generate_document_draft(
     *,
     document_type: str,
@@ -271,6 +274,7 @@ def generate_document_draft(
     decision: Optional[dict],
     strategy: Optional[dict],
     context_overrides: Optional[Dict[str, Any]] = None,
+    mode: str = "generate",
 ) -> dict:
     language = normalize_language(language)
     client = get_openai_client()
@@ -292,79 +296,205 @@ def generate_document_draft(
     application_context = build_application_context(application, language)
     decision_context = build_decision_context(decision, strategy, language)
 
-    if language == "fr":
-        system_prompt = """
-Vous êtes l’assistant de rédaction documentaire de NorthBridgeAI.
+    noc = safe_get(profile, "noc_code", None)
 
-Rédigez toujours en français.
-Produisez un document propre, clair, professionnel et prêt à être révisé.
-N’inventez jamais de faits précis qui ne sont pas fournis.
-Si une donnée manque, utilisez un libellé neutre ou un crochet comme [à compléter].
-N’utilisez pas de ton juridique agressif.
-Ne prétendez pas être avocat.
+    # =========================
+    # 🔥 NOC INTELLIGENCE BLOCK
+    # =========================
+    noc_block = ""
+    if noc:
+        if language == "fr":
+            noc_block = f"""
+Aligner subtilement le contenu avec la CNP {noc}.
+Mettre en valeur les responsabilités, compétences et logique de parcours liées à cette CNP lorsque pertinent.
+Ne jamais inventer de faits.
+""".strip()
+        else:
+            noc_block = f"""
+Subtly align the content with NOC {noc}.
+Emphasize responsibilities, skills, and career logic tied to this NOC where relevant.
+Never invent facts.
 """.strip()
 
+    # =========================
+    # 🧠 MODE SWITCH
+    # =========================
+    if mode == "explain":
         user_prompt = f"""
-Générez un document de type: {document_type}
-Titre attendu: {title}
-Ton souhaité: {tone}
+Explain why the following document works.
+
+Focus on:
+- credibility
+- structure
+- tone
+- persuasiveness
+
+Document:
+{additional_instructions or ""}
+""".strip()
+
+    elif mode == "officer_ready":
+        user_prompt = f"""
+Rewrite the document to be:
+- clearer
+- more persuasive
+- more professional
+- logically stronger
+
+Keep it human and credible.
+
+Document:
+{additional_instructions or ""}
+""".strip()
+
+    elif mode == "sections":
+        user_prompt = f"""
+Generate a structured document in THREE parts:
+
+1. Introduction
+2. Main Body
+3. Conclusion
+
+Do NOT label sections.
 
 {profile_context}
-
 {application_context}
-
 {decision_context}
+{noc_block}
 
-Informations supplémentaires de l’utilisateur:
-{additional_instructions or "Aucune"}
-
-Remplacements manuels / contexte additionnel:
-{context_overrides}
-
-Exigences:
-- Produire un document complet et bien structuré
-- Utiliser des paragraphes naturels
-- Adapter le contenu au type de document demandé
-- Garder les formulations crédibles, sobres et professionnelles
-- Ne pas ajouter de promesses ni de conclusions juridiques
-- Retourner seulement le corps du document
+Instructions:
+{additional_instructions or ""}
 """.strip()
+
+    elif mode == "fix_all":
+        user_prompt = f"""
+Improve the following immigration document by fixing its weaknesses.
+
+Goals:
+- improve clarity
+- improve structure
+- improve credibility
+- improve logical flow
+- improve persuasiveness without exaggeration
+- keep the facts consistent
+- keep the tone human and professional
+
+{noc_block}
+
+Document:
+{additional_instructions or ""}
+""".strip()
+
+    elif mode == "improve_intro":
+        user_prompt = f"""
+Rewrite only the introduction of this immigration document.
+
+Goals:
+- stronger opening
+- clearer purpose
+- more credibility
+- concise and professional
+
+Return only the improved introduction.
+
+Document:
+{additional_instructions or ""}
+""".strip()
+
+    elif mode == "improve_body":
+        user_prompt = f"""
+Rewrite only the main body of this immigration document.
+
+Goals:
+- stronger logic
+- clearer chronology
+- better supporting detail
+- more persuasive but still credible
+
+Return only the improved body section.
+
+Document:
+{additional_instructions or ""}
+""".strip()
+
+    elif mode == "improve_conclusion":
+        user_prompt = f"""
+Rewrite only the conclusion of this immigration document.
+
+Goals:
+- clearer close
+- professional tone
+- stronger final impression
+- concise and credible
+
+Return only the improved conclusion.
+
+Document:
+{additional_instructions or ""}
+""".strip()
+
+    elif mode == "confidence":
+        user_prompt = f"""
+Assess the following immigration document and provide:
+
+1. A confidence score from 0 to 100
+2. A one-sentence summary
+3. Three strengths
+4. Three weaknesses
+
+Return plain text in this exact format:
+
+Score: <number>
+Summary: <text>
+Strengths:
+- ...
+- ...
+- ...
+Weaknesses:
+- ...
+- ...
+- ...
+
+Document:
+{additional_instructions or ""}
+""".strip()
+
     else:
-        system_prompt = """
-You are NorthBridgeAI's document drafting assistant.
-
-Always write in English.
-Produce a clean, professional, review-ready draft.
-Never invent precise facts that were not provided.
-If information is missing, use neutral placeholders like [to be completed].
-Do not sound overly legalistic.
-Do not claim to be a lawyer.
-""".strip()
-
         user_prompt = f"""
-Generate a document of type: {document_type}
-Expected title: {title}
-Desired tone: {tone}
+Generate a complete {document_type}.
 
 {profile_context}
-
 {application_context}
-
 {decision_context}
+{noc_block}
 
-Additional user instructions:
-{additional_instructions or "None"}
-
-Manual overrides / extra context:
-{context_overrides}
+Instructions:
+{additional_instructions or ""}
 
 Requirements:
-- Produce a complete, well-structured draft
-- Use natural paragraphs
-- Adapt content to the requested document type
-- Keep the wording credible, restrained, and professional
-- Do not add guarantees or legal conclusions
-- Return only the body of the document
+- strong structure
+- natural paragraphs
+- credible tone
+""".strip()
+
+    # =========================
+    # SYSTEM PROMPT (UPGRADED)
+    # =========================
+    system_prompt = """
+You are a professional immigration document drafting assistant.
+
+Your outputs must be:
+- structured
+- credible
+- human
+- persuasive but not exaggerated
+
+Never:
+- invent facts
+- sound like a lawyer
+- give guarantees
+
+Write like a strong real applicant.
 """.strip()
 
     try:
@@ -374,21 +504,37 @@ Requirements:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.4,
+            temperature=0.5,
         )
+
         content = (response.choices[0].message.content or "").strip()
 
         if not content:
             return fallback
+
+        paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
+
+        intro = paragraphs[0] if len(paragraphs) > 0 else ""
+        body = "\n\n".join(paragraphs[1:-1]) if len(paragraphs) > 2 else ""
+        conclusion = paragraphs[-1] if len(paragraphs) > 1 else ""
 
         return {
             "title": title,
             "document_type": document_type,
             "language": language,
             "content": content,
+            "sections": {
+                "intro": intro,
+                "body": body,
+                "conclusion": conclusion,
+            },
+            "meta": {
+                "tone": tone,
+                "mode": mode,
+            },
             "disclaimer": t(
-                "This AI-generated draft is for general informational support and should be reviewed before use.",
-                "Ce brouillon généré par IA est fourni à titre informatif général et doit être révisé avant utilisation.",
+                "This AI-generated draft should be reviewed before use.",
+                "Ce document généré doit être révisé avant utilisation.",
                 language,
             ),
         }
