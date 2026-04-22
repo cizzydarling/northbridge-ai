@@ -84,6 +84,13 @@ def _extract_profile_context(profile: Any, language: str) -> str:
 
     return "\n".join(non_empty)
 
+def _ensure_list(value: Any) -> List[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
 
 def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str) -> str:
     if not strategy:
@@ -95,13 +102,13 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
 
     empty_word = "none" if language == "en" else "aucun"
 
-    recommended_programs = strategy.get("recommended_programs") or []
-    strengths = strategy.get("strengths") or []
-    weaknesses = strategy.get("weaknesses") or []
-    next_steps = strategy.get("next_steps") or []
-    roadmap = strategy.get("roadmap") or []
-    improvement_scenarios = strategy.get("improvement_scenarios") or []
-    province_recommendations = strategy.get("province_recommendations") or []
+    recommended_programs = _ensure_list(strategy.get("recommended_programs"))
+    strengths = _ensure_list(strategy.get("strengths"))
+    weaknesses = _ensure_list(strategy.get("weaknesses"))
+    next_steps = _ensure_list(strategy.get("next_steps"))
+    roadmap = _ensure_list(strategy.get("roadmap"))
+    improvement_scenarios = _ensure_list(strategy.get("improvement_scenarios"))
+    province_recommendations = _ensure_list(strategy.get("province_recommendations"))
     french_advantage = strategy.get("french_advantage") or {}
     noc_advantage = strategy.get("noc_advantage") or {}
     advisor_summary = strategy.get("advisor_summary")
