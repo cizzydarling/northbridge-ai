@@ -1626,10 +1626,18 @@ function StrategyAIDrawer({
                           <button
                             key={`${action}-${actionIndex}`}
                             type="button"
-                            onClick={() => onAsk(action)}
+                            onClick={() =>
+                              onAsk(
+                                typeof action === "string"
+                                  ? action
+                                  : action?.label || action?.text || action?.title || ""
+                              )
+                            }
                             className="w-full rounded-xl bg-white px-3 py-2 text-left text-xs font-medium leading-5 text-blue-800 transition hover:bg-blue-100"
                           >
-                            {action}
+                            {typeof action === "string"
+                              ? action
+                              : action?.label || action?.text || action?.title || ""}
                           </button>
                         ))}
                       </div>
@@ -1998,7 +2006,7 @@ export default function StrategyPage() {
               "Concentre-toi sur les améliorations qui auraient le plus grand impact sur le dossier.",
             documents:
               "Concentre-toi sur les documents à préparer ou à renforcer ensuite.",
-          }[promptIntent] || "Réponds de façon directe et ciblée."
+          }[activeIntent] || "Réponds de façon directe et ciblée."
         : {
             pathway:
               "Focus on the strongest pathway, why it is strongest, and what makes it credible.",
@@ -2008,7 +2016,7 @@ export default function StrategyPage() {
               "Focus on the improvements that would have the greatest impact on the case.",
             documents:
               "Focus on which documents should be prepared or strengthened next.",
-          }[promptIntent] || "Answer directly and stay focused.";
+          }[activeIntent] || "Answer directly and stay focused.";
 
     const formatInstruction =
       language === "fr"
@@ -2099,26 +2107,40 @@ export default function StrategyPage() {
 
       const data = response?.data || {};
 
-      const assistantReply =
+      let parsedReply = null;
+
+      const rawReply =
         data.reply || data.summary || data.overall_assessment || data.message || "";
 
-      const fallbackInsights = Array.isArray(data.insights)
-        ? data.insights
-        : [
-            ...(Array.isArray(data.pathways) ? data.pathways : []),
-            ...(Array.isArray(data.strengths) ? data.strengths : []),
-          ].slice(0, 4);
+      try {
+        const firstParse = JSON.parse(rawReply);
 
-      const insightText = fallbackInsights
-        .map((item) =>
-          typeof item === "string"
-            ? item
-            : String(item?.label || item?.title || item?.text || "").trim()
-        )
-        .filter(Boolean)
-        .join("\n• ");
+        if (typeof firstParse?.reply === "string") {
+          try {
+            parsedReply = JSON.parse(firstParse.reply);
+          } catch {
+            parsedReply = {
+              answer: firstParse.reply,
+              reasons: firstParse.insights || [],
+              actions: firstParse.suggested_next_actions || [],
+            };
+          }
+        } else {
+          parsedReply = firstParse;
+        }
+      } catch {
+        parsedReply = {
+          answer: rawReply,
+          reasons: [],
+          actions: [],
+        };
+      }
 
-      const finalReply = assistantReply || (insightText ? `• ${insightText}` : "");
+      const finalReply =
+        parsedReply?.answer ||
+        parsedReply?.reply ||
+        rawReply ||
+        "";
 
       if (!finalReply) {
         setDrawerError(
@@ -2129,28 +2151,20 @@ export default function StrategyPage() {
         return;
       }
 
-      let structuredReply = null;
-
-      try {
-        structuredReply = JSON.parse(finalReply);
-      } catch {
-        structuredReply = {
-          answer: finalReply,
-          reasons: [],
-          actions: [],
-        };
-      }
-
       setDrawerMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: structuredReply?.answer || finalReply,
-          reasons: Array.isArray(structuredReply?.reasons)
-            ? structuredReply.reasons
+          content: finalReply,
+          reasons: Array.isArray(parsedReply?.reasons)
+            ? parsedReply.reasons
+            : Array.isArray(parsedReply?.insights)
+            ? parsedReply.insights
             : [],
-          actions: Array.isArray(structuredReply?.actions)
-            ? structuredReply.actions
+          actions: Array.isArray(parsedReply?.actions)
+            ? parsedReply.actions
+            : Array.isArray(parsedReply?.suggested_next_actions)
+            ? parsedReply.suggested_next_actions
             : [],
         },
       ]);

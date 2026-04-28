@@ -1,4 +1,5 @@
 from io import BytesIO
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -100,10 +101,32 @@ def _normalize_insights(insights, pathways=None) -> list[str]:
 
 def _fallback_chat_payload(language: str) -> dict:
     return {
-        "reply": _t(
-            "Here is a personalized analysis based on your current profile. Focus on strengthening your profile details, reviewing your strategy, and preparing your strongest supporting documents.",
-            "Voici une analyse personnalisée basée sur votre profil actuel. Concentrez-vous sur l’amélioration de votre profil, la révision de votre stratégie et la préparation de vos documents les plus importants.",
-            language,
+        "reply": json.dumps(
+            {
+                "answer": _t(
+                    "Here is a personalized analysis based on your current profile.",
+                    "Voici une analyse personnalisée basée sur votre profil actuel.",
+                    language,
+                ),
+                "reasons": [
+                    _t(
+                        "Your profile still has room for stronger optimization.",
+                        "Votre profil présente encore un potentiel d’optimisation.",
+                        language,
+                    ),
+                    _t(
+                        "Language results, experience, and document quality often have the biggest impact.",
+                        "Les résultats linguistiques, l’expérience et la qualité documentaire ont souvent le plus d’impact.",
+                        language,
+                    ),
+                ],
+                "actions": [
+                    _t("Open my strategy", "Ouvrir ma stratégie", language),
+                    _t("Improve my profile", "Améliorer mon profil", language),
+                    _t("Open my documents", "Ouvrir mes documents", language),
+                ],
+            },
+            ensure_ascii=False,
         ),
         "profile_found": True,
         "strategy_loaded": False,
