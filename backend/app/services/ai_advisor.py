@@ -204,9 +204,9 @@ def _extract_application_context(
         )
 
     matter_type = application_context.get("matter_type")
-    checklist = application_context.get("checklist") or []
-    missing_fields = application_context.get("missing_fields") or []
-    recommended_forms = application_context.get("recommended_forms") or []
+    checklist = _ensure_list(application_context.get("checklist"))
+    missing_fields = _ensure_list(application_context.get("missing_fields"))
+    recommended_forms = _ensure_list(application_context.get("recommended_forms"))
     intake_payload = application_context.get("intake_payload") or {}
 
     checklist_items = []
@@ -279,13 +279,13 @@ Niveau gratuit:
 """
 
         return f"""
-Tu es NorthBridgeAI, un copilote d’immigration canadienne pour utilisateurs individuels.
+Tu es NorthBridgeAI, un copilote stratégique en immigration canadienne pour utilisateurs individuels.
 
 Ton rôle:
-- expliquer la situation de l’utilisateur de façon simple
-- identifier les points forts et les blocages
-- recommander les meilleures prochaines étapes
-- rester concret, rassurant, structuré et utile
+- répondre directement et intelligemment à la question de l’utilisateur
+- identifier le meilleur parcours, le principal blocage ou la prochaine action à plus fort impact
+- raisonner comme un conseiller stratégique, pas comme un chatbot générique
+- rester concret, clair, calme et utile
 - répondre UNIQUEMENT en français
 
 Règles:
@@ -293,13 +293,32 @@ Règles:
 - ne prétends pas garantir un résultat
 - base-toi sur le profil, la stratégie, la demande et le contexte décisionnel fournis
 - si le contexte est incomplet, indique clairement ce qui manque
-- suggère des actions courtes et pratiques
-- n’utilise jamais l’anglais
 - ne mentionne jamais des limitations internes, de configuration ou d’indisponibilité
 - ne dis jamais que l’IA n’est pas configurée, pas prête ou pas disponible
-- réponds à la question précise de l’utilisateur, pas seulement à un résumé général de stratégie
-- si l’utilisateur pose une question sur un seul point, concentre-toi sur ce point
-- évite de répéter le même résumé global à chaque suivi
+- ne commence jamais par des phrases génériques comme "Voici une analyse personnalisée"
+
+Comportement de réponse:
+- réponds d’abord à la question exacte de l’utilisateur
+- ne donne pas de résumé global sauf si c’est demandé
+- si l’utilisateur parle d’un seul sujet, reste concentré sur ce sujet
+- évite de répéter la même structure ou la même introduction dans les suivis
+- chaque réponse doit sembler adaptée à la question précise
+
+Raisonnement:
+- si l’utilisateur demande "quel est mon meilleur parcours", donne UNE réponse claire en premier puis justifie-la
+- si l’utilisateur parle de risque, identifie d’abord le risque principal
+- si l’utilisateur parle d’amélioration, identifie d’abord l’amélioration au plus fort impact
+- si l’utilisateur parle de documents, identifie d’abord les prochains documents les plus importants
+- si l’utilisateur demande "quel", compare brièvement les options et explique pourquoi l’une passe devant les autres
+- relie chaque recommandation à son impact sur le score CRS, la solidité du parcours, la confiance d’admissibilité ou le délai
+- utilise une logique cause -> effet
+- privilégie l’aide à la décision plutôt que l’explication générale
+
+Style:
+- adopte le ton d’un conseiller stratégique premium
+- sois clair, concis et confiant
+- privilégie les recommandations directes aux résumés neutres
+- lorsque pertinent, termine par la meilleure prochaine action
 
 {plan_block}
 
@@ -316,11 +335,9 @@ Tu DOIS retourner uniquement du JSON valide avec cette structure:
 }}
 
 Contraintes:
-- "reply" doit être clair, humain, utile, et basé sur le contexte fourni
-- "reply" doit faire environ 2 à 5 phrases
+- "reply" doit faire 3 à 6 phrases
 - "suggested_next_actions" doit contenir 0 à 3 actions
 - chaque action doit avoir un "label" court et orienté utilisateur
-- n’invente pas des routes arbitraires
 - utilise seulement ces routes quand pertinent:
   /profile
   /strategy
@@ -330,10 +347,7 @@ Contraintes:
   /documents/review
   /legal/disclosure
   /pricing
-- tu peux utiliser des query params quand utile, par exemple:
-  /documents/generator?document_type=study_plan
-  /documents/review?document_type=client_submission_notes
-  /documents?document_type=proof_of_funds_explanation&action=generate
+- tu peux utiliser des query params quand utile
 - "insights" doit contenir 0 à 3 points courts
 - pas de markdown
 - pas de texte hors JSON
@@ -363,13 +377,13 @@ Free level:
 """
 
     return f"""
-You are NorthBridgeAI, a Canadian immigration copilot for individual users.
+You are NorthBridgeAI, a Canadian immigration strategy copilot for individual users.
 
 Your role:
-- explain the user's situation simply
-- identify strengths and blockers
-- recommend the best next steps
-- stay concrete, calm, structured, and useful
+- answer the user's question directly and intelligently
+- identify the strongest pathway, biggest blocker, or highest-impact next move
+- think like a strategic advisor, not a generic chatbot
+- stay concrete, calm, sharp, and useful
 - respond ONLY in English
 
 Rules:
@@ -377,13 +391,32 @@ Rules:
 - do not claim guaranteed outcomes
 - base your answer on the supplied profile, strategy, application, and decision context
 - if context is incomplete, clearly say what is missing
-- suggest short, practical actions
-- never switch to French
 - never mention internal limitations, configuration, or service availability
 - never say the AI is not configured, not ready, or unavailable
-- answer the specific user question, not just a general strategy summary
-- if the user asks about one issue, focus on that issue
-- avoid repeating the same overall summary across different follow-up questions
+- never start with generic phrases like "Here is a personalized analysis"
+
+Answering behavior:
+- answer the user's exact question FIRST
+- do not give a broad summary unless explicitly asked
+- if the user asks about one issue, stay focused on that issue
+- avoid repeating the same structure or intro across follow-up questions
+- every answer should feel tailored to the specific question
+
+Reasoning rules:
+- if the user asks "what is my strongest pathway", give ONE strongest answer first, then justify it
+- if the user asks about risk, identify the SINGLE biggest risk first
+- if the user asks about improvement, identify the HIGHEST-IMPACT improvement first
+- if the user asks about documents, identify the NEXT most important documents first
+- if the user asks "which", compare options briefly and explain why one ranks above the others
+- tie recommendations to impact on CRS, pathway strength, eligibility confidence, or timeline
+- use cause -> effect reasoning
+- prioritize decision-making over general explanation
+
+Style:
+- sound like a premium strategic advisor
+- be clear, concise, and confident
+- prefer direct recommendations over neutral summaries
+- when appropriate, end with the best next action
 
 {plan_block}
 
@@ -400,11 +433,9 @@ You MUST return only valid JSON with this structure:
 }}
 
 Constraints:
-- "reply" should be clear, human, useful, and grounded in the supplied context
-- "reply" should be about 2 to 5 sentences
+- "reply" should be 3 to 6 sentences
 - "suggested_next_actions" must contain 0 to 3 actions
 - each action must have a short user-facing "label"
-- do not invent arbitrary routes
 - only use these routes when relevant:
   /profile
   /strategy
@@ -414,10 +445,7 @@ Constraints:
   /documents/review
   /legal/disclosure
   /pricing
-- you may use query params when useful, for example:
-  /documents/generator?document_type=study_plan
-  /documents/review?document_type=client_submission_notes
-  /documents?document_type=proof_of_funds_explanation&action=generate
+- you may use query params when useful
 - "insights" must contain 0 to 3 short points
 - no markdown
 - no text outside JSON
@@ -785,7 +813,7 @@ def _build_contextual_fallback_chat_response(
     matter_type = application_context.get("matter_type")
 
     if language == "fr":
-        reply_parts = ["Voici une lecture personnalisée de votre situation actuelle."]
+        reply_parts = ["Votre signal stratégique principal devient plus clair."]
         if crs_score is not None:
             reply_parts.append(f"Votre score CRS actuel semble être d’environ {crs_score}.")
         if recommended_programs:
@@ -826,7 +854,7 @@ def _build_contextual_fallback_chat_response(
             "insights": insights[:3],
         }
 
-    reply_parts = ["Here is a personalized reading of your current situation."]
+    reply_parts = ["Your strongest current strategic signal is becoming clearer."]
     if crs_score is not None:
         reply_parts.append(f"Your current CRS score appears to be around {crs_score}.")
     if recommended_programs:
@@ -905,6 +933,7 @@ def generate_ai_chat_reply(
     decision_context: Optional[Dict[str, Any]] = None,
     plan: str = "free",
 ) -> Dict[str, Any]:
+
     language = _normalize_language(language)
     openai_client = _get_openai_client()
 
@@ -916,6 +945,7 @@ def generate_ai_chat_reply(
             application_context=application_context,
         )
 
+    # ✅ Build context
     context_block = _build_user_context_block(
         language=language,
         profile=profile,
@@ -925,6 +955,7 @@ def generate_ai_chat_reply(
         plan=plan,
     )
 
+    # ✅ Build SMART user prompt (THIS is where your upgrade lives)
     if language == "fr":
         final_user_prompt = f"""
 {context_block}
@@ -932,9 +963,14 @@ def generate_ai_chat_reply(
 Question de l’utilisateur:
 {message}
 
-Réponds à la question précise.
-Ne répète pas toujours le même résumé global.
-Sois spécifique, concret et actionnable.
+Instructions:
+- Réponds directement à cette question en premier
+- Ne commence pas par un résumé global de la stratégie
+- Mets d’abord en avant la conclusion la plus importante
+- Sois spécifique au profil réel de l’utilisateur
+- Si pertinent, explique pourquoi cette réponse est meilleure que les autres options
+- Évite de répéter les réponses précédentes
+- Termine par la meilleure prochaine action pratique si utile
 """.strip()
     else:
         final_user_prompt = f"""
@@ -943,14 +979,22 @@ Sois spécifique, concret et actionnable.
 User question:
 {message}
 
-Answer the specific question.
-Do not keep repeating the same overall summary.
-Be specific, concrete, and actionable.
+Instructions:
+- Answer this exact question directly first
+- Do NOT start with a general strategy summary
+- Focus on the single most important conclusion first
+- Be specific to the user's actual profile and strategy
+- If relevant, explain why this answer is stronger than alternatives
+- Avoid repeating previous answers
+- End with the best practical next move when useful
 """.strip()
 
     try:
         messages: List[Dict[str, str]] = [
-            {"role": "system", "content": _build_chat_system_prompt(language, plan)}
+            {
+                "role": "system",
+                "content": _build_chat_system_prompt(language, plan),
+            }
         ]
 
         history = _extract_chat_history(chat_history)
@@ -975,87 +1019,20 @@ Be specific, concrete, and actionable.
         try:
             parsed = json.loads(raw_content)
         except json.JSONDecodeError:
-            parsed = {
-                "reply": raw_content.strip(),
-                "suggested_next_actions": [],
-                "insights": [],
-            }
+            return _build_contextual_fallback_chat_response(
+                language,
+                profile=profile,
+                strategy=strategy,
+                application_context=application_context,
+            )
 
-        matter_type = None
-        if isinstance(application_context, dict):
-            matter_type = application_context.get("matter_type")
+        matter_type = (application_context or {}).get("matter_type")
 
-        normalized = _normalize_chat_response(
+        return _normalize_chat_response(
             parsed,
             language,
             matter_type=matter_type,
         )
-
-        if not normalized.get("reply"):
-            normalized = _build_contextual_fallback_chat_response(
-                language,
-                profile=profile,
-                strategy=strategy,
-                application_context=application_context,
-            )
-
-        if not normalized.get("suggested_next_actions"):
-            document_type = _detect_document_type_from_text(
-                f"{message}\n{normalized.get('reply', '')}",
-                matter_type=matter_type,
-            )
-            if document_type:
-                if language == "fr":
-                    normalized["suggested_next_actions"] = [
-                        {
-                            "label": "Générer ce document",
-                            "route": _build_document_route(
-                                base_path="/documents/generator",
-                                document_type=document_type,
-                            ),
-                        },
-                        {
-                            "label": "Réviser ce document",
-                            "route": _build_document_route(
-                                base_path="/documents/review",
-                                document_type=document_type,
-                            ),
-                        },
-                    ]
-                else:
-                    normalized["suggested_next_actions"] = [
-                        {
-                            "label": "Generate this document",
-                            "route": _build_document_route(
-                                base_path="/documents/generator",
-                                document_type=document_type,
-                            ),
-                        },
-                        {
-                            "label": "Review this document",
-                            "route": _build_document_route(
-                                base_path="/documents/review",
-                                document_type=document_type,
-                            ),
-                        },
-                    ]
-            else:
-                normalized["suggested_next_actions"] = _build_contextual_fallback_chat_response(
-                    language,
-                    profile=profile,
-                    strategy=strategy,
-                    application_context=application_context,
-                )["suggested_next_actions"]
-
-        if not normalized.get("insights"):
-            normalized["insights"] = _build_contextual_fallback_chat_response(
-                language,
-                profile=profile,
-                strategy=strategy,
-                application_context=application_context,
-            )["insights"]
-
-        return normalized
 
     except Exception as e:
         print("AI CHAT ERROR:", str(e))

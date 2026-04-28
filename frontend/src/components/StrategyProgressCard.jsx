@@ -62,6 +62,7 @@ export default function StrategyProgressCard({
   documentStats,
   priority,
   onOpenPriority,
+  onAnalyzePriority,
 }) {
   const isFrench = language === "fr";
 
@@ -75,6 +76,7 @@ export default function StrategyProgressCard({
         total: "Suivis",
         next: "Prochaine meilleure action",
         open: "Ouvrir",
+        analyze: "Analyser avec l’IA",
       }
     : {
         title: "Progress",
@@ -84,6 +86,7 @@ export default function StrategyProgressCard({
         total: "Tracked",
         next: "Next best action",
         open: "Open",
+        analyze: "Analyze with AI",
       };
 
   return (
@@ -118,9 +121,18 @@ export default function StrategyProgressCard({
             {priority.title}
           </p>
 
-          <div className="mt-4">
+          <div className="mt-4 grid gap-2">
             <Button size="sm" fullWidth onClick={onOpenPriority}>
               {text.open}
+            </Button>
+
+            <Button
+              size="sm"
+              variant="subtle"
+              fullWidth
+              onClick={onAnalyzePriority}
+            >
+              {text.analyze}
             </Button>
           </div>
         </div>

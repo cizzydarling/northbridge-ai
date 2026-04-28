@@ -5,7 +5,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
-import AICopilotCard from "../components/AICopilotCard";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
   exportMyStrategyPdf,
@@ -451,7 +450,7 @@ function ListCard({ title, items, emptyLabel }) {
   );
 }
 
-function RiskCard({ title, items, emptyLabel, language }) {
+function RiskCard({ title, items, emptyLabel, language, onAnalyzeRisk, }) {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
@@ -476,6 +475,15 @@ function RiskCard({ title, items, emptyLabel, language }) {
                   {item.impact}
                 </p>
               ) : null}
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  onClick={() => onAnalyzeRisk?.(item)}
+                >
+                  {language === "fr" ? "Analyser" : "Analyze"}
+                </Button>
+              </div>
               {item?.mitigation ? (
                 <p className="mt-2 text-sm leading-7 text-slate-700">
                   <span className="font-medium text-slate-900">
@@ -737,7 +745,7 @@ function NocSignalCard({
   );
 }
 
-function BestPathwayCard({ language, bestPathway, onOpenDocuments }) {
+function BestPathwayCard({ language, bestPathway, onOpenDocuments, onAnalyzePathway }) {
   const reasons = Array.isArray(bestPathway?.reasons)
     ? bestPathway.reasons
     : [];
@@ -798,9 +806,16 @@ function BestPathwayCard({ language, bestPathway, onOpenDocuments }) {
         </div>
       ) : null}
 
-      <div className="mt-5">
+      <div className="mt-5 flex gap-3">
         <Button onClick={onOpenDocuments}>
           {language === "fr" ? "Préparer mes documents" : "Prepare my documents"}
+        </Button>
+
+        <Button
+          variant="subtle"
+          onClick={onAnalyzePathway}
+        >
+          {language === "fr" ? "Pourquoi ?" : "Why this?"}
         </Button>
       </div>
     </Card>
@@ -1403,6 +1418,42 @@ function StrategySectionState({
   );
 }
 
+function StrategyAICard({ language, hasAdvancedCopilot, onAnalyze }) {
+  return (
+    <Card
+      variant="premium"
+      padding="lg"
+      className="rounded-[28px] border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+        {language === "fr" ? "Copilote IA stratégie" : "AI Strategy Copilot"}
+      </p>
+
+      <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        {language === "fr"
+          ? "Demandez à l’IA d’expliquer votre stratégie"
+          : "Ask AI to explain your strategy"}
+      </h3>
+
+      <p className="mt-3 text-sm leading-7 text-slate-600">
+        {hasAdvancedCopilot
+          ? language === "fr"
+            ? "Obtenez une lecture ciblée de vos voies, risques, documents et prochaines actions."
+            : "Get a focused read on your pathways, risks, documents, and next actions."
+          : language === "fr"
+          ? "Obtenez une première lecture stratégique. Les analyses avancées peuvent être débloquées avec Pro ou Premium."
+          : "Get an initial strategic read. Advanced analysis can be unlocked with Pro or Premium."}
+      </p>
+
+      <div className="mt-5">
+        <Button variant="premium" onClick={onAnalyze}>
+          {language === "fr" ? "Ouvrir le copilote IA" : "Open AI copilot"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 function StrategyAIDrawer({
   open,
   onClose,
@@ -1414,6 +1465,9 @@ function StrategyAIDrawer({
   input,
   setInput,
   promptSuggestions = [],
+  hasAdvancedCopilot,
+  aiMode,
+  setAiMode,
 }) {
   const text =
     language === "fr"
@@ -1425,7 +1479,6 @@ function StrategyAIDrawer({
           ask: "Analyser ma stratégie",
           loading: "Analyse en cours...",
           suggestions: "Questions suggérées",
-          insights: "Points clés",
           empty:
             "Ouvrez le tiroir pour obtenir une lecture IA plus approfondie.",
         }
@@ -1437,7 +1490,6 @@ function StrategyAIDrawer({
           ask: "Analyze my strategy",
           loading: "Analyzing...",
           suggestions: "Suggested questions",
-          insights: "Key insights",
           empty: "Open the drawer to get a deeper AI reading.",
           
         };
@@ -1481,6 +1533,28 @@ function StrategyAIDrawer({
             </Button>
           </div>
         </div>
+        
+        <div className="px-6 pb-4 flex gap-2 flex-wrap">
+          {[
+            { key: "general", label: language === "fr" ? "Vue globale" : "Overview" },
+            { key: "pathway", label: language === "fr" ? "Parcours" : "Pathway" },
+            { key: "risk", label: language === "fr" ? "Risques" : "Risks" },
+            { key: "documents", label: language === "fr" ? "Documents" : "Documents" },
+            { key: "optimization", label: language === "fr" ? "Optimisation" : "Optimize" },
+          ].map((mode) => (
+            <button
+              key={mode.key}
+              onClick={() => setAiMode(mode.key)}
+              className={`px-3 py-1.5 text-xs rounded-full border ${
+                aiMode === mode.key
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-600 border-slate-200"
+              }`}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {!loading && !error && messages.length === 0 ? (
@@ -1519,7 +1593,49 @@ function StrategyAIDrawer({
                     : "border border-slate-200 bg-white text-slate-700 shadow-sm"
                 }`}
               >
-                <p className="whitespace-pre-line">{message.content}</p>
+                <div className="space-y-3">
+                  <p className="whitespace-pre-line">{message.content}</p>
+
+                  {message.role === "assistant" && message.reasons?.length > 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        {language === "fr" ? "Raisons principales" : "Key reasons"}
+                      </p>
+
+                      <div className="mt-2 space-y-2">
+                        {message.reasons.map((reason, reasonIndex) => (
+                          <div
+                            key={`${reason}-${reasonIndex}`}
+                            className="rounded-xl bg-white px-3 py-2 text-xs leading-5 text-slate-700"
+                          >
+                            {reason}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {message.role === "assistant" && message.actions?.length > 0 ? (
+                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+                        {language === "fr" ? "Prochaines actions" : "Next actions"}
+                      </p>
+
+                      <div className="mt-2 space-y-2">
+                        {message.actions.map((action, actionIndex) => (
+                          <button
+                            key={`${action}-${actionIndex}`}
+                            type="button"
+                            onClick={() => onAsk(action)}
+                            className="w-full rounded-xl bg-white px-3 py-2 text-left text-xs font-medium leading-5 text-blue-800 transition hover:bg-blue-100"
+                          >
+                            {action}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
@@ -1577,95 +1693,101 @@ function buildStrategyDrawerContext({
   timelineValue,
   priority,
 }) {
-  const parts = [];
+  const safeList = (items) =>
+    Array.isArray(items) && items.length ? items.slice(0, 8).join(" | ") : "";
 
-  parts.push(
-    language === "fr"
-      ? "Contexte stratégique NorthBridgeAI"
-      : "NorthBridgeAI strategy context"
-  );
+  const safeRisks = Array.isArray(strategy?.risk_analysis)
+    ? strategy.risk_analysis
+        .slice(0, 5)
+        .map((item) =>
+          [
+            item?.risk ? `Risk: ${item.risk}` : "",
+            item?.impact ? `Impact: ${item.impact}` : "",
+            item?.mitigation ? `Mitigation: ${item.mitigation}` : "",
+          ]
+            .filter(Boolean)
+            .join(" — ")
+        )
+        .filter(Boolean)
+        .join(" | ")
+    : "";
 
-  if (strategy?.crs_score) {
-    parts.push(
-      language === "fr"
-        ? `Score CRS: ${strategy.crs_score}`
-        : `CRS score: ${strategy.crs_score}`
-    );
-  }
+  const safeRoadmap = Array.isArray(strategy?.roadmap)
+    ? strategy.roadmap
+        .slice(0, 5)
+        .map((item) =>
+          [
+            item?.title,
+            item?.estimated_crs_gain
+              ? `CRS gain: ${item.estimated_crs_gain}`
+              : "",
+            item?.difficulty ? `Difficulty: ${item.difficulty}` : "",
+            item?.reason,
+          ]
+            .filter(Boolean)
+            .join(" — ")
+        )
+        .filter(Boolean)
+        .join(" | ")
+    : "";
 
-  if (strategy?.best_pathway?.name) {
-    parts.push(
-      language === "fr"
-        ? `Meilleur parcours: ${strategy.best_pathway.name}`
-        : `Best pathway: ${strategy.best_pathway.name}`
-    );
-  }
+  const safeProvinces = Array.isArray(strategy?.province_recommendations)
+    ? strategy.province_recommendations
+        .slice(0, 5)
+        .map((item) =>
+          [
+            item?.province,
+            item?.program,
+            item?.chance ? `Chance: ${item.chance}` : "",
+            item?.score ? `Score: ${item.score}` : "",
+            item?.reason,
+          ]
+            .filter(Boolean)
+            .join(" — ")
+        )
+        .filter(Boolean)
+        .join(" | ")
+    : "";
 
-  if (confidenceValue) {
-    parts.push(
-      language === "fr"
-        ? `Confiance: ${confidenceValue}`
-        : `Confidence: ${confidenceValue}`
-    );
-  }
+  return `
+${language === "fr" ? "CONTEXTE STRATÉGIQUE" : "STRATEGY CONTEXT"}
 
-  if (timelineValue) {
-    parts.push(
-      language === "fr"
-        ? `Délai estimé: ${getTimelineLabel(timelineValue, language)}`
-        : `Estimated timeline: ${getTimelineLabel(timelineValue, language)}`
-    );
-  }
+CRS score: ${strategy?.crs_score ?? "--"}
+Best pathway: ${strategy?.best_pathway?.name || "--"}
+Best pathway confidence: ${strategy?.best_pathway?.confidence || confidenceValue || "--"}
+Estimated timeline: ${getTimelineLabel(timelineValue, language)}
 
-  if (Array.isArray(strategy?.recommended_programs) && strategy.recommended_programs.length) {
-    parts.push(
-      language === "fr"
-        ? `Programmes recommandés: ${strategy.recommended_programs.join(" | ")}`
-        : `Recommended programs: ${strategy.recommended_programs.join(" | ")}`
-    );
-  }
+Recommended programs:
+${safeList(strategy?.recommended_programs) || "--"}
 
-  if (Array.isArray(strategy?.next_steps) && strategy.next_steps.length) {
-    parts.push(
-      language === "fr"
-        ? `Prochaines étapes: ${strategy.next_steps.join(" | ")}`
-        : `Next steps: ${strategy.next_steps.join(" | ")}`
-    );
-  }
+Strengths:
+${safeList(strategy?.strengths) || "--"}
 
-  if (Array.isArray(strategy?.weaknesses) && strategy.weaknesses.length) {
-    parts.push(
-      language === "fr"
-        ? `Faiblesses: ${strategy.weaknesses.join(" | ")}`
-        : `Weaknesses: ${strategy.weaknesses.join(" | ")}`
-    );
-  }
+Weaknesses:
+${safeList(strategy?.weaknesses) || "--"}
 
-  if (Array.isArray(strategy?.strengths) && strategy.strengths.length) {
-    parts.push(
-      language === "fr"
-        ? `Forces: ${strategy.strengths.join(" | ")}`
-        : `Strengths: ${strategy.strengths.join(" | ")}`
-    );
-  }
+Risks:
+${safeRisks || "--"}
 
-  if (priority?.title) {
-    parts.push(
-      language === "fr"
-        ? `Priorité actuelle: ${priority.title}`
-        : `Current priority: ${priority.title}`
-    );
-  }
+Roadmap:
+${safeRoadmap || "--"}
 
-  if (priority?.reason) {
-    parts.push(
-      language === "fr"
-        ? `Pourquoi maintenant: ${priority.reason}`
-        : `Why now: ${priority.reason}`
-    );
-  }
+Province recommendations:
+${safeProvinces || "--"}
 
-  return parts.join("\n");
+NOC:
+Code: ${strategy?.noc_profile?.resolved_noc_code || strategy?.noc_summary?.noc_code || strategy?.noc_advantage?.noc_code || "--"}
+Title: ${strategy?.noc_profile?.resolved_title || strategy?.noc_summary?.noc_title || strategy?.noc_summary?.occupation || "--"}
+TEER: ${strategy?.noc_advantage?.teer ?? strategy?.noc_summary?.teer ?? "--"}
+Strategic value: ${strategy?.noc_advantage?.strategic_value || "--"}
+
+Current priority:
+${priority?.title || "--"}
+Reason:
+${priority?.reason || "--"}
+Actions:
+${safeList(priority?.actions) || "--"}
+`.trim();
 }
 
 export default function StrategyPage() {
@@ -1690,6 +1812,7 @@ export default function StrategyPage() {
   const [drawerMessages, setDrawerMessages] = useState([]);
   const [drawerInput, setDrawerInput] = useState("");
   const [drawerError, setDrawerError] = useState("");
+  const [aiMode, setAiMode] = useState("general");
   
 
   useEffect(() => {
@@ -1862,6 +1985,8 @@ export default function StrategyPage() {
 
     const userQuestion = promptLabel || defaultPrompt;
 
+    const activeIntent = promptIntent || aiMode || "general";
+
     const intentInstruction =
       language === "fr"
         ? {
@@ -1885,6 +2010,31 @@ export default function StrategyPage() {
               "Focus on which documents should be prepared or strengthened next.",
           }[promptIntent] || "Answer directly and stay focused.";
 
+    const formatInstruction =
+      language === "fr"
+        ? `
+    FORMAT DE RÉPONSE (JSON STRICT) :
+
+    {
+      "answer": "réponse directe",
+      "reasons": ["raison 1", "raison 2"],
+      "actions": ["action 1", "action 2"]
+    }
+
+    Réponds UNIQUEMENT en JSON valide.
+    `
+        : `
+    RESPONSE FORMAT (STRICT JSON):
+
+    {
+      "answer": "direct answer",
+      "reasons": ["reason 1", "reason 2"],
+      "actions": ["action 1", "action 2"]
+    }
+
+    Respond ONLY with valid JSON.
+    `;
+
     try {
       setDrawerOpen(true);
       setDrawerLoading(true);
@@ -1904,13 +2054,18 @@ export default function StrategyPage() {
           ? `
   Tu es l'assistant stratégique de NorthBridgeAI.
 
-  Utilise le contexte suivant pour répondre précisément à la question de l’utilisateur.
+  Utilise le contexte stratégique ci-dessous comme source de vérité. N’invente pas de faits qui ne sont pas dans le contexte.
   Ne répète pas toujours le même résumé global.
   Réponds directement à la question posée.
   Sois spécifique, concret et actionnable.
 
   Instruction d’intention:
   ${intentInstruction}
+
+  Format de réponse:
+  1. Réponse directe
+  2. Raisons principales
+  3. Prochaines actions
 
   ${strategyDrawerContext}
 
@@ -1920,13 +2075,18 @@ export default function StrategyPage() {
           : `
   You are NorthBridgeAI's strategy assistant.
 
-  Use the following context to answer the user's question precisely.
+  Use the strategy context below as the source of truth. Do not invent facts that are not in the context.
   Do not keep repeating the same overall summary.
   Answer the specific question being asked.
   Be concrete, specific, and actionable.
 
   Intent instruction:
   ${intentInstruction}
+
+  Output format:
+  1. Direct answer
+  2. Key reasons
+  3. Next actions
 
   ${strategyDrawerContext}
 
@@ -1975,11 +2135,29 @@ export default function StrategyPage() {
         return;
       }
 
+      let structuredReply = null;
+
+      try {
+        structuredReply = JSON.parse(finalReply);
+      } catch {
+        structuredReply = {
+          answer: finalReply,
+          reasons: [],
+          actions: [],
+        };
+      }
+
       setDrawerMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: finalReply,
+          content: structuredReply?.answer || finalReply,
+          reasons: Array.isArray(structuredReply?.reasons)
+            ? structuredReply.reasons
+            : [],
+          actions: Array.isArray(structuredReply?.actions)
+            ? structuredReply.actions
+            : [],
         },
       ]);
     } catch (err) {
@@ -1994,6 +2172,15 @@ export default function StrategyPage() {
     } finally {
       setDrawerLoading(false);
     }
+  }
+
+  function openDrawerWithIntent(intent, label) {
+    setAiMode(intent || "general");
+
+    handleAnalyzeStrategyDrawer({
+      intent,
+      label,
+    });
   }
 
   const strategy = data || null;
@@ -2145,6 +2332,14 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                 `/documents?pathway=${encodeURIComponent(
                   bestPathway?.name || ""
                 )}`
+              )
+            }
+            onAnalyzePathway={() =>
+              openDrawerWithIntent(
+                "pathway",
+                language === "fr"
+                  ? "Explique pourquoi ce parcours est le meilleur."
+                  : "Explain why this pathway is the strongest."
               )
             }
           />
@@ -2726,7 +2921,15 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         exportingPdf={exportingPdf}
         onOpenDocuments={() => navigate("/documents")}
         onExportPdf={handleExportPdf}
-        onAnalyzeStrategy={handleAnalyzeStrategyDrawer}
+        onAnalyzeStrategy={() =>
+          handleAnalyzeStrategyDrawer({
+            label:
+              language === "fr"
+                ? "Analyse ma stratégie actuelle."
+                : "Analyze my current strategy.",
+            intent: "optimization",
+          })
+        }
         onUpgrade={() => navigate(premiumPath)}
       />
 
@@ -2756,27 +2959,17 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
             />
           )}
 
-          <AICopilotCard
-            title={
-              language === "fr" ? "Copilote IA stratégie" : "AI Strategy Copilot"
-            }
-            description={
-              hasAdvancedCopilot
-                ? language === "fr"
-                  ? "Comprenez votre stratégie plus en profondeur et optimisez vos prochaines actions."
-                  : "Understand your strategy more deeply and optimize your next actions."
-                : language === "fr"
-                ? "Obtenez une lecture stratégique plus approfondie de votre dossier."
-                : "Get a deeper strategic read of your case."
-            }
-            buttonLabel={
-              language === "fr" ? "Analyser ma stratégie" : "Analyze my strategy"
-            }
+          <StrategyAICard
             language={language}
-            prompt={
-              language === "fr"
-                ? "Analyse ma stratégie d'immigration et propose les meilleures améliorations possibles."
-                : "Analyze my immigration strategy and suggest the best improvements possible."
+            hasAdvancedCopilot={hasAdvancedCopilot}
+            onAnalyze={() =>
+              handleAnalyzeStrategyDrawer({
+                label:
+                  language === "fr"
+                    ? "Analyse ma stratégie d'immigration et propose les meilleures améliorations possibles."
+                    : "Analyze my immigration strategy and suggest the best improvements possible.",
+                intent: "optimization",
+              })
             }
           />
 
@@ -2844,6 +3037,14 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                 documentStats={documentStats}
                 priority={priority}
                 onOpenPriority={() => navigate(priority.route)}
+                onAnalyzePriority={() =>
+                  openDrawerWithIntent(
+                    "documents",
+                    language === "fr"
+                      ? "Quels documents dois-je prioriser maintenant ?"
+                      : "Which documents should I prioritize next?"
+                  )
+                }
               />
             </div>
           </div>
@@ -3269,6 +3470,12 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                   items={strategy?.risk_analysis}
                   emptyLabel={text.noItems}
                   language={language}
+                  onAnalyzeRisk={(item) =>
+                    openDrawerWithIntent(
+                      "risk",
+                      item?.risk || "Explain this risk"
+                    )
+                  }
                 />
               ) : (
                 <StrategySectionState
@@ -3312,6 +3519,12 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                     }
                     emptyLabel={text.noItems}
                     language={language}
+                    onAnalyzeRisk={(item) =>
+                      openDrawerWithIntent(
+                        "risk",
+                        item?.risk || "Explain this risk"
+                      )
+                    }
                   />
                 </BlurredSection>
               ))}
@@ -3374,6 +3587,8 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
             intent: "documents",
           },
         ]}
+        aiMode={aiMode}
+        setAiMode={setAiMode}
       />
     </Layout>
   );
