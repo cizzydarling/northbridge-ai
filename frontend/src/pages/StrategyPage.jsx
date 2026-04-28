@@ -2062,10 +2062,7 @@ export default function StrategyPage() {
   Instruction d’intention:
   ${intentInstruction}
 
-  Format de réponse:
-  1. Réponse directe
-  2. Raisons principales
-  3. Prochaines actions
+  ${formatInstruction}
 
   ${strategyDrawerContext}
 
@@ -2083,10 +2080,7 @@ export default function StrategyPage() {
   Intent instruction:
   ${intentInstruction}
 
-  Output format:
-  1. Direct answer
-  2. Key reasons
-  3. Next actions
+  ${formatInstruction}
 
   ${strategyDrawerContext}
 

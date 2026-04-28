@@ -754,7 +754,15 @@ def _normalize_chat_response(
             "insights": [],
         }
 
-    reply = str(payload.get("reply", "")).strip()
+    import json
+
+    normalized_payload = {
+    "answer": payload.get("answer") or payload.get("reply") or "",
+    "reasons": payload.get("reasons") or payload.get("insights") or [],
+    "actions": payload.get("actions") or payload.get("suggested_next_actions") or [],
+    }
+
+    reply = json.dumps(payload, ensure_ascii=False)
 
     actions_raw = payload.get("suggested_next_actions", [])
     insights_raw = payload.get("insights", [])
