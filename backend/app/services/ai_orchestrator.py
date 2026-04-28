@@ -744,8 +744,10 @@ def ask_self_user_copilot(
 
         result = _coerce_ai_result(result, language)
 
+        raw_reply = (result.get("reply") or "").strip()
+
         formatted = format_ai_response(
-            raw_text=result.get("reply", ""),
+            raw_text=raw_reply,
             language=language,
             plan=plan,
             strategy=strategy,
@@ -756,6 +758,7 @@ def ask_self_user_copilot(
 
         return {
             **formatted,
+            "reply": raw_reply or formatted.get("reply", ""),
             "profile_found": context["profile_found"],
             "strategy_loaded": context["strategy_loaded"],
             "application_found": context["application_found"],
