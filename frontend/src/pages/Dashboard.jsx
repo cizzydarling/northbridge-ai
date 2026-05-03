@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
-import StatCard from "../components/StatCard";
 import UpgradeModal from "../components/UpgradeModal";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -18,9 +17,9 @@ import {
 
 function normalizePlan(plan) {
   const value = String(plan || "").trim().toLowerCase();
-
   if (value === "individual_pro") return "pro";
   if (value === "individual_premium") return "premium";
+  if (value === "agent_pro") return "premium";
   if (value === "premium") return "premium";
   if (value === "pro") return "pro";
   return "free";
@@ -29,11 +28,7 @@ function normalizePlan(plan) {
 function hasPaidPlan(user, billingPlan) {
   if (!user) return false;
   if (user.role === "admin") return true;
-
-  const effectivePlan = billingPlan || user.plan;
-  return ["individual_pro", "agent_pro", "individual_premium"].includes(
-    effectivePlan
-  );
+  return ["pro", "premium"].includes(normalizePlan(billingPlan || user.plan));
 }
 
 function isPremiumPlan(plan) {
@@ -165,32 +160,31 @@ function extractStrategySummary(strategy) {
   };
 }
 
-function InfoRow({ label, value }) {
+function PageHeader({ eyebrow, title, subtitle }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="text-right text-sm font-medium text-slate-900">{value}</p>
+    <div className="max-w-3xl">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+        {eyebrow}
+      </p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
+        {title}
+      </h1>
+      <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+        {subtitle}
+      </p>
     </div>
   );
 }
 
-function QuickActionButton({ label, onClick, variant = "secondary" }) {
-  return (
-    <Button variant={variant} onClick={onClick} className="justify-center">
-      {label}
-    </Button>
-  );
-}
-
-function TopTabButton({ active, label, onClick }) {
+function TabButton({ active, label, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-4 py-2 text-sm transition ${
+      className={`rounded-full border px-4 py-2.5 text-sm shadow-sm transition-all duration-200 ${
         active
-          ? "border-blue-200 bg-blue-50 font-semibold text-blue-700"
-          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          ? "border-blue-200 bg-blue-50 font-semibold text-blue-700 shadow-[0_8px_24px_rgba(37,99,235,0.10)]"
+          : "border-slate-200 bg-white font-medium text-slate-600 hover:bg-slate-50"
       }`}
     >
       {label}
@@ -198,22 +192,108 @@ function TopTabButton({ active, label, onClick }) {
   );
 }
 
-function MiniStat({ label, value }) {
+function MetricCard({ label, value, body, tone = "default" }) {
+  const toneClass = {
+    default: "border-slate-200 bg-white",
+    blue: "border-blue-200 bg-blue-50",
+    amber: "border-amber-200 bg-amber-50",
+    emerald: "border-emerald-200 bg-emerald-50",
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
-      <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+    <div
+      className={`rounded-[24px] border p-5 shadow-sm ${
+        toneClass[tone] || toneClass.default
+      }`}
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-base font-semibold text-slate-900">{value}</p>
+      <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-slate-900">
+        {value || "—"}
+      </p>
+      {body ? <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p> : null}
     </div>
   );
 }
 
-function DashboardSectionTitle({ children }) {
+function MiniStat({ label, value }) {
   return (
-    <h2 className="text-xl font-semibold tracking-tight text-slate-900">
-      {children}
-    </h2>
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function ProgressBar({ value }) {
+  const safeValue = Math.max(0, Math.min(100, Number(value || 0)));
+
+  return (
+    <div>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+        <div
+          className="h-full rounded-full bg-blue-900 transition-all duration-300"
+          style={{ width: `${safeValue}%` }}
+        />
+      </div>
+      <p className="mt-2 text-xs font-medium text-slate-500">{safeValue}%</p>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="text-right text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function SectionTitle({ eyebrow, title, action = null }) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        {eyebrow ? (
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+            {eyebrow}
+          </p>
+        ) : null}
+        <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
+          {title}
+        </h2>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function ActionCard({ title, body, buttonLabel, onClick, locked = false }) {
+  return (
+    <Card padding="md" hover className="rounded-[28px]">
+      <div className="flex h-full flex-col justify-between gap-5">
+        <div>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-base font-semibold tracking-tight text-slate-900">
+              {title}
+            </h3>
+            {locked ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+                Lock
+              </span>
+            ) : null}
+          </div>
+          <p className="text-sm leading-6 text-slate-600">{body}</p>
+        </div>
+
+        <Button variant={locked ? "premium" : "secondary"} fullWidth onClick={onClick}>
+          {buttonLabel}
+        </Button>
+      </div>
+    </Card>
   );
 }
 
@@ -329,17 +409,12 @@ export default function Dashboard() {
     }
 
     window.addEventListener("nbai-strategy-refresh", handleRefresh);
-    return () => {
-      window.removeEventListener("nbai-strategy-refresh", handleRefresh);
-    };
+    return () => window.removeEventListener("nbai-strategy-refresh", handleRefresh);
   }, []);
 
   useEffect(() => {
     if (hasStrategy && !paidAccess) {
-      const timer = setTimeout(() => {
-        setShowUpgrade(true);
-      }, 2500);
-
+      const timer = setTimeout(() => setShowUpgrade(true), 2500);
       return () => clearTimeout(timer);
     }
   }, [hasStrategy, paidAccess]);
@@ -348,148 +423,131 @@ export default function Dashboard() {
     if (language === "fr") {
       return {
         dashboard: "Tableau de bord",
-        subtitle:
-          "Suivez votre progression et avancez avec plus de clarté.",
-        overviewLabel: "Vue d’ensemble",
-        overviewTitleReady: "Votre dossier prend forme",
-        overviewTitlePending: "Préparez votre stratégie personnalisée",
-        overviewBodyReady:
-          "Retrouvez ici vos indicateurs clés, votre meilleure voie actuelle et les prochaines actions recommandées.",
-        overviewBodyPending:
-          "Complétez davantage votre profil pour débloquer une stratégie plus précise et des recommandations plus utiles.",
-        accountSummary: "Résumé du compte",
+        subtitle: "Votre centre de contrôle pour suivre votre stratégie, vos documents et vos prochaines actions.",
+        overview: "Aperçu",
+        execution: "Exécution",
+        account: "Compte",
+        commandCenter: "Centre de commande",
+        readyTitle: "Votre dossier prend forme",
+        pendingTitle: "Préparez votre stratégie personnalisée",
+        readyBody: "Votre tableau de bord regroupe vos signaux clés, votre meilleure voie et les actions les plus importantes.",
+        pendingBody: "Complétez davantage votre profil pour débloquer une stratégie plus précise.",
+        profileCompletion: "Profil",
+        crsScore: "Score CRS",
+        bestPathway: "Meilleur parcours",
+        topImprovement: "Priorité",
+        strategyAvailable: "Stratégie disponible",
+        profileInProgress: "Profil en progression",
         currentPlan: "Plan actuel",
+        recommendedAction: "Action recommandée",
+        completeProfile: "Compléter le profil",
+        openStrategy: "Ouvrir la stratégie",
+        updateProfile: "Mettre à jour le profil",
+        openDocuments: "Mes documents",
+        generateDocument: "Générateur de documents",
+        reviewDocument: "Révision IA",
+        openForms: "Forms Studio",
+        strategySnapshot: "Aperçu stratégique",
+        recommendedPrograms: "Programmes recommandés",
+        noPrograms: "Aucun programme disponible pour le moment.",
+        noStrategyYet: "Votre stratégie n’est pas encore prête. Ajoutez plus d’informations à votre profil.",
+        strategyLoading: "Chargement de votre stratégie personnalisée...",
+        noPathway: "Aucun parcours détecté",
+        noImprovement: "Aucune recommandation pour le moment",
+        noStrategy: "Aucune stratégie disponible",
+        accountSummary: "Résumé du compte",
+        accountName: "Nom",
+        email: "Email",
         billingStatus: "Statut d’abonnement",
         premiumAccess: "Accès Premium",
-        email: "Email",
-        accountName: "Nom",
         active: "Actif",
         inactive: "Free access",
         unlocked: "Débloqué",
         locked: "Verrouillé",
-        profileCompletion: "Complétion du profil",
-        currentCrsScore: "Score CRS",
-        bestPathway: "Meilleur parcours",
-        topImprovement: "Priorité d’amélioration",
-        noStrategy: "Aucune stratégie disponible",
-        noImprovement: "Aucune recommandation pour le moment",
-        noPathway: "Aucun parcours détecté",
-        latestStrategy: "Dernier résultat stratégique",
-        bestImmigrationOption: "Meilleure option actuelle",
-        nextOptimization: "Meilleure prochaine optimisation",
-        nextSteps: "Actions rapides",
-        strategySnapshot: "Aperçu stratégique",
-        recommendedPrograms: "Programmes recommandés",
-        noPrograms: "Aucun programme disponible pour le moment.",
-        openStrategy: "Ouvrir la stratégie",
-        updateProfile: "Mettre à jour le profil",
         managePlan: "Gérer le plan",
-        openDocuments: "Mes documents",
-        openForms: "Forms Studio",
-        generateDocument: "Générateur de documents",
-        reviewDocument: "Révision IA",
-        strategySummary: "Résumé stratégique",
-        profileNeedsWork:
-          "Complétez davantage votre profil pour améliorer la qualité des résultats.",
-        strategyLoading: "Chargement de votre stratégie personnalisée...",
-        noStrategyYet:
-          "Votre stratégie n’est pas encore prête. Ajoutez plus d’informations dans votre profil pour générer un résultat exploitable.",
-        unlockTitle: "Débloquez l’exécution complète",
-        unlockBody:
-          "Passez à Pro pour utiliser les outils documents, formulaires, révision IA et avancer plus vite.",
         upgrade: "Upgrade",
-        premiumTitle: "Passez à Premium pour finaliser",
-        premiumBody:
-          "Débloquez l’export PDF et une couche de finition plus forte pour votre dossier.",
         goPremium: "Passer à Premium",
-        focusCard: "Focus principal",
-        strategyAvailable: "Stratégie disponible",
-        profileInProgress: "Profil en progression",
-        nextRecommendedAction: "Action recommandée",
-        completeProfile: "Compléter le profil",
-        tabOverview: "Aperçu",
-        tabExecution: "Exécution",
-        tabAccount: "Compte",
-        profileStateReady: "Prêt à avancer",
-        profileStatePending: "À compléter",
-        recommendedProgramsShort: "Programmes",
-        noSummary: "Commencez à construire votre stratégie",
+        unlockTitle: "Débloquez l’exécution complète",
+        unlockBody: "Passez à Pro pour utiliser les documents, les formulaires et la révision IA.",
+        premiumTitle: "Passez à Premium pour finaliser",
+        premiumBody: "Débloquez l’export PDF et une finition plus forte pour votre dossier.",
         freePlan: "Free Plan",
+        quickActions: "Actions rapides",
+        nextSteps: "Prochaines actions",
+        profileStatusReady: "Prêt à avancer",
+        profileStatusPending: "À compléter",
       };
     }
 
     return {
       dashboard: "Dashboard",
-      subtitle: "Track your progress and move forward with more clarity.",
-      overviewLabel: "Overview",
-      overviewTitleReady: "Your case is taking shape",
-      overviewTitlePending: "Prepare your personalized strategy",
-      overviewBodyReady:
-        "See your key metrics, strongest current pathway, and recommended next actions at a glance.",
-      overviewBodyPending:
-        "Complete more of your profile to unlock a more precise strategy and stronger recommendations.",
-      accountSummary: "Account summary",
+      subtitle: "Your command center for tracking your strategy, documents, and next best actions.",
+      overview: "Overview",
+      execution: "Execution",
+      account: "Account",
+      commandCenter: "Command center",
+      readyTitle: "Your case is taking shape",
+      pendingTitle: "Prepare your personalized strategy",
+      readyBody: "Your dashboard brings together your key signals, strongest pathway, and most important actions.",
+      pendingBody: "Complete more of your profile to unlock a more precise strategy.",
+      profileCompletion: "Profile",
+      crsScore: "CRS score",
+      bestPathway: "Best pathway",
+      topImprovement: "Priority",
+      strategyAvailable: "Strategy available",
+      profileInProgress: "Profile in progress",
       currentPlan: "Current plan",
+      recommendedAction: "Recommended action",
+      completeProfile: "Complete profile",
+      openStrategy: "Open strategy",
+      updateProfile: "Update profile",
+      openDocuments: "My documents",
+      generateDocument: "Document generator",
+      reviewDocument: "AI review",
+      openForms: "Forms Studio",
+      strategySnapshot: "Strategy snapshot",
+      recommendedPrograms: "Recommended programs",
+      noPrograms: "No programs available yet.",
+      noStrategyYet: "Your strategy is not ready yet. Add more profile information.",
+      strategyLoading: "Loading your personalized strategy...",
+      noPathway: "No pathway detected",
+      noImprovement: "No recommendation available yet",
+      noStrategy: "No strategy available",
+      accountSummary: "Account summary",
+      accountName: "Name",
+      email: "Email",
       billingStatus: "Subscription status",
       premiumAccess: "Premium access",
-      email: "Email",
-      accountName: "Name",
       active: "Active",
       inactive: "Free access",
       unlocked: "Unlocked",
       locked: "Locked",
-      profileCompletion: "Profile completion",
-      currentCrsScore: "CRS score",
-      bestPathway: "Best pathway",
-      topImprovement: "Top improvement",
-      noStrategy: "No strategy available",
-      noImprovement: "No recommendation available yet",
-      noPathway: "No pathway detected",
-      latestStrategy: "Latest strategy result",
-      bestImmigrationOption: "Best immigration option",
-      nextOptimization: "Best next optimization opportunity",
-      nextSteps: "Quick actions",
-      strategySnapshot: "Strategy snapshot",
-      recommendedPrograms: "Recommended programs",
-      noPrograms: "No programs available.",
-      openStrategy: "Open strategy",
-      updateProfile: "Update profile",
       managePlan: "Manage plan",
-      openDocuments: "My documents",
-      openForms: "Forms Studio",
-      generateDocument: "Document generator",
-      reviewDocument: "AI review",
-      strategySummary: "Strategy summary",
-      profileNeedsWork:
-        "Complete more of your profile to improve strategy quality.",
-      strategyLoading: "Loading your personalized strategy...",
-      noStrategyYet:
-        "Your strategy is not ready yet. Add more profile information to generate a useful result.",
-      unlockTitle: "Unlock full execution",
-      unlockBody:
-        "Upgrade to Pro to use documents, forms, AI review, and move faster.",
       upgrade: "Upgrade",
-      premiumTitle: "Upgrade to Premium to finalize",
-      premiumBody:
-        "Unlock PDF export and a stronger finishing layer for your case.",
       goPremium: "Go Premium",
-      focusCard: "Main focus",
-      strategyAvailable: "Strategy available",
-      profileInProgress: "Profile in progress",
-      nextRecommendedAction: "Recommended action",
-      completeProfile: "Complete profile",
-      tabOverview: "Overview",
-      tabExecution: "Execution",
-      tabAccount: "Account",
-      profileStateReady: "Ready to move",
-      profileStatePending: "Needs work",
-      recommendedProgramsShort: "Programs",
-      noSummary: "Start building your strategy",
+      unlockTitle: "Unlock full execution",
+      unlockBody: "Upgrade to Pro to use documents, forms, and AI review.",
+      premiumTitle: "Upgrade to Premium to finalize",
+      premiumBody: "Unlock PDF export and a stronger finishing layer for your case.",
       freePlan: "Free Plan",
+      quickActions: "Quick actions",
+      nextSteps: "Next actions",
+      profileStatusReady: "Ready to move",
+      profileStatusPending: "Needs work",
     };
   }, [language]);
 
-  const heroSummary = strategyHeadline || summary || pageText.noSummary;
+  const heroSummary =
+    strategyHeadline ||
+    summary ||
+    (hasStrategy ? pageText.readyBody : pageText.pendingBody);
+
+  const displayPlanLabel =
+    currentPlan === "free"
+      ? pageText.freePlan
+      : currentPlan === "premium"
+      ? "Premium"
+      : "Pro";
 
   const subscriptionStatusLabel = billing?.subscription_status
     ? billing.subscription_status
@@ -502,74 +560,72 @@ export default function Dashboard() {
       ? `${currentUser.first_name} ${currentUser.last_name}`
       : currentUser?.first_name || currentUser?.email || "—";
 
-  const displayPlanLabel =
-    currentPlan === "free"
-      ? pageText.freePlan
-      : currentPlan === "premium"
-      ? "Premium"
-      : "Pro";
+  const recommendedAction = !profile
+    ? { label: pageText.completeProfile, onClick: () => navigate("/profile") }
+    : hasStrategy
+    ? { label: pageText.openStrategy, onClick: () => navigate("/strategy") }
+    : { label: pageText.updateProfile, onClick: () => navigate("/profile") };
 
   const quickActions = [
     {
-      label: pageText.updateProfile,
+      title: pageText.updateProfile,
+      body: language === "fr" ? "Améliorez la précision de votre stratégie." : "Improve your strategy accuracy.",
+      button: pageText.updateProfile,
       path: "/profile",
-      variant: "primary",
+      locked: false,
     },
     {
-      label: pageText.openStrategy,
+      title: pageText.openStrategy,
+      body: language === "fr" ? "Consultez votre meilleure voie et votre plan." : "Review your strongest pathway and plan.",
+      button: pageText.openStrategy,
       path: "/strategy",
-      variant: "secondary",
+      locked: false,
     },
     {
-      label: pageText.openDocuments,
+      title: pageText.openDocuments,
+      body: language === "fr" ? "Préparez les documents clés de votre dossier." : "Prepare the key documents for your case.",
+      button: pageText.openDocuments,
       path: "/documents",
-      variant: "secondary",
+      locked: false,
     },
     {
-      label: pageText.generateDocument,
+      title: pageText.generateDocument,
+      body: language === "fr" ? "Générez des brouillons avec l’IA." : "Generate AI-assisted document drafts.",
+      button: pageText.generateDocument,
       path: paidAccess
         ? "/documents/generator?source=dashboard&intent=execute"
         : "/pricing?plan=pro&source=dashboard&intent=execute",
-      variant: "secondary",
+      locked: !paidAccess,
     },
     {
-      label: pageText.reviewDocument,
+      title: pageText.reviewDocument,
+      body: language === "fr" ? "Analysez et améliorez vos documents." : "Review and improve your documents.",
+      button: pageText.reviewDocument,
       path: paidAccess
         ? "/documents/review?source=dashboard&intent=improve"
         : "/pricing?plan=pro&source=dashboard&intent=improve",
-      variant: "secondary",
+      locked: !paidAccess,
     },
     {
-      label: pageText.openForms,
+      title: pageText.openForms,
+      body: language === "fr" ? "Structurez vos formulaires et votre dossier." : "Organize forms and application details.",
+      button: pageText.openForms,
       path: paidAccess
         ? "/forms"
         : "/pricing?plan=pro&source=dashboard&intent=execute",
-      variant: "secondary",
+      locked: !paidAccess,
     },
   ];
-
-  const recommendedAction = !profile
-    ? {
-        label: pageText.completeProfile,
-        onClick: () => navigate("/profile"),
-      }
-    : hasStrategy
-    ? {
-        label: pageText.openStrategy,
-        onClick: () => navigate("/strategy"),
-      }
-    : {
-        label: pageText.updateProfile,
-        onClick: () => navigate("/profile"),
-      };
 
   if (loading) {
     return (
       <Layout>
         <div className="flex justify-center py-24">
-          <p className="text-lg">
-            {language === "fr" ? "Chargement..." : "Loading..."}
-          </p>
+          <Card padding="lg" className="rounded-[28px]">
+            <p className="text-lg font-medium text-slate-700">
+              {language === "fr" ? "Chargement..." : "Loading..."}
+            </p>
+          </Card>
         </div>
       </Layout>
     );
@@ -578,70 +634,69 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="max-w-3xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
-            {pageText.dashboard}
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-            {pageText.dashboard}
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
-            {pageText.subtitle}
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="NorthBridgeAI"
+          title={pageText.dashboard}
+          subtitle={pageText.subtitle}
+        />
 
-        <Card variant="default" padding="lg" className="overflow-hidden">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                {pageText.overviewLabel}
+        <Card
+          variant="soft"
+          padding="lg"
+          className="overflow-hidden rounded-[32px] border-slate-200 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 text-white shadow-xl"
+        >
+          <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-200">
+                {pageText.commandCenter}
               </p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 md:text-[30px]">
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
                 {hasStrategy
-                  ? bestPathway || pageText.overviewTitleReady
-                  : pageText.overviewTitlePending}
+                  ? bestPathway || pageText.readyTitle
+                  : pageText.pendingTitle}
               </h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-blue-100 md:text-base">
                 {heroSummary}
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-50">
                   {displayPlanLabel}
                 </span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-                  {hasStrategy
-                    ? pageText.strategyAvailable
-                    : pageText.profileInProgress}
+                <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-50">
+                  {hasStrategy ? pageText.strategyAvailable : pageText.profileInProgress}
                 </span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-                  {profileCompletion}% {pageText.profileCompletion.toLowerCase()}
+                <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-50">
+                  {profileCompletion}% {pageText.profileCompletion}
                 </span>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button variant="white" onClick={recommendedAction.onClick}>
+                  {recommendedAction.label}
+                </Button>
+                <Button variant="outlineLight" onClick={() => navigate("/strategy")}>
+                  {pageText.openStrategy}
+                </Button>
               </div>
             </div>
 
-            <div className="grid min-w-full grid-cols-1 gap-3 sm:min-w-[320px] sm:grid-cols-2 lg:max-w-[360px]">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  {pageText.currentCrsScore}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="rounded-[24px] border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100">
+                  {pageText.crsScore}
                 </p>
-                <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
                   {hasStrategy ? crsScore ?? "—" : "—"}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  {pageText.nextRecommendedAction}
+              <div className="rounded-[24px] border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100">
+                  {pageText.profileCompletion}
                 </p>
-                <div className="mt-3">
-                  <Button
-                    variant="primary"
-                    onClick={recommendedAction.onClick}
-                    className="w-full justify-center"
-                  >
-                    {recommendedAction.label}
-                  </Button>
+                <div className="mt-4">
+                  <ProgressBar value={profileCompletion} />
                 </div>
               </div>
             </div>
@@ -649,19 +704,19 @@ export default function Dashboard() {
         </Card>
 
         <div className="flex flex-wrap gap-2">
-          <TopTabButton
+          <TabButton
             active={activeTab === "overview"}
-            label={pageText.tabOverview}
+            label={pageText.overview}
             onClick={() => setActiveTab("overview")}
           />
-          <TopTabButton
+          <TabButton
             active={activeTab === "execution"}
-            label={pageText.tabExecution}
+            label={pageText.execution}
             onClick={() => setActiveTab("execution")}
           />
-          <TopTabButton
+          <TabButton
             active={activeTab === "account"}
-            label={pageText.tabAccount}
+            label={pageText.account}
             onClick={() => setActiveTab("account")}
           />
         </div>
@@ -669,75 +724,61 @@ export default function Dashboard() {
         {activeTab === "overview" && (
           <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
             <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatCard
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
                   label={pageText.profileCompletion}
                   value={`${profileCompletion}%`}
-                  description={pageText.profileNeedsWork}
-                  valueClassName="text-2xl"
-                  tone={profileCompletion >= 85 ? "success" : "warning"}
+                  body={profileCompletion >= 85 ? pageText.profileStatusReady : pageText.profileStatusPending}
+                  tone={profileCompletion >= 85 ? "emerald" : "amber"}
                 />
-
-                <StatCard
-                  label={pageText.currentCrsScore}
+                <MetricCard
+                  label={pageText.crsScore}
                   value={hasStrategy ? crsScore ?? "—" : "—"}
-                  description={pageText.latestStrategy}
-                  valueClassName="text-4xl font-bold"
-                  tone={hasStrategy ? "info" : "default"}
+                  body={hasStrategy ? pageText.strategyAvailable : pageText.noStrategy}
+                  tone={hasStrategy ? "blue" : "default"}
                 />
-
-                <StatCard
+                <MetricCard
                   label={pageText.bestPathway}
-                  value={
-                    hasStrategy ? bestPathway || pageText.noPathway : pageText.noStrategy
-                  }
-                  description={pageText.bestImmigrationOption}
-                  valueClassName="text-base md:text-lg"
-                  tone={hasStrategy ? "success" : "default"}
+                  value={hasStrategy ? bestPathway || pageText.noPathway : pageText.noStrategy}
+                  body={pageText.bestPathway}
+                  tone={hasStrategy ? "emerald" : "default"}
                 />
-
-                <StatCard
+                <MetricCard
                   label={pageText.topImprovement}
-                  value={
-                    hasStrategy
-                      ? topImprovement || pageText.noImprovement
-                      : pageText.noStrategy
-                  }
-                  description={pageText.nextOptimization}
-                  valueClassName="text-sm md:text-base"
-                  tone={hasStrategy ? "warning" : "default"}
+                  value={hasStrategy ? topImprovement || pageText.noImprovement : pageText.noStrategy}
+                  body={pageText.recommendedAction}
+                  tone={hasStrategy ? "amber" : "default"}
                 />
               </div>
 
-              <Card variant="default" padding="lg">
-                <div className="flex items-center justify-between gap-3">
-                  <DashboardSectionTitle>
-                    {pageText.strategySnapshot}
-                  </DashboardSectionTitle>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">
-                    {hasStrategy
-                      ? pageText.strategyAvailable
-                      : pageText.profileInProgress}
-                  </span>
-                </div>
+              <Card padding="lg" className="rounded-[28px]">
+                <SectionTitle
+                  eyebrow={pageText.overview}
+                  title={pageText.strategySnapshot}
+                  action={
+                    <Button variant="secondary" size="sm" onClick={() => navigate("/strategy")}>
+                      {pageText.openStrategy}
+                    </Button>
+                  }
+                />
 
                 {strategyLoading ? (
-                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
                     {pageText.strategyLoading}
                   </div>
                 ) : hasStrategy ? (
                   <>
-                    {heroSummary ? (
-                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm leading-7 text-slate-700">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                          {pageText.strategySummary}
-                        </p>
-                        <p className="mt-2">{heroSummary}</p>
-                      </div>
-                    ) : null}
-
-                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                    <div className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50 p-5">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        {pageText.strategySnapshot}
+                      </p>
+                      <p className="mt-2 text-sm leading-7 text-slate-700">
+                        {heroSummary}
+                      </p>
+                    </div>
+
+                    <div className="mt-5">
+                      <p className="text-sm font-semibold text-slate-900">
                         {pageText.recommendedPrograms}
                       </p>
 
@@ -755,7 +796,7 @@ export default function Dashboard() {
                             return (
                               <div
                                 key={`${label}-${index}`}
-                                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+                                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
                               >
                                 {label}
                               </div>
@@ -763,20 +804,14 @@ export default function Dashboard() {
                           })}
                         </div>
                       ) : (
-                        <p className="mt-3 text-sm text-slate-600">
+                        <p className="mt-3 text-sm text-slate-500">
                           {pageText.noPrograms}
                         </p>
                       )}
                     </div>
-
-                    <div className="mt-5">
-                      <Button onClick={() => navigate("/strategy")}>
-                        {pageText.openStrategy}
-                      </Button>
-                    </div>
                   </>
                 ) : (
-                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-7 text-slate-600">
                     {pageText.noStrategyYet}
                   </div>
                 )}
@@ -784,14 +819,15 @@ export default function Dashboard() {
 
               {!paidAccess && hasStrategy && (
                 <Card variant="warning" padding="lg">
-                  <h3 className="text-lg font-semibold text-slate-900">
+                  <h3 className="text-xl font-semibold tracking-tight text-slate-900">
                     {pageText.unlockTitle}
                   </h3>
                   <p className="mt-2 text-sm leading-7 text-slate-700">
                     {pageText.unlockBody}
                   </p>
-                  <div className="mt-4">
+                  <div className="mt-5">
                     <Button
+                      variant="premium"
                       onClick={() =>
                         navigate("/pricing?plan=pro&source=dashboard&intent=execute")
                       }
@@ -804,13 +840,13 @@ export default function Dashboard() {
 
               {paidAccess && !isPremium && (
                 <Card variant="premium" padding="lg">
-                  <h3 className="text-lg font-semibold text-slate-900">
+                  <h3 className="text-xl font-semibold tracking-tight text-slate-900">
                     {pageText.premiumTitle}
                   </h3>
                   <p className="mt-2 text-sm leading-7 text-slate-700">
                     {pageText.premiumBody}
                   </p>
-                  <div className="mt-4">
+                  <div className="mt-5">
                     <Button
                       variant="premium"
                       onClick={() =>
@@ -825,55 +861,43 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-6">
-              <Card variant="default" padding="md" className="xl:sticky xl:top-24">
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      {pageText.currentPlan}
-                    </p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">
-                      {displayPlanLabel}
-                    </p>
-                  </div>
+              <Card padding="md" className="rounded-[28px] xl:sticky xl:top-24">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  {pageText.currentPlan}
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                  {displayPlanLabel}
+                </h3>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <MiniStat
-                      label={pageText.profileCompletion}
-                      value={`${profileCompletion}%`}
-                    />
-                    <MiniStat
-                      label={pageText.currentCrsScore}
-                      value={hasStrategy ? crsScore ?? "—" : "—"}
-                    />
-                    <MiniStat
-                      label={pageText.recommendedProgramsShort}
-                      value={recommendations.length || 0}
-                    />
-                  </div>
+                <div className="mt-5 grid grid-cols-3 gap-2">
+                  <MiniStat label={pageText.profileCompletion} value={`${profileCompletion}%`} />
+                  <MiniStat label={pageText.crsScore} value={hasStrategy ? crsScore ?? "—" : "—"} />
+                  <MiniStat label={pageText.recommendedPrograms} value={recommendations.length || 0} />
+                </div>
 
-                  <div className="space-y-2">
-                    <Button
-                      variant="secondary"
-                      className="w-full"
-                      onClick={() =>
-                        navigate(
-                          isPremium
-                            ? "/pricing"
-                            : "/pricing?plan=pro&source=dashboard&intent=execute"
-                        )
-                      }
-                    >
-                      {pageText.upgrade}
-                    </Button>
-
-                    <Button
-                      variant="secondary"
-                      className="w-full"
-                      onClick={() => navigate("/strategy")}
-                    >
-                      {pageText.openStrategy}
-                    </Button>
-                  </div>
+                <div className="mt-5 grid gap-2">
+                  <Button
+                    variant="premium"
+                    fullWidth
+                    onClick={() =>
+                      navigate(
+                        isPremium
+                          ? "/pricing"
+                          : currentPlan === "pro"
+                          ? "/pricing?plan=premium&source=dashboard&intent=export"
+                          : "/pricing?plan=pro&source=dashboard&intent=execute"
+                      )
+                    }
+                  >
+                    {currentPlan === "pro" ? pageText.goPremium : pageText.upgrade}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    onClick={() => navigate("/documents")}
+                  >
+                    {pageText.openDocuments}
+                  </Button>
                 </div>
               </Card>
             </div>
@@ -882,76 +906,63 @@ export default function Dashboard() {
 
         {activeTab === "execution" && (
           <div className="space-y-6">
-            <Card variant="default" padding="lg">
-              <div className="flex items-center justify-between gap-3">
-                <DashboardSectionTitle>{pageText.nextSteps}</DashboardSectionTitle>
-              </div>
+            <Card padding="lg" className="rounded-[28px]">
+              <SectionTitle eyebrow={pageText.execution} title={pageText.quickActions} />
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {quickActions.map((item) => (
-                  <QuickActionButton
-                    key={item.label}
-                    label={item.label}
-                    variant={item.variant}
+                  <ActionCard
+                    key={item.title}
+                    title={item.title}
+                    body={item.body}
+                    buttonLabel={item.button}
+                    locked={item.locked}
                     onClick={() => navigate(item.path)}
                   />
                 ))}
               </div>
             </Card>
 
-            {hasStrategy && nextSteps.length > 0 ? (
-              <Card variant="default" padding="lg">
-                <DashboardSectionTitle>
-                  {pageText.nextRecommendedAction}
-                </DashboardSectionTitle>
+            <Card padding="lg" className="rounded-[28px]">
+              <SectionTitle eyebrow={pageText.execution} title={pageText.nextSteps} />
 
-                <div className="mt-5 space-y-2">
+              {hasStrategy && nextSteps.length > 0 ? (
+                <div className="mt-5 space-y-2.5">
                   {nextSteps.slice(0, 4).map((item, index) => {
                     const label =
                       typeof item === "string"
                         ? item
-                        : item?.label ||
-                          item?.title ||
-                          item?.action ||
-                          "Next step";
+                        : item?.label || item?.title || item?.action || "Next step";
 
                     return (
                       <div
                         key={`${label}-${index}`}
-                        className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700"
                       >
                         {label}
                       </div>
                     );
                   })}
                 </div>
-              </Card>
-            ) : (
-              <Card variant="default" padding="lg">
-                <DashboardSectionTitle>
-                  {pageText.nextRecommendedAction}
-                </DashboardSectionTitle>
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
+              ) : (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
                   {pageText.noStrategyYet}
                 </div>
-              </Card>
-            )}
+              )}
+            </Card>
           </div>
         )}
 
         {activeTab === "account" && (
-          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-            <Card variant="default" padding="lg">
-              <DashboardSectionTitle>{pageText.accountSummary}</DashboardSectionTitle>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <Card padding="lg" className="rounded-[28px]">
+              <SectionTitle eyebrow={pageText.account} title={pageText.accountSummary} />
 
               <div className="mt-4">
                 <InfoRow label={pageText.accountName} value={accountDisplayName} />
                 <InfoRow label={pageText.email} value={currentUser?.email || "—"} />
                 <InfoRow label={pageText.currentPlan} value={displayPlanLabel} />
-                <InfoRow
-                  label={pageText.billingStatus}
-                  value={subscriptionStatusLabel}
-                />
+                <InfoRow label={pageText.billingStatus} value={subscriptionStatusLabel} />
                 <InfoRow
                   label={pageText.premiumAccess}
                   value={isPremium ? pageText.unlocked : pageText.locked}
@@ -959,38 +970,33 @@ export default function Dashboard() {
               </div>
 
               <div className="mt-5">
-                <Button
-                  variant="secondary"
-                  onClick={() => navigate("/pricing")}
-                >
+                <Button variant="secondary" onClick={() => navigate("/pricing")}>
                   {pageText.managePlan}
                 </Button>
               </div>
             </Card>
 
-            <Card variant="default" padding="lg">
-              <DashboardSectionTitle>{pageText.profileCompletion}</DashboardSectionTitle>
+            <Card padding="lg" className="rounded-[28px]">
+              <SectionTitle eyebrow={pageText.account} title={pageText.profileCompletion} />
+
+              <div className="mt-5">
+                <ProgressBar value={profileCompletion} />
+              </div>
 
               <div className="mt-5 grid grid-cols-3 gap-3">
-                <MiniStat
-                  label={pageText.profileCompletion}
-                  value={`${profileCompletion}%`}
-                />
-                <MiniStat
-                  label={pageText.currentPlan}
-                  value={displayPlanLabel}
-                />
+                <MiniStat label={pageText.profileCompletion} value={`${profileCompletion}%`} />
+                <MiniStat label={pageText.currentPlan} value={displayPlanLabel} />
                 <MiniStat
                   label={pageText.premiumAccess}
                   value={isPremium ? pageText.unlocked : pageText.locked}
                 />
               </div>
 
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <p className="text-sm leading-7 text-slate-700">
                   {profileCompletion >= 85
-                    ? pageText.profileStateReady
-                    : pageText.profileStatePending}
+                    ? pageText.profileStatusReady
+                    : pageText.profileStatusPending}
                 </p>
               </div>
 

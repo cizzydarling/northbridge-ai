@@ -30,6 +30,8 @@ from app.routes import (
     simulation_scenarios_routes,
     strategy_routes,
     forms_routes,
+    household_routes,
+    application_case_routes,
 )
 
 import app.models.disclosure_acceptance_model
@@ -105,6 +107,8 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(generated_document_routes.router)
     app.include_router(noc_routes.router)
     app.include_router(forms_routes.router)
+    app.include_router(household_routes.router)
+    app.include_router(application_case_routes.router)
 
 
 def create_app() -> FastAPI:

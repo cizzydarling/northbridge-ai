@@ -1,4 +1,5 @@
 import StrategyProgressCard from "../components/StrategyProgressCard";
+import { getActiveCaseId } from "../utils/activeCase";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -1456,6 +1457,7 @@ function StrategyAICard({ language, hasAdvancedCopilot, onAnalyze }) {
 
 function StrategyAIDrawer({
   open,
+  navigate,
   onClose,
   language,
   onAsk,
@@ -1626,13 +1628,23 @@ function StrategyAIDrawer({
                           <button
                             key={`${action}-${actionIndex}`}
                             type="button"
-                            onClick={() =>
-                              onAsk(
+                            onClick={() => {
+                              const label =
                                 typeof action === "string"
                                   ? action
-                                  : action?.label || action?.text || action?.title || ""
-                              )
-                            }
+                                  : action?.label || action?.text || action?.title || "";
+
+                              const route =
+                                typeof action === "object" && action?.route ? action.route : "";
+
+                              if (route && navigate) {
+                                navigate(route);
+                                onClose?.();
+                                return;
+                              }
+
+                              onAsk(label);
+                            }}
                             className="w-full rounded-xl bg-white px-3 py-2 text-left text-xs font-medium leading-5 text-blue-800 transition hover:bg-blue-100"
                           >
                             {typeof action === "string"
@@ -1821,6 +1833,7 @@ export default function StrategyPage() {
   const [drawerInput, setDrawerInput] = useState("");
   const [drawerError, setDrawerError] = useState("");
   const [aiMode, setAiMode] = useState("general");
+  const [activeCaseId, setActiveCaseId] = useState(getActiveCaseId());
   
 
   useEffect(() => {
@@ -1871,6 +1884,20 @@ export default function StrategyPage() {
     };
     setActiveSection(firstSectionByTab[activeTab] || "overview");
   }, [activeTab]);
+
+  useEffect(() => {
+  function handleActiveCaseUpdate() {
+    setActiveCaseId(getActiveCaseId());
+    loadPage();
+  }
+
+  window.addEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
+
+  return () => {
+    window.removeEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   function switchTab(tab) {
     setActiveTab(tab);
@@ -2026,20 +2053,40 @@ export default function StrategyPage() {
     {
       "answer": "réponse directe",
       "reasons": ["raison 1", "raison 2"],
-      "actions": ["action 1", "action 2"]
+      "actions": [
+        { "label": "action 1", "route": "/documents" }
+      ]
     }
 
+    ROUTES AUTORISÉES :
+    - /strategy
+    - /profile
+    - /documents
+    - /documents/review
+    - /pricing
+
+    Utilise ces routes quand c’est pertinent.
     Réponds UNIQUEMENT en JSON valide.
     `
-        : `
+    : `
     RESPONSE FORMAT (STRICT JSON):
 
     {
       "answer": "direct answer",
       "reasons": ["reason 1", "reason 2"],
-      "actions": ["action 1", "action 2"]
+      "actions": [
+        { "label": "action 1", "route": "/documents" }
+      ]
     }
 
+    ALLOWED ROUTES:
+    - /strategy
+    - /profile
+    - /documents
+    - /documents/review
+    - /pricing
+
+    Use these routes when relevant.
     Respond ONLY with valid JSON.
     `;
 
@@ -2699,7 +2746,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
       unlockNocAnalysis: "Unlock NOC analysis",
       unlockProvinceTargets: "Unlock your target provinces",
     };
-  }, [language]);
+  }, [language, activeCaseId]);
 
   const topTabs = useMemo(
     () => [
@@ -3565,6 +3612,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         messages={drawerMessages}
         input={drawerInput}
         setInput={setDrawerInput}
+        navigate={navigate}
         promptSuggestions={[
           {
             label:

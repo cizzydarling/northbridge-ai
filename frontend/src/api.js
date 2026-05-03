@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getActiveCaseId } from "./utils/activeCase";
 
 const api = axios.create({
   baseURL:
@@ -452,25 +453,44 @@ export const uploadSelfDocumentFile = (documentId, file) => {
 export const removeSelfDocumentFile = (documentId) =>
   api.delete(`/self-documents/${documentId}/file`);
 
+export const getDocuments = () => {
+  const caseId = getActiveCaseId();
+  return api.get(`/documents?case_id=${caseId}`);
+};
+
 /* =========================
    PERSONAL STRATEGY
 ========================= */
 
+function strategyParams(language = getLanguage()) {
+  const caseId = getActiveCaseId();
+
+  return {
+    language,
+    ...(caseId ? { case_id: caseId } : {}),
+  };
+}
+
 export const getMyStrategy = (language = getLanguage()) =>
-  api.get(`/self/strategy?language=${language}`);
+  api.get("/self/strategy", {
+    params: strategyParams(language),
+  });
 
 export const refreshStrategy = (language = getLanguage()) =>
   getMyStrategy(language);
 
 export const exportMyStrategyPdf = (language = getLanguage()) =>
-  api.get(`/self/strategy/export-pdf?language=${language}`, {
+  api.get("/self/strategy/export-pdf", {
+    params: strategyParams(language),
     responseType: "blob",
   });
 
 export const downloadStrategyReport = exportMyStrategyPdf;
 
 export const getMyStrategyLite = (language = getLanguage()) =>
-  api.get(`/self/strategy?language=${language}`);
+  api.get("/self/strategy", {
+    params: strategyParams(language),
+  });
 
 /* =========================
    JOURNEY
@@ -810,3 +830,37 @@ export const saveClientProfile = async (clientId, payload) => {
     throw err;
   }
 };
+
+/* =========================
+   HOUSEHOLD
+========================= */
+
+export const getMyHousehold = () => api.get("/households/me");
+
+export const createHousehold = (payload) =>
+  api.post("/households", payload);
+
+export const getHouseholdMembers = () =>
+  api.get("/households/members");
+
+export const addHouseholdMember = (payload) =>
+  api.post("/households/members", payload);
+
+export const updateHouseholdMember = (memberId, payload) =>
+  api.put(`/households/members/${memberId}`, payload);
+
+/* =========================
+   APPLICATION CASES
+========================= */
+
+export const getApplicationCases = () =>
+  api.get("/application-cases");
+
+export const createApplicationCase = (payload) =>
+  api.post("/application-cases", payload);
+
+export const getApplicationCase = (caseId) =>
+  api.get(`/application-cases/${caseId}`);
+
+export const updateApplicationCase = (caseId, payload) =>
+  api.put(`/application-cases/${caseId}`, payload);

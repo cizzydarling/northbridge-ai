@@ -9,6 +9,8 @@ import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
 import PricingPage from "./pages/PricingPage";
 import BillingSuccessPage from "./pages/BillingSuccessPage";
+import HouseholdPage from "./pages/HouseholdPage";
+import ApplicationCasesPage from "./pages/ApplicationCasesPage";
 
 // Self flow
 import SelfDashboardPage from "./pages/SelfDashboardPage";
@@ -205,6 +207,24 @@ export default function App() {
         element={
           <ProtectedAppRoute>
             <ProfilePage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/household"
+        element={
+          <ProtectedAppRoute>
+            <HouseholdPage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/applications"
+        element={
+          <ProtectedAppRoute>
+            <ApplicationCasesPage />
           </ProtectedAppRoute>
         }
       />

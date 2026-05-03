@@ -25,6 +25,8 @@ from app.services.eligibility_engine import evaluate_matter_eligibility
 from app.services.forms_assistant import build_forms_assistant
 from app.services.report_builder_service import build_strategy_report_html
 from app.services.strategy_service import build_strategy
+from app.models.application_case_model import ApplicationCase
+from app.services.household_service import get_household_members
 
 router = APIRouter(prefix="/self", tags=["Self"])
 
@@ -476,7 +478,12 @@ def run_permanent_residence_workspace(
             ),
         )
 
-    strategy = build_strategy(profile, language=language)
+    strategy = build_strategy(
+        profile,
+        language=language,
+        household_members=household_members,
+        application_case=case,
+    )
 
     eligibility = build_pr_eligibility_from_strategy(strategy, language=language)
     forms_assistant = build_pr_forms_assistant_from_strategy(strategy, language=language)
@@ -500,22 +507,31 @@ def run_permanent_residence_workspace(
 
 @router.get("/strategy")
 def get_my_strategy(
+    case_id: int | None = Query(default=None),
     language: str = Query(default="en"),
     db: Session = Depends(get_db),
     current_user=Depends(require_self_user),
 ):
     language = normalize_language(language)
 
+    case = db.query(ApplicationCase).filter_by(id=case_id).first()
+
+    if not case:
+        raise HTTPException(status_code=404, detail="Application case not found")
+
     profile = get_profile_for_user(db, current_user.id)
+
     if not profile:
         raise HTTPException(
             status_code=404,
             detail=t(
                 "Complete your profile first.",
-                "Complétez votre profil d’abord.",
+                "Complétez votre profil d'abord.",
                 language,
             ),
         )
+
+    household_members = get_household_members(db, current_user.id)
 
     subscription_status = str(
         getattr(current_user, "subscription_status", "") or ""

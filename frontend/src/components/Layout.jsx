@@ -275,6 +275,14 @@ export default function Layout({ children }) {
           label: language === "fr" ? "Forms Studio" : "Forms Studio",
           path: "/forms",
         },
+        {
+          label: language === "fr" ? "Famille" : "Household",
+          path: "/household",
+        },
+        {
+          label: language === "fr" ? "Demandes" : "Applications",
+          path: "/applications",
+        },
         { label: t("nav.profile"), path: "/profile" },
       ];
 
@@ -721,7 +729,7 @@ export default function Layout({ children }) {
         <OnboardingModal />
 
         <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 lg:py-10">
-          <div className="mx-auto max-w-5xl">{children}</div>
+          <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </>
     </div>

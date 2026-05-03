@@ -5,6 +5,8 @@ import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import UpgradePrompt from "../components/UpgradePrompt";
+import { getActiveCaseId } from "../utils/activeCase";
+import { getApplicationCase } from "../api";
 import api, {
   getBillingAccess,
   getFormsApplicationTypes,
@@ -422,6 +424,8 @@ export default function FormsPage() {
   const [savingInline, setSavingInline] = useState(false);
   const [accessLoading, setAccessLoading] = useState(true);
   const [access, setAccess] = useState(null);
+  const [activeCaseId, setActiveCaseId] = useState(getActiveCaseId());
+  const [activeCase, setActiveCase] = useState(null);
 
   const saveTimerRef = useRef(null);
 
@@ -465,6 +469,46 @@ export default function FormsPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inlineApplicationData, representativeUsed, selectedApplicationType]);
+
+  useEffect(() => {
+    async function loadActiveCase() {
+      if (!activeCaseId) return;
+
+      try {
+        const res = await getApplicationCase(activeCaseId);
+        const caseData = res?.data || null;
+        setActiveCase(caseData);
+
+        const mappedType =
+          caseData?.application_type === "permanent_residence"
+            ? caseData?.pathway?.toLowerCase().includes("express")
+              ? "express_entry"
+              : "pr_pathway"
+            : caseData?.application_type;
+
+        if (mappedType) {
+          setSelectedApplicationType(mappedType);
+        }
+      } catch (err) {
+        console.error(err);
+        setActiveCase(null);
+      }
+    }
+
+    loadActiveCase();
+  }, [activeCaseId]);
+
+  useEffect(() => {
+    function handleActiveCaseUpdate() {
+      setActiveCaseId(getActiveCaseId());
+    }
+
+    window.addEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
+
+    return () => {
+      window.removeEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
+    };
+  }, []);
 
   async function loadAccess() {
     try {
@@ -624,6 +668,11 @@ export default function FormsPage() {
       });
 
       setPreview(res.data);
+
+      localStorage.setItem(
+        "nbai_forms_preview_v1",
+        JSON.stringify(res.data || null)
+      );
     } catch (err) {
       console.error(err);
       setMessage(
@@ -939,6 +988,19 @@ export default function FormsPage() {
         title={pageText.title}
         subtitle={pageText.subtitle}
       />
+      {activeCase ? (
+        <Card padding="md" className="mb-6 border-blue-200 bg-blue-50/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+            {language === "fr" ? "Dossier actif" : "Active application"}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-blue-900">
+            {activeCase.case_title ||
+              activeCase.pathway ||
+              activeCase.application_type ||
+              "Application"}
+          </p>
+        </Card>
+      ) : null}
 
       <div className="mb-6 max-w-2xl">
         <p className="text-sm leading-7 text-slate-600">{pageText.workspaceValue}</p>
