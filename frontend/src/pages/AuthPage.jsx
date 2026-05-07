@@ -83,7 +83,7 @@ export default function AuthPage() {
         if (returnedUser) setCurrentUserLocal(returnedUser);
 
         const freshUser = await refreshCurrentUser();
-        const user = freshUser || returnedUser;
+        const user = freshUser?.data || freshUser || returnedUser;
 
         if (!user) throw new Error("User resolution failed");
 

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
   getCurrentUserLocal,
+  getMyProfile,
   getUserDisplayName,
   logoutUser,
   getBillingAccess,
@@ -113,6 +114,7 @@ export default function Layout({ children }) {
   const { t, i18n } = useTranslation();
 
   const [currentUser, setCurrentUser] = useState(getCurrentUserLocal());
+  const [profileIdentity, setProfileIdentity] = useState(null);
   const [effectivePlan, setEffectivePlan] = useState(
     normalizePlan(currentUser?.plan)
   );
@@ -146,6 +148,43 @@ export default function Layout({ children }) {
       window.removeEventListener("userUpdated", handleUserUpdate);
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadProfileIdentity() {
+      if (!currentUser) {
+        setProfileIdentity(null);
+        return;
+      }
+
+      try {
+        const res = await getMyProfile();
+        if (mounted) {
+          setProfileIdentity(res?.data || null);
+        }
+      } catch {
+        if (mounted) {
+          setProfileIdentity(null);
+        }
+      }
+    }
+
+    loadProfileIdentity();
+
+    function handleProfileRefresh() {
+      loadProfileIdentity();
+    }
+
+    window.addEventListener("storage", handleProfileRefresh);
+    window.addEventListener("userUpdated", handleProfileRefresh);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("storage", handleProfileRefresh);
+      window.removeEventListener("userUpdated", handleProfileRefresh);
+    };
+  }, [currentUser]);
 
   useEffect(() => {
     let mounted = true;
@@ -236,12 +275,22 @@ export default function Layout({ children }) {
   const isAgentWorkspace =
     currentUser?.role === "agent" || currentUser?.role === "admin";
 
+  const identityUser = useMemo(
+    () => ({
+      ...(currentUser || {}),
+      profile: profileIdentity || currentUser?.profile,
+      first_name: profileIdentity?.first_name || currentUser?.first_name,
+      last_name: profileIdentity?.last_name || currentUser?.last_name,
+    }),
+    [currentUser, profileIdentity]
+  );
+
   const displayName = useMemo(() => {
     return getUserDisplayName(
-      currentUser,
+      identityUser,
       language === "fr" ? "Utilisateur" : "User"
     );
-  }, [currentUser, language]);
+  }, [identityUser, language]);
 
   const primaryNavItems = isAgentWorkspace
     ? [

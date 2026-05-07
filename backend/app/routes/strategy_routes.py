@@ -465,6 +465,8 @@ def run_permanent_residence_workspace(
     db: Session,
     current_user,
     language: str,
+    application_case: ApplicationCase | None = None,
+    household_members: list | None = None,
 ) -> dict:
     profile = get_profile_for_user(db, current_user.id)
 
@@ -481,8 +483,8 @@ def run_permanent_residence_workspace(
     strategy = build_strategy(
         profile,
         language=language,
-        household_members=household_members,
-        application_case=case,
+        household_members=household_members or get_household_members(db, current_user.id),
+        application_case=application_case,
     )
 
     eligibility = build_pr_eligibility_from_strategy(strategy, language=language)
@@ -514,9 +516,18 @@ def get_my_strategy(
 ):
     language = normalize_language(language)
 
-    case = db.query(ApplicationCase).filter_by(id=case_id).first()
+    case = None
+    if case_id:
+        case = (
+            db.query(ApplicationCase)
+            .filter(
+                ApplicationCase.id == case_id,
+                ApplicationCase.owner_user_id == current_user.id,
+            )
+            .first()
+        )
 
-    if not case:
+    if case_id and not case:
         raise HTTPException(status_code=404, detail="Application case not found")
 
     profile = get_profile_for_user(db, current_user.id)
@@ -546,7 +557,12 @@ def get_my_strategy(
         plan in {"individual_premium", "premium"} and is_active
     )
 
-    raw_strategy = build_strategy(profile, language=language)
+    raw_strategy = build_strategy(
+        profile,
+        language=language,
+        household_members=household_members,
+        application_case=case,
+    )
 
     strategy = build_strategy_payload(
         raw_strategy,

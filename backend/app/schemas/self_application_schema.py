@@ -67,6 +67,7 @@ class SelfWorkspaceResponse(BaseModel):
     eligibility: Dict[str, Any]
     forms_assistant: Dict[str, Any]
     checklist: List[Dict[str, Any]]
+    decision: Optional[Dict[str, Any]] = None
 
     # ✅ NEW FIELDS (for PR flow)
     strategy: Optional[StrategySummarySchema] = None

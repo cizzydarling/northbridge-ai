@@ -74,7 +74,7 @@ export default function SelfDashboardPage() {
       try {
         try {
           const refreshedUser = await refreshCurrentUser();
-          setCurrentUser(refreshedUser);
+          setCurrentUser(refreshedUser?.data || refreshedUser);
         } catch (err) {
           console.error(err);
         }
@@ -196,9 +196,18 @@ export default function SelfDashboardPage() {
     return subscriptionStatus;
   }, [subscriptionStatus, t]);
 
-  const firstName =
-    profile?.first_name ||
-    getUserDisplayName(currentUser, "");
+  const dashboardUser = useMemo(
+    () => ({
+      ...(currentUser || {}),
+      profile: profile || currentUser?.profile,
+      first_name: profile?.first_name || currentUser?.first_name,
+      last_name: profile?.last_name || currentUser?.last_name,
+    }),
+    [currentUser, profile]
+  );
+
+  const displayName = getUserDisplayName(dashboardUser, "");
+  const firstName = profile?.first_name?.trim?.() || displayName;
 
   const primaryAction = useMemo(() => {
     if (!profile) {
@@ -550,10 +559,7 @@ export default function SelfDashboardPage() {
                 {t("dashboard.accountName", { defaultValue: "Name" })}
               </p>
               <p className="mt-2 text-base text-slate-900">
-                {getUserDisplayName(
-                  currentUser,
-                  language === "fr" ? "Utilisateur" : "User"
-                )}
+                {displayName || (language === "fr" ? "Utilisateur" : "User")}
               </p>
             </div>
 
