@@ -217,11 +217,6 @@ export default function StrategySimulatorPage() {
     return scenarios.find((item) => item.id === selectedScenarioId) || null;
   }, [scenarios, selectedScenarioId]);
 
-  const projectedProfile = useMemo(() => {
-    if (!selectedScenario) return profile;
-    return { ...profile, ...selectedScenario.patch };
-  }, [profile, selectedScenario]);
-
   const bestScenario = scenarios[0] || null;
 
   if (loading) {

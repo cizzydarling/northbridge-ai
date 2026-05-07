@@ -1467,7 +1467,6 @@ function StrategyAIDrawer({
   input,
   setInput,
   promptSuggestions = [],
-  hasAdvancedCopilot,
   aiMode,
   setAiMode,
 }) {

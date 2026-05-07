@@ -5,6 +5,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import {
   getCurrentUserLocal,
+  getUserDisplayName,
   getMyProfile,
   sendAIMessage,
 } from "../api";
@@ -40,11 +41,21 @@ function mapActionToRoute(action) {
   }
 
   if (
+    value === "/forms" ||
+    value.includes("forms") ||
+    value.includes("form studio") ||
+    value.includes("formulaire")
+  ) {
+    return "/forms";
+  }
+
+  if (
     value === "/self/documents" ||
+    value === "/documents" ||
     value.includes("document") ||
     value.includes("documents")
   ) {
-    return "/self/documents";
+    return "/documents";
   }
 
   if (
@@ -200,10 +211,8 @@ export default function ChatPage() {
   const language = normalizeLanguage(forcedLanguage);
 
   const firstName =
-    currentUser?.first_name ||
     profile?.first_name ||
-    currentUser?.email?.split("@")?.[0] ||
-    "there";
+    getUserDisplayName(currentUser, language === "fr" ? "vous" : "there");
 
   const starterPrompts = useMemo(() => {
     if (language === "fr") {
@@ -306,8 +315,6 @@ export default function ChatPage() {
       } catch (err) {
         console.error(err);
       } finally {
-        if (!mounted) return;
-
         const starterMessages = [
           {
             role: "assistant",
@@ -315,10 +322,12 @@ export default function ChatPage() {
           },
         ];
 
-        setMessages(starterMessages);
-        setPageLoading(false);
+        if (mounted) {
+          setMessages(starterMessages);
+          setPageLoading(false);
+        }
 
-        if (String(initialPrompt || "").trim()) {
+        if (mounted && String(initialPrompt || "").trim()) {
           void runPrompt(
             String(initialPrompt || "").trim(),
             starterMessages,

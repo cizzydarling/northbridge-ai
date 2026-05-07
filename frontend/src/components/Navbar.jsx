@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { getCurrentUser, logoutUser } from "../api";
+import { getCurrentUser, getUserDisplayName, logoutUser } from "../api";
 
 export default function Navbar({ language = "en" }) {
   const navigate = useNavigate();
@@ -61,7 +61,10 @@ export default function Navbar({ language = "en" }) {
       ? "text-blue-600 font-semibold"
       : "text-slate-700 hover:text-blue-600";
 
-  const displayName = user?.first_name || user?.email?.split("@")[0] || "User";
+  const displayName = getUserDisplayName(
+    user,
+    isFrench ? "Utilisateur" : "User"
+  );
 
   return (
     <div className="border-b border-slate-200 bg-white">
@@ -107,7 +110,9 @@ export default function Navbar({ language = "en" }) {
                 <p className="text-sm font-medium text-slate-900">
                   {displayName}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">{user?.email}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {isFrench ? "Espace personnel" : "Personal workspace"}
+                </p>
               </div>
 
               <button

@@ -309,7 +309,6 @@ function ProgressBadge({ value, text }) {
 }
 
 function FirstRunHero({
-  language,
   isPro,
   isPremium,
   text,
@@ -791,8 +790,6 @@ function getSmartMomentum({
   stats,
   overallProgress,
   firstIncompleteDoc,
-  strategy,
-  pathway,
   language,
 }) {
   const completed = Number(stats?.completed || 0);
@@ -1242,10 +1239,8 @@ export default function SelfDocumentsPage() {
       overallProgress,
       firstIncompleteDoc,
       language,
-      pathway,
-      strategy,
     });
-  }, [stats, overallProgress, firstIncompleteDoc, language, pathway, strategy]);
+  }, [stats, overallProgress, firstIncompleteDoc, language]);
 
   function handleOpenGenerator(id) {
     if (!isPro) {
@@ -1554,7 +1549,6 @@ export default function SelfDocumentsPage() {
       )}
 
       <FirstRunHero
-        language={language}
         isPro={isPro}
         isPremium={isPremium}
         text={text}

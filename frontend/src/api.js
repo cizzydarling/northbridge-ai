@@ -32,6 +32,21 @@ export const getCurrentUserLocal = () => {
   return raw ? JSON.parse(raw) : null;
 };
 
+export const getUserDisplayName = (user, fallback = "User") => {
+  const firstName =
+    user?.first_name?.trim?.() ||
+    user?.profile?.first_name?.trim?.() ||
+    "";
+
+  const lastName =
+    user?.last_name?.trim?.() ||
+    user?.profile?.last_name?.trim?.() ||
+    "";
+
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  return fullName || fallback;
+};
+
 export const saveCurrentUser = (user) => {
   localStorage.setItem("current_user", JSON.stringify(user));
   localStorage.setItem("user", JSON.stringify(user));

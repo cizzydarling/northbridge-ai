@@ -14,6 +14,7 @@ from app.models.self_application_model import SelfApplication
 from app.models.user_models import User
 from app.routes.auth_routes import get_current_user
 from app.services.forms_catalog_service import get_supported_application_types
+from app.services.forms_catalog_service import normalize_application_type
 from app.services.forms_package_service import build_forms_package
 
 router = APIRouter(prefix="/forms", tags=["Forms"])
@@ -265,7 +266,7 @@ def download_forms_package(
         application_data=application_data,
     )
 
-    filename = f"forms_package_{payload.application_type}.json"
+    filename = f"forms_package_{normalize_application_type(payload.application_type)}.json"
     body = json.dumps(package, ensure_ascii=False, indent=2)
 
     return Response(

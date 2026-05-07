@@ -1268,6 +1268,17 @@ export default function FormsPage() {
                   </p>
 
                   <div className="mt-4 flex flex-wrap gap-3">
+                    {showDownloadButton && (
+                      <Button
+                        onClick={handleDownloadPackage}
+                        loading={downloadLoading}
+                      >
+                        {downloadLoading
+                          ? pageText.downloading
+                          : pageText.download}
+                      </Button>
+                    )}
+
                     <Button
                       onClick={() =>
                         navigate("/documents/generator?source=forms&intent=execute")

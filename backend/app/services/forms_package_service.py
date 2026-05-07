@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Tuple
 from app.services.forms_catalog_service import (
     get_application_type_label,
     get_forms_for_application_type,
+    normalize_application_type,
 )
 from app.services.forms_mapping_service import (
     build_applicant_context,
@@ -134,6 +135,7 @@ def build_forms_package(
     application_data: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     lang = "fr" if language == "fr" else "en"
+    normalized_application_type = normalize_application_type(application_type)
     applicant_context = applicant_context or {}
 
     normalized_applicant_context = build_applicant_context(
@@ -148,12 +150,12 @@ def build_forms_package(
     )
 
     mapped_packages = map_fields_for_application_type(
-        application_type=application_type,
+        application_type=normalized_application_type,
         applicant_context=normalized_applicant_context,
         language=lang,
     )
 
-    catalog = get_forms_for_application_type(application_type, lang)
+    catalog = get_forms_for_application_type(normalized_application_type, lang)
     selected_forms: List[Dict[str, Any]] = []
 
     for form in catalog:
@@ -198,7 +200,8 @@ def build_forms_package(
     if lang == "fr":
         summary = {
             "application_type": application_type,
-            "application_label": get_application_type_label(application_type, lang),
+            "normalized_application_type": normalized_application_type,
+            "application_label": get_application_type_label(normalized_application_type, lang),
             "forms_count": len(selected_forms),
             "completeness_score": completeness_score,
             "download_note": "Le téléchargement du dossier prérempli est réservé aux forfaits Pro et Premium.",
@@ -206,7 +209,8 @@ def build_forms_package(
     else:
         summary = {
             "application_type": application_type,
-            "application_label": get_application_type_label(application_type, lang),
+            "normalized_application_type": normalized_application_type,
+            "application_label": get_application_type_label(normalized_application_type, lang),
             "forms_count": len(selected_forms),
             "completeness_score": completeness_score,
             "download_note": "Download of the prefilled package is reserved for Pro and Premium plans.",

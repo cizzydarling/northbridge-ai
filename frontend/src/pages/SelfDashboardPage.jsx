@@ -10,6 +10,7 @@ import {
   getMyProfile,
   getMyStrategy,
   getToken,
+  getUserDisplayName,
   logoutUser,
   getCurrentUserLocal,
   refreshCurrentUser,
@@ -38,7 +39,7 @@ function SurfaceCard({ children, className = "" }) {
 
 export default function SelfDashboardPage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [profile, setProfile] = useState(null);
   const [strategy, setStrategy] = useState(null);
@@ -50,6 +51,7 @@ export default function SelfDashboardPage() {
   const role = currentUser?.role || "individual";
   const isAgent = role === "agent" || role === "admin";
   const currentPlan = billing?.plan || currentUser?.plan || "free";
+  const language = i18n.language === "fr" ? "fr" : "en";
   const subscriptionStatus =
     billing?.subscription_status ||
     currentUser?.subscription_status ||
@@ -163,10 +165,6 @@ export default function SelfDashboardPage() {
     strategy?.improvement_scenarios?.[0]?.change ||
     t("dashboard.noStrategyYet", { defaultValue: "No strategy available yet." });
 
-  const premiumStatusLabel = paidAccess
-    ? t("strategy.unlocked", { defaultValue: "Unlocked" })
-    : t("strategy.locked", { defaultValue: "Locked" });
-
   const planDisplay = useMemo(() => {
     if (currentPlan === "individual_pro") {
       return t("dashboard.plans.individualPro", {
@@ -198,6 +196,63 @@ export default function SelfDashboardPage() {
     return subscriptionStatus;
   }, [subscriptionStatus, t]);
 
+  const firstName =
+    profile?.first_name ||
+    getUserDisplayName(currentUser, "");
+
+  const primaryAction = useMemo(() => {
+    if (!profile) {
+      return {
+        label: t("dashboard.createProfile", { defaultValue: "Create profile" }),
+        path: "/profile",
+      };
+    }
+
+    if (isAgent && hasAgentPlan) {
+      return {
+        label: t("dashboard.openClientWorkspace", {
+          defaultValue: "Open client workspace",
+        }),
+        path: "/clients",
+      };
+    }
+
+    return {
+      label: strategy
+        ? t("dashboard.resumeStrategy", { defaultValue: "Resume strategy" })
+        : t("dashboard.openStrategy", { defaultValue: "Open strategy" }),
+      path: "/strategy",
+    };
+  }, [hasAgentPlan, isAgent, profile, strategy, t]);
+
+  const readinessCards = [
+    {
+      label: t("dashboard.profileCompletion", {
+        defaultValue: "Profile completion",
+      }),
+      value: profile ? `${profileCompletion}%` : "--",
+      detail: profile
+        ? t("dashboard.profileReady", { defaultValue: "Profile ready" })
+        : t("dashboard.profileNeedsSetup", {
+            defaultValue: "Profile needs setup",
+          }),
+    },
+    {
+      label: t("dashboard.strategySnapshot", {
+        defaultValue: "Strategy snapshot",
+      }),
+      value: strategy
+        ? t("dashboard.ready", { defaultValue: "Ready" })
+        : t("dashboard.pending", { defaultValue: "Pending" }),
+      detail: topProgram,
+    },
+    {
+      label: t("dashboard.currentPlan", { defaultValue: "Current plan" }),
+      value: planDisplay,
+      detail: statusDisplay,
+    },
+  ];
+
   if (loading) {
     return (
       <Layout>
@@ -214,45 +269,62 @@ export default function SelfDashboardPage() {
 
   return (
     <Layout>
-      <div className="mb-10 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-        <div className="max-w-2xl">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
-            {t("dashboard.title", { defaultValue: "Dashboard" })}
-          </p>
-          <h1 className="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
-            {t("dashboard.title", { defaultValue: "Dashboard" })}
-          </h1>
-          <p className="mt-3 text-base leading-7 text-slate-600">
-            {t("dashboard.subtitle", {
-              defaultValue: "Track your progress and move forward with clarity",
-            })}
-          </p>
-        </div>
+      <Card variant="premium" padding="lg" className="mb-8 overflow-hidden">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+              {t("dashboard.title", { defaultValue: "Dashboard" })}
+            </p>
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+              {language === "fr"
+                ? `Bon retour${firstName ? `, ${firstName}` : ""}`
+                : `Welcome back${firstName ? `, ${firstName}` : ""}`}
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
+              {language === "fr"
+                ? "Votre espace rassemble les priorités, le statut du dossier et les prochaines actions importantes."
+                : "Your workspace brings priorities, case status, and the next important actions into one place."}
+            </p>
+          </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => navigate("/pricing")}
-          >
-            {t("common.pricing", { defaultValue: "Pricing" })}
-          </Button>
-
-          {isAgent && hasAgentPlan && (
+          <div className="flex flex-wrap gap-3">
             <Button
               type="button"
               variant="primary"
-              size="sm"
-              onClick={() => navigate("/clients")}
+              onClick={() => navigate(primaryAction.path)}
             >
-              {t("dashboard.openClientWorkspace", {
-                defaultValue: "Open client workspace",
-              })}
+              {primaryAction.label}
             </Button>
-          )}
+
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => navigate("/pricing")}
+            >
+              {t("common.pricing", { defaultValue: "Pricing" })}
+            </Button>
+          </div>
         </div>
-      </div>
+
+        <div className="mt-8 grid gap-3 md:grid-cols-3">
+          {readinessCards.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-white/70 bg-white/75 px-4 py-4 shadow-sm"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {item.label}
+              </p>
+              <p className="mt-2 truncate text-xl font-semibold tracking-tight text-slate-950">
+                {item.value}
+              </p>
+              <p className="mt-1 truncate text-sm text-slate-500">
+                {item.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       {message && (
         <div className="mb-6 rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -300,32 +372,13 @@ export default function SelfDashboardPage() {
         </Card>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatCard
-          label={t("dashboard.currentPlan", { defaultValue: "Current plan" })}
-          value={planDisplay}
-          valueClassName="text-3xl"
-        />
-        <StatCard
-          label={t("dashboard.subscriptionStatus", {
-            defaultValue: "Subscription status",
-          })}
-          value={statusDisplay}
-          valueClassName="text-3xl"
-        />
-        <StatCard
-          label={t("strategy.premiumAccess", { defaultValue: "Premium access" })}
-          value={premiumStatusLabel}
-          valueClassName="text-3xl"
-        />
-      </div>
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t("dashboard.profileCompletion", {
             defaultValue: "Profile completion",
           })}
           value={`${profileCompletion}%`}
+          tone={profileCompletion >= 80 ? "success" : profile ? "info" : "warning"}
           description={t("dashboard.completeProfiles", {
             defaultValue: "Complete your profile to improve your results",
           })}
@@ -337,6 +390,7 @@ export default function SelfDashboardPage() {
             defaultValue: "Current CRS score",
           })}
           value={crsScore}
+          tone={typeof crsScore === "number" ? "info" : "default"}
           description={t("dashboard.latestStrategy", {
             defaultValue: "Latest strategy",
           })}
@@ -348,6 +402,7 @@ export default function SelfDashboardPage() {
             defaultValue: "Best pathway",
           })}
           value={topProgram}
+          tone={strategy ? "premium" : "default"}
           description={t("dashboard.bestImmigrationOption", {
             defaultValue: "Best immigration option",
           })}
@@ -359,6 +414,7 @@ export default function SelfDashboardPage() {
             defaultValue: "Top improvement",
           })}
           value={topScenario}
+          tone={strategy ? "success" : "default"}
           description={t("dashboard.improvementDescription", {
             defaultValue: "Best next optimization opportunity",
           })}
@@ -491,10 +547,13 @@ export default function SelfDashboardPage() {
           <div className="mt-6 space-y-4">
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {t("dashboard.email", { defaultValue: "Email" })}
+                {t("dashboard.accountName", { defaultValue: "Name" })}
               </p>
               <p className="mt-2 text-base text-slate-900">
-                {currentUser?.email || "--"}
+                {getUserDisplayName(
+                  currentUser,
+                  language === "fr" ? "Utilisateur" : "User"
+                )}
               </p>
             </div>
 
@@ -503,21 +562,6 @@ export default function SelfDashboardPage() {
                 {t("dashboard.role", { defaultValue: "Role" })}
               </p>
               <p className="mt-2 text-base text-slate-900">{role}</p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {t("dashboard.access", { defaultValue: "Access" })}
-              </p>
-              <p className="mt-2 text-base text-slate-900">
-                {paidAccess
-                  ? t("dashboard.premiumEnabled", {
-                      defaultValue: "Premium enabled",
-                    })
-                  : t("dashboard.freeOnly", {
-                      defaultValue: "Free features only",
-                    })}
-              </p>
             </div>
           </div>
         </SurfaceCard>

@@ -46,10 +46,6 @@ const COMPLETION_STORAGE_KEY = "nbai_document_completion_engine_v1";
 const REVIEW_USAGE_KEY = "nbai_doc_review_usage_v1";
 const FREE_REVIEW_LIMIT = 2;
 
-function buildProPricingPath(source = "review", intent = "improve") {
-  return `/pricing?plan=pro&source=${source}&intent=${intent}`;
-}
-
 function buildPremiumPricingPath(source = "review", intent = "export") {
   return `/pricing?plan=premium&source=${source}&intent=${intent}`;
 }
@@ -550,7 +546,6 @@ export default function DocumentReviewPage() {
     remainingFreeReviews <= 1;
   const canReviewNow = canPreviewReview && !reviewLimitReached;
 
-  const proPath = buildProPricingPath("review", "improve");
   const premiumPath = buildPremiumPricingPath("review", "export");
 
   const pageText = useMemo(() => {

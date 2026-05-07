@@ -93,7 +93,7 @@ export default function StrategyProgressCard({
     <Card
       variant="soft"
       padding="md"
-      className="overflow-hidden rounded-[28px] border-slate-200 bg-gradient-to-br from-white to-slate-50"
+      className="overflow-hidden border-slate-200 bg-gradient-to-br from-white to-slate-50"
     >
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {text.title}
@@ -112,7 +112,7 @@ export default function StrategyProgressCard({
       </div>
 
       {priority ? (
-        <div className="mt-5 rounded-[24px] border border-slate-200 bg-white p-4">
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             {text.next}
           </p>

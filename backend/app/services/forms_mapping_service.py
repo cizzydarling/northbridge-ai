@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from app.services.forms_catalog_service import normalize_application_type
+
 
 def _safe_str(value: Any) -> str:
     if value is None:
@@ -21,7 +23,7 @@ def _safe_int(value: Any) -> int | None:
 def _bool_label(value: Any, language: str) -> str:
     truthy = bool(value)
     if language == "fr":
-      return "Oui" if truthy else "Non"
+        return "Oui" if truthy else "Non"
     return "Yes" if truthy else "No"
 
 
@@ -329,10 +331,13 @@ def map_fields_for_application_type(
         "applicant_given_name": applicant_context.get("first_name", ""),
         "applicant_family_name": applicant_context.get("last_name", ""),
         "date_of_birth": applicant_context.get("date_of_birth", ""),
-        "representative_used": "Oui" if lang == "fr" else "Yes"
-        if applicant_context.get("representative_used")
-        else "Non" if lang == "fr" else "No",
+        "representative_used": _bool_label(
+            applicant_context.get("representative_used"),
+            lang,
+        ),
     }
+
+    application_type = normalize_application_type(application_type)
 
     if application_type == "study_permit":
         return {

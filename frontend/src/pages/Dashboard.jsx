@@ -12,6 +12,7 @@ import {
   getMyStrategyLite,
   getToken,
   getCurrentUserLocal,
+  getUserDisplayName,
   refreshCurrentUser,
 } from "../api";
 
@@ -555,10 +556,14 @@ export default function Dashboard() {
     ? pageText.active
     : pageText.inactive;
 
-  const accountDisplayName =
-    currentUser?.first_name && currentUser?.last_name
-      ? `${currentUser.first_name} ${currentUser.last_name}`
-      : currentUser?.first_name || currentUser?.email || "—";
+  const accountDisplayName = getUserDisplayName(
+    {
+      ...currentUser,
+      first_name: profile?.first_name || currentUser?.first_name,
+      last_name: profile?.last_name || currentUser?.last_name,
+    },
+    "—"
+  );
 
   const recommendedAction = !profile
     ? { label: pageText.completeProfile, onClick: () => navigate("/profile") }
@@ -960,7 +965,6 @@ export default function Dashboard() {
 
               <div className="mt-4">
                 <InfoRow label={pageText.accountName} value={accountDisplayName} />
-                <InfoRow label={pageText.email} value={currentUser?.email || "—"} />
                 <InfoRow label={pageText.currentPlan} value={displayPlanLabel} />
                 <InfoRow label={pageText.billingStatus} value={subscriptionStatusLabel} />
                 <InfoRow

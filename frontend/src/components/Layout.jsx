@@ -1,7 +1,12 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { getCurrentUserLocal, logoutUser, getBillingAccess } from "../api";
+import {
+  getCurrentUserLocal,
+  getUserDisplayName,
+  logoutUser,
+  getBillingAccess,
+} from "../api";
 import Button from "../components/ui/Button";
 import OnboardingModal from "../components/OnboardingModal";
 import DevPlanSwitcher from "../components/DevPlanSwitcher";
@@ -42,6 +47,26 @@ function PlanPill({ plan, language }) {
   );
 }
 
+function MenuChevron({ open = false }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="mt-[-2px] h-1.5 w-1.5 border-b border-r border-current transition-transform duration-200"
+      style={{ transform: open ? "rotate(225deg)" : "rotate(45deg)" }}
+    />
+  );
+}
+
+function MenuGlyph() {
+  return (
+    <span className="flex flex-col gap-1" aria-hidden="true">
+      <span className="h-0.5 w-4 rounded-full bg-current" />
+      <span className="h-0.5 w-4 rounded-full bg-current" />
+      <span className="h-0.5 w-4 rounded-full bg-current" />
+    </span>
+  );
+}
+
 function MobileMenuSectionTitle({ children }) {
   return (
     <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -54,6 +79,7 @@ function DesktopNavItem({ to, active, children }) {
   return (
     <Link
       to={to}
+      aria-current={active ? "page" : undefined}
       className={`inline-flex items-center rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
         active
           ? "bg-blue-50 text-blue-900"
@@ -211,25 +237,11 @@ export default function Layout({ children }) {
     currentUser?.role === "agent" || currentUser?.role === "admin";
 
   const displayName = useMemo(() => {
-    const firstName =
-      currentUser?.first_name?.trim() ||
-      currentUser?.profile?.first_name?.trim() ||
-      "";
-
-    const lastName =
-      currentUser?.last_name?.trim() ||
-      currentUser?.profile?.last_name?.trim() ||
-      "";
-
-    if (firstName && lastName) return `${firstName} ${lastName}`;
-    if (firstName) return firstName;
-
-    if (currentUser?.email) {
-      return currentUser.email.split("@")[0];
-    }
-
-    return t("common.unknown");
-  }, [currentUser, t]);
+    return getUserDisplayName(
+      currentUser,
+      language === "fr" ? "Utilisateur" : "User"
+    );
+  }, [currentUser, language]);
 
   const primaryNavItems = isAgentWorkspace
     ? [
@@ -327,18 +339,22 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-white text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_42%,#f8fafc_100%)] text-slate-900">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="flex min-w-0 items-center gap-6 lg:gap-8">
-            <Link to="/dashboard" className="shrink-0">
+            <Link
+              to="/dashboard"
+              className="group shrink-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2"
+              aria-label="NorthBridgeAI dashboard"
+            >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-900 text-sm font-bold text-white shadow-sm shadow-blue-900/10">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-900 text-sm font-bold text-white shadow-sm shadow-blue-900/10 transition group-hover:bg-blue-800">
                   NB
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-900">
-                    {displayName}
+                  <p className="truncate text-sm font-semibold tracking-tight text-slate-950">
+                    NorthBridgeAI
                   </p>
                   <p className="truncate text-xs text-slate-500">
                     {isAgentWorkspace
@@ -363,6 +379,8 @@ export default function Layout({ children }) {
               <div className="relative" ref={toolsRef}>
                 <button
                   type="button"
+                  aria-expanded={toolsOpen}
+                  aria-haspopup="menu"
                   onClick={() => {
                     setToolsOpen((prev) => !prev);
                     setAccountOpen(false);
@@ -374,11 +392,14 @@ export default function Layout({ children }) {
                   }`}
                 >
                   <span>{language === "fr" ? "Outils" : "Tools"}</span>
-                  <span className="text-[10px]">▾</span>
+                  <MenuChevron open={toolsOpen} />
                 </button>
 
                 {toolsOpen && (
-                  <div className="absolute left-0 top-12 z-50 w-72 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
+                  <div
+                    role="menu"
+                    className="absolute left-0 top-12 z-50 w-72 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+                  >
                     <div className="px-3 pb-2 pt-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                         {language === "fr" ? "Outils" : "Tools"}
@@ -389,6 +410,7 @@ export default function Layout({ children }) {
                       <button
                         key={item.path}
                         type="button"
+                        role="menuitem"
                         onClick={() => goTo(item.path)}
                         className={`block w-full rounded-xl px-4 py-3 text-left text-sm transition ${
                           isActive(item.path)
@@ -439,6 +461,8 @@ export default function Layout({ children }) {
             <div className="relative hidden xl:block" ref={accountRef}>
               <button
                 type="button"
+                aria-expanded={accountOpen}
+                aria-haspopup="menu"
                 onClick={() => {
                   setAccountOpen((prev) => !prev);
                   setToolsOpen(false);
@@ -457,17 +481,22 @@ export default function Layout({ children }) {
                     {displayName}
                   </p>
                 </div>
-                <span className="text-[10px] text-slate-400">▾</span>
+                <MenuChevron open={accountOpen} />
               </button>
 
               {accountOpen && (
-                <div className="absolute right-0 top-14 z-50 w-80 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
+                <div
+                  role="menu"
+                  className="absolute right-0 top-14 z-50 w-80 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+                >
                   <div className="rounded-xl bg-slate-50/80 px-4 py-4">
                     <p className="truncate text-sm font-semibold text-slate-900">
                       {displayName}
                     </p>
                     <p className="mt-1 truncate text-xs text-slate-500">
-                      {currentUser?.email || t("common.unknown")}
+                      {isAgentWorkspace
+                        ? t("layout.agentWorkspace")
+                        : t("layout.personalWorkspace")}
                     </p>
                     <div className="mt-3 flex items-center gap-2">
                       {!loadingPlan && (
@@ -482,6 +511,7 @@ export default function Layout({ children }) {
                   <div className="px-2 py-2">
                     <button
                       type="button"
+                      role="menuitem"
                       onClick={() => goTo("/pricing")}
                       className={`block w-full rounded-xl px-4 py-3 text-left text-sm transition ${
                         isActive("/pricing") || isActive("/billing")
@@ -535,6 +565,7 @@ export default function Layout({ children }) {
 
                     <button
                       type="button"
+                      role="menuitem"
                       onClick={handleLogout}
                       className="block w-full rounded-xl px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                     >
@@ -555,7 +586,7 @@ export default function Layout({ children }) {
               className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 xl:hidden"
               aria-label={language === "fr" ? "Ouvrir le menu" : "Open menu"}
             >
-              <span className="text-lg leading-none">☰</span>
+              <MenuGlyph />
             </button>
           </div>
         </div>
@@ -567,6 +598,9 @@ export default function Layout({ children }) {
 
           <div
             ref={mobileMenuPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={language === "fr" ? "Menu principal" : "Main menu"}
             className="absolute right-0 top-0 flex h-full w-[88vw] max-w-sm flex-col border-l border-slate-200 bg-white shadow-2xl"
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
@@ -575,7 +609,9 @@ export default function Layout({ children }) {
                   {displayName}
                 </p>
                 <p className="truncate text-xs text-slate-500">
-                  {currentUser?.email || t("common.unknown")}
+                  {isAgentWorkspace
+                    ? t("layout.agentWorkspace")
+                    : t("layout.personalWorkspace")}
                 </p>
               </div>
 
@@ -585,7 +621,9 @@ export default function Layout({ children }) {
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 aria-label={language === "fr" ? "Fermer le menu" : "Close menu"}
               >
-                <span className="text-lg leading-none">×</span>
+                <span className="text-lg leading-none" aria-hidden="true">
+                  x
+                </span>
               </button>
             </div>
 

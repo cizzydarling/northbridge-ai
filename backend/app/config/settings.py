@@ -1,5 +1,5 @@
 # backend/app/config/settings.py
-from dotenv import load_.dotenv
+from dotenv import load_dotenv
 import os
 
 load_dotenv()  # Load .env file

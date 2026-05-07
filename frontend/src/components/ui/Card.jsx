@@ -11,7 +11,7 @@ export default function Card({
   const isInteractive = interactive || Boolean(onClick);
 
   const base =
-    "rounded-[28px] border transition-all duration-200 will-change-transform";
+    "rounded-2xl border text-left transition-all duration-200";
 
   const variants = {
     default:
@@ -42,7 +42,7 @@ export default function Card({
 
   const hoverStyles =
     hover || isInteractive
-      ? "hover:-translate-y-[2px] hover:shadow-[0_22px_70px_rgba(15,23,42,0.10)]"
+      ? "hover:-translate-y-px hover:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
       : "";
 
   const interactiveStyles = isInteractive
@@ -54,6 +54,7 @@ export default function Card({
   return (
     <Element
       onClick={onClick}
+      type={Element === "button" ? "button" : undefined}
       className={`${base} ${variants[variant] || variants.default} ${
         paddings[padding] || paddings.md
       } ${hoverStyles} ${interactiveStyles} ${className}`}

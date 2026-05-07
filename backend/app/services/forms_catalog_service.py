@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List
 
 
@@ -19,6 +20,39 @@ SUPPORTED_APPLICATION_TYPES: List[Dict[str, str]] = [
         "fr": "Voie vers la résidence permanente",
     },
 ]
+
+APPLICATION_TYPE_ALIASES: Dict[str, str] = {
+    "express": "express_entry",
+    "expressentry": "express_entry",
+    "express_entry_profile": "express_entry",
+    "permanent_residence": "pr_pathway",
+    "permanent_residence_pathway": "pr_pathway",
+    "permanent_residency": "pr_pathway",
+    "pr": "pr_pathway",
+    "pr_application": "pr_pathway",
+    "residence_permanente": "pr_pathway",
+    "study": "study_permit",
+    "student": "study_permit",
+    "student_visa": "study_permit",
+    "study_visa": "study_permit",
+    "work": "work_permit",
+    "worker": "work_permit",
+    "worker_visa": "work_permit",
+    "visitor": "visitor_visa",
+    "visitor_permit": "visitor_visa",
+    "temporary_resident_visa": "visitor_visa",
+    "temporary_resident": "visitor_visa",
+    "tourist_visa": "visitor_visa",
+    "trv": "visitor_visa",
+    "visa_visiteur": "visitor_visa",
+    "spousal": "spousal_sponsorship",
+    "spouse": "spousal_sponsorship",
+    "spouse_sponsorship": "spousal_sponsorship",
+    "partner_sponsorship": "spousal_sponsorship",
+    "family_sponsorship": "spousal_sponsorship",
+    "family": "spousal_sponsorship",
+    "sponsorship": "spousal_sponsorship",
+}
 
 
 FORMS_CATALOG: Dict[str, List[Dict[str, Any]]] = {
@@ -199,6 +233,13 @@ FORMS_CATALOG: Dict[str, List[Dict[str, Any]]] = {
 }
 
 
+def normalize_application_type(application_type: str) -> str:
+    raw_value = str(application_type or "").strip().lower()
+    value = re.sub(r"[^a-z0-9]+", "_", raw_value)
+    value = re.sub(r"_+", "_", value).strip("_")
+    return APPLICATION_TYPE_ALIASES.get(value, value)
+
+
 def get_supported_application_types(language: str = "en") -> List[Dict[str, str]]:
     lang = "fr" if language == "fr" else "en"
     return [
@@ -212,15 +253,17 @@ def get_supported_application_types(language: str = "en") -> List[Dict[str, str]
 
 def get_application_type_label(application_type: str, language: str = "en") -> str:
     lang = "fr" if language == "fr" else "en"
+    normalized_type = normalize_application_type(application_type)
     for item in SUPPORTED_APPLICATION_TYPES:
-        if item["value"] == application_type:
+        if item["value"] == normalized_type:
             return item[lang]
-    return application_type
+    return normalized_type or application_type
 
 
 def get_forms_for_application_type(application_type: str, language: str = "en") -> List[Dict[str, Any]]:
     lang = "fr" if language == "fr" else "en"
-    forms = FORMS_CATALOG.get(application_type, [])
+    normalized_type = normalize_application_type(application_type)
+    forms = FORMS_CATALOG.get(normalized_type, [])
 
     normalized: List[Dict[str, Any]] = []
     for form in forms:

@@ -49,7 +49,6 @@ export default function SelfApplicationPage() {
   const navigate = useNavigate();
   const language = i18n.language === "fr" ? "fr" : "en";
 
-  const [profile, setProfile] = useState(null);
   const [workspace, setWorkspace] = useState(null);
   const [access, setAccess] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -64,15 +63,11 @@ export default function SelfApplicationPage() {
     try {
       setLoading(true);
 
-      const [profileRes, savedAppRes, accessRes] = await Promise.allSettled([
+      const [, savedAppRes, accessRes] = await Promise.allSettled([
         getMyProfile(),
         getSavedSelfApplication(),
         getMyAccess(),
       ]);
-
-      if (profileRes.status === "fulfilled") {
-        setProfile(profileRes.value.data);
-      }
 
       if (accessRes.status === "fulfilled") {
         setAccess(accessRes.value.data);

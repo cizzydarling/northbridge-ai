@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 
@@ -345,6 +346,7 @@ Contraintes:
   /documents
   /documents/generator
   /documents/review
+  /forms
   /legal/disclosure
   /pricing
 - tu peux utiliser des query params quand utile
@@ -443,6 +445,7 @@ Constraints:
   /documents
   /documents/generator
   /documents/review
+  /forms
   /legal/disclosure
   /pricing
 - you may use query params when useful
@@ -661,6 +664,7 @@ def _infer_route_from_action_label(
     matter_type: Optional[str] = None,
 ) -> str:
     lowered = (label or "").strip().lower()
+    label_terms = set(re.findall(r"[a-z0-9]+", lowered))
     document_type = _detect_document_type_from_text(label, matter_type)
 
     if any(token in lowered for token in ["review", "revise", "réviser", "révision"]):
@@ -670,6 +674,20 @@ def _infer_route_from_action_label(
                 document_type=document_type,
             )
         return "/documents/review"
+
+    if label_terms.intersection(
+        {
+            "application",
+            "applications",
+            "demande",
+            "demandes",
+            "form",
+            "forms",
+            "formulaire",
+            "formulaires",
+        }
+    ):
+        return "/forms"
 
     if any(
         token in lowered
@@ -705,9 +723,6 @@ def _infer_route_from_action_label(
 
     if any(token in lowered for token in ["strategy", "stratégie", "strategie", "pathway", "programme"]):
         return "/strategy"
-
-    if any(token in lowered for token in ["application", "demande", "form", "formulaire"]):
-        return "/documents"
 
     return ""
 
@@ -754,18 +769,20 @@ def _normalize_chat_response(
             "insights": [],
         }
 
-    import json
+    reply = str(payload.get("reply") or payload.get("answer") or "").strip()
+    if not reply:
+        reply = (
+            "Je peux vous aider à transformer votre profil en prochaines étapes concrètes."
+            if language == "fr"
+            else "I can help turn your profile into clear next steps."
+        )
 
-    normalized_payload = {
-    "answer": payload.get("answer") or payload.get("reply") or "",
-    "reasons": payload.get("reasons") or payload.get("insights") or [],
-    "actions": payload.get("actions") or payload.get("suggested_next_actions") or [],
-    }
-
-    reply = json.dumps(payload, ensure_ascii=False)
-
-    actions_raw = payload.get("suggested_next_actions", [])
-    insights_raw = payload.get("insights", [])
+    actions_raw = (
+        payload.get("suggested_next_actions")
+        or payload.get("actions")
+        or []
+    )
+    insights_raw = payload.get("insights") or payload.get("reasons") or []
 
     actions: List[Dict[str, str]] = []
     if isinstance(actions_raw, list):

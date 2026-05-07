@@ -46,7 +46,7 @@ export default function SimulationPanel() {
         });
 
         setSavedScenarios(Array.isArray(scenarios) ? scenarios : []);
-      } catch (err) {
+      } catch {
         setMessage("Could not load profile values or saved scenarios.");
       } finally {
         setProfileLoading(false);

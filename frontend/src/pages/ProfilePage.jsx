@@ -79,7 +79,6 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
-  const [profileExists, setProfileExists] = useState(false);
   const [activeSection, setActiveSection] = useState("personal");
 
   const [nocDescription, setNocDescription] = useState("");
@@ -117,12 +116,10 @@ export default function ProfilePage() {
         setForm(hydrated);
         setNocDescription(hydrated.job_description || "");
         setNocDutyInput(hydrated.job_duties || "");
-        setProfileExists(true);
       } catch (err) {
         console.error(err);
 
         if (err.response?.status === 404) {
-          setProfileExists(false);
           setMessage(
             language === "fr"
               ? "Votre profil n’est pas encore prêt. Veuillez finaliser votre configuration."

@@ -45,7 +45,7 @@ export default function StatCard({
 
   return (
     <div
-      className={`rounded-[28px] border p-6 shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_18px_60px_rgba(15,23,42,0.09)] ${selectedTone.card} ${className}`}
+      className={`min-h-[180px] rounded-2xl border p-6 shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_18px_60px_rgba(15,23,42,0.09)] ${selectedTone.card} ${className}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="text-sm font-medium text-slate-500">{label}</p>
@@ -60,7 +60,7 @@ export default function StatCard({
       </div>
 
       <h2
-        className={`mt-4 font-semibold tracking-tight text-slate-900 ${valueClassName}`}
+        className={`mt-4 break-words font-semibold tracking-tight text-slate-900 ${valueClassName}`}
       >
         {value}
       </h2>

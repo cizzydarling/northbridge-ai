@@ -26,7 +26,7 @@ export default function Input({
         placeholder={placeholder}
         aria-invalid={hasError}
         className={`
-          w-full rounded-2xl border bg-white px-4 py-3 text-sm text-slate-900
+          w-full rounded-xl border bg-white px-4 py-3 text-sm text-slate-900
           placeholder:text-slate-400
           transition-all duration-200 ease-out
           outline-none

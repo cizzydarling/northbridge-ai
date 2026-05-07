@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
   acceptDisclosure,
   getDisclosureRequirements,
@@ -12,8 +11,6 @@ export default function DisclosureAcceptanceModal({
   clientId = null,
   matterId = null,
 }) {
-  const { t } = useTranslation();
-
   const [checked, setChecked] = useState({});
   const [finalCertificationChecked, setFinalCertificationChecked] =
     useState(false);
@@ -107,7 +104,7 @@ export default function DisclosureAcceptanceModal({
           {loading ? (
             <p>Loading...</p>
           ) : (
-            disclosures.map((item, index) => (
+            disclosures.map((item) => (
               <div
                 key={item.disclosure_type}
                 className="border rounded-xl p-4"
