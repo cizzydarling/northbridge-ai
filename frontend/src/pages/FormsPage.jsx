@@ -26,16 +26,22 @@ function buildPremiumPricingPath(source = "forms", intent = "export") {
 
 function PageHeader({ brand, title, subtitle }) {
   return (
-    <div className="mb-6 max-w-3xl">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
-        {brand}
-      </p>
-      <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-        {title}
-      </h1>
-      <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
-        {subtitle}
-      </p>
+    <div className="mb-6 border-b border-slate-200 pb-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+            {brand}
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
+            {title}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+            {subtitle}
+          </p>
+        </div>
+
+        <div className="hidden h-px min-w-[180px] bg-slate-300 lg:block" />
+      </div>
     </div>
   );
 }
@@ -104,7 +110,7 @@ function writeLocalDraft(value) {
 
 function FieldInput({ field, value, onChange }) {
   const commonClassName =
-    "w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100";
+    "w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100";
 
   if (field.type === "textarea") {
     return (
@@ -120,7 +126,7 @@ function FieldInput({ field, value, onChange }) {
 
   if (field.type === "checkbox") {
     return (
-      <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
+      <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
         <input
           type="checkbox"
           checked={Boolean(value)}
@@ -145,9 +151,9 @@ function FieldInput({ field, value, onChange }) {
 function PlanPill({ active = false, children }) {
   return (
     <span
-      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+      className={`inline-flex rounded-lg border px-3 py-1 text-xs font-semibold ${
         active
-          ? "border-blue-200 bg-blue-50 text-blue-700"
+          ? "border-slate-950 bg-slate-950 text-white"
           : "border-slate-200 bg-white text-slate-600"
       }`}
     >
@@ -156,14 +162,38 @@ function PlanPill({ active = false, children }) {
   );
 }
 
+function ApplicationTypeButton({ active, disabled, label, onClick, statusLabel }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`min-h-[64px] rounded-lg border px-4 py-3 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
+        active
+          ? "border-slate-950 bg-slate-950 text-white shadow-[0_12px_28px_rgba(15,23,42,0.16)]"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+      }`}
+    >
+      <span className="block font-semibold">{label}</span>
+      <span
+        className={`mt-1 block text-xs ${
+          active ? "text-stone-300" : "text-slate-500"
+        }`}
+      >
+        {statusLabel}
+      </span>
+    </button>
+  );
+}
+
 function MonetizationCard({ title, subtitle, items, accent = "default" }) {
   const accentClass =
     accent === "featured"
-      ? "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+      ? "border-amber-200 bg-stone-50"
       : "border-slate-200 bg-white";
 
   return (
-    <div className={`rounded-[24px] border p-5 ${accentClass}`}>
+    <div className={`rounded-lg border p-5 ${accentClass}`}>
       <h3 className="text-lg font-semibold tracking-tight text-slate-900">
         {title}
       </h3>
@@ -175,7 +205,7 @@ function MonetizationCard({ title, subtitle, items, accent = "default" }) {
         {items.map((item, index) => (
           <div
             key={`${title}-${index}`}
-            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
           >
             {item}
           </div>
@@ -194,7 +224,7 @@ function SummaryMetric({ label, value, accent = "default" }) {
       : "bg-slate-50/80 border-slate-200";
 
   return (
-    <div className={`rounded-2xl border p-4 ${accentClass}`}>
+    <div className={`rounded-lg border p-4 ${accentClass}`}>
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
         {label}
       </p>
@@ -213,6 +243,100 @@ function CompletionBar({ score }) {
         style={{ width: `${score || 0}%` }}
       />
     </div>
+  );
+}
+
+function StudioMetric({ label, value, detail }) {
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 break-words text-xl font-semibold tracking-tight text-slate-950">
+        {value}
+      </p>
+      {detail ? <p className="mt-1 text-xs text-slate-500">{detail}</p> : null}
+    </div>
+  );
+}
+
+function FormsStudioHero({
+  pageText,
+  activeCase,
+  selectedApplicationLabel,
+  applicationTypesCount,
+  preview,
+  canDownloadForms,
+  previewLoading,
+  selectedApplicationType,
+  onPreview,
+  onPricing,
+}) {
+  const activeCaseLabel =
+    activeCase?.case_title ||
+    activeCase?.pathway ||
+    activeCase?.application_type ||
+    pageText.noActiveCase;
+  const previewScore = preview?.summary?.completeness_score ?? 0;
+  const previewLabel = preview
+    ? `${previewScore}%`
+    : pageText.previewNotGenerated;
+  const downloadLabel = canDownloadForms
+    ? pageText.downloadUnlocked
+    : pageText.downloadLocked;
+
+  return (
+    <section className="mb-6 rounded-lg border border-stone-200 bg-stone-50 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+            {pageText.heroEyebrow}
+          </p>
+          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
+            {pageText.heroTitle}
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
+            {pageText.heroBody}
+          </p>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button
+              onClick={onPreview}
+              disabled={previewLoading || !selectedApplicationType}
+              loading={previewLoading}
+            >
+              {previewLoading ? pageText.previewing : pageText.preview}
+            </Button>
+            <Button variant="secondary" onClick={onPricing}>
+              {pageText.viewPricing}
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <StudioMetric
+            label={pageText.formsAvailable}
+            value={applicationTypesCount}
+            detail={pageText.everyTypeReady}
+          />
+          <StudioMetric
+            label={pageText.activeApplication}
+            value={selectedApplicationLabel}
+            detail={activeCaseLabel}
+          />
+          <StudioMetric
+            label={pageText.previewStatus}
+            value={previewLabel}
+            detail={pageText.completeness}
+          />
+          <StudioMetric
+            label={pageText.downloadAccess}
+            value={downloadLabel}
+            detail={pageText.accessLabel}
+          />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -763,6 +887,20 @@ export default function FormsPage() {
         title: "AI Forms Studio",
         subtitle:
           "Prévisualisez gratuitement votre dossier de formulaires, identifiez les éléments manquants, puis débloquez le téléchargement quand vous êtes prêt à avancer.",
+        heroEyebrow: "Centre de commande formulaires",
+        heroTitle: "Générez le bon dossier pour chaque type de demande",
+        heroBody:
+          "Sélectionnez un type de demande, complétez les champs utiles et générez un aperçu clair des formulaires requis, conditionnels et manquants.",
+        formsAvailable: "Types disponibles",
+        everyTypeReady: "Chaque type peut générer un dossier",
+        activeApplication: "Demande active",
+        noActiveCase: "Aucun dossier actif",
+        previewStatus: "Statut aperçu",
+        previewNotGenerated: "Non généré",
+        downloadAccess: "Accès téléchargement",
+        downloadUnlocked: "Débloqué",
+        downloadLocked: "Verrouillé",
+        generatorReady: "Générateur prêt",
         setupEyebrow: "Configuration",
         setupTitle: "Construire un dossier de formulaires",
         setupBody:
@@ -872,6 +1010,20 @@ export default function FormsPage() {
       title: "AI Forms Studio",
       subtitle:
         "Preview your forms package for free, identify missing information, then unlock download when you are ready to move forward.",
+      heroEyebrow: "Forms command center",
+      heroTitle: "Generate the right package for every application type",
+      heroBody:
+        "Select an application type, complete useful fields, and generate a clear preview of required, conditional, and missing forms.",
+      formsAvailable: "Types available",
+      everyTypeReady: "Every type can generate a package",
+      activeApplication: "Active application",
+      noActiveCase: "No active case",
+      previewStatus: "Preview status",
+      previewNotGenerated: "Not generated",
+      downloadAccess: "Download access",
+      downloadUnlocked: "Unlocked",
+      downloadLocked: "Locked",
+      generatorReady: "Generator ready",
       setupEyebrow: "Setup",
       setupTitle: "Build a forms package",
       setupBody:
@@ -975,10 +1127,16 @@ export default function FormsPage() {
     };
   }, [language]);
 
+  const selectedApplicationLabel =
+    applicationTypes.find((item) => item.value === selectedApplicationType)
+      ?.label ||
+    selectedApplicationType ||
+    pageText.selectApplicationType;
+
   return (
     <Layout>
       {message && (
-        <div className="mb-6 rounded-[24px] border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
           {message}
         </div>
       )}
@@ -988,27 +1146,22 @@ export default function FormsPage() {
         title={pageText.title}
         subtitle={pageText.subtitle}
       />
-      {activeCase ? (
-        <Card padding="md" className="mb-6 border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
-            {language === "fr" ? "Dossier actif" : "Active application"}
-          </p>
-          <p className="mt-1 text-sm font-semibold text-blue-900">
-            {activeCase.case_title ||
-              activeCase.pathway ||
-              activeCase.application_type ||
-              "Application"}
-          </p>
-        </Card>
-      ) : null}
-
-      <div className="mb-6 max-w-2xl">
-        <p className="text-sm leading-7 text-slate-600">{pageText.workspaceValue}</p>
-      </div>
+      <FormsStudioHero
+        pageText={pageText}
+        activeCase={activeCase}
+        selectedApplicationLabel={selectedApplicationLabel}
+        applicationTypesCount={applicationTypes.length}
+        preview={preview}
+        canDownloadForms={canDownloadForms}
+        previewLoading={previewLoading}
+        selectedApplicationType={selectedApplicationType}
+        onPreview={handlePreviewPackage}
+        onPricing={() => navigate(proPath)}
+      />
 
       <div className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-6 xl:sticky xl:top-24 self-start">
-          <Card variant="premium" padding="lg">
+          <Card variant="premium" padding="lg" className="rounded-lg">
             <StepHeader
               step="STEP 1"
               title={pageText.setupTitle}
@@ -1020,22 +1173,26 @@ export default function FormsPage() {
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   {pageText.applicationType}
                 </label>
-                <select
-                  value={selectedApplicationType}
-                  onChange={(e) => setSelectedApplicationType(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
-                  disabled={loadingTypes}
-                >
-                  <option value="">{pageText.selectApplicationType}</option>
+                <div className="grid gap-2 sm:grid-cols-2">
                   {applicationTypes.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
+                    <ApplicationTypeButton
+                      key={item.value}
+                      label={item.label}
+                      active={selectedApplicationType === item.value}
+                      disabled={loadingTypes}
+                      statusLabel={pageText.generatorReady}
+                      onClick={() => setSelectedApplicationType(item.value)}
+                    />
                   ))}
-                </select>
+                </div>
+                {loadingTypes ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {pageText.loadingSaved}
+                  </p>
+                ) : null}
               </div>
 
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
+              <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   checked={representativeUsed}
@@ -1044,7 +1201,7 @@ export default function FormsPage() {
                 {pageText.representative}
               </label>
 
-              <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                   {pageText.accessEyebrow}
                 </p>
@@ -1089,7 +1246,7 @@ export default function FormsPage() {
             </div>
           </Card>
 
-          <Card padding="lg">
+          <Card padding="lg" className="rounded-lg">
             <StepHeader
               step="STEP 2"
               title={pageText.inlineTitle}
@@ -1097,7 +1254,7 @@ export default function FormsPage() {
             />
 
             {loadingSavedApp ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm text-slate-500">
+              <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm text-slate-500">
                 {pageText.loadingSaved}
               </div>
             ) : activeFields.length > 0 ? (
@@ -1121,13 +1278,13 @@ export default function FormsPage() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
                 {pageText.noInlineFields}
               </div>
             )}
 
-            <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
-              <p className="text-sm font-medium text-blue-800">
+            <div className="mt-5 rounded-lg border border-amber-200 bg-stone-50 p-4">
+              <p className="text-sm font-medium text-slate-800">
                 {pageText.finalStepTitle}
               </p>
 
@@ -1141,13 +1298,13 @@ export default function FormsPage() {
                 </Button>
               </div>
 
-              <p className="mt-3 text-xs text-blue-700">
+              <p className="mt-3 text-xs text-amber-700">
                 {savingInline ? pageText.autosaving : pageText.autosave}
               </p>
             </div>
           </Card>
 
-          <Card padding="lg">
+          <Card padding="lg" className="rounded-lg">
             <SectionIntro
               eyebrow={pageText.launchEyebrow}
               title={pageText.launchTitle}
@@ -1192,7 +1349,7 @@ export default function FormsPage() {
         <div className="space-y-6">
           {preview ? (
             <>
-              <Card padding="lg">
+              <Card padding="lg" className="rounded-lg">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
@@ -1225,7 +1382,7 @@ export default function FormsPage() {
                 </div>
 
                 {preview?.summary?.download_note ? (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700">
+                  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700">
                     {preview.summary.download_note}
                   </div>
                 ) : null}
@@ -1240,7 +1397,7 @@ export default function FormsPage() {
               )}
 
               {preview && !canDownloadForms && (
-                <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-5">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
                   <h3 className="text-lg font-semibold text-amber-900">
                     {pageText.unlockDownloadTitle}
                   </h3>
@@ -1258,7 +1415,7 @@ export default function FormsPage() {
               )}
 
               {canDownloadForms && (
-                <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
                   <h3 className="text-lg font-semibold text-emerald-900">
                     {pageText.packageReadyTitle}
                   </h3>
@@ -1299,7 +1456,7 @@ export default function FormsPage() {
                 </div>
               )}
 
-              <Card variant="soft" padding="lg">
+              <Card variant="soft" padding="lg" className="rounded-lg">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
@@ -1314,27 +1471,27 @@ export default function FormsPage() {
                   <ProgressBadge score={preview?.summary?.completeness_score ?? 0} />
                 </div>
 
-                <div className="mt-5 rounded-[24px] border border-blue-200 bg-blue-50 px-5 py-4">
+                <div className="mt-5 rounded-lg border border-amber-200 bg-stone-50 px-5 py-4">
                   <p className="text-lg font-semibold text-slate-900">
                     {aiMissingCount === 0
                       ? pageText.aiStrong
                       : pageText.aiGaps(aiMissingCount)}
                   </p>
-                  <p className="mt-2 text-sm leading-7 text-blue-900">
+                  <p className="mt-2 text-sm leading-7 text-slate-700">
                     {aiMissingCount === 1
                       ? pageText.aiSummarySingle
                       : pageText.aiSummaryMulti(aiMissingCount)}
                   </p>
                 </div>
 
-                <div className="mt-4 rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-700">
+                <div className="mt-4 rounded-lg border border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-700">
                   {canDownloadForms
                     ? pageText.aiPromptEnabled
                     : pageText.aiPromptLocked}
                 </div>
               </Card>
 
-              <Card padding="lg">
+              <Card padding="lg" className="rounded-lg">
                 <SectionIntro
                   eyebrow={pageText.formsTitle}
                   title={pageText.formsTitle}
@@ -1344,7 +1501,7 @@ export default function FormsPage() {
                   {(preview?.forms || []).map((form) => (
                     <details
                       key={form.code}
-                      className="rounded-[20px] border border-slate-200 bg-white p-4"
+                      className="rounded-lg border border-slate-200 bg-white p-4"
                     >
                       <summary className="cursor-pointer list-none">
                         <div className="flex flex-wrap items-center gap-2">
@@ -1390,7 +1547,7 @@ export default function FormsPage() {
                                 ([key, value]) => (
                                   <div
                                     key={key}
-                                    className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700"
+                                    className="rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700"
                                   >
                                     <span className="font-semibold text-slate-900">
                                       {key}
@@ -1400,7 +1557,7 @@ export default function FormsPage() {
                                 )
                               )
                             ) : (
-                              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
                                 {pageText.noMappedFields}
                               </div>
                             )}
@@ -1417,13 +1574,13 @@ export default function FormsPage() {
                               (form.missing_fields || []).map((field) => (
                                 <div
                                   key={field}
-                                  className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                                  className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
                                 >
                                   {field}
                                 </div>
                               ))
                             ) : (
-                              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
                                 {pageText.noMissingFields}
                               </div>
                             )}
@@ -1435,7 +1592,7 @@ export default function FormsPage() {
                 </div>
               </Card>
 
-              <Card variant="soft" padding="lg">
+              <Card variant="soft" padding="lg" className="rounded-lg">
                 <SectionIntro
                   eyebrow={pageText.missingTitle}
                   title={pageText.missingTitle}
@@ -1446,14 +1603,14 @@ export default function FormsPage() {
                     (preview?.missing_fields || []).map((item, index) => (
                       <div
                         key={`${item.form_code}-${item.field}-${index}`}
-                        className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                        className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
                       >
                         <span className="font-semibold">{item.form_code}</span> —{" "}
                         {item.field}
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
                       {pageText.noMissingItems}
                     </div>
                   )}
@@ -1461,7 +1618,7 @@ export default function FormsPage() {
               </Card>
             </>
           ) : (
-            <Card variant="soft" padding="lg">
+            <Card variant="soft" padding="lg" className="rounded-lg">
               <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
                 {pageText.emptyTitle}
               </h2>

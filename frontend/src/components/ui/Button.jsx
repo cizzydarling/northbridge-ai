@@ -15,7 +15,7 @@ export default function Button({
   const isDisabled = disabled || loading;
 
   const base =
-    "inline-flex items-center justify-center whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60";
+    "inline-flex items-center justify-center whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60";
 
   const widthClass = fullWidth ? "w-full" : "";
 
@@ -27,7 +27,7 @@ export default function Button({
 
   const variants = {
     primary:
-      "bg-blue-900 text-white shadow-sm shadow-blue-900/10 hover:bg-blue-800 hover:shadow-md active:scale-[0.99]",
+      "bg-slate-950 text-white shadow-sm shadow-slate-950/10 hover:bg-slate-800 hover:shadow-md active:scale-[0.99]",
 
     secondary:
       "border border-slate-300 bg-white text-slate-900 shadow-sm hover:border-slate-400 hover:bg-slate-50 active:scale-[0.99]",
@@ -48,7 +48,7 @@ export default function Button({
       "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.99]",
 
     premium:
-      "bg-gradient-to-r from-blue-900 via-blue-800 to-blue-700 text-white shadow-md shadow-blue-900/20 hover:opacity-95 hover:shadow-lg hover:shadow-blue-900/20 active:scale-[0.99]",
+      "bg-[#121417] text-white shadow-md shadow-slate-950/20 hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-950/20 active:scale-[0.99]",
   };
 
   const spinnerClassMap = {

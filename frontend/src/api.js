@@ -303,6 +303,9 @@ export const createCheckoutSession = (planOrPayload) => {
   return api.post("/billing/create-checkout-session", payload);
 };
 
+export const syncCheckoutSession = (sessionId) =>
+  api.post("/billing/sync-checkout-session", { session_id: sessionId });
+
 export const createPortalSession = () =>
   api.post("/billing/create-portal-session");
 

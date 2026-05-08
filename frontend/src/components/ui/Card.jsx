@@ -23,7 +23,7 @@ export default function Card({
     glass:
       "border-white/30 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.10)]",
     premium:
-      "border-blue-100 bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/50 shadow-[0_18px_60px_rgba(15,23,42,0.08)]",
+      "border-amber-200 bg-stone-50 shadow-[0_18px_60px_rgba(15,23,42,0.08)]",
     success:
       "border-emerald-200 bg-emerald-50/40 shadow-[0_12px_40px_rgba(15,23,42,0.05)]",
     warning:
@@ -46,7 +46,7 @@ export default function Card({
       : "";
 
   const interactiveStyles = isInteractive
-    ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 active:scale-[0.995]"
+    ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-200 focus:ring-offset-2 active:scale-[0.995]"
     : "";
 
   const Element = isInteractive && Component === "div" ? "button" : Component;

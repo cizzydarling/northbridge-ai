@@ -333,14 +333,20 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
 
 function PageHeaderBlock({ brand, title, subtitle }) {
   return (
-    <div className="mb-6 max-w-3xl">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
-        {brand}
-      </p>
-      <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-        {title}
-      </h1>
-      <p className="mt-3 text-base leading-7 text-slate-600">{subtitle}</p>
+    <div className="mb-6 border-b border-slate-200 pb-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+            {brand}
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
+            {title}
+          </h1>
+          <p className="mt-3 text-base leading-7 text-slate-600">{subtitle}</p>
+        </div>
+
+        <div className="hidden h-px min-w-[180px] bg-slate-300 lg:block" />
+      </div>
     </div>
   );
 }
@@ -388,11 +394,11 @@ function HeroMetric({ label, value, subvalue, dark = false }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-blue-900">
+      <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-slate-950">
         {value}
       </p>
     </div>
@@ -430,7 +436,7 @@ function ListCard({ title, items, emptyLabel }) {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
-    <Card padding="lg" className="rounded-[28px]">
+    <Card padding="lg" className="rounded-lg">
       {title ? <SectionTitle>{title}</SectionTitle> : null}
 
       {safeItems.length > 0 ? (
@@ -455,7 +461,7 @@ function RiskCard({ title, items, emptyLabel, language, onAnalyzeRisk, }) {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
-    <Card padding="lg" className="rounded-[28px]">
+    <Card padding="lg" className="rounded-lg">
       <SectionTitle>{title}</SectionTitle>
 
       {safeItems.length > 0 ? (
@@ -507,7 +513,7 @@ function RoadmapCard({ title, items, emptyLabel, language }) {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
-    <Card padding="lg" className="rounded-[28px]">
+    <Card padding="lg" className="rounded-lg">
       <SectionTitle>{title}</SectionTitle>
 
       {safeItems.length > 0 ? (
@@ -569,7 +575,7 @@ function ProvinceCard({ title, items, emptyLabel }) {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
-    <Card padding="lg" className="rounded-[28px]">
+    <Card padding="lg" className="rounded-lg">
       <SectionTitle>{title}</SectionTitle>
 
       {safeItems.length > 0 ? (
@@ -617,7 +623,7 @@ function ProvinceCard({ title, items, emptyLabel }) {
 
 function InsightCard({ eyebrow, title, body, chips = [], actions = null }) {
   return (
-    <Card padding="lg" className="h-full rounded-[28px]">
+    <Card padding="lg" className="h-full rounded-lg">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {eyebrow}
       </p>
@@ -755,9 +761,9 @@ function BestPathwayCard({ language, bestPathway, onOpenDocuments, onAnalyzePath
     <Card
       variant="soft"
       padding="lg"
-      className="rounded-[28px] border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+      className="rounded-lg border-stone-200 bg-stone-50"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
         {language === "fr" ? "Meilleur parcours" : "Best pathway"}
       </p>
 
@@ -826,7 +832,7 @@ function BestPathwayCard({ language, bestPathway, onOpenDocuments, onAnalyzePath
 function TimelineCard({ timeline, language, title, noItemsLabel }) {
   if (!timeline) {
     return (
-      <Card padding="lg" className="rounded-[28px]">
+      <Card padding="lg" className="rounded-lg">
         <SectionTitle>{title}</SectionTitle>
         <p className="mt-4 text-sm text-slate-500">{noItemsLabel}</p>
       </Card>
@@ -835,7 +841,7 @@ function TimelineCard({ timeline, language, title, noItemsLabel }) {
 
   if (typeof timeline === "string") {
     return (
-      <Card padding="lg" className="rounded-[28px]">
+      <Card padding="lg" className="rounded-lg">
         <SectionTitle>{title}</SectionTitle>
         <p className="mt-4 text-sm leading-7 text-slate-700">{timeline}</p>
       </Card>
@@ -847,7 +853,7 @@ function TimelineCard({ timeline, language, title, noItemsLabel }) {
     : [];
 
   return (
-    <Card padding="lg" className="rounded-[28px]">
+    <Card padding="lg" className="rounded-lg">
       <SectionTitle>{title}</SectionTitle>
 
       <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -906,10 +912,10 @@ function TimelineCard({ timeline, language, title, noItemsLabel }) {
 function PlanChip({ active = false, children }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ${
+      className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-semibold ${
         active
-          ? "bg-white text-blue-900"
-          : "border border-white/20 bg-white/10 text-blue-100"
+          ? "border-white bg-white text-slate-950"
+          : "border-white/20 bg-white/5 text-stone-200"
       }`}
     >
       {children}
@@ -922,16 +928,22 @@ function TopTabButton({ active, label, onClick, locked = false }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm shadow-sm transition-all duration-200 ${
+      className={`flex min-h-11 items-center gap-2 rounded-lg border px-4 py-2.5 text-sm shadow-sm transition-all duration-200 ${
         active
-          ? "border-blue-200 bg-blue-50 text-blue-700 shadow-[0_8px_24px_rgba(37,99,235,0.10)]"
-          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_28px_rgba(15,23,42,0.16)]"
+          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
       }`}
     >
       <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
 
       {locked ? (
-        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+        <span
+          className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+            active
+              ? "border-amber-200/40 bg-amber-200/15 text-amber-100"
+              : "border-amber-200 bg-amber-50 text-amber-700"
+          }`}
+        >
           Lock
         </span>
       ) : null}
@@ -944,15 +956,21 @@ function SidebarButton({ active, label, onClick, locked = false }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm transition ${
+      className={`flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition ${
         active
-          ? "bg-blue-50 text-blue-900 ring-1 ring-blue-200"
+          ? "bg-slate-950 text-white"
           : "text-slate-600 hover:bg-slate-50"
       }`}
     >
       <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
       {locked ? (
-        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+        <span
+          className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+            active
+              ? "border-amber-200/40 bg-amber-200/15 text-amber-100"
+              : "border-amber-200 bg-amber-50 text-amber-700"
+          }`}
+        >
           Lock
         </span>
       ) : null}
@@ -1030,7 +1048,7 @@ function ScoreSimulatorTeaser({
 
   if (hasFullStrategy) {
     return (
-      <Card padding="lg" className="rounded-[28px]">
+      <Card padding="lg" className="rounded-lg">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           {copy.eyebrow}
         </p>
@@ -1049,7 +1067,7 @@ function ScoreSimulatorTeaser({
   }
 
   return (
-    <Card variant="premium" padding="lg" className="rounded-[28px]">
+    <Card variant="premium" padding="lg" className="rounded-lg">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
         {copy.eyebrow}
       </p>
@@ -1135,11 +1153,11 @@ function StrategyPaywallHero({
     <Card
       variant="soft"
       padding="lg"
-      className="mb-6 rounded-[28px] border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+      className="mb-6 rounded-lg border-amber-200 bg-stone-50"
     >
       <div className="grid items-start gap-6 xl:grid-cols-[280px_1fr]">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700">
             {copy.eyebrow}
           </p>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
@@ -1155,7 +1173,7 @@ function StrategyPaywallHero({
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-white p-5">
+        <div className="rounded-lg border border-slate-200 bg-white p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             {copy.currentPlan}
           </p>
@@ -1184,7 +1202,7 @@ function StrategyPaywallHero({
 
 function SectionChrome({ activeTab, activeSectionLabel, lockedLabel, text }) {
   return (
-    <div className="flex flex-col gap-3 rounded-[28px] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           {activeTab === "execution"
@@ -1199,7 +1217,7 @@ function SectionChrome({ activeTab, activeSectionLabel, lockedLabel, text }) {
       </div>
 
       {lockedLabel ? (
-        <span className="inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+        <span className="inline-flex w-fit rounded-md border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
           {lockedLabel}
         </span>
       ) : null}
@@ -1209,15 +1227,15 @@ function SectionChrome({ activeTab, activeSectionLabel, lockedLabel, text }) {
 
 function HeroSignalChip({ label, value, tone = "default" }) {
   const tones = {
-    default: "border-white/15 bg-white/10 text-white",
-    strong: "border-emerald-300/20 bg-emerald-400/15 text-emerald-50",
-    medium: "border-amber-300/20 bg-amber-400/15 text-amber-50",
-    info: "border-blue-300/20 bg-blue-400/15 text-blue-50",
+    default: "border-white/15 bg-white/5 text-white",
+    strong: "border-emerald-300/30 bg-emerald-400/10 text-emerald-50",
+    medium: "border-amber-300/30 bg-amber-400/10 text-amber-50",
+    info: "border-cyan-300/30 bg-cyan-400/10 text-cyan-50",
   };
 
   return (
     <div
-      className={`rounded-2xl border px-4 py-3 backdrop-blur-sm ${
+      className={`rounded-lg border px-4 py-3 ${
         tones[tone] || tones.default
       }`}
     >
@@ -1259,7 +1277,7 @@ function StrategyActionBar({
 
   return (
     <div className="sticky top-[72px] z-20 mb-6">
-      <div className="rounded-[24px] border border-slate-200 bg-white/90 px-4 py-3 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+      <div className="rounded-lg border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             {text.label}
@@ -1329,14 +1347,14 @@ function HeroStatusCluster({ language, strategy, confidenceValue, timelineValue 
   const timelineLabel = getTimelineLabel(timelineValue, language);
 
   return (
-    <div className="rounded-[28px] border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100">
+    <div className="rounded-lg border border-white/10 bg-white/5 p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-300">
         {text.title}
       </p>
 
       <div className="mt-4 grid gap-3">
-        <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-blue-100/80">
+        <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-stone-300">
             {text.score}
           </p>
           <p className="mt-1 text-2xl font-semibold text-white">
@@ -1345,8 +1363,8 @@ function HeroStatusCluster({ language, strategy, confidenceValue, timelineValue 
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-          <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.12em] text-blue-100/80">
+          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-stone-300">
               {text.confidence}
             </p>
             <p className="mt-1 text-sm font-semibold text-white">
@@ -1354,8 +1372,8 @@ function HeroStatusCluster({ language, strategy, confidenceValue, timelineValue 
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.12em] text-blue-100/80">
+          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-stone-300">
               {text.timeline}
             </p>
             <p className="mt-1 text-sm font-semibold text-white">
@@ -1364,8 +1382,8 @@ function HeroStatusCluster({ language, strategy, confidenceValue, timelineValue 
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-blue-100/80">
+        <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-stone-300">
             {text.profile}
           </p>
           <p className="mt-1 text-sm font-semibold text-white">
@@ -1394,7 +1412,7 @@ function StrategySectionState({
   return (
     <Card
       padding="lg"
-      className={`rounded-[28px] ${toneClasses[tone] || toneClasses.default}`}
+      className={`rounded-lg ${toneClasses[tone] || toneClasses.default}`}
     >
       <div className="max-w-2xl">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -1424,9 +1442,9 @@ function StrategyAICard({ language, hasAdvancedCopilot, onAnalyze }) {
     <Card
       variant="premium"
       padding="lg"
-      className="rounded-[28px] border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+      className="rounded-lg border-stone-200 bg-stone-50"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
         {language === "fr" ? "Copilote IA stratégie" : "AI Strategy Copilot"}
       </p>
 
@@ -2794,7 +2812,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
     return (
       <Layout>
         <div className="flex justify-center py-24">
-          <div className="rounded-[28px] border border-slate-200 bg-white px-10 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+          <div className="rounded-lg border border-slate-200 bg-white px-10 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <p className="text-lg font-medium text-slate-700">
               {language === "fr" ? "Chargement..." : "Loading..."}
             </p>
@@ -2819,7 +2837,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
           subtitle={text.subtitle}
         />
 
-        <Card variant="soft" padding="lg" className="max-w-2xl rounded-[28px]">
+        <Card variant="soft" padding="lg" className="max-w-2xl rounded-lg">
           <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
             {text.noData}
           </h2>
@@ -2868,17 +2886,17 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
       <Card
         variant="soft"
         padding="lg"
-        className="mb-6 overflow-hidden rounded-[32px] border-slate-200 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 text-white shadow-xl"
+        className="mb-6 overflow-hidden rounded-lg border-stone-300 bg-[#121417] text-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]"
       >
         <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="max-w-2xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-200">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-300">
               {text.strategyHeadline}
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
               {bestPathwayName}
             </h2>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-blue-100 md:text-base">
+            <p className="mt-3 max-w-xl text-sm leading-7 text-stone-200 md:text-base">
               {heroSummary}
             </p>
 
@@ -2958,7 +2976,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         <Stat label={text.probability} value={probabilityValue} />
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-6 flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
         {topTabs.map((tab) => (
           <TopTabButton
             key={tab.key}
@@ -3050,7 +3068,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         <div className="grid items-start gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
           <div className="xl:sticky xl:top-24 xl:self-start">
             <div className="flex flex-col gap-5">
-              <Card padding="md" className="overflow-hidden rounded-[28px]">
+              <Card padding="md" className="overflow-hidden rounded-lg">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                   {text.navTitle}
                 </p>
@@ -3063,7 +3081,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                       onClick={() => setActiveSection(section.key)}
                       className={`shrink-0 rounded-full border px-3 py-2 text-sm ${
                         activeSection === section.key
-                          ? "border-blue-200 bg-blue-50 font-semibold text-blue-700"
+                          ? "border-slate-950 bg-slate-950 font-semibold text-white"
                           : "border-slate-200 bg-white text-slate-600"
                       }`}
                     >
@@ -3222,7 +3240,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                 <Card
                   variant="premium"
                   padding="lg"
-                  className="space-y-5 rounded-[28px] border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+                  className="space-y-5 rounded-lg border-stone-200 bg-stone-50"
                 >
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                     {text.priorityTitle}
@@ -3313,7 +3331,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                       noc?.occupation ||
                       nocAdvantage?.has_noc ||
                       typeof nocAdvantage?.teer === "number") && (
-                      <Card padding="lg" className="space-y-5 rounded-[28px]">
+                      <Card padding="lg" className="space-y-5 rounded-lg">
                         <SectionTitle>{text.nocInsights}</SectionTitle>
 
                         <div>

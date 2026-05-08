@@ -1,4 +1,6 @@
 import os
+from typing import Any
+
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -18,22 +20,57 @@ from app.routes.auth_routes import get_current_user
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 STRIPE_PRICE_INDIVIDUAL_PRO = os.getenv("STRIPE_PRICE_INDIVIDUAL_PRO")
 STRIPE_PRICE_INDIVIDUAL_PREMIUM = os.getenv("STRIPE_PRICE_INDIVIDUAL_PREMIUM")
 
-APP_ENV = os.getenv("APP_ENV", "development").lower()
+APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+DEV_ENVS = {"development", "dev", "local", "test"}
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
 
-# ---------------------------
-# HELPERS
-# ---------------------------
+def _stripe_ready() -> bool:
+    return bool(stripe.api_key)
+
+
+def ensure_stripe_configured() -> None:
+    if not _stripe_ready():
+        raise HTTPException(status_code=500, detail="Stripe secret key is not configured.")
+
+
+def ensure_webhook_configured() -> None:
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=500, detail="Stripe webhook secret is not configured.")
+
+
+def ensure_dev_mode() -> None:
+    if APP_ENV not in DEV_ENVS:
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+def _stripe_get(value: Any, key: str, default: Any = None) -> Any:
+    if value is None:
+        return default
+    if isinstance(value, dict):
+        return value.get(key, default)
+    return getattr(value, key, default)
+
+
+def _normalize_plan(plan: str | None) -> str:
+    value = str(plan or "").strip().lower()
+    if value in {"pro", "individual_pro"}:
+        return "individual_pro"
+    if value in {"premium", "individual_premium"}:
+        return "individual_premium"
+    return "free"
+
 
 def get_or_create_stripe_customer(user: User, db: Session) -> str:
+    ensure_stripe_configured()
+
     if user.stripe_customer_id:
         return user.stripe_customer_id
 
@@ -50,37 +87,200 @@ def get_or_create_stripe_customer(user: User, db: Session) -> str:
 
 
 def get_price_id_for_plan(plan: str) -> str:
-    if plan == "individual_pro":
+    selected_plan = _normalize_plan(plan)
+
+    if selected_plan == "individual_pro" and STRIPE_PRICE_INDIVIDUAL_PRO:
         return STRIPE_PRICE_INDIVIDUAL_PRO
-    if plan == "individual_premium":
+    if selected_plan == "individual_premium" and STRIPE_PRICE_INDIVIDUAL_PREMIUM:
         return STRIPE_PRICE_INDIVIDUAL_PREMIUM
 
-    raise HTTPException(status_code=400, detail="Invalid plan")
+    raise HTTPException(
+        status_code=500,
+        detail="Stripe price ID is not configured for this plan.",
+    )
 
 
-def map_price_to_plan(price_id: str) -> str:
-    if price_id == STRIPE_PRICE_INDIVIDUAL_PRO:
+def map_price_to_plan(price_id: str | None) -> str | None:
+    if price_id and price_id == STRIPE_PRICE_INDIVIDUAL_PRO:
         return "individual_pro"
-    if price_id == STRIPE_PRICE_INDIVIDUAL_PREMIUM:
+    if price_id and price_id == STRIPE_PRICE_INDIVIDUAL_PREMIUM:
         return "individual_premium"
-    return "free"
+    return None
 
 
-# ---------------------------
-# STATUS
-# ---------------------------
+def _subscription_price_id(subscription: Any) -> str | None:
+    items = _stripe_get(_stripe_get(subscription, "items"), "data", []) or []
+    if not items:
+        return None
+
+    first_item = items[0]
+    price = _stripe_get(first_item, "price", {}) or {}
+    return _stripe_get(price, "id")
+
+
+def _find_user_for_customer(
+    db: Session,
+    *,
+    customer_id: str | None = None,
+    user_id: str | int | None = None,
+) -> User | None:
+    if user_id:
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        if user:
+            return user
+
+    if customer_id:
+        return db.query(User).filter(User.stripe_customer_id == customer_id).first()
+
+    return None
+
+
+def _apply_subscription_to_user(
+    db: Session,
+    user: User,
+    *,
+    customer_id: str | None = None,
+    subscription_id: str | None = None,
+    status: str | None = None,
+    price_id: str | None = None,
+    plan: str | None = None,
+) -> User:
+    resolved_plan = map_price_to_plan(price_id) or _normalize_plan(plan)
+
+    if customer_id and not user.stripe_customer_id:
+        user.stripe_customer_id = customer_id
+
+    if subscription_id:
+        user.stripe_subscription_id = subscription_id
+
+    if status:
+        user.subscription_status = status
+    elif subscription_id:
+        user.subscription_status = "active"
+
+    if resolved_plan != "free":
+        user.plan = resolved_plan
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def _apply_subscription_event(db: Session, subscription: Any) -> User | None:
+    customer_id = _stripe_get(subscription, "customer")
+    subscription_id = _stripe_get(subscription, "id")
+    status = _stripe_get(subscription, "status")
+    price_id = _subscription_price_id(subscription)
+    metadata = _stripe_get(subscription, "metadata", {}) or {}
+
+    user = _find_user_for_customer(
+        db,
+        customer_id=customer_id,
+        user_id=metadata.get("user_id"),
+    )
+
+    if not user:
+        return None
+
+    if status == "canceled":
+        user.plan = "free"
+        user.subscription_status = "canceled"
+        user.stripe_subscription_id = None
+        db.commit()
+        db.refresh(user)
+        return user
+
+    return _apply_subscription_to_user(
+        db,
+        user,
+        customer_id=customer_id,
+        subscription_id=subscription_id,
+        status=status,
+        price_id=price_id,
+        plan=metadata.get("plan"),
+    )
+
+
+def _apply_checkout_session(db: Session, session: Any) -> User | None:
+    customer_id = _stripe_get(session, "customer")
+    subscription_id = _stripe_get(session, "subscription")
+    metadata = _stripe_get(session, "metadata", {}) or {}
+    client_reference_id = _stripe_get(session, "client_reference_id")
+    payment_status = _stripe_get(session, "payment_status")
+
+    user = _find_user_for_customer(
+        db,
+        customer_id=customer_id,
+        user_id=metadata.get("user_id") or client_reference_id,
+    )
+
+    if not user:
+        return None
+
+    status = "active" if payment_status in {"paid", "no_payment_required"} else None
+    price_id = None
+
+    if subscription_id:
+        try:
+            subscription = stripe.Subscription.retrieve(subscription_id)
+            status = _stripe_get(subscription, "status") or status
+            price_id = _subscription_price_id(subscription)
+        except Exception:
+            pass
+
+    return _apply_subscription_to_user(
+        db,
+        user,
+        customer_id=customer_id,
+        subscription_id=subscription_id,
+        status=status,
+        price_id=price_id,
+        plan=metadata.get("plan"),
+    )
+
+
+def _user_payload(user: User) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "role": user.role,
+        "plan": get_user_plan(user),
+        "raw_plan": get_raw_user_plan(user),
+        "subscription_status": user.subscription_status,
+        "stripe_customer_id": user.stripe_customer_id,
+        "stripe_subscription_id": user.stripe_subscription_id,
+    }
+
+
+@router.get("/plans")
+def list_billing_plans():
+    return {
+        "available_plans": ["free", "pro", "premium"],
+        "stripe_configured": {
+            "secret_key": bool(stripe.api_key),
+            "individual_pro_price": bool(STRIPE_PRICE_INDIVIDUAL_PRO),
+            "individual_premium_price": bool(STRIPE_PRICE_INDIVIDUAL_PREMIUM),
+            "webhook_secret": bool(STRIPE_WEBHOOK_SECRET),
+        },
+        "plans": [
+            {"key": "free", "backend_plan": "free", "checkout_enabled": False},
+            {
+                "key": "pro",
+                "backend_plan": "individual_pro",
+                "checkout_enabled": bool(stripe.api_key and STRIPE_PRICE_INDIVIDUAL_PRO),
+            },
+            {
+                "key": "premium",
+                "backend_plan": "individual_premium",
+                "checkout_enabled": bool(stripe.api_key and STRIPE_PRICE_INDIVIDUAL_PREMIUM),
+            },
+        ],
+    }
+
 
 @router.get("/me")
 def get_billing_status(current_user: User = Depends(get_current_user)):
-    return {
-        "email": current_user.email,
-        "role": current_user.role,
-        "plan": get_user_plan(current_user),
-        "raw_plan": get_raw_user_plan(current_user),
-        "subscription_status": current_user.subscription_status,
-        "stripe_customer_id": current_user.stripe_customer_id,
-        "stripe_subscription_id": current_user.stripe_subscription_id,
-    }
+    return _user_payload(current_user)
 
 
 @router.get("/access")
@@ -88,23 +288,16 @@ def get_billing_access(current_user: User = Depends(get_current_user)):
     return build_access_response(user=current_user)
 
 
-# ---------------------------
-# CHECKOUT
-# ---------------------------
-
 @router.post("/create-checkout-session")
 def create_checkout_session(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    selected_plan = payload.get("plan")
+    selected_plan = _normalize_plan(payload.get("plan"))
 
-    if selected_plan in {FREE_PLAN, "free"}:
-        raise HTTPException(status_code=400, detail="Free plan does not require checkout")
-
-    if selected_plan not in {"individual_pro", "individual_premium"}:
-        raise HTTPException(status_code=400, detail="Invalid plan")
+    if selected_plan == "free":
+        raise HTTPException(status_code=400, detail="Free plan does not require checkout.")
 
     customer_id = get_or_create_stripe_customer(current_user, db)
     price_id = get_price_id_for_plan(selected_plan)
@@ -112,26 +305,65 @@ def create_checkout_session(
     session = stripe.checkout.Session.create(
         mode="subscription",
         customer=customer_id,
+        client_reference_id=str(current_user.id),
         line_items=[{"price": price_id, "quantity": 1}],
-        success_url=f"{FRONTEND_URL}/pricing?success=true",
-        cancel_url=f"{FRONTEND_URL}/pricing",
+        success_url=f"{FRONTEND_URL}/pricing?success=true&session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{FRONTEND_URL}/pricing?cancelled=true",
+        allow_promotion_codes=True,
         metadata={
             "user_id": str(current_user.id),
             "plan": selected_plan,
         },
+        subscription_data={
+            "metadata": {
+                "user_id": str(current_user.id),
+                "plan": selected_plan,
+            },
+        },
     )
 
-    return {"url": session.url}
+    return {"id": session.id, "url": session.url}
 
 
-# ---------------------------
-# PORTAL
-# ---------------------------
+@router.post("/sync-checkout-session")
+def sync_checkout_session(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ensure_stripe_configured()
+
+    session_id = str(payload.get("session_id") or "").strip()
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Checkout session ID is required.")
+
+    session = stripe.checkout.Session.retrieve(session_id)
+
+    session_user_id = str(
+        _stripe_get(_stripe_get(session, "metadata", {}) or {}, "user_id")
+        or _stripe_get(session, "client_reference_id")
+        or ""
+    )
+
+    if session_user_id and session_user_id != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Checkout session does not belong to this user.")
+
+    user = _apply_checkout_session(db, session)
+    if not user or user.id != current_user.id:
+        raise HTTPException(status_code=404, detail="Unable to sync checkout session.")
+
+    return {
+        "user": _user_payload(user),
+        "access": build_access_response(user=user),
+    }
+
 
 @router.post("/create-portal-session")
 def create_portal_session(current_user: User = Depends(get_current_user)):
+    ensure_stripe_configured()
+
     if not current_user.stripe_customer_id:
-        raise HTTPException(status_code=400, detail="No Stripe customer found")
+        raise HTTPException(status_code=400, detail="No Stripe customer found.")
 
     session = stripe.billing_portal.Session.create(
         customer=current_user.stripe_customer_id,
@@ -141,14 +373,15 @@ def create_portal_session(current_user: User = Depends(get_current_user)):
     return {"url": session.url}
 
 
-# ---------------------------
-# WEBHOOK (FULL)
-# ---------------------------
-
 @router.post("/webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    ensure_webhook_configured()
+
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
+
+    if not sig_header:
+        raise HTTPException(status_code=400, detail="Missing Stripe signature.")
 
     try:
         event = stripe.Webhook.construct_event(
@@ -159,11 +392,50 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    event_type = event["type"]
     data = event["data"]["object"]
 
-# ---------------------------
-# DEV PLAN SWITCH (TESTING ONLY)
-# ---------------------------
+    if event_type == "checkout.session.completed":
+        _apply_checkout_session(db, data)
+
+    elif event_type in {
+        "customer.subscription.created",
+        "customer.subscription.updated",
+        "customer.subscription.resumed",
+    }:
+        _apply_subscription_event(db, data)
+
+    elif event_type == "customer.subscription.deleted":
+        customer_id = _stripe_get(data, "customer")
+        user = _find_user_for_customer(db, customer_id=customer_id)
+        if user:
+            user.plan = "free"
+            user.subscription_status = "canceled"
+            user.stripe_subscription_id = None
+            db.commit()
+
+    elif event_type == "customer.subscription.paused":
+        user = _apply_subscription_event(db, data)
+        if user:
+            user.subscription_status = "paused"
+            db.commit()
+
+    elif event_type == "invoice.payment_succeeded":
+        customer_id = _stripe_get(data, "customer")
+        user = _find_user_for_customer(db, customer_id=customer_id)
+        if user and user.plan != "free":
+            user.subscription_status = "active"
+            db.commit()
+
+    elif event_type == "invoice.payment_failed":
+        customer_id = _stripe_get(data, "customer")
+        user = _find_user_for_customer(db, customer_id=customer_id)
+        if user:
+            user.subscription_status = "past_due"
+            db.commit()
+
+    return JSONResponse({"received": True})
+
 
 @router.post("/dev/set-plan")
 def dev_set_plan(
@@ -220,82 +492,6 @@ def dev_set_plan(
 
     return {
         "message": "Plan updated for development",
-        "user": {
-            "id": current_user.id,
-            "email": current_user.email,
-            "role": current_user.role,
-            "plan": get_user_plan(current_user),
-            "raw_plan": get_raw_user_plan(current_user),
-            "subscription_status": current_user.subscription_status,
-        },
+        "user": _user_payload(current_user),
         "access": build_access_response(user=current_user),
-    }   
-
-    # ---------------------------
-    # CHECKOUT COMPLETE
-    # ---------------------------
-    if event["type"] == "checkout.session.completed":
-        user = db.query(User).filter(
-            User.stripe_customer_id == data.get("customer")
-        ).first()
-
-        if user:
-            user.subscription_status = "active"
-            user.stripe_subscription_id = data.get("subscription")
-
-            plan = data.get("metadata", {}).get("plan")
-            if plan:
-                user.plan = plan
-
-            db.commit()
-
-    # ---------------------------
-    # SUBSCRIPTION UPDATED
-    # ---------------------------
-    elif event["type"] == "customer.subscription.updated":
-        customer_id = data.get("customer")
-        status = data.get("status")
-
-        items = data.get("items", {}).get("data", [])
-        price_id = items[0]["price"]["id"] if items else None
-
-        user = db.query(User).filter(
-            User.stripe_customer_id == customer_id
-        ).first()
-
-        if user:
-            user.subscription_status = status
-            user.plan = map_price_to_plan(price_id)
-            db.commit()
-
-    # ---------------------------
-    # SUBSCRIPTION CANCELLED
-    # ---------------------------
-    elif event["type"] == "customer.subscription.deleted":
-        customer_id = data.get("customer")
-
-        user = db.query(User).filter(
-            User.stripe_customer_id == customer_id
-        ).first()
-
-        if user:
-            user.plan = "free"
-            user.subscription_status = "canceled"
-            user.stripe_subscription_id = None
-            db.commit()
-
-    # ---------------------------
-    # PAYMENT FAILED
-    # ---------------------------
-    elif event["type"] == "invoice.payment_failed":
-        customer_id = data.get("customer")
-
-        user = db.query(User).filter(
-            User.stripe_customer_id == customer_id
-        ).first()
-
-        if user:
-            user.subscription_status = "past_due"
-            db.commit()
-
-    return JSONResponse({"received": True})
+    }
