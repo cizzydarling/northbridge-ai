@@ -245,10 +245,10 @@ def _get_job_duties(profile) -> List[str]:
 
 def _extract_teer_from_noc(noc_code: str) -> int:
     cleaned = "".join(ch for ch in (noc_code or "") if ch.isdigit())
-    if len(cleaned) < 1:
+    if len(cleaned) < 2:
         return -1
     try:
-        return int(cleaned[0])
+        return int(cleaned[1])
     except (TypeError, ValueError):
         return -1
 
@@ -1804,7 +1804,11 @@ def build_strategy(
     roadmap = generate_strategy_roadmap(profile, crs_score, language=language)
     province_recommendations = rank_provinces_for_profile(profile, crs_score, language=language)
     timeline_estimate = estimate_pr_timeline(profile, crs_score)
-    probability_estimate = estimate_immigration_probabilities(profile, crs_score)
+    probability_estimate = estimate_immigration_probabilities(
+        profile,
+        crs_score,
+        language=language,
+    )
     draw_prediction = predict_express_entry_draw(profile, crs_score)
 
     if province_recommendations:

@@ -19,11 +19,11 @@ def _extract_digits(value: str) -> str:
 
 def _extract_teer(noc_code: str) -> int:
     digits = _extract_digits(noc_code)
-    if not digits:
+    if len(digits) < 2:
         return -1
     try:
-        return int(digits[0])
-    except:
+        return int(digits[1])
+    except (TypeError, ValueError):
         return -1
 
 

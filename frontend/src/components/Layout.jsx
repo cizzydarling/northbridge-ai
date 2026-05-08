@@ -35,12 +35,12 @@ function PlanPill({ plan, language, dark = false }) {
   const palette =
     plan === "premium"
       ? dark
-        ? "border-violet-300/30 bg-violet-200/15 text-violet-100"
-        : "border-violet-200 bg-violet-50 text-violet-700"
+        ? "border-amber-300/30 bg-amber-200/15 text-amber-100"
+        : "border-amber-200 bg-amber-50 text-amber-700"
       : plan === "pro"
       ? dark
-        ? "border-cyan-300/30 bg-cyan-200/15 text-cyan-100"
-        : "border-cyan-200 bg-cyan-50 text-cyan-700"
+        ? "border-emerald-300/30 bg-emerald-200/15 text-emerald-100"
+        : "border-emerald-200 bg-emerald-50 text-emerald-700"
       : dark
       ? "border-amber-300/30 bg-amber-200/15 text-amber-100"
       : "border-amber-200 bg-amber-50 text-amber-700";
@@ -101,7 +101,7 @@ function SidebarLink({ item, active, onClick }) {
       <span
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-[11px] font-semibold ${
           active
-            ? "border-cyan-200 bg-cyan-50 text-cyan-700"
+            ? "border-amber-200 bg-amber-50 text-amber-800"
             : "border-white/10 bg-white/6 text-white/70 group-hover:border-white/20 group-hover:text-white"
         }`}
       >
@@ -420,7 +420,7 @@ export default function Layout({ children }) {
 
             <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.05] p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-100 text-xs font-semibold text-slate-950">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-xs font-semibold text-slate-950">
                   {initials.toUpperCase()}
                 </div>
                 <div className="min-w-0">
@@ -437,7 +437,7 @@ export default function Layout({ children }) {
               </div>
             </div>
 
-            <nav className="mt-7 flex-1 overflow-y-auto pr-1">
+            <nav className="mt-7 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <div className="space-y-2">
                 <SectionLabel dark>
                   {language === "fr" ? "Workspace" : "Workspace"}

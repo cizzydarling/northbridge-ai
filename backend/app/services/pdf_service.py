@@ -114,8 +114,8 @@ def generate_pdf_from_sections(
     elements.append(Paragraph(_clean_text(title), styles["title"]))
 
     if subtitle:
-      elements.append(Spacer(1, 6))
-      elements.append(Paragraph(_clean_text(subtitle), styles["body"]))
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph(_clean_text(subtitle), styles["body"]))
 
     elements.append(Spacer(1, 12))
 
@@ -137,7 +137,7 @@ def generate_pdf_from_sections(
             if text:
                 elements.append(
                     Paragraph(
-                        f"• {_clean_text(text)}",
+                        f"- {_clean_text(text)}",
                         styles["bullet"],
                     )
                 )
@@ -149,67 +149,166 @@ def generate_pdf_from_sections(
     return buffer
 
 
-def generate_strategy_pdf(strategy: dict) -> BytesIO:
+def generate_strategy_pdf(
+    strategy: dict,
+    *,
+    language: str = "en",
+    profile: Optional[dict] = None,
+    user_email: Optional[str] = None,
+) -> BytesIO:
     """
     Generate a reusable strategy PDF from a strategy payload.
-    This is useful for Premium export routes.
+    This avoids external wkhtmltopdf dependencies for deployment.
     """
-    strategy = strategy or {}
+    strategy = strategy if isinstance(strategy, dict) else {}
+    profile = profile if isinstance(profile, dict) else (getattr(profile, "__dict__", {}) or {})
+    language = "fr" if str(language or "").lower() == "fr" else "en"
+
+    def label(en: str, fr: str) -> str:
+        return fr if language == "fr" else en
+
+    def as_dict(value) -> dict:
+        return value if isinstance(value, dict) else {}
+
+    def display_text(value) -> str:
+        if isinstance(value, dict):
+            value = (
+                value.get("name")
+                or value.get("pathway")
+                or value.get("title")
+                or value.get("program")
+                or value.get("label")
+                or value.get("summary")
+            )
+        return str(value or "").strip()
+
+    def display_list(value) -> list[str]:
+        if isinstance(value, (list, tuple, set)):
+            items = value
+        elif value:
+            items = [value]
+        else:
+            items = []
+
+        return [text for text in (display_text(item) for item in items) if text]
 
     crs_score = strategy.get("crs_score", "--")
-    recommended_programs = strategy.get("recommended_programs") or []
-    strengths = strategy.get("strengths") or []
-    weaknesses = strategy.get("weaknesses") or []
-    next_steps = strategy.get("next_steps") or []
+    recommended_programs = display_list(
+        strategy.get("recommended_programs") or strategy.get("programs")
+    )
+    strengths = display_list(strategy.get("strengths"))
+    weaknesses = display_list(strategy.get("weaknesses"))
+    next_steps = display_list(strategy.get("next_steps"))
     advisor_summary = strategy.get("advisor_summary") or ""
-    noc_summary = strategy.get("noc_summary") or {}
+    noc_summary = as_dict(
+        strategy.get("noc_summary")
+        or strategy.get("noc_profile")
+        or strategy.get("noc_advantage")
+        or {}
+    )
+    best_pathway = strategy.get("best_pathway")
+    probability = strategy.get("probability_estimate")
 
-    noc_parts = []
-    if noc_summary.get("noc_code"):
-        noc_parts.append(str(noc_summary["noc_code"]))
-    if noc_summary.get("noc_title"):
-        noc_parts.append(str(noc_summary["noc_title"]))
-    elif noc_summary.get("occupation"):
-        noc_parts.append(str(noc_summary["occupation"]))
+    noc_code = (
+        noc_summary.get("noc_code")
+        or noc_summary.get("resolved_noc_code")
+        or noc_summary.get("suggested_noc_code")
+        or strategy.get("noc_code")
+        or strategy.get("resolved_noc_code")
+        or profile.get("noc_code")
+    )
+    noc_title = (
+        noc_summary.get("noc_title")
+        or noc_summary.get("resolved_title")
+        or noc_summary.get("suggested_title")
+        or strategy.get("noc_title")
+        or strategy.get("resolved_title")
+        or profile.get("occupation")
+    )
+    noc_parts = [str(part) for part in [noc_code, noc_title] if part]
+    noc_line = " - ".join(noc_parts) if noc_parts else label("Not available", "Non disponible")
 
-    noc_line = " — ".join(noc_parts) if noc_parts else "Not available"
+    if isinstance(probability, dict):
+        probability_value = (
+            probability.get("overall_probability")
+            or probability.get("chance_of_pr_within_12_months")
+            or probability.get("score")
+            or probability.get("probability")
+            or "--"
+        )
+    else:
+        probability_value = probability or strategy.get("probability") or "--"
+
+    if isinstance(probability_value, (int, float)):
+        probability_value = f"{probability_value}%"
+
+    best_pathway_name = (
+        display_text(best_pathway)
+        or (recommended_programs[0] if recommended_programs else None)
+        or "--"
+    )
 
     sections = [
         {
-            "heading": "Strategy Snapshot",
+            "heading": label("Strategy Snapshot", "Apercu de la strategie"),
             "paragraphs": [
-                f"CRS Score: {crs_score}",
-                f"NOC Signal: {noc_line}",
+                f"{label('CRS Score', 'Score CRS')}: {crs_score}",
+                f"{label('Best Pathway', 'Meilleur parcours')}: {best_pathway_name}",
+                f"{label('NOC Signal', 'Signal CNP')}: {noc_line}",
+                f"{label('Probability', 'Probabilite')}: {probability_value}",
             ],
         },
         {
-            "heading": "Recommended Programs",
-            "bullets": recommended_programs or ["No programs available."],
+            "heading": label("Recommended Programs", "Programmes recommandes"),
+            "bullets": recommended_programs
+            or [label("No programs available.", "Aucun programme disponible.")],
         },
         {
-            "heading": "Strengths",
-            "bullets": strengths or ["No strengths available."],
+            "heading": label("Strengths", "Forces"),
+            "bullets": strengths
+            or [label("No strengths available.", "Aucune force disponible.")],
         },
         {
-            "heading": "Weaknesses",
-            "bullets": weaknesses or ["No weaknesses available."],
+            "heading": label("Weaknesses", "Faiblesses"),
+            "bullets": weaknesses
+            or [label("No weaknesses available.", "Aucune faiblesse disponible.")],
         },
         {
-            "heading": "Next Steps",
-            "bullets": next_steps or ["No next steps available."],
+            "heading": label("Next Steps", "Prochaines etapes"),
+            "bullets": next_steps
+            or [label("No next steps available.", "Aucune prochaine etape disponible.")],
         },
     ]
 
     if advisor_summary:
         sections.append(
             {
-                "heading": "Advisor Summary",
+                "heading": label("Advisor Summary", "Resume du conseiller"),
                 "paragraphs": [advisor_summary],
             }
         )
 
+    footer_lines = []
+    if user_email:
+        footer_lines.append(f"{label('Prepared for', 'Prepare pour')}: {user_email}")
+    footer_lines.append(
+        label(
+            "Informational planning support only; verify official IRCC requirements before filing.",
+            "Soutien informatif seulement; verifiez les exigences officielles d'IRCC avant de soumettre.",
+        )
+    )
+    sections.append(
+        {
+            "heading": label("Important note", "Note importante"),
+            "paragraphs": footer_lines,
+        }
+    )
+
     return generate_pdf_from_sections(
-        title="NorthBridgeAI Strategy Report",
-        subtitle="Personalized immigration strategy export",
+        title=label("NorthBridgeAI Strategy Report", "Rapport de strategie NorthBridgeAI"),
+        subtitle=label(
+            "Personalized immigration strategy export",
+            "Export personnalise de strategie d'immigration",
+        ),
         sections=sections,
     )

@@ -21,11 +21,11 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-white text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
+    <div className="min-h-screen bg-stone-50 text-slate-900">
+      <header className="sticky top-0 z-40 border-b border-stone-200/80 bg-stone-50/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-900 text-sm font-bold text-white shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-sm font-bold text-white shadow-sm">
               NB
             </div>
             <div>
@@ -56,7 +56,7 @@ export default function LandingPage() {
               onClick={() => switchLanguage("en")}
               className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                 i18n.language === "en"
-                  ? "bg-blue-900 text-white"
+                  ? "bg-slate-950 text-white"
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
@@ -68,7 +68,7 @@ export default function LandingPage() {
               onClick={() => switchLanguage("fr")}
               className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                 i18n.language === "fr"
-                  ? "bg-blue-900 text-white"
+                  ? "bg-slate-950 text-white"
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
@@ -80,12 +80,12 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.10),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(255,255,255,0.08),transparent_32%)]" />
+      <section className="relative overflow-hidden bg-[#172033]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,0.14),transparent_30%),radial-gradient(circle_at_80%_30%,rgba(16,185,129,0.10),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(255,255,255,0.08),transparent_32%)]" />
 
         <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 md:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:py-24">
           <div className="max-w-3xl">
-            <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-blue-100 backdrop-blur-sm">
+            <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-200 backdrop-blur-sm">
               {isFrench
                 ? "Planification d’immigration assistée par IA"
                 : "AI-assisted immigration planning"}
@@ -169,7 +169,7 @@ export default function LandingPage() {
 
       <section className="mx-auto max-w-7xl px-4 py-20 md:px-6">
         <div className="mx-auto mb-12 max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
             {isFrench ? "Pourquoi NorthBridgeAI" : "Why NorthBridgeAI"}
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
@@ -270,9 +270,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-blue-900 text-white">
+      <section className="bg-[#172033] text-white">
         <div className="mx-auto max-w-5xl px-4 py-20 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-200">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">
             {isFrench ? "Commencez maintenant" : "Start now"}
           </p>
 
@@ -344,7 +344,7 @@ export default function LandingPage() {
 
 function TrustPill({ children }) {
   return (
-    <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-blue-100 backdrop-blur-sm">
+    <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-stone-100 backdrop-blur-sm">
       {children}
     </div>
   );
@@ -353,7 +353,7 @@ function TrustPill({ children }) {
 function HeroPanel({ eyebrow, title, body }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur-md">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">
         {eyebrow}
       </p>
       <h3 className="mt-3 text-2xl font-semibold text-white">{title}</h3>
@@ -383,7 +383,7 @@ function FeatureCard({ title, desc }) {
 function ValuePanel({ eyebrow, title, body, items }) {
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
         {eyebrow}
       </p>
       <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">

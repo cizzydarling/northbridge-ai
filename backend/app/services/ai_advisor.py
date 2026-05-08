@@ -6,6 +6,8 @@ from urllib.parse import urlencode
 
 from openai import OpenAI
 
+from app.data.ircc_reference import get_ircc_reference_context
+
 
 def _normalize_language(language: Optional[str]) -> str:
     value = (language or "en").strip().lower()
@@ -255,6 +257,8 @@ def _extract_decision_context(
 
 
 def _build_chat_system_prompt(language: str, plan: str = "free") -> str:
+    ircc_reference = get_ircc_reference_context(language)
+
     if language == "fr":
         if plan == "premium":
             plan_block = """
@@ -322,6 +326,9 @@ Style:
 - lorsque pertinent, termine par la meilleure prochaine action
 
 {plan_block}
+
+Reference officielle:
+{ircc_reference}
 
 Tu DOIS retourner uniquement du JSON valide avec cette structure:
 {{
@@ -422,6 +429,9 @@ Style:
 
 {plan_block}
 
+Official reference:
+{ircc_reference}
+
 You MUST return only valid JSON with this structure:
 {{
   "reply": "clear text response",
@@ -456,18 +466,20 @@ Constraints:
 
 
 def _build_strategy_system_prompt(language: str) -> str:
+    ircc_reference = get_ircc_reference_context(language)
+
     if language == "fr":
-        return """
+        return f"""
 Tu es NorthBridgeAI, un conseiller stratégique en immigration canadienne.
 
 Tu reçois un profil structuré ainsi qu’un contexte stratégique complet et tu dois
 produire une synthèse stratégique claire, utile et concise pour un utilisateur individuel.
 
 Retourne uniquement du JSON valide avec cette structure:
-{
+{{
   "advisor_summary": "résumé clair de la situation",
   "ai_strategy": "analyse stratégique plus détaillée en markdown"
-}
+}}
 
 Contraintes:
 - répondre uniquement en français
@@ -479,18 +491,21 @@ Contraintes:
 - exploite le contexte stratégique fourni s’il existe (score CRS, roadmap, provinces, atouts français, signaux CNP, scénarios d’amélioration)
 - ne donne pas d’avis juridique définitif
 - ne mentionne jamais une indisponibilité ou un problème interne
+
+Reference officielle:
+{ircc_reference}
 """
-    return """
+    return f"""
 You are NorthBridgeAI, a Canadian immigration strategy advisor.
 
 You receive a structured profile and full strategy context and must produce a clear,
 useful, concise strategic summary for an individual user.
 
 Return only valid JSON with this structure:
-{
+{{
   "advisor_summary": "clear summary of the situation",
   "ai_strategy": "more detailed strategic analysis in markdown"
-}
+}}
 
 Constraints:
 - respond only in English
@@ -502,6 +517,9 @@ Constraints:
 - use the supplied strategy context when available (CRS, roadmap, provinces, French advantage, NOC signals, improvement scenarios)
 - do not provide definitive legal advice
 - never mention service unavailability or internal issues
+
+Official reference:
+{ircc_reference}
 """
 
 
@@ -518,6 +536,7 @@ def _build_user_context_block(
     strategy_context = _extract_strategy_context(strategy, language)
     application_text = _extract_application_context(application_context, language)
     decision_text = _extract_decision_context(decision_context, language)
+    ircc_reference = get_ircc_reference_context(language)
 
     if language == "fr":
         return f"""
@@ -535,6 +554,9 @@ Contexte demande:
 
 Contexte décisionnel:
 {decision_text}
+
+Reference IRCC/StatCan:
+{ircc_reference}
 """.strip()
 
     return f"""
@@ -552,6 +574,9 @@ Application context:
 
 Decision context:
 {decision_text}
+
+IRCC/StatCan reference:
+{ircc_reference}
 """.strip()
 
 
@@ -572,6 +597,7 @@ def _build_strategy_prompt(
         merged_strategy_data["recommended_programs"] = programs
 
     strategy_context = _extract_strategy_context(merged_strategy_data, language)
+    ircc_reference = get_ircc_reference_context(language)
 
     if language == "fr":
         return f"""
@@ -583,6 +609,9 @@ Contexte profil:
 Contexte stratégie:
 {strategy_context}
 
+Reference IRCC/StatCan:
+{ircc_reference}
+
 Réponds uniquement en français.
 """
     return f"""
@@ -593,6 +622,9 @@ Profile context:
 
 Strategy context:
 {strategy_context}
+
+IRCC/StatCan reference:
+{ircc_reference}
 
 Respond only in English.
 """

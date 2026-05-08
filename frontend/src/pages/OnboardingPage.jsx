@@ -52,6 +52,23 @@ function normalizeText(value) {
   return String(value || "").trim();
 }
 
+function normalizeSearchText(value) {
+  return normalizeText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function getCountryMatches(countries, query) {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) return countries;
+
+  return countries.filter((country) =>
+    normalizeSearchText(country.name).includes(normalizedQuery)
+  );
+}
+
 function isFilled(value) {
   if (typeof value === "boolean") return true;
   if (typeof value === "number") return !Number.isNaN(value);
@@ -142,6 +159,10 @@ export default function OnboardingPage() {
   const [suggestedNocs, setSuggestedNocs] = useState([]);
   const [suggestingNoc, setSuggestingNoc] = useState(false);
 
+  const [nationalityQuery, setNationalityQuery] = useState("");
+  const [showNationalitySuggestions, setShowNationalitySuggestions] =
+    useState(false);
+
   const [countryQuery, setCountryQuery] = useState("");
   const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
 
@@ -150,6 +171,7 @@ export default function OnboardingPage() {
 
   const [fieldErrors, setFieldErrors] = useState({});
 
+  const nationalityFieldRef = useRef(null);
   const countryFieldRef = useRef(null);
   const cityFieldRef = useRef(null);
 
@@ -162,14 +184,12 @@ export default function OnboardingPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
+  const filteredNationalityCountries = useMemo(() => {
+    return getCountryMatches(countries, nationalityQuery);
+  }, [countries, nationalityQuery]);
+
   const filteredCountries = useMemo(() => {
-    const query = normalizeText(countryQuery).toLowerCase();
-
-    if (!query) return countries.slice(0, 12);
-
-    return countries
-      .filter((country) => country.name.toLowerCase().includes(query))
-      .slice(0, 12);
+    return getCountryMatches(countries, countryQuery);
   }, [countries, countryQuery]);
 
   const selectedCountry = useMemo(() => {
@@ -189,12 +209,12 @@ export default function OnboardingPage() {
 
   const filteredCities = useMemo(() => {
     if (!availableCities.length) return [];
-    const query = normalizeText(cityQuery).toLowerCase();
+    const query = normalizeSearchText(cityQuery);
 
     if (!query) return availableCities.slice(0, 10);
 
     return availableCities
-      .filter((city) => city.toLowerCase().includes(query))
+      .filter((city) => normalizeSearchText(city).includes(query))
       .slice(0, 10);
   }, [availableCities, cityQuery]);
 
@@ -224,6 +244,7 @@ export default function OnboardingPage() {
         };
 
         setForm(merged);
+        setNationalityQuery(merged.nationality || "");
         setCountryQuery(merged.current_country || "");
         setCityQuery(merged.current_city || "");
       } catch (err) {
@@ -252,6 +273,13 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     function handleClickOutside(event) {
+      if (
+        nationalityFieldRef.current &&
+        !nationalityFieldRef.current.contains(event.target)
+      ) {
+        setShowNationalitySuggestions(false);
+      }
+
       if (
         countryFieldRef.current &&
         !countryFieldRef.current.contains(event.target)
@@ -298,9 +326,12 @@ export default function OnboardingPage() {
         dateOfBirth: "Date de naissance",
         maritalStatus: "État civil",
         preferredLanguage: "Langue préférée",
+        searchNationality: "Recherchez ou entrez votre nationalite",
         searchCountry: "Recherchez ou entrez votre pays",
         searchCity: "Recherchez ou entrez votre ville",
         typeCity: "Entrez votre ville",
+        noNationalityMatch:
+          "Aucune suggestion exacte - vous pouvez entrer votre nationalite manuellement.",
         noCountryMatch:
           "Aucune suggestion exacte — vous pouvez entrer votre pays manuellement.",
         noCityMatch:
@@ -396,9 +427,12 @@ export default function OnboardingPage() {
       dateOfBirth: "Date of Birth",
       maritalStatus: "Marital Status",
       preferredLanguage: "Preferred Language",
+      searchNationality: "Search nationality or country",
       searchCountry: "Search or enter your country",
       searchCity: "Search or enter your city",
       typeCity: "Enter your city",
+      noNationalityMatch:
+        "No exact match - you can still enter your nationality manually.",
       noCountryMatch:
         "No exact match — you can still enter your country manually.",
       noCityMatch:
@@ -569,6 +603,30 @@ export default function OnboardingPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  }
+
+  function handleNationalityInputChange(e) {
+    const value = e.target.value;
+
+    clearFieldError("nationality");
+
+    setNationalityQuery(value);
+    setForm((prev) => ({
+      ...prev,
+      nationality: value,
+    }));
+    setShowNationalitySuggestions(true);
+  }
+
+  function handleSelectNationality(countryName) {
+    clearFieldError("nationality");
+
+    setNationalityQuery(countryName);
+    setForm((prev) => ({
+      ...prev,
+      nationality: countryName,
+    }));
+    setShowNationalitySuggestions(false);
   }
 
   function handleCountryInputChange(e) {
@@ -868,7 +926,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-slate-50 px-4 py-10">
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="mb-8">
-          <p className="text-sm font-semibold text-blue-600">{pageText.brand}</p>
+          <p className="text-sm font-semibold text-amber-700">{pageText.brand}</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">
             {pageText.title}
           </h1>
@@ -912,7 +970,7 @@ Explain:
 
             <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
               <div
-                className="h-full rounded-full bg-blue-600 transition-all"
+                className="h-full rounded-full bg-amber-500 transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -959,13 +1017,46 @@ Explain:
                     </FieldHint>
                   </div>
 
-                  <div>
-                    <Input
-                      label={<RequiredLabel>{pageText.nationality}</RequiredLabel>}
-                      name="nationality"
-                      value={form.nationality}
-                      onChange={handleChange}
+                  <div className="relative" ref={nationalityFieldRef}>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">
+                      <RequiredLabel>{pageText.nationality}</RequiredLabel>
+                    </label>
+                    <input
+                      type="text"
+                      value={nationalityQuery}
+                      onChange={handleNationalityInputChange}
+                      onFocus={() => setShowNationalitySuggestions(true)}
+                      className="input"
+                      placeholder={pageText.searchNationality}
+                      autoComplete="off"
                     />
+
+                    {showNationalitySuggestions &&
+                      filteredNationalityCountries.length > 0 && (
+                        <div className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg">
+                          {filteredNationalityCountries.map((country) => (
+                            <button
+                              key={country.isoCode}
+                              type="button"
+                              onClick={() =>
+                                handleSelectNationality(country.name)
+                              }
+                              className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-amber-50 hover:text-slate-950 last:border-b-0"
+                            >
+                              {country.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                    {showNationalitySuggestions &&
+                      nationalityQuery.trim() &&
+                      filteredNationalityCountries.length === 0 && (
+                        <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                          {pageText.noNationalityMatch}
+                        </div>
+                      )}
+
                     <FieldHint error={Boolean(fieldErrors.nationality)}>
                       {fieldErrors.nationality}
                     </FieldHint>
@@ -992,7 +1083,7 @@ Explain:
                             key={country.isoCode}
                             type="button"
                             onClick={() => handleSelectCountry(country.name)}
-                            className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-slate-700 hover:bg-blue-50 last:border-b-0"
+                            className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-amber-50 hover:text-slate-950 last:border-b-0"
                           >
                             {country.name}
                           </button>
@@ -1048,7 +1139,7 @@ Explain:
                               key={city}
                               type="button"
                               onClick={() => handleSelectCity(city)}
-                              className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-slate-700 hover:bg-blue-50 last:border-b-0"
+                              className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-amber-50 hover:text-slate-950 last:border-b-0"
                             >
                               {city}
                             </button>
@@ -1168,7 +1259,7 @@ Explain:
                         key={`${preset.label}-${index}`}
                         type="button"
                         onClick={() => applyQuickFill(preset.values)}
-                        className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                        className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 hover:text-slate-950"
                       >
                         {preset.label}
                       </button>
@@ -1176,11 +1267,11 @@ Explain:
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-                  <p className="text-sm font-semibold text-blue-900">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-slate-950">
                     {pageText.coreFieldsTitle}
                   </p>
-                  <p className="mt-2 text-sm leading-7 text-blue-900">
+                  <p className="mt-2 text-sm leading-7 text-slate-700">
                     {pageText.coreFieldsBody}
                   </p>
                 </div>
@@ -1263,7 +1354,7 @@ Explain:
                       type="button"
                       onClick={handleSuggestNOC}
                       disabled={suggestingNoc || !normalizeText(form.occupation)}
-                      className="mt-2 text-xs font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                      className="mt-2 text-xs font-medium text-amber-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {suggestingNoc
                         ? pageText.suggestingNoc
@@ -1287,7 +1378,7 @@ Explain:
                               key={`${code}-${index}`}
                               type="button"
                               onClick={() => handleSelectNoc(noc)}
-                              className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm transition hover:border-blue-300 hover:bg-blue-50"
+                              className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm transition hover:border-amber-300 hover:bg-amber-50"
                             >
                               <span className="font-semibold text-slate-900">
                                 {code}

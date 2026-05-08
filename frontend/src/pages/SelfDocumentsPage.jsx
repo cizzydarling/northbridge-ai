@@ -253,16 +253,16 @@ function CategoryNavButton({ active, label, count, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
+      className={`grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-lg border px-4 py-3.5 text-left text-sm transition ${
         active
-          ? "bg-blue-50 font-semibold text-blue-700"
-          : "text-slate-600 hover:bg-slate-50"
+          ? "border-amber-200 bg-amber-50 font-semibold text-slate-950 shadow-sm"
+          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
       }`}
     >
-      <span>{label}</span>
+      <span className="min-w-0 truncate">{label}</span>
       <span
-        className={`text-xs font-medium ${
-          active ? "text-blue-700" : "text-slate-400"
+        className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+          active ? "bg-white text-amber-800" : "bg-slate-100 text-slate-500"
         }`}
       >
         {count}
@@ -511,27 +511,111 @@ function DocumentCard({
   );
 }
 
-function PathwayBanner({ pathway, language }) {
-  if (!pathway) return null;
+function formatDocumentBannerValue(value) {
+  if (value === null || typeof value === "undefined" || value === "") return "--";
+  return value;
+}
+
+function getStrategyPathwayName(strategy, pathway) {
+  return (
+    pathway ||
+    strategy?.best_pathway?.name ||
+    strategy?.best_pathway?.pathway ||
+    strategy?.top_recommendation?.name ||
+    strategy?.top_recommendation?.pathway ||
+    strategy?.recommended_programs?.[0] ||
+    strategy?.pathways?.[0] ||
+    null
+  );
+}
+
+function getStrategyNocLabel(strategy) {
+  const noc =
+    strategy?.noc_profile ||
+    strategy?.noc_summary ||
+    strategy?.noc_advantage ||
+    {};
+
+  const code =
+    noc.resolved_noc_code ||
+    noc.noc_code ||
+    noc.suggested_noc_code ||
+    noc.entered_noc_code;
+  const title =
+    noc.resolved_title ||
+    noc.noc_title ||
+    noc.suggested_title ||
+    strategy?.profile_snapshot?.resolved_noc_title ||
+    strategy?.profile_snapshot?.occupation;
+
+  if (code && title) return `${code} - ${title}`;
+  return code || title || null;
+}
+
+function PathwayBanner({ pathway, strategy, activeCaseId, language }) {
+  const pathwayName = getStrategyPathwayName(strategy, pathway);
+  const crsScore = strategy?.crs_score;
+  const nocLabel = getStrategyNocLabel(strategy);
+
+  if (!pathwayName && !crsScore && !nocLabel && !activeCaseId) return null;
+
+  const text =
+    language === "fr"
+      ? {
+          eyebrow: activeCaseId ? "Dossier actif" : "Espace documents",
+          title: "Votre dossier documentaire est aligné à votre stratégie",
+          body:
+            "Utilisez ces signaux pour prioriser les documents qui renforcent le parcours, le CNP et la préparation du dossier.",
+          score: "Score CRS",
+          noc: "CNP",
+          pathway: "Parcours",
+        }
+      : {
+          eyebrow: activeCaseId ? "Active application" : "Document workspace",
+          title: "Your document file is aligned to your strategy",
+          body:
+            "Use these signals to prioritize documents that support the pathway, NOC, and case readiness.",
+          score: "CRS Score",
+          noc: "NOC",
+          pathway: "Pathway",
+        };
 
   return (
     <Card
       padding="lg"
-      className="mb-6 border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white"
+      className="mb-6 overflow-hidden border-slate-800 bg-[#172033] text-white shadow-[0_24px_80px_rgba(15,23,42,0.24)]"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
-        {language === "fr" ? "Parcours sélectionné" : "Selected pathway"}
-      </p>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-300">
+            {text.eyebrow}
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+            {text.title}
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-white/72">{text.body}</p>
+        </div>
 
-      <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-        {pathway}
-      </h2>
-
-      <p className="mt-3 text-sm text-slate-700">
-        {language === "fr"
-          ? "Ces documents sont adaptés à votre stratégie d’immigration."
-          : "These documents are aligned with your immigration strategy."}
-      </p>
+        <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[520px]">
+          {[
+            [text.score, crsScore],
+            [text.noc, nocLabel],
+            [text.pathway, pathwayName],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              className="rounded-lg border border-white/10 bg-white/[0.07] px-4 py-3"
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50">
+                {label}
+              </p>
+              <p className="mt-2 break-words text-sm font-semibold leading-5 text-white">
+                {formatDocumentBannerValue(value)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
     </Card>
   );
 }
@@ -1195,7 +1279,7 @@ export default function SelfDocumentsPage() {
           return 0;
         }),
     }));
-  }, [language]);
+  }, [language, criticalGaps]);
 
   const activeGroup = useMemo(() => {
     return (
@@ -1533,20 +1617,12 @@ export default function SelfDocumentsPage() {
     <Layout>
       <PageHeader brand={text.brand} title={text.title} subtitle={text.subtitle} />
 
-      <PathwayBanner pathway={pathway} language={language} />
-      {activeCaseId && (
-        <Card className="mb-6 border-blue-200 bg-blue-50">
-          <p className="text-xs text-blue-700 font-semibold">
-            {language === "fr"
-              ? "Dossier actif"
-              : "Active application"}
-          </p>
-
-          <p className="text-sm text-blue-900 mt-1">
-            {strategy?.program || pathway || "Immigration pathway"}
-          </p>
-        </Card>
-      )}
+      <PathwayBanner
+        pathway={pathway}
+        strategy={strategy}
+        activeCaseId={activeCaseId}
+        language={language}
+      />
 
       <FirstRunHero
         isPro={isPro}
@@ -1856,31 +1932,36 @@ export default function SelfDocumentsPage() {
         }
       />
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[260px_1fr]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[310px_minmax(0,1fr)]">
         <div className="space-y-6">
-          <Card padding="lg" className="xl:sticky xl:top-24">
+          <Card padding="lg" className="xl:sticky xl:top-24 xl:h-fit">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               {text.navTitle}
             </p>
 
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:hidden">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:hidden">
               {groupedDocuments.map((group) => (
                 <button
                   key={group.category}
                   type="button"
                   onClick={() => setActiveCategory(group.category)}
-                  className={`shrink-0 rounded-full border px-3 py-2 text-sm transition ${
+                  className={`rounded-lg border px-3 py-3 text-left text-sm transition ${
                     activeCategory === group.category
-                      ? "border-blue-200 bg-blue-50 font-semibold text-blue-700"
+                      ? "border-amber-200 bg-amber-50 font-semibold text-slate-950"
                       : "border-slate-200 bg-white text-slate-600"
                   }`}
                 >
-                  {group.label}
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="truncate">{group.label}</span>
+                    <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                      {group.documents.length}
+                    </span>
+                  </span>
                 </button>
               ))}
             </div>
 
-            <div className="mt-4 hidden space-y-1.5 xl:block">
+            <div className="mt-4 hidden space-y-2 xl:block">
               {groupedDocuments.map((group) => (
                 <CategoryNavButton
                   key={group.category}
@@ -1915,7 +1996,7 @@ export default function SelfDocumentsPage() {
           {activeGroup?.documents?.length ? (
             <div
               key={activeCategory}
-              className="grid gap-5 md:grid-cols-2 animate-[fadeIn_.18s_ease-out]"
+              className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-3 animate-[fadeIn_.18s_ease-out]"
             >
               {[...activeGroup.documents]
                 .sort((a, b) => {

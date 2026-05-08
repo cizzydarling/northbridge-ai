@@ -53,12 +53,35 @@ function getConfidenceLabel(confidence, language) {
   if (!value) return "--";
 
   if (language === "fr") {
-    if (value.includes("high")) return "Élevée";
-    if (value.includes("medium")) return "Modérée";
+    if (value.includes("high") || value.includes("elevee")) return "Élevée";
+    if (value.includes("medium") || value.includes("moder")) return "Modérée";
     if (value.includes("low")) return "Faible";
   }
 
   return confidence;
+}
+
+function formatProbabilityValue(probabilityEstimate) {
+  const raw =
+    probabilityEstimate?.overall_probability ??
+    probabilityEstimate?.chance_of_pr_within_12_months ??
+    probabilityEstimate?.score ??
+    probabilityEstimate?.probability;
+
+  if (raw === null || typeof raw === "undefined" || raw === "") return "--";
+
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return `${Math.round(raw)}%`;
+  }
+
+  const normalized = String(raw).trim();
+  if (!normalized) return "--";
+  if (normalized.endsWith("%")) return normalized;
+
+  const numeric = Number(normalized);
+  if (Number.isFinite(numeric)) return `${Math.round(numeric)}%`;
+
+  return normalized;
 }
 
 function getTimelineLabel(timeline, language) {
@@ -333,10 +356,10 @@ function buildPriorityRecommendation(strategyData, documentStats, language) {
 
 function PageHeaderBlock({ brand, title, subtitle }) {
   return (
-    <div className="mb-6 border-b border-slate-200 pb-5">
+    <div className="mb-6 rounded-[26px] border border-stone-200 bg-stone-50 p-5 shadow-[0_12px_38px_rgba(15,23,42,0.04)]">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
             {brand}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
@@ -365,7 +388,7 @@ function HeroMetric({ label, value, subvalue, dark = false }) {
     >
       <p
         className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
-          dark ? "text-blue-100" : "text-slate-500"
+          dark ? "text-stone-200" : "text-slate-500"
         }`}
       >
         {label}
@@ -382,7 +405,7 @@ function HeroMetric({ label, value, subvalue, dark = false }) {
       {safeSubvalue ? (
         <p
           className={`mt-2 text-sm leading-6 ${
-            dark ? "text-blue-100" : "text-slate-600"
+            dark ? "text-stone-200" : "text-slate-600"
           }`}
         >
           {safeSubvalue}
@@ -418,7 +441,7 @@ function MiniStat({ label, value }) {
 
 function ConfidencePill({ value }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-blue-400/20 px-3 py-1.5 text-xs font-semibold text-white">
+    <span className="inline-flex items-center rounded-full border border-amber-300/30 bg-amber-200/15 px-3 py-1.5 text-xs font-semibold text-amber-100">
       {value || "--"}
     </span>
   );
@@ -521,7 +544,7 @@ function RoadmapCard({ title, items, emptyLabel, language }) {
           {safeItems.map((item, index) => (
             <div key={`${item?.title || "roadmap"}-${index}`} className="flex gap-4">
               <div className="flex flex-col items-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-800">
                   {index + 1}
                 </div>
                 {index < safeItems.length - 1 ? (
@@ -544,7 +567,7 @@ function RoadmapCard({ title, items, emptyLabel, language }) {
 
                   <div className="flex flex-wrap gap-2">
                     {typeof item?.estimated_crs_gain !== "undefined" ? (
-                      <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                      <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
                         {item.estimated_crs_gain > 0
                           ? `+${item.estimated_crs_gain} CRS`
                           : language === "fr"
@@ -595,7 +618,7 @@ function ProvinceCard({ title, items, emptyLabel }) {
                   </p>
                 </div>
 
-                <div className="inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                <div className="inline-flex w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
                   {item?.chance || "--"}
                 </div>
               </div>
@@ -781,7 +804,7 @@ function BestPathwayCard({ language, bestPathway, onOpenDocuments, onAnalyzePath
 
         <div className="flex flex-wrap gap-2">
           {bestPathway?.confidence ? (
-            <span className="inline-flex rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700">
+            <span className="inline-flex rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-semibold text-amber-800">
               {language === "fr" ? "Confiance" : "Confidence"}:{" "}
               {bestPathway.confidence}
             </span>
@@ -1227,22 +1250,22 @@ function SectionChrome({ activeTab, activeSectionLabel, lockedLabel, text }) {
 
 function HeroSignalChip({ label, value, tone = "default" }) {
   const tones = {
-    default: "border-white/15 bg-white/5 text-white",
-    strong: "border-emerald-300/30 bg-emerald-400/10 text-emerald-50",
-    medium: "border-amber-300/30 bg-amber-400/10 text-amber-50",
-    info: "border-cyan-300/30 bg-cyan-400/10 text-cyan-50",
+    default: "border-white/10 bg-white/[0.06] text-white",
+    strong: "border-emerald-300/25 bg-emerald-400/10 text-emerald-50",
+    medium: "border-amber-300/25 bg-amber-400/10 text-amber-50",
+    info: "border-emerald-300/25 bg-emerald-400/10 text-emerald-50",
   };
 
   return (
     <div
-      className={`rounded-lg border px-4 py-3 ${
+      className={`rounded-[22px] border p-4 ${
         tones[tone] || tones.default
       }`}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-80">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-70">
         {label}
       </p>
-      <p className="mt-1 text-sm font-semibold">{value || "--"}</p>
+      <p className="mt-3 break-words text-lg font-semibold">{value || "--"}</p>
     </div>
   );
 }
@@ -1347,14 +1370,14 @@ function HeroStatusCluster({ language, strategy, confidenceValue, timelineValue 
   const timelineLabel = getTimelineLabel(timelineValue, language);
 
   return (
-    <div className="rounded-lg border border-white/10 bg-white/5 p-5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-300">
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.06] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">
         {text.title}
       </p>
 
       <div className="mt-4 grid gap-3">
-        <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-stone-300">
+        <div className="rounded-[22px] border border-white/10 bg-white/[0.07] px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-white/55">
             {text.score}
           </p>
           <p className="mt-1 text-2xl font-semibold text-white">
@@ -1363,8 +1386,8 @@ function HeroStatusCluster({ language, strategy, confidenceValue, timelineValue 
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.12em] text-stone-300">
+          <div className="rounded-[22px] border border-white/10 bg-white/[0.07] px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-white/55">
               {text.confidence}
             </p>
             <p className="mt-1 text-sm font-semibold text-white">
@@ -1372,8 +1395,8 @@ function HeroStatusCluster({ language, strategy, confidenceValue, timelineValue 
             </p>
           </div>
 
-          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.12em] text-stone-300">
+          <div className="rounded-[22px] border border-white/10 bg-white/[0.07] px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-white/55">
               {text.timeline}
             </p>
             <p className="mt-1 text-sm font-semibold text-white">
@@ -1382,8 +1405,8 @@ function HeroStatusCluster({ language, strategy, confidenceValue, timelineValue 
           </div>
         </div>
 
-        <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-stone-300">
+        <div className="rounded-[22px] border border-white/10 bg-white/[0.07] px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-white/55">
             {text.profile}
           </p>
           <p className="mt-1 text-sm font-semibold text-white">
@@ -1406,7 +1429,7 @@ function StrategySectionState({
   const toneClasses = {
     default: "border-slate-200 bg-white text-slate-900",
     locked: "border-amber-200 bg-amber-50 text-amber-900",
-    info: "border-blue-200 bg-blue-50 text-blue-900",
+    info: "border-emerald-200 bg-emerald-50 text-emerald-900",
   };
 
   return (
@@ -1530,7 +1553,7 @@ function StrategyAIDrawer({
         <div className="border-b border-slate-200 px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
                 NorthBridgeAI
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
@@ -1566,7 +1589,7 @@ function StrategyAIDrawer({
               onClick={() => setAiMode(mode.key)}
               className={`px-3 py-1.5 text-xs rounded-full border ${
                 aiMode === mode.key
-                  ? "bg-blue-600 text-white border-blue-600"
+                  ? "border-slate-950 bg-slate-950 text-white"
                   : "bg-white text-slate-600 border-slate-200"
               }`}
             >
@@ -1608,7 +1631,7 @@ function StrategyAIDrawer({
                 key={`${message.role}-${index}`}
                 className={`max-w-[90%] rounded-[24px] px-4 py-3 text-sm leading-7 ${
                   message.role === "user"
-                    ? "ml-auto bg-blue-900 text-white"
+                    ? "ml-auto bg-slate-950 text-white"
                     : "border border-slate-200 bg-white text-slate-700 shadow-sm"
                 }`}
               >
@@ -1635,8 +1658,8 @@ function StrategyAIDrawer({
                   ) : null}
 
                   {message.role === "assistant" && message.actions?.length > 0 ? (
-                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-800">
                         {language === "fr" ? "Prochaines actions" : "Next actions"}
                       </p>
 
@@ -1662,7 +1685,7 @@ function StrategyAIDrawer({
 
                               onAsk(label);
                             }}
-                            className="w-full rounded-xl bg-white px-3 py-2 text-left text-xs font-medium leading-5 text-blue-800 transition hover:bg-blue-100"
+                            className="w-full rounded-xl bg-white px-3 py-2 text-left text-xs font-medium leading-5 text-slate-800 transition hover:bg-amber-100"
                           >
                             {typeof action === "string"
                               ? action
@@ -1706,7 +1729,7 @@ function StrategyAIDrawer({
                   ? "Posez une question sur votre stratégie..."
                   : "Ask a question about your strategy..."
               }
-              className="flex-1 rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+              className="flex-1 rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100"
             />
 
             <Button
@@ -1979,6 +2002,24 @@ export default function StrategyPage() {
     }
   }
 
+  async function extractPdfErrorDetail(err, fallback) {
+    const data = err?.response?.data;
+
+    if (data?.detail) return data.detail;
+
+    if (data instanceof Blob) {
+      try {
+        const text = await data.text();
+        const parsed = JSON.parse(text);
+        return parsed?.detail || parsed?.message || fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    return err?.response?.data?.message || fallback;
+  }
+
   async function handleExportPdf() {
     try {
       setExportingPdf(true);
@@ -2008,10 +2049,12 @@ export default function StrategyPage() {
     } catch (err) {
       console.error(err);
       setMessage(
-        err?.response?.data?.detail ||
-          (language === "fr"
+        await extractPdfErrorDetail(
+          err,
+          language === "fr"
             ? "Impossible d’exporter le PDF."
-            : "Unable to export PDF.")
+            : "Unable to export PDF."
+        )
       );
     } finally {
       setExportingPdf(false);
@@ -2269,11 +2312,7 @@ export default function StrategyPage() {
       language
     ) || "--";
 
-  const probabilityValue =
-    probabilityEstimate?.overall_probability ||
-    probabilityEstimate?.score ||
-    probabilityEstimate?.probability ||
-    "--";
+  const probabilityValue = formatProbabilityValue(probabilityEstimate);
 
   const noc = strategy?.noc_summary || {};
   const nocAdvantage = strategy?.noc_advantage || {};
@@ -2861,7 +2900,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
   return (
     <Layout>
       {message && (
-        <div className="mb-6 rounded-[24px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+        <div className="mb-6 rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           {message}
         </div>
       )}
@@ -2883,20 +2922,16 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         />
       )}
 
-      <Card
-        variant="soft"
-        padding="lg"
-        className="mb-6 overflow-hidden rounded-lg border-stone-300 bg-[#121417] text-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]"
-      >
-        <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="max-w-2xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-300">
+      <section className="mb-6 overflow-hidden rounded-[30px] border border-slate-900/10 bg-[#172033] p-8 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">
               {text.strategyHeadline}
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
               {bestPathwayName}
             </h2>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-stone-200 md:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/68 md:text-base">
               {heroSummary}
             </p>
 
@@ -2910,7 +2945,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
               <PlanChip active={access?.is_premium}>Premium</PlanChip>
               <ConfidencePill value={confidenceValue} />
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <HeroSignalChip
                 label={text.crsBand}
                 value={getScoreBand(strategy?.crs_score, language)}
@@ -2934,12 +2969,16 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={() => navigate("/documents")} className="h-11 px-5">
+              <Button
+                variant="white"
+                onClick={() => navigate("/documents")}
+                className="h-11 px-5"
+              >
                 {text.openDocuments}
               </Button>
               {canExportPdf ? (
                 <Button
-                  variant="secondary"
+                  variant="outlineLight"
                   onClick={handleExportPdf}
                   disabled={exportingPdf}
                   className="h-11 px-5"
@@ -2948,7 +2987,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                 </Button>
               ) : (
                 <Button
-                  variant="secondary"
+                  variant="outlineLight"
                   onClick={() => navigate(premiumPath)}
                   className="h-11 px-5"
                 >
@@ -2967,7 +3006,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
             />
           </div>
         </div>
-      </Card>
+      </section>
 
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Stat label={text.bestPathway} value={bestPathwayName || "--"} />
@@ -3441,7 +3480,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                               {nocAdvantage.recommendations.map((item, index) => (
                                 <div
                                   key={`${item}-${index}`}
-                                  className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-7 text-blue-900"
+                                  className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-950"
                                 >
                                   {item}
                                 </div>

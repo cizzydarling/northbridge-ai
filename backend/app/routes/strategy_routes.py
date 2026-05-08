@@ -1,6 +1,3 @@
-from io import BytesIO
-
-import pdfkit
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -23,7 +20,7 @@ from app.services.checklist_engine import build_checklist
 from app.services.decision_engine import build_user_decision_context
 from app.services.eligibility_engine import evaluate_matter_eligibility
 from app.services.forms_assistant import build_forms_assistant
-from app.services.report_builder_service import build_strategy_report_html
+from app.services.pdf_service import generate_strategy_pdf
 from app.services.strategy_service import build_strategy
 from app.models.application_case_model import ApplicationCase
 from app.services.household_service import get_household_members
@@ -754,22 +751,18 @@ def export_strategy_pdf(
 
     strategy = build_strategy(profile, language=language)
 
-    html_content = build_strategy_report_html(
-        profile=profile.__dict__,
-        strategy_data=strategy,
-        user_email=current_user.email,
-        language=language,
-    )
-
     try:
-        pdf_bytes = pdfkit.from_string(html_content, False)
+        pdf_buffer = generate_strategy_pdf(
+            strategy,
+            language=language,
+            profile=profile.__dict__,
+            user_email=current_user.email,
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"PDF generation failed: {str(e)}",
         )
-
-    pdf_buffer = BytesIO(pdf_bytes)
 
     filename = (
         "northbridgeai_strategy_report.pdf"

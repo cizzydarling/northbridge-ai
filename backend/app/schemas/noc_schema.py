@@ -14,6 +14,7 @@ class NocAlternative(BaseModel):
     noc: str
     title: str
     teer: int
+    score: Optional[float] = None
     confidence: float
     broad_category: str
     immigration_category_tags: List[str]
@@ -41,6 +42,8 @@ class NocSuggestResponse(BaseModel):
     suggested_title: str
     teer: int
     confidence: float
+    score: Optional[float] = None
+    match_quality: Optional[str] = None
     broad_category: str
     why_matched: List[str]
 

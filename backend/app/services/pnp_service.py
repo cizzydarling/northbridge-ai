@@ -12,9 +12,12 @@ def _normalize_text(value: str) -> str:
 
 
 def _extract_teer(noc_code: str) -> int:
+    digits = "".join(ch for ch in str(noc_code or "") if ch.isdigit())
+    if len(digits) < 2:
+        return -1
     try:
-        return int(str(noc_code)[0])
-    except:
+        return int(digits[1])
+    except (TypeError, ValueError):
         return -1
 
 

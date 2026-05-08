@@ -136,27 +136,27 @@ export default function AuthPage() {
       message.toLowerCase().includes("succès"));
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="relative hidden overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 lg:flex">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.06),transparent_28%)]" />
+        <section className="relative hidden overflow-hidden bg-[#172033] lg:flex">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.14),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.10),transparent_28%)]" />
 
           <div className="relative flex w-full flex-col justify-between p-10 xl:p-14">
             <div>
               <Link to="/" className="inline-flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-bold text-blue-900 shadow-sm">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-bold text-slate-950 shadow-sm">
                   NB
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">
                     {t("app.name")}
                   </p>
-                  <p className="text-xs text-blue-200">{t("app.tagline")}</p>
+                  <p className="text-xs text-white/55">{t("app.tagline")}</p>
                 </div>
               </Link>
 
               <div className="mt-16 max-w-xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-200">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-300">
                   {isLogin ? t("auth.welcomeBack") : t("auth.createAccount")}
                 </p>
 
@@ -228,11 +228,11 @@ export default function AuthPage() {
           <div className="w-full max-w-md">
             <div className="mb-6 flex items-center justify-between gap-3 lg:hidden">
               <Link to="/" className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-900 text-sm font-bold text-white shadow-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-bold text-white shadow-sm">
                   NB
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-blue-900">
+                  <p className="text-sm font-semibold text-slate-950">
                     {t("app.name")}
                   </p>
                   <p className="text-xs text-slate-500">{t("app.tagline")}</p>
@@ -245,7 +245,7 @@ export default function AuthPage() {
                   onClick={() => switchLanguage("en")}
                   className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                     i18n.language === "en"
-                      ? "bg-blue-900 text-white"
+                      ? "bg-slate-950 text-white"
                       : "text-slate-600 hover:bg-slate-100"
                   }`}
                 >
@@ -256,7 +256,7 @@ export default function AuthPage() {
                   onClick={() => switchLanguage("fr")}
                   className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                     i18n.language === "fr"
-                      ? "bg-blue-900 text-white"
+                      ? "bg-slate-950 text-white"
                       : "text-slate-600 hover:bg-slate-100"
                   }`}
                 >
@@ -268,7 +268,7 @@ export default function AuthPage() {
             <Card variant="elevated" padding="lg" className="shadow-xl">
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold text-blue-600">
+                  <p className="text-sm font-semibold text-amber-700">
                     {t("app.name")}
                   </p>
                   <h1 className="mt-1 text-3xl font-bold text-slate-900">
@@ -285,7 +285,7 @@ export default function AuthPage() {
                     onClick={() => switchLanguage("en")}
                     className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                       i18n.language === "en"
-                        ? "bg-blue-900 text-white"
+                        ? "bg-slate-950 text-white"
                         : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
@@ -296,7 +296,7 @@ export default function AuthPage() {
                     onClick={() => switchLanguage("fr")}
                     className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                       i18n.language === "fr"
-                        ? "bg-blue-900 text-white"
+                        ? "bg-slate-950 text-white"
                         : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
@@ -365,7 +365,7 @@ export default function AuthPage() {
                       name="role"
                       value={form.role}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-100"
                     >
                       <option value="individual">{t("auth.individual")}</option>
                       <option value="agent">{t("auth.agent")}</option>
@@ -451,7 +451,7 @@ function PreviewCard({ title, text, featured = false }) {
     <div
       className={`rounded-2xl p-4 ${
         featured
-          ? "border border-blue-200 bg-white/15"
+          ? "border border-amber-200/50 bg-white/15"
           : "border border-white/10 bg-white/5"
       }`}
     >

@@ -51,7 +51,7 @@ export default function BlogPage() {
 
   return (
     <MarketingShell>
-      <section className="bg-[#121417] text-white">
+      <section className="bg-[#172033] text-white">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 md:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
@@ -90,23 +90,23 @@ export default function BlogPage() {
         </div>
       </section>
 
-      <section className="border-b border-stone-200 bg-white">
+      <section className="border-b border-white/10 bg-[#172033] text-white">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-12 md:px-6 lg:grid-cols-[0.88fr_1.12fr]">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">
               Featured article
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">
               {featuredBlogArticle.title}
             </h2>
-            <p className="mt-4 text-base leading-8 text-slate-600">
+            <p className="mt-4 text-base leading-8 text-stone-300">
               {featuredBlogArticle.description}
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               {featuredBlogArticle.keywords.slice(0, 3).map((keyword) => (
                 <span
                   key={keyword}
-                  className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-slate-600"
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-stone-200"
                 >
                   {keyword}
                 </span>
@@ -124,9 +124,9 @@ export default function BlogPage() {
             {featuredBlogArticle.summaryBullets.map((item) => (
               <div
                 key={item}
-                className="rounded-lg border border-stone-200 bg-stone-50 p-5"
+                className="rounded-lg border border-white/10 bg-white/[0.06] p-5"
               >
-                <p className="text-sm font-medium leading-6 text-slate-800">
+                <p className="text-sm font-medium leading-6 text-stone-100">
                   {item}
                 </p>
               </div>
@@ -135,39 +135,41 @@ export default function BlogPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-12 md:px-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
-              Latest guides
+      <section className="bg-stone-100">
+        <div className="mx-auto max-w-7xl px-4 py-12 md:px-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                Latest guides
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+                Learn before you apply
+              </h2>
+            </div>
+            <p className="max-w-xl text-sm leading-7 text-slate-600">
+              Each article is written to help applicants understand preparation,
+              not to replace advice from a licensed immigration professional.
             </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-              Learn before you apply
-            </h2>
           </div>
-          <p className="max-w-xl text-sm leading-7 text-slate-600">
-            Each article is written to help applicants understand preparation,
-            not to replace advice from a licensed immigration professional.
-          </p>
-        </div>
 
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {supportingArticles.map((article) => (
-            <ArticleCard key={article.slug} article={article} />
-          ))}
+          <div className="mt-8 grid gap-5 md:grid-cols-3">
+            {supportingArticles.map((article) => (
+              <ArticleCard key={article.slug} article={article} />
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="bg-white">
+      <section className="bg-[#172033] text-white">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-12 md:grid-cols-[1fr_auto] md:items-center md:px-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">
               Ready to organize your case?
             </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white">
               Move from research to a structured immigration workspace.
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-300">
               NorthBridgeAI helps you connect profile details, strategy,
               documents, forms, and AI guidance so the next step is easier to
               see.
@@ -182,7 +184,7 @@ export default function BlogPage() {
             </Link>
             <Link
               to="/pricing"
-              className="inline-flex h-11 items-center justify-center rounded-xl border border-stone-300 bg-white px-5 text-sm font-medium text-slate-800 shadow-sm transition hover:border-stone-400 hover:bg-stone-50"
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-white/60 px-5 text-sm font-medium text-white shadow-sm transition hover:bg-white hover:text-slate-950"
             >
               View pricing
             </Link>
@@ -195,7 +197,7 @@ export default function BlogPage() {
 
 function ArticleCard({ article }) {
   return (
-    <article className="flex h-full flex-col rounded-lg border border-stone-200 bg-white p-5 shadow-[0_14px_42px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_54px_rgba(15,23,42,0.10)]">
+    <article className="flex h-full flex-col rounded-lg border border-stone-300 bg-stone-50 p-5 shadow-[0_14px_42px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-[0_18px_54px_rgba(15,23,42,0.12)]">
       <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
         <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-amber-800">
           {article.category}
