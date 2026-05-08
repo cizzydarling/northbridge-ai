@@ -11,6 +11,8 @@ import PricingPage from "./pages/PricingPage";
 import BillingSuccessPage from "./pages/BillingSuccessPage";
 import HouseholdPage from "./pages/HouseholdPage";
 import ApplicationCasesPage from "./pages/ApplicationCasesPage";
+import BlogPage from "./pages/BlogPage";
+import BlogPostPage from "./pages/BlogPostPage";
 
 // Self flow
 import SelfDashboardPage from "./pages/SelfDashboardPage";
@@ -168,6 +170,8 @@ export default function App() {
       {/* Pricing must be available both before and after login */}
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/billing" element={<PricingPage />} />
+      <Route path="/blog" element={<BlogPage />} />
+      <Route path="/blog/:slug" element={<BlogPostPage />} />
       <Route
         path="/upgrade"
         element={<Navigate to="/pricing?source=app&intent=upgrade" replace />}
