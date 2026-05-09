@@ -492,7 +492,7 @@ export default function Layout({ children }) {
 
         <div className="min-h-screen flex-1 lg:pl-72">
           <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f5f7fb]/88 backdrop-blur-xl">
-            <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
+            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-3 sm:h-16 sm:px-4 md:px-6">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
@@ -639,7 +639,7 @@ export default function Layout({ children }) {
 
           <OnboardingModal />
 
-          <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 lg:py-8">
+          <main className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:py-8">
             {children}
           </main>
         </div>
@@ -653,7 +653,7 @@ export default function Layout({ children }) {
             role="dialog"
             aria-modal="true"
             aria-label={language === "fr" ? "Menu principal" : "Main menu"}
-            className="absolute right-0 top-0 flex h-full w-[88vw] max-w-sm flex-col bg-white shadow-2xl"
+            className="absolute right-0 top-0 flex h-full w-[84vw] max-w-sm flex-col bg-white shadow-2xl"
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div className="min-w-0">

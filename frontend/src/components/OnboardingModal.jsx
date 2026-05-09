@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Card from "./ui/Card";
@@ -8,10 +8,12 @@ import {
   getToken,
   getCurrentUserLocal,
   getMyProfile,
+  suggestNOC,
   updateMyProfile,
   refreshCurrentUser,
   runSelfWorkspace,
 } from "../api";
+import { getCountrySelectOptions } from "../utils/countries";
 
 const DISMISS_KEY = "nbai_onboarding_modal_dismissed_until_v3";
 
@@ -31,22 +33,6 @@ const DEFAULT_FORM = {
   noc_code: "",
   preferred_province: "",
 };
-
-const COUNTRIES = [
-  "Canada",
-  "United States",
-  "France",
-  "United Kingdom",
-  "India",
-  "Nigeria",
-  "Cameroon",
-  "Morocco",
-  "Algeria",
-  "Tunisia",
-  "Senegal",
-  "Ivory Coast",
-  "Other",
-];
 
 const MARITAL_STATUSES = [
   { value: "single", en: "Single", fr: "Célibataire" },
@@ -189,6 +175,38 @@ function SelectField({ label, name, value, onChange, options, placeholder }) {
   );
 }
 
+function normalizeNocMatches(data) {
+  if (Array.isArray(data?.matches) && data.matches.length > 0) {
+    return data.matches;
+  }
+
+  if (data?.suggested_noc || data?.suggested_title) {
+    return [
+      {
+        noc: data.suggested_noc,
+        title: data.suggested_title,
+        teer: data.teer,
+        confidence: data.confidence,
+      },
+      ...(Array.isArray(data?.alternatives) ? data.alternatives : []),
+    ].filter((item) => item.noc || item.title);
+  }
+
+  if (Array.isArray(data?.alternatives)) {
+    return data.alternatives;
+  }
+
+  return [];
+}
+
+function getNocCode(match) {
+  return match?.noc || match?.noc_code || match?.code || "";
+}
+
+function getNocTitle(match) {
+  return match?.title || match?.name || match?.occupation || "";
+}
+
 export default function OnboardingModal() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -201,6 +219,9 @@ export default function OnboardingModal() {
   const [step, setStep] = useState(1);
   const [message, setMessage] = useState("");
   const [form, setForm] = useState(DEFAULT_FORM);
+  const [nocSuggestions, setNocSuggestions] = useState([]);
+  const [nocLoading, setNocLoading] = useState(false);
+  const [nocStatus, setNocStatus] = useState("");
 
   const currentUser = getCurrentUserLocal();
 
@@ -214,11 +235,7 @@ export default function OnboardingModal() {
   );
 
   const translatedCountries = useMemo(
-    () =>
-      COUNTRIES.map((country) => ({
-        value: country,
-        label: country,
-      })),
+    () => getCountrySelectOptions(),
     []
   );
 
@@ -342,7 +359,82 @@ export default function OnboardingModal() {
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "occupation") {
+      setNocSuggestions([]);
+      setNocStatus("");
+    }
   }
+
+  const requestNocSuggestions = useCallback(async ({ quiet = false } = {}) => {
+    const occupation = form.occupation.trim();
+
+    if (!occupation) return;
+
+    try {
+      setNocLoading(true);
+      if (!quiet) setNocStatus("");
+
+      const res = await suggestNOC({
+        occupation,
+        top_k: 3,
+      });
+
+      const matches = normalizeNocMatches(res?.data);
+      setNocSuggestions(matches);
+      setNocStatus(
+        matches.length
+          ? language === "fr"
+            ? "Suggestions CNP pretes. Choisissez celle qui correspond le mieux."
+            : "NOC suggestions ready. Choose the closest match."
+          : language === "fr"
+          ? "Aucune suggestion CNP trouvee pour cette profession."
+          : "No NOC suggestion found for this occupation."
+      );
+    } catch (err) {
+      console.error("Starter onboarding NOC suggestion failed:", err);
+      if (!quiet) {
+        setNocStatus(
+          language === "fr"
+            ? "Impossible de suggerer un CNP pour le moment."
+            : "Unable to suggest a NOC right now."
+        );
+      }
+    } finally {
+      setNocLoading(false);
+    }
+  }, [form.occupation, language]);
+
+  function applyNocSuggestion(match) {
+    const code = getNocCode(match);
+    const title = getNocTitle(match);
+
+    setForm((prev) => ({
+      ...prev,
+      noc_code: code || prev.noc_code,
+      occupation: prev.occupation || title || "",
+    }));
+    setNocStatus(
+      language === "fr" ? "CNP applique au profil." : "NOC applied to profile."
+    );
+  }
+
+  useEffect(() => {
+    if (step !== 3 || form.noc_code.trim()) return undefined;
+
+    const occupation = form.occupation.trim();
+    if (occupation.length < 3) {
+      setNocSuggestions([]);
+      setNocStatus("");
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      requestNocSuggestions({ quiet: true });
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, [step, form.occupation, form.noc_code, requestNocSuggestions]);
 
   function canGoStep2() {
     return Boolean(
@@ -445,9 +537,9 @@ export default function OnboardingModal() {
   if (checking || !open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
-      <Card className="w-full max-w-3xl rounded-[32px] border border-slate-200 bg-white p-0 shadow-[0_20px_80px_rgba(15,23,42,0.18)]">
-        <div className="border-b border-slate-200 px-6 py-5">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
+      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-[0_20px_80px_rgba(15,23,42,0.18)] sm:rounded-[32px]">
+        <div className="border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
             NorthBridgeAI
           </p>
@@ -478,7 +570,7 @@ export default function OnboardingModal() {
           </div>
         </div>
 
-        <form onSubmit={handleSave} className="px-6 py-6">
+        <form onSubmit={handleSave} className="px-4 py-5 sm:px-6 sm:py-6">
           {step === 1 && (
             <div className="space-y-4">
               <FieldGroup>
@@ -595,13 +687,25 @@ export default function OnboardingModal() {
                   onChange={handleChange}
                   required
                 />
-                <Input
-                  name="noc_code"
-                  label={language === "fr" ? "Code CNP" : "NOC code"}
-                  value={form.noc_code}
-                  onChange={handleChange}
-                  required
-                />
+                <div className="space-y-2">
+                  <Input
+                    name="noc_code"
+                    label={language === "fr" ? "Code CNP" : "NOC code"}
+                    value={form.noc_code}
+                    onChange={handleChange}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => requestNocSuggestions()}
+                    disabled={nocLoading || !form.occupation.trim()}
+                    loading={nocLoading}
+                  >
+                    {language === "fr" ? "Suggérer un CNP" : "Suggest NOC"}
+                  </Button>
+                </div>
                 <div className="md:col-span-2">
                   <SelectField
                     name="preferred_province"
@@ -617,6 +721,54 @@ export default function OnboardingModal() {
                   />
                 </div>
               </FieldGroup>
+
+              {(nocSuggestions.length > 0 || nocStatus) && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">
+                    {language === "fr" ? "Suggestion CNP" : "NOC suggestion"}
+                  </p>
+
+                  {nocStatus ? (
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {nocStatus}
+                    </p>
+                  ) : null}
+
+                  {nocSuggestions.length > 0 ? (
+                    <div className="mt-3 grid gap-2">
+                      {nocSuggestions.slice(0, 3).map((match, index) => {
+                        const code = getNocCode(match);
+                        const title = getNocTitle(match);
+                        const confidence =
+                          typeof match?.confidence === "number"
+                            ? `${Math.round(match.confidence * 100)}%`
+                            : null;
+
+                        return (
+                          <button
+                            key={`${code}-${title}-${index}`}
+                            type="button"
+                            onClick={() => applyNocSuggestion(match)}
+                            className="rounded-xl border border-white bg-white px-3 py-3 text-left text-sm shadow-sm transition hover:border-amber-300 hover:bg-amber-50"
+                          >
+                            <span className="font-semibold text-slate-950">
+                              {code || "--"}
+                            </span>
+                            {title ? (
+                              <span className="text-slate-700"> - {title}</span>
+                            ) : null}
+                            {confidence ? (
+                              <span className="ml-2 text-xs text-slate-500">
+                                {confidence}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              )}
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
                 {language === "fr"
@@ -641,7 +793,7 @@ export default function OnboardingModal() {
               {language === "fr" ? "Continuer plus tard" : "Continue later"}
             </button>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap justify-end gap-3">
               {step > 1 ? (
                 <Button
                   type="button"

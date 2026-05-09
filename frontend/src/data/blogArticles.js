@@ -1,5 +1,171 @@
 export const blogArticles = [
   {
+    slug: "2026-express-entry-categories-canada",
+    title: "What Canada's 2026 Express Entry Categories Mean for Applicants",
+    description:
+      "A practical look at Canada's 2026 Express Entry category updates and how applicants can prepare their profile, NOC, language results, and documents.",
+    category: "Express Entry update",
+    readTime: "4 min read",
+    publishedAt: "2026-05-09",
+    displayDate: "May 9, 2026",
+    keywords: [
+      "2026 Express Entry categories",
+      "Canada Express Entry update",
+      "IRCC category based selection",
+      "French language Express Entry",
+      "NorthBridgeAI immigration news",
+    ],
+    summaryBullets: [
+      "IRCC announced new 2026 Express Entry categories tied to talent attraction and labour needs.",
+      "Current categories include French, health and social services, STEM, trades, education, transport, physicians, senior managers, researchers, and skilled military recruits.",
+      "Applicants should keep their NOC, language results, work history, and documents aligned before invitations happen.",
+    ],
+    sourceLinks: [
+      {
+        label: "IRCC news release on 2026 Express Entry categories",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/news/2026/02/canada-prioritizes-top-talent-in-2026-immigration-express-entry-categories.html",
+      },
+      {
+        label: "IRCC category-based selection page",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/rounds-invitations/category-based-selection.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "Express Entry is becoming more targeted",
+        paragraphs: [
+          "IRCC's 2026 category announcement shows how Express Entry continues to move beyond one general score race. Category-based selection lets Canada invite candidates who meet specific economic or language priorities, while still requiring Express Entry eligibility and a competitive CRS score.",
+          "For applicants, this means profile accuracy matters. A confirmed NOC, clear work history, valid language results, and complete education details can affect whether a profile is recognized for a category-based round.",
+        ],
+      },
+      {
+        heading: "The 2026 categories reward specific signals",
+        paragraphs: [
+          "IRCC's current category list includes French-language proficiency, health care and social services, STEM, trades, education, transport, physicians with Canadian work experience, senior managers with Canadian work experience, researchers with Canadian work experience, and skilled military recruits.",
+          "The practical takeaway is simple: applicants should not only ask whether they are eligible for Express Entry. They should also ask whether their occupation, French ability, Canadian work experience, or sector could create a stronger pathway.",
+        ],
+      },
+      {
+        heading: "How applicants can prepare",
+        paragraphs: [
+          "Start by confirming your NOC against your actual duties, not just your job title. Then review whether your language results, education, work history, and supporting documents tell the same story across the profile.",
+          "NorthBridgeAI helps users organize these signals in one workspace so they can see whether their strongest pathway is based on CRS score, category alignment, provincial options, French ability, or document readiness.",
+        ],
+      },
+    ],
+    ctaTitle: "Check how your profile aligns with 2026 priorities",
+    ctaBody:
+      "Use NorthBridgeAI to map your NOC, CRS score, language profile, documents, and strategy before the next important step.",
+  },
+  {
+    slug: "2026-2028-canada-immigration-levels-plan",
+    title: "Canada's 2026-2028 Immigration Levels Plan: What Applicants Should Watch",
+    description:
+      "The 2026-2028 Immigration Levels Plan points to stable permanent residence targets, lower temporary resident arrivals, and a stronger focus on economic immigration.",
+    category: "Policy update",
+    readTime: "4 min read",
+    publishedAt: "2026-05-09",
+    displayDate: "May 9, 2026",
+    keywords: [
+      "2026 2028 Immigration Levels Plan",
+      "Canada immigration targets 2026",
+      "economic immigration Canada",
+      "temporary resident targets Canada",
+      "Francophone immigration Canada",
+    ],
+    summaryBullets: [
+      "IRCC says permanent resident admissions are set to stabilize at 380,000 from 2026 to 2028.",
+      "Temporary resident arrivals are targeted at 385,000 in 2026 and 370,000 in 2027 and 2028.",
+      "Economic immigration remains a major focus, with the economic category reaching 64% of admissions in 2027 and 2028.",
+    ],
+    sourceLinks: [
+      {
+        label: "IRCC supplementary information for the 2026-2028 Levels Plan",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/corporate-initiatives/levels/supplementary-immigration-levels-2026-2028.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "The plan points to a more selective environment",
+        paragraphs: [
+          "IRCC's 2026-2028 Levels Plan emphasizes sustainable immigration levels while continuing to prioritize economic immigration. Permanent resident admissions are set to stabilize at 380,000 per year from 2026 to 2028.",
+          "At the same time, Canada is targeting lower temporary resident arrivals. For applicants, that makes early planning more important because fewer spaces can increase the value of accurate profiles, timely documents, and strong pathway selection.",
+        ],
+      },
+      {
+        heading: "Economic immigration remains central",
+        paragraphs: [
+          "The plan says the economic category will represent the largest share of admissions each year, reaching 64% in 2027 and 2028. It also points to increased admissions under Federal High Skilled and the Provincial Nominee Program.",
+          "This matters for applicants with skilled work experience, Canadian experience, provincial connections, in-demand occupations, strong language scores, or French ability outside Quebec.",
+        ],
+      },
+      {
+        heading: "Preparation should connect temporary and permanent plans",
+        paragraphs: [
+          "IRCC also highlights the transition to permanent residence for people already in Canada with needed skills and experience. That means temporary status, work history, education, province, and long-term PR planning should not be treated as separate files.",
+          "NorthBridgeAI is built to help applicants organize those pieces together: profile, NOC, CRS score, documents, forms, and next actions in one planning workspace.",
+        ],
+      },
+    ],
+    ctaTitle: "Build a plan before the window gets crowded",
+    ctaBody:
+      "Use NorthBridgeAI to understand your strongest pathway and prepare the documents that support it.",
+  },
+  {
+    slug: "2026-international-student-cap-canada",
+    title: "Canada's 2026 International Student Cap: What Future Students Should Know",
+    description:
+      "IRCC's 2026 study permit cap notice sets national targets, PAL/TAL rules, and exemptions that international students should understand before applying.",
+    category: "Study permit update",
+    readTime: "4 min read",
+    publishedAt: "2026-05-09",
+    displayDate: "May 9, 2026",
+    keywords: [
+      "Canada 2026 international student cap",
+      "study permit cap Canada",
+      "PAL TAL exemption 2026",
+      "Canada study permit target 2026",
+      "international students Canada immigration",
+    ],
+    summaryBullets: [
+      "IRCC expects to issue up to 408,000 study permits in 2026, including 155,000 to newly arriving international students.",
+      "Master's and doctoral students at public DLIs are listed as PAL/TAL-exempt starting January 1, 2026.",
+      "Applicants should plan around both federal rules and provincial or territorial allocation spaces.",
+    ],
+    sourceLinks: [
+      {
+        label: "IRCC 2026 provincial and territorial allocations under the international student cap",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/news/notices/2026-provincial-territorial-allocations-under-international-student-cap.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "The 2026 cap changes the planning conversation",
+        paragraphs: [
+          "IRCC's 2026 notice says Canada expects to issue up to 408,000 study permits, including 155,000 for newly arriving international students and 253,000 extensions for current and returning students.",
+          "That does not mean every applicant has the same pathway. Program level, institution type, province, timing, and whether a PAL or TAL is required can all affect preparation.",
+        ],
+      },
+      {
+        heading: "PAL/TAL exemptions matter",
+        paragraphs: [
+          "IRCC lists master's and doctoral students enrolled at public designated learning institutions as exempt from the PAL/TAL requirement as of January 1, 2026. Primary and secondary students, certain priority groups, vulnerable cohorts, and some extension applicants are also listed as exempt.",
+          "Students outside those exempt groups should pay close attention to provincial and territorial allocation spaces because schools and provinces may manage availability differently.",
+        ],
+      },
+      {
+        heading: "Students should prepare beyond admission",
+        paragraphs: [
+          "A study plan should connect admission, finances, identity documents, program logic, province, timelines, and longer-term immigration goals. The study permit file should make sense on its own, but it should also fit the applicant's broader plan.",
+          "NorthBridgeAI helps future students organize profile details and documents so they can prepare more calmly and understand which gaps need attention before applying.",
+        ],
+      },
+    ],
+    ctaTitle: "Organize your study permit plan",
+    ctaBody:
+      "Use NorthBridgeAI to prepare your profile, documents, and longer-term Canadian immigration strategy in one place.",
+  },
+  {
     slug: "ai-immigration-strategy-canada",
     title: "How AI Can Help You Build a Smarter Canadian Immigration Strategy",
     description:

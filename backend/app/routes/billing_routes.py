@@ -25,6 +25,35 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 STRIPE_PRICE_INDIVIDUAL_PRO = os.getenv("STRIPE_PRICE_INDIVIDUAL_PRO")
 STRIPE_PRICE_INDIVIDUAL_PREMIUM = os.getenv("STRIPE_PRICE_INDIVIDUAL_PREMIUM")
+STRIPE_PRODUCT_INDIVIDUAL_PRO = os.getenv(
+    "STRIPE_PRODUCT_INDIVIDUAL_PRO",
+    "prod_UTyGsfJo7qcmbi",
+)
+STRIPE_PRODUCT_INDIVIDUAL_PREMIUM = os.getenv(
+    "STRIPE_PRODUCT_INDIVIDUAL_PREMIUM",
+    "prod_UTyIWa3nkPA4PR",
+)
+
+STRIPE_PLAN_CONFIG = {
+    "individual_pro": {
+        "price_id": STRIPE_PRICE_INDIVIDUAL_PRO,
+        "product_id": STRIPE_PRODUCT_INDIVIDUAL_PRO,
+        "unit_amount": 3900,
+        "currency": "cad",
+        "interval": "day",
+        "interval_count": 30,
+        "name": "NorthbridgeAI Pro",
+    },
+    "individual_premium": {
+        "price_id": STRIPE_PRICE_INDIVIDUAL_PREMIUM,
+        "product_id": STRIPE_PRODUCT_INDIVIDUAL_PREMIUM,
+        "unit_amount": 9900,
+        "currency": "cad",
+        "interval": "day",
+        "interval_count": 90,
+        "name": "NorthbridgeAI Premium",
+    },
+}
 
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 DEV_ENVS = {"development", "dev", "local", "test"}
@@ -88,11 +117,11 @@ def get_or_create_stripe_customer(user: User, db: Session) -> str:
 
 def get_price_id_for_plan(plan: str) -> str:
     selected_plan = _normalize_plan(plan)
+    plan_config = STRIPE_PLAN_CONFIG.get(selected_plan) or {}
+    price_id = plan_config.get("price_id")
 
-    if selected_plan == "individual_pro" and STRIPE_PRICE_INDIVIDUAL_PRO:
-        return STRIPE_PRICE_INDIVIDUAL_PRO
-    if selected_plan == "individual_premium" and STRIPE_PRICE_INDIVIDUAL_PREMIUM:
-        return STRIPE_PRICE_INDIVIDUAL_PREMIUM
+    if price_id:
+        return price_id
 
     raise HTTPException(
         status_code=500,
@@ -100,22 +129,66 @@ def get_price_id_for_plan(plan: str) -> str:
     )
 
 
-def map_price_to_plan(price_id: str | None) -> str | None:
-    if price_id and price_id == STRIPE_PRICE_INDIVIDUAL_PRO:
-        return "individual_pro"
-    if price_id and price_id == STRIPE_PRICE_INDIVIDUAL_PREMIUM:
-        return "individual_premium"
+def get_checkout_line_item_for_plan(plan: str) -> dict:
+    selected_plan = _normalize_plan(plan)
+    plan_config = STRIPE_PLAN_CONFIG.get(selected_plan)
+
+    if not plan_config:
+        raise HTTPException(status_code=400, detail="Invalid billing plan.")
+
+    product_id = plan_config.get("product_id")
+    if product_id:
+        return {
+            "price_data": {
+                "currency": plan_config["currency"],
+                "product": product_id,
+                "unit_amount": plan_config["unit_amount"],
+                "recurring": {
+                    "interval": plan_config["interval"],
+                    "interval_count": plan_config["interval_count"],
+                },
+            },
+            "quantity": 1,
+        }
+
+    price_id = plan_config.get("price_id")
+    if price_id:
+        return {"price": price_id, "quantity": 1}
+
+    raise HTTPException(
+        status_code=500,
+        detail="Stripe product or price is not configured for this plan.",
+    )
+
+
+def map_price_to_plan(
+    price_id: str | None = None,
+    *,
+    product_id: str | None = None,
+    price: Any = None,
+) -> str | None:
+    price_product_id = product_id or _stripe_get(price, "product")
+
+    for plan, config in STRIPE_PLAN_CONFIG.items():
+        if price_id and config.get("price_id") and price_id == config.get("price_id"):
+            return plan
+        if price_product_id and config.get("product_id") and price_product_id == config.get("product_id"):
+            return plan
+
     return None
 
 
-def _subscription_price_id(subscription: Any) -> str | None:
+def _subscription_price(subscription: Any) -> Any | None:
     items = _stripe_get(_stripe_get(subscription, "items"), "data", []) or []
     if not items:
         return None
 
     first_item = items[0]
-    price = _stripe_get(first_item, "price", {}) or {}
-    return _stripe_get(price, "id")
+    return _stripe_get(first_item, "price", {}) or {}
+
+
+def _subscription_price_id(subscription: Any) -> str | None:
+    return _stripe_get(_subscription_price(subscription), "id")
 
 
 def _find_user_for_customer(
@@ -143,9 +216,15 @@ def _apply_subscription_to_user(
     subscription_id: str | None = None,
     status: str | None = None,
     price_id: str | None = None,
+    product_id: str | None = None,
+    price: Any = None,
     plan: str | None = None,
 ) -> User:
-    resolved_plan = map_price_to_plan(price_id) or _normalize_plan(plan)
+    resolved_plan = map_price_to_plan(
+        price_id,
+        product_id=product_id,
+        price=price,
+    ) or _normalize_plan(plan)
 
     if customer_id and not user.stripe_customer_id:
         user.stripe_customer_id = customer_id
@@ -170,7 +249,9 @@ def _apply_subscription_event(db: Session, subscription: Any) -> User | None:
     customer_id = _stripe_get(subscription, "customer")
     subscription_id = _stripe_get(subscription, "id")
     status = _stripe_get(subscription, "status")
-    price_id = _subscription_price_id(subscription)
+    price = _subscription_price(subscription)
+    price_id = _stripe_get(price, "id")
+    product_id = _stripe_get(price, "product")
     metadata = _stripe_get(subscription, "metadata", {}) or {}
 
     user = _find_user_for_customer(
@@ -197,6 +278,8 @@ def _apply_subscription_event(db: Session, subscription: Any) -> User | None:
         subscription_id=subscription_id,
         status=status,
         price_id=price_id,
+        product_id=product_id,
+        price=price,
         plan=metadata.get("plan"),
     )
 
@@ -219,12 +302,16 @@ def _apply_checkout_session(db: Session, session: Any) -> User | None:
 
     status = "active" if payment_status in {"paid", "no_payment_required"} else None
     price_id = None
+    product_id = None
+    price = None
 
     if subscription_id:
         try:
             subscription = stripe.Subscription.retrieve(subscription_id)
             status = _stripe_get(subscription, "status") or status
-            price_id = _subscription_price_id(subscription)
+            price = _subscription_price(subscription)
+            price_id = _stripe_get(price, "id")
+            product_id = _stripe_get(price, "product")
         except Exception:
             pass
 
@@ -235,6 +322,8 @@ def _apply_checkout_session(db: Session, session: Any) -> User | None:
         subscription_id=subscription_id,
         status=status,
         price_id=price_id,
+        product_id=product_id,
+        price=price,
         plan=metadata.get("plan"),
     )
 
@@ -258,8 +347,10 @@ def list_billing_plans():
         "available_plans": ["free", "pro", "premium"],
         "stripe_configured": {
             "secret_key": bool(stripe.api_key),
-            "individual_pro_price": bool(STRIPE_PRICE_INDIVIDUAL_PRO),
-            "individual_premium_price": bool(STRIPE_PRICE_INDIVIDUAL_PREMIUM),
+            "individual_pro_price": bool(STRIPE_PLAN_CONFIG["individual_pro"].get("price_id")),
+            "individual_premium_price": bool(STRIPE_PLAN_CONFIG["individual_premium"].get("price_id")),
+            "individual_pro_product": bool(STRIPE_PLAN_CONFIG["individual_pro"].get("product_id")),
+            "individual_premium_product": bool(STRIPE_PLAN_CONFIG["individual_premium"].get("product_id")),
             "webhook_secret": bool(STRIPE_WEBHOOK_SECRET),
         },
         "plans": [
@@ -267,12 +358,24 @@ def list_billing_plans():
             {
                 "key": "pro",
                 "backend_plan": "individual_pro",
-                "checkout_enabled": bool(stripe.api_key and STRIPE_PRICE_INDIVIDUAL_PRO),
+                "checkout_enabled": bool(
+                    stripe.api_key
+                    and (
+                        STRIPE_PLAN_CONFIG["individual_pro"].get("price_id")
+                        or STRIPE_PLAN_CONFIG["individual_pro"].get("product_id")
+                    )
+                ),
             },
             {
                 "key": "premium",
                 "backend_plan": "individual_premium",
-                "checkout_enabled": bool(stripe.api_key and STRIPE_PRICE_INDIVIDUAL_PREMIUM),
+                "checkout_enabled": bool(
+                    stripe.api_key
+                    and (
+                        STRIPE_PLAN_CONFIG["individual_premium"].get("price_id")
+                        or STRIPE_PLAN_CONFIG["individual_premium"].get("product_id")
+                    )
+                ),
             },
         ],
     }
@@ -300,13 +403,13 @@ def create_checkout_session(
         raise HTTPException(status_code=400, detail="Free plan does not require checkout.")
 
     customer_id = get_or_create_stripe_customer(current_user, db)
-    price_id = get_price_id_for_plan(selected_plan)
+    line_item = get_checkout_line_item_for_plan(selected_plan)
 
     session = stripe.checkout.Session.create(
         mode="subscription",
         customer=customer_id,
         client_reference_id=str(current_user.id),
-        line_items=[{"price": price_id, "quantity": 1}],
+        line_items=[line_item],
         success_url=f"{FRONTEND_URL}/pricing?success=true&session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{FRONTEND_URL}/pricing?cancelled=true",
         allow_promotion_codes=True,

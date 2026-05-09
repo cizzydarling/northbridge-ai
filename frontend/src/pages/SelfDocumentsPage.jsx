@@ -478,7 +478,7 @@ function DocumentCard({
         </div>
 
         <div className="mt-5 space-y-2.5">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Button variant="primary" onClick={onGenerate} className="w-full justify-center">
               {text.generate}
             </Button>
@@ -1288,6 +1288,19 @@ export default function SelfDocumentsPage() {
     );
   }, [groupedDocuments, activeCategory]);
 
+  const activeGroupStats = useMemo(() => {
+    const documents = activeGroup?.documents || [];
+    const completed = documents.filter(
+      (doc) => getDocumentState(engine, doc.id).completed
+    ).length;
+
+    return {
+      total: documents.length,
+      completed,
+      remaining: Math.max(0, documents.length - completed),
+    };
+  }, [activeGroup, engine]);
+
   const firstIncompleteDoc = useMemo(() => {
     const priorityMap = {
       "Express Entry": [
@@ -1976,22 +1989,53 @@ export default function SelfDocumentsPage() {
         </div>
 
         <div className="space-y-6">
-          <Card padding="lg">
-            <div className="flex items-center justify-between gap-3">
+          <div className="rounded-2xl border border-slate-800 bg-[#172033] p-5 text-white shadow-[0_18px_60px_rgba(15,23,42,0.16)] sm:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-300">
                   {text.sectionLabel}
                 </p>
-                <h2 className="mt-1 text-xl font-semibold text-slate-900">
-                  {activeGroup?.label}
+                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-white">
+                  {activeGroup?.label ||
+                    (language === "fr" ? "Documents" : "Documents")}
                 </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
+                  {language === "fr"
+                    ? "Concentrez-vous sur cette categorie et terminez chaque document dans l'ordre: brouillon, revision, completion."
+                    : "Focus this category and move each document through draft, review, and completion."}
+                </p>
               </div>
 
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-500">
-                {activeGroup?.documents?.length} docs
-              </span>
+              <div className="grid grid-cols-3 gap-2 sm:min-w-[360px]">
+                {[
+                  [
+                    language === "fr" ? "Total" : "Total",
+                    activeGroupStats.total,
+                  ],
+                  [
+                    language === "fr" ? "Completes" : "Done",
+                    activeGroupStats.completed,
+                  ],
+                  [
+                    language === "fr" ? "Restants" : "Left",
+                    activeGroupStats.remaining,
+                  ],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-xl border border-white/10 bg-white/[0.07] px-3 py-3 text-center"
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">
+                      {label}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-white">
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </Card>
+          </div>
 
           {activeGroup?.documents?.length ? (
             <div

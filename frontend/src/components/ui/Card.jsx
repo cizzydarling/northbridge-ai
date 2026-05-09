@@ -33,10 +33,10 @@ export default function Card({
   };
 
   const paddings = {
-    sm: "p-5",
-    md: "p-6",
-    lg: "p-8",
-    xl: "p-10",
+    sm: "p-4 sm:p-5",
+    md: "p-4 sm:p-6",
+    lg: "p-5 sm:p-8",
+    xl: "p-6 sm:p-10",
     none: "",
   };
 

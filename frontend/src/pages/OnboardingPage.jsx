@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Country, City } from "country-state-city";
+import { City } from "country-state-city";
 import {
   getMyProfile,
   suggestNOC,
@@ -11,6 +11,7 @@ import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import AICopilotCard from "../components/AICopilotCard";
+import { getCountryOptions } from "../utils/countries";
 
 const defaultForm = {
   first_name: "",
@@ -73,6 +74,49 @@ function isFilled(value) {
   if (typeof value === "boolean") return true;
   if (typeof value === "number") return !Number.isNaN(value);
   return Boolean(normalizeText(value));
+}
+
+function hydrateProfileForm(data) {
+  const merged = {
+    ...defaultForm,
+    ...(data || {}),
+  };
+
+  Object.entries(defaultForm).forEach(([key, fallback]) => {
+    if (merged[key] === null || typeof merged[key] === "undefined") {
+      merged[key] = fallback;
+    }
+  });
+
+  return merged;
+}
+
+function normalizeNocMatches(data) {
+  if (Array.isArray(data?.matches) && data.matches.length > 0) {
+    return data.matches;
+  }
+
+  if (data?.suggested_noc || data?.suggested_title) {
+    return [
+      {
+        noc: data.suggested_noc,
+        title: data.suggested_title,
+        teer: data.teer,
+        confidence: data.confidence,
+        broad_category: data.broad_category,
+        immigration_category_tags: data?.immigration_flags?.category_tags || [],
+        express_entry_skilled_work:
+          data?.immigration_flags?.express_entry_skilled_work || false,
+      },
+      ...(Array.isArray(data?.alternatives) ? data.alternatives : []),
+    ].filter((item) => item?.noc || item?.title);
+  }
+
+  if (Array.isArray(data?.alternatives) && data.alternatives.length > 0) {
+    return data.alternatives;
+  }
+
+  return [];
 }
 
 function getStepOneRequiredKeys() {
@@ -176,12 +220,7 @@ export default function OnboardingPage() {
   const cityFieldRef = useRef(null);
 
   const countries = useMemo(() => {
-    return Country.getAllCountries()
-      .map((country) => ({
-        name: country.name,
-        isoCode: country.isoCode,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return getCountryOptions();
   }, []);
 
   const filteredNationalityCountries = useMemo(() => {
@@ -238,10 +277,7 @@ export default function OnboardingPage() {
         const res = await getMyProfile();
         if (!mounted) return;
 
-        const merged = {
-          ...defaultForm,
-          ...res.data,
-        };
+        const merged = hydrateProfileForm(res.data);
 
         setForm(merged);
         setNationalityQuery(merged.nationality || "");
@@ -748,14 +784,16 @@ export default function OnboardingPage() {
     setMessage("");
   }
 
-  async function handleSuggestNOC() {
+  const handleSuggestNOC = useCallback(async (options = {}) => {
+    const quiet = Boolean(options?.quiet);
+
     if (!normalizeText(form.occupation)) {
       return;
     }
 
     try {
       setSuggestingNoc(true);
-      setMessage("");
+      if (!quiet) setMessage("");
       setSuggestedNocs([]);
 
       const payload = {
@@ -764,50 +802,39 @@ export default function OnboardingPage() {
       };
 
       const res = await suggestNOC(payload);
-      const data = res?.data;
-
-      let normalizedMatches = [];
-
-      if (Array.isArray(data?.matches) && data.matches.length > 0) {
-        normalizedMatches = data.matches;
-      } else if (data?.suggested_noc || data?.suggested_title) {
-        normalizedMatches = [
-          {
-            noc: data.suggested_noc,
-            title: data.suggested_title,
-            teer: data.teer,
-            confidence: data.confidence,
-            broad_category: data.broad_category,
-            immigration_category_tags:
-              data?.immigration_flags?.category_tags || [],
-            express_entry_skilled_work:
-              data?.immigration_flags?.express_entry_skilled_work || false,
-          },
-          ...(Array.isArray(data?.alternatives) ? data.alternatives : []),
-        ].filter((item) => item?.noc || item?.title);
-      } else if (
-        Array.isArray(data?.alternatives) &&
-        data.alternatives.length > 0
-      ) {
-        normalizedMatches = data.alternatives;
-      }
+      const normalizedMatches = normalizeNocMatches(res?.data);
 
       setSuggestedNocs(normalizedMatches);
 
-      if (normalizedMatches.length === 0) {
+      if (!quiet && normalizedMatches.length === 0) {
         setMessage(pageText.noNocFound);
       }
     } catch (err) {
       console.error("Suggest NOC failed:", err);
 
-      setMessage(
-        err?.response?.data?.detail || pageText.nocSuggestionError
-      );
+      if (!quiet) {
+        setMessage(
+          err?.response?.data?.detail || pageText.nocSuggestionError
+        );
+      }
       setSuggestedNocs([]);
     } finally {
       setSuggestingNoc(false);
     }
-  }
+  }, [form.occupation, pageText.noNocFound, pageText.nocSuggestionError]);
+
+  useEffect(() => {
+    if (step !== 2 || form.noc_code.trim()) return undefined;
+
+    const occupation = normalizeText(form.occupation);
+    if (occupation.length < 3) return undefined;
+
+    const timer = window.setTimeout(() => {
+      handleSuggestNOC({ quiet: true });
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, [step, form.occupation, form.noc_code, handleSuggestNOC]);
 
   function handleSelectNoc(noc) {
     const selectedCode =
@@ -1352,7 +1379,7 @@ Explain:
 
                     <button
                       type="button"
-                      onClick={handleSuggestNOC}
+                      onClick={() => handleSuggestNOC()}
                       disabled={suggestingNoc || !normalizeText(form.occupation)}
                       className="mt-2 text-xs font-medium text-amber-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                     >

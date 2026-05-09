@@ -15,6 +15,7 @@ import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import AICopilotCard from "../components/AICopilotCard";
+import { getCountryNames } from "../utils/countries";
 
 const defaultForm = {
   first_name: "",
@@ -70,6 +71,21 @@ function SectionIntro({ eyebrow, title, body }) {
   );
 }
 
+function hydrateProfileForm(data) {
+  const merged = {
+    ...defaultForm,
+    ...(data || {}),
+  };
+
+  Object.entries(defaultForm).forEach(([key, fallback]) => {
+    if (merged[key] === null || typeof merged[key] === "undefined") {
+      merged[key] = fallback;
+    }
+  });
+
+  return merged;
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { i18n } = useTranslation();
@@ -85,6 +101,7 @@ export default function ProfilePage() {
   const [nocDutyInput, setNocDutyInput] = useState("");
   const [nocResult, setNocResult] = useState(null);
   const [nocLoading, setNocLoading] = useState(false);
+  const countryNames = useMemo(() => getCountryNames(), []);
 
   const isOnboarding = useMemo(() => {
     return (
@@ -108,10 +125,7 @@ export default function ProfilePage() {
         const response = await getMyProfile();
         const data = response.data;
 
-        const hydrated = {
-          ...defaultForm,
-          ...data,
-        };
+        const hydrated = hydrateProfileForm(data);
 
         setForm(hydrated);
         setNocDescription(hydrated.job_description || "");
@@ -756,6 +770,11 @@ Return:
                     eyebrow={pageText.personalInfo}
                     title={pageText.personalInfo}
                   />
+                  <datalist id="profile-country-options">
+                    {countryNames.map((country) => (
+                      <option key={country} value={country} />
+                    ))}
+                  </datalist>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <Input
@@ -775,12 +794,14 @@ Return:
                       label={pageText.nationality}
                       value={form.nationality}
                       onChange={handleChange}
+                      list="profile-country-options"
                     />
                     <Input
                       name="current_country"
                       label={pageText.country}
                       value={form.current_country}
                       onChange={handleChange}
+                      list="profile-country-options"
                     />
                     <Input
                       name="current_city"

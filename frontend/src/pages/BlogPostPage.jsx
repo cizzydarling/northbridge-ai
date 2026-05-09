@@ -54,6 +54,9 @@ export default function BlogPostPage() {
         name: "NorthBridgeAI",
         url: SITE_URL,
       },
+      citation: Array.isArray(article.sourceLinks)
+        ? article.sourceLinks.map((source) => source.url)
+        : undefined,
     });
   }, [article]);
 
@@ -154,6 +157,28 @@ export default function BlogPostPage() {
                 speak with a licensed immigration professional when needed.
               </p>
             </div>
+
+            {Array.isArray(article.sourceLinks) &&
+            article.sourceLinks.length > 0 ? (
+              <div className="mt-6 rounded-lg border border-stone-200 bg-stone-50 p-5">
+                <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">
+                  Official sources
+                </p>
+                <div className="mt-3 grid gap-2">
+                  {article.sourceLinks.map((source) => (
+                    <a
+                      key={source.url}
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm font-medium leading-6 text-slate-800 transition hover:border-amber-200 hover:bg-amber-50"
+                    >
+                      {source.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <aside className="space-y-5">
