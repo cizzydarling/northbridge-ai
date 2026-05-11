@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Card from "./ui/Card";
@@ -222,6 +222,8 @@ export default function OnboardingModal() {
   const [nocSuggestions, setNocSuggestions] = useState([]);
   const [nocLoading, setNocLoading] = useState(false);
   const [nocStatus, setNocStatus] = useState("");
+  const nocRequestIdRef = useRef(0);
+  const latestOccupationRef = useRef("");
 
   const currentUser = getCurrentUserLocal();
 
@@ -358,18 +360,28 @@ export default function OnboardingModal() {
 
   function handleChange(e) {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
 
     if (name === "occupation") {
+      latestOccupationRef.current = value.trim();
+      nocRequestIdRef.current += 1;
       setNocSuggestions([]);
       setNocStatus("");
     }
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "occupation" ? { noc_code: "" } : {}),
+    }));
   }
 
   const requestNocSuggestions = useCallback(async ({ quiet = false } = {}) => {
     const occupation = form.occupation.trim();
 
     if (!occupation) return;
+
+    const requestId = nocRequestIdRef.current + 1;
+    nocRequestIdRef.current = requestId;
 
     try {
       setNocLoading(true);
@@ -381,6 +393,14 @@ export default function OnboardingModal() {
       });
 
       const matches = normalizeNocMatches(res?.data);
+
+      if (
+        requestId !== nocRequestIdRef.current ||
+        latestOccupationRef.current !== occupation
+      ) {
+        return;
+      }
+
       setNocSuggestions(matches);
       setNocStatus(
         matches.length
@@ -393,6 +413,12 @@ export default function OnboardingModal() {
       );
     } catch (err) {
       console.error("Starter onboarding NOC suggestion failed:", err);
+      if (
+        requestId !== nocRequestIdRef.current ||
+        latestOccupationRef.current !== occupation
+      ) {
+        return;
+      }
       if (!quiet) {
         setNocStatus(
           language === "fr"
@@ -401,7 +427,9 @@ export default function OnboardingModal() {
         );
       }
     } finally {
-      setNocLoading(false);
+      if (requestId === nocRequestIdRef.current) {
+        setNocLoading(false);
+      }
     }
   }, [form.occupation, language]);
 
@@ -418,6 +446,10 @@ export default function OnboardingModal() {
       language === "fr" ? "CNP applique au profil." : "NOC applied to profile."
     );
   }
+
+  useEffect(() => {
+    latestOccupationRef.current = form.occupation.trim();
+  }, [form.occupation]);
 
   useEffect(() => {
     if (step !== 3 || form.noc_code.trim()) return undefined;

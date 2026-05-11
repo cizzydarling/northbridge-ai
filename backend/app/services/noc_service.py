@@ -73,11 +73,32 @@ def _normalize_phrase(value: Optional[str]) -> str:
     return _normalize_text(value)
 
 
+def _normalize_token(token: str) -> str:
+    token = str(token or "").strip()
+    if len(token) <= 3:
+        return token
+    if token.endswith("ies") and len(token) > 4:
+        return f"{token[:-3]}y"
+    if token.endswith("ches") or token.endswith("shes"):
+        return token[:-2]
+    if token.endswith("ses") and not token.endswith("sses"):
+        return token[:-2]
+    if token.endswith("es") and token[-3:-2] in {"x", "s", "z"}:
+        return token[:-2]
+    if token.endswith("s") and not token.endswith(("ss", "us", "ics")):
+        return token[:-1]
+    return token
+
+
 def _tokenize(value: Optional[str]) -> List[str]:
     text = _normalize_text(value)
     if not text:
         return []
-    return [part for part in text.split(" ") if part and part not in STOPWORDS]
+    return [
+        _normalize_token(part)
+        for part in text.split(" ")
+        if part and part not in STOPWORDS
+    ]
 
 
 def _token_set(value: Optional[str]) -> Set[str]:
@@ -259,10 +280,66 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "call center agent",
             "support representative",
         ],
+        "teacher": [
+            "secondary school teacher",
+            "elementary school teacher",
+            "kindergarten teacher",
+            "college instructor",
+            "vocational instructor",
+            "university professor",
+            "lecturer",
+        ],
+        "school teacher": [
+            "secondary school teacher",
+            "elementary school teacher",
+            "kindergarten teacher",
+            "teacher",
+        ],
+        "secondary teacher": [
+            "secondary school teacher",
+            "high school teacher",
+            "teacher",
+        ],
+        "high school teacher": [
+            "secondary school teacher",
+            "secondary teacher",
+            "teacher",
+        ],
+        "elementary teacher": [
+            "elementary school teacher",
+            "kindergarten teacher",
+            "primary school teacher",
+            "teacher",
+        ],
+        "kindergarten teacher": [
+            "elementary school teacher",
+            "kindergarten teacher",
+            "early childhood educator",
+            "teacher",
+        ],
+        "college teacher": [
+            "college instructor",
+            "vocational instructor",
+            "post-secondary instructor",
+            "teacher",
+        ],
+        "university teacher": [
+            "university professor",
+            "lecturer",
+            "teacher",
+        ],
+        "instructor": [
+            "college instructor",
+            "vocational instructor",
+            "trainer",
+            "teacher",
+        ],
     }
 
     for key, extra in synonym_groups.items():
         key_norm = _normalize_text(key)
+        if key_norm == "teacher" and normalized != key_norm:
+            continue
         if normalized == key_norm or key_norm in normalized or key_norm in simplified:
             variants.update(_normalize_text(item) for item in extra)
 

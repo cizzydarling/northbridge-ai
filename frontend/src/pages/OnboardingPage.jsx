@@ -218,6 +218,8 @@ export default function OnboardingPage() {
   const nationalityFieldRef = useRef(null);
   const countryFieldRef = useRef(null);
   const cityFieldRef = useRef(null);
+  const nocRequestIdRef = useRef(0);
+  const latestOccupationRef = useRef("");
 
   const countries = useMemo(() => {
     return getCountryOptions();
@@ -336,6 +338,10 @@ export default function OnboardingPage() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    latestOccupationRef.current = normalizeText(form.occupation);
+  }, [form.occupation]);
 
   const pageText = useMemo(() => {
     if (language === "fr") {
@@ -627,6 +633,8 @@ export default function OnboardingPage() {
     const { name, value, type, checked } = e.target;
 
     if (name === "occupation") {
+      latestOccupationRef.current = normalizeText(value);
+      nocRequestIdRef.current += 1;
       setSuggestedNocs([]);
       if (message === pageText.noNocFound) {
         setMessage("");
@@ -638,6 +646,7 @@ export default function OnboardingPage() {
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
+      ...(name === "occupation" ? { noc_code: "" } : {}),
     }));
   }
 
@@ -786,10 +795,14 @@ export default function OnboardingPage() {
 
   const handleSuggestNOC = useCallback(async (options = {}) => {
     const quiet = Boolean(options?.quiet);
+    const occupation = normalizeText(options?.occupation || form.occupation);
 
-    if (!normalizeText(form.occupation)) {
+    if (!occupation) {
       return;
     }
+
+    const requestId = nocRequestIdRef.current + 1;
+    nocRequestIdRef.current = requestId;
 
     try {
       setSuggestingNoc(true);
@@ -797,12 +810,19 @@ export default function OnboardingPage() {
       setSuggestedNocs([]);
 
       const payload = {
-        occupation: normalizeText(form.occupation),
+        occupation,
         top_k: 3,
       };
 
       const res = await suggestNOC(payload);
       const normalizedMatches = normalizeNocMatches(res?.data);
+
+      if (
+        requestId !== nocRequestIdRef.current ||
+        latestOccupationRef.current !== occupation
+      ) {
+        return;
+      }
 
       setSuggestedNocs(normalizedMatches);
 
@@ -812,6 +832,13 @@ export default function OnboardingPage() {
     } catch (err) {
       console.error("Suggest NOC failed:", err);
 
+      if (
+        requestId !== nocRequestIdRef.current ||
+        latestOccupationRef.current !== occupation
+      ) {
+        return;
+      }
+
       if (!quiet) {
         setMessage(
           err?.response?.data?.detail || pageText.nocSuggestionError
@@ -819,7 +846,9 @@ export default function OnboardingPage() {
       }
       setSuggestedNocs([]);
     } finally {
-      setSuggestingNoc(false);
+      if (requestId === nocRequestIdRef.current) {
+        setSuggestingNoc(false);
+      }
     }
   }, [form.occupation, pageText.noNocFound, pageText.nocSuggestionError]);
 
@@ -830,7 +859,7 @@ export default function OnboardingPage() {
     if (occupation.length < 3) return undefined;
 
     const timer = window.setTimeout(() => {
-      handleSuggestNOC({ quiet: true });
+      handleSuggestNOC({ quiet: true, occupation });
     }, 650);
 
     return () => window.clearTimeout(timer);
