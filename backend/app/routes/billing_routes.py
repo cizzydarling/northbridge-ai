@@ -840,6 +840,8 @@ def create_checkout_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ensure_stripe_configured()
+
     selected_plan = _normalize_plan(payload.get("plan"))
 
     if selected_plan == "free":

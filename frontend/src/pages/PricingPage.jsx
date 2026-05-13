@@ -637,6 +637,8 @@ export default function PricingPage() {
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     import.meta.env.DEV;
+  const useDevBillingShortcut =
+    isLocalDev && import.meta.env.VITE_BILLING_MODE === "dev";
 
   const loadBillingPage = useCallback(async () => {
     try {
@@ -751,7 +753,7 @@ export default function PricingPage() {
 
       const backendPlan = toBackendPlan(plan);
 
-      if (isLocalDev) {
+      if (useDevBillingShortcut) {
         await devSetPlan({
           plan: backendPlan,
           subscription_status: backendPlan === "free" ? null : "active",
@@ -780,11 +782,17 @@ export default function PricingPage() {
       window.location.href = url;
     } catch (err) {
       console.error(err);
+      const detail = err?.response?.data?.detail;
+      const localStripeHint =
+        isLocalDev && detail
+          ? ` ${language === "fr" ? "Verifiez les variables Stripe locales si vous testez le paiement." : "Check local Stripe variables if you are testing checkout."}`
+          : "";
       setMessage(
-        err?.response?.data?.detail ||
-          (language === "fr"
+        detail
+          ? `${detail}${localStripeHint}`
+          : language === "fr"
             ? "Impossible de demarrer le paiement."
-            : "Unable to start checkout.")
+            : "Unable to start checkout."
       );
     } finally {
       setCheckoutLoadingPlan("");

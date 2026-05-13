@@ -71,29 +71,37 @@ function createPdfLayout(doc, language, title) {
 
   function drawHeader(isFirstPage = false, subtitle = "") {
     if (isFirstPage) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(20);
-      doc.text(title || "NorthBridgeAI", marginX, y);
+      doc.setFillColor(18, 20, 23);
+      doc.roundedRect(marginX, y - 8, usableWidth, 122, 16, 16, "F");
 
-      y += 24;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(197, 138, 34);
+      doc.text("NORTHBRIDGEAI", marginX + 22, y + 18);
+
+      doc.setFontSize(22);
+      doc.setTextColor(255, 255, 255);
+      const titleLines = doc.splitTextToSize(title || "NorthBridgeAI", usableWidth - 44);
+      doc.text(titleLines, marginX + 22, y + 48);
 
       if (subtitle) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        const lines = doc.splitTextToSize(subtitle, usableWidth);
-        doc.text(lines, marginX, y);
-        y += lines.length * 12 + 8;
+        doc.setTextColor(203, 213, 225);
+        const lines = doc.splitTextToSize(subtitle, usableWidth - 44);
+        doc.text(lines, marginX + 22, y + 80);
       }
 
-      doc.setDrawColor(220, 226, 232);
-      doc.line(marginX, y, pageWidth - marginX, y);
-      y += 26;
+      doc.setTextColor(0, 0, 0);
+      y += 144;
     } else {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
+      doc.setTextColor(17, 24, 39);
       doc.text("NorthBridgeAI", marginX, 28);
       doc.setDrawColor(230, 235, 240);
       doc.line(marginX, 36, pageWidth - marginX, 36);
+      doc.setTextColor(0, 0, 0);
       y = 56;
     }
   }
@@ -103,12 +111,15 @@ function createPdfLayout(doc, language, title) {
     doc.line(marginX, footerY - 12, pageWidth - marginX, footerY - 12);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Premium PDF export - verify official requirements before filing.", marginX, footerY);
     doc.text(
       `${lang === "fr" ? "Page" : "Page"} ${pageNumber}`,
       pageWidth - marginX,
       footerY,
       { align: "right" }
     );
+    doc.setTextColor(0, 0, 0);
   }
 
   function ensureSpace(requiredHeight = 24) {
@@ -126,7 +137,9 @@ function createPdfLayout(doc, language, title) {
     ensureSpace(estimatedHeight);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(fontSize);
+    doc.setTextColor(17, 24, 39);
     doc.text(lines, marginX, y);
+    doc.setTextColor(0, 0, 0);
     y += estimatedHeight;
   }
 
@@ -144,9 +157,13 @@ function createPdfLayout(doc, language, title) {
 
   function drawSectionHeading(text) {
     ensureSpace(28);
+    doc.setFillColor(197, 138, 34);
+    doc.roundedRect(marginX, y - 9, 4, 18, 2, 2, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text(String(text || "").replace(/:\s*$/, ""), marginX, y);
+    doc.setTextColor(17, 24, 39);
+    doc.text(String(text || "").replace(/:\s*$/, ""), marginX + 12, y);
+    doc.setTextColor(0, 0, 0);
     y += 20;
   }
 
@@ -182,7 +199,7 @@ function createPdfLayout(doc, language, title) {
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(fontSize);
-      doc.text("•", bulletIndent, y);
+      doc.text("-", bulletIndent, y);
       doc.text(lines, textIndent, y);
       y += estimatedHeight;
     });
@@ -213,18 +230,21 @@ function createPdfLayout(doc, language, title) {
         rowHeight = Math.max(rowHeight, boxHeight);
       }
 
+      doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(currentX, y, colWidth, boxHeight, 12, 12);
+      doc.roundedRect(currentX, y, colWidth, boxHeight, 12, 12, "FD");
+      doc.setFillColor(197, 138, 34);
+      doc.roundedRect(currentX + 8, y + 8, 22, 3, 2, 2, "F");
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
-      doc.text(labelLines, currentX + 8, y + 14);
+      doc.text(labelLines, currentX + 8, y + 22);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
       doc.setTextColor(15, 23, 42);
-      doc.text(valueLines, currentX + 8, y + 34);
+      doc.text(valueLines, currentX + 8, y + 42);
 
       doc.setTextColor(0, 0, 0);
 
@@ -282,7 +302,7 @@ export function exportDocumentToPdf({
     tone ? `${lang === "fr" ? "Ton" : "Tone"}: ${tone}` : null,
   ]
     .filter(Boolean)
-    .join(" • ");
+    .join(" | ");
 
   layout.drawHeader(true, metaLine);
 
@@ -334,7 +354,7 @@ export function exportStrategyReportToPdf({
     lang === "fr" ? "Rapport personnalisé de stratégie d’immigration" : "Personalized immigration strategy report",
   ].filter(Boolean);
 
-  layout.drawHeader(true, subtitleParts.join(" • "));
+  layout.drawHeader(true, subtitleParts.join(" | "));
 
   const crsScore = strategy?.crs_score;
   const crsBandLabel = strategy?.crs_band?.label;
@@ -433,7 +453,7 @@ export function exportStrategyReportToPdf({
 
     strategy.province_recommendations.forEach((item) => {
       layout.drawBodyText(
-        `${safeText(item?.province)} — ${safeText(item?.program)}`,
+        `${safeText(item?.province)} - ${safeText(item?.program)}`,
         11,
         4
       );
