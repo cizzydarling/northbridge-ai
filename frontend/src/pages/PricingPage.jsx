@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import Button from "../components/ui/Button";
 import {
+  cancelSubscription,
   createCheckoutSession,
   createPortalSession,
   devSetPlan,
   getBillingAccess,
   getBillingPlans,
   getBillingStatus,
+  getBillingTransactions,
   refreshCurrentUser,
   syncCheckoutSession,
 } from "../api";
@@ -44,6 +46,33 @@ function getDisplayPlan(plan, language) {
   if (normalized === "premium") return "Premium";
   if (normalized === "pro") return "Pro";
   return "Free";
+}
+
+function formatBillingAmount(amount, currency = "CAD", language = "en") {
+  if (amount === null || typeof amount === "undefined") return "--";
+
+  const normalizedCurrency = String(currency || "CAD").toUpperCase();
+  try {
+    return new Intl.NumberFormat(language === "fr" ? "fr-CA" : "en-CA", {
+      style: "currency",
+      currency: normalizedCurrency,
+    }).format(Number(amount) / 100);
+  } catch {
+    return `${(Number(amount) / 100).toFixed(2)} ${normalizedCurrency}`;
+  }
+}
+
+function formatBillingDate(value, language = "en") {
+  if (!value) return "--";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+
+  return new Intl.DateTimeFormat(language === "fr" ? "fr-CA" : "en-CA", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
 }
 
 function SurfaceCard({ children, className = "" }) {
@@ -177,6 +206,105 @@ function ComparisonValue({ value, emphasized = false, language = "en" }) {
     >
       {value}
     </span>
+  );
+}
+
+function TransactionHistory({ transactions, text, language }) {
+  const rows = Array.isArray(transactions) ? transactions : [];
+
+  return (
+    <SurfaceCard className="mt-6">
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+            {text.transactionsTitle}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {text.transactionsSubtitle}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 overflow-x-auto rounded-lg border border-slate-200">
+        <div className="min-w-[880px]">
+          <div className="grid grid-cols-[0.9fr_0.85fr_0.75fr_0.7fr_1.35fr_0.8fr] bg-slate-50">
+            <div className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+              {text.transactionDate}
+            </div>
+            <div className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+              {text.transactionPlan}
+            </div>
+            <div className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+              {text.transactionAmount}
+            </div>
+            <div className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+              {text.transactionStatus}
+            </div>
+            <div className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+              {text.billingEmail}
+            </div>
+            <div className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+              {text.receipt}
+            </div>
+          </div>
+
+          {rows.length ? (
+            rows.map((transaction) => {
+              const receiptUrl = transaction.receipt_url || transaction.invoice_pdf;
+              return (
+                <div
+                  key={transaction.id}
+                  className="grid grid-cols-[0.9fr_0.85fr_0.75fr_0.7fr_1.35fr_0.8fr] items-center border-t border-slate-200 bg-white"
+                >
+                  <div className="px-4 py-4 text-sm text-slate-700">
+                    {formatBillingDate(
+                      transaction.paid_at || transaction.created_at,
+                      language
+                    )}
+                  </div>
+                  <div className="px-4 py-4 text-sm font-medium text-slate-900">
+                    {getDisplayPlan(transaction.plan, language)}
+                  </div>
+                  <div className="px-4 py-4 text-sm text-slate-700">
+                    {formatBillingAmount(
+                      transaction.amount,
+                      transaction.currency,
+                      language
+                    )}
+                  </div>
+                  <div className="px-4 py-4">
+                    <span className="inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                      {transaction.status || "--"}
+                    </span>
+                  </div>
+                  <div className="break-words px-4 py-4 text-sm text-slate-700">
+                    {transaction.billing_email || "-"}
+                  </div>
+                  <div className="px-4 py-4 text-sm">
+                    {receiptUrl ? (
+                      <a
+                        href={receiptUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                      >
+                        {text.viewReceipt}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400">{text.noReceipt}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="border-t border-slate-200 bg-white px-4 py-8 text-sm text-slate-500">
+              {text.noTransactions}
+            </div>
+          )}
+        </div>
+      </div>
+    </SurfaceCard>
   );
 }
 
@@ -489,10 +617,12 @@ export default function PricingPage() {
   const [billingStatus, setBillingStatus] = useState(null);
   const [access, setAccess] = useState(null);
   const [availablePlans, setAvailablePlans] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState("");
   const [portalLoading, setPortalLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [devSwitchLoading, setDevSwitchLoading] = useState("");
   const [successRefreshing, setSuccessRefreshing] = useState(false);
 
@@ -508,10 +638,51 @@ export default function PricingPage() {
     window.location.hostname === "127.0.0.1" ||
     import.meta.env.DEV;
 
+  const loadBillingPage = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [statusRes, accessRes, plansRes, transactionsRes] =
+        await Promise.allSettled([
+          getBillingStatus(),
+          getBillingAccess(),
+          getBillingPlans(),
+          getBillingTransactions(),
+        ]);
+
+      if (statusRes.status === "fulfilled") {
+        setBillingStatus(statusRes.value.data);
+      }
+
+      if (accessRes.status === "fulfilled") {
+        setAccess(accessRes.value.data);
+      }
+
+      if (plansRes.status === "fulfilled") {
+        setAvailablePlans(plansRes.value.data?.available_plans || []);
+      }
+
+      if (transactionsRes.status === "fulfilled") {
+        setTransactions(
+          Array.isArray(transactionsRes.value.data)
+            ? transactionsRes.value.data
+            : []
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        language === "fr"
+          ? "Impossible de charger les informations de tarification."
+          : "Unable to load pricing information."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [language]);
+
   useEffect(() => {
     loadBillingPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadBillingPage]);
 
   useEffect(() => {
     const handleStripeReturn = async () => {
@@ -555,7 +726,14 @@ export default function PricingPage() {
     };
 
     handleStripeReturn();
-  }, [successFlag, checkoutSessionId, language, searchParams, setSearchParams]);
+  }, [
+    successFlag,
+    checkoutSessionId,
+    language,
+    searchParams,
+    setSearchParams,
+    loadBillingPage,
+  ]);
 
   useEffect(() => {
     if (cancelledFlag !== "true") return;
@@ -565,38 +743,6 @@ export default function PricingPage() {
     next.delete("cancelled");
     setSearchParams(next, { replace: true });
   }, [cancelledFlag, language, searchParams, setSearchParams]);
-
-  async function loadBillingPage() {
-    try {
-      setLoading(true);
-      const [statusRes, accessRes, plansRes] = await Promise.allSettled([
-        getBillingStatus(),
-        getBillingAccess(),
-        getBillingPlans(),
-      ]);
-
-      if (statusRes.status === "fulfilled") {
-        setBillingStatus(statusRes.value.data);
-      }
-
-      if (accessRes.status === "fulfilled") {
-        setAccess(accessRes.value.data);
-      }
-
-      if (plansRes.status === "fulfilled") {
-        setAvailablePlans(plansRes.value.data?.available_plans || []);
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage(
-        language === "fr"
-          ? "Impossible de charger les informations de tarification."
-          : "Unable to load pricing information."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleCheckout(plan) {
     try {
@@ -667,6 +813,41 @@ export default function PricingPage() {
     }
   }
 
+  async function handleCancelSubscription() {
+    const confirmed = window.confirm(text.cancelConfirm);
+    if (!confirmed) return;
+
+    try {
+      setCancelLoading(true);
+      setMessage("");
+
+      const res = await cancelSubscription();
+      await refreshCurrentUser();
+      await loadBillingPage();
+
+      window.dispatchEvent(new Event("userUpdated"));
+      window.dispatchEvent(new Event("nbai-strategy-refresh"));
+      window.dispatchEvent(new Event("nbai-document-engine-updated"));
+
+      const emailStatus = res?.data?.email_status;
+      setMessage(
+        emailStatus === "sent" || emailStatus === "already_sent"
+          ? text.cancelSuccessEmail
+          : text.cancelSuccessNoEmail
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        err?.response?.data?.detail ||
+          (language === "fr"
+            ? "Impossible d'annuler l'abonnement pour le moment."
+            : "Unable to cancel the subscription right now.")
+      );
+    } finally {
+      setCancelLoading(false);
+    }
+  }
+
   async function handleDevPlanSwitch(plan) {
     try {
       setDevSwitchLoading(plan);
@@ -708,6 +889,14 @@ export default function PricingPage() {
   const subscriptionStatus = billingStatus?.subscription_status || "";
   const currentRole = billingStatus?.role || "individual";
   const hasStripeCustomer = Boolean(billingStatus?.stripe_customer_id);
+  const cancellationScheduled = Boolean(
+    billingStatus?.subscription_cancel_at_period_end ||
+      subscriptionStatus === "canceling"
+  );
+  const currentPeriodEndLabel = formatBillingDate(
+    billingStatus?.subscription_current_period_end,
+    language
+  );
 
   const text = useMemo(() => {
     if (language === "fr") {
@@ -719,6 +908,18 @@ export default function PricingPage() {
         currentPlan: "Plan actuel",
         billingStatus: "Statut",
         manageBilling: "Gerer ma facturation",
+        cancelSubscription: "Annuler l'abonnement",
+        cancelingSubscription: "Annulation...",
+        cancelConfirm:
+          "Confirmez-vous l'annulation de votre abonnement a la fin de la periode payee ?",
+        cancelSuccessEmail:
+          "Annulation programmee. Un email de confirmation a ete envoye.",
+        cancelSuccessNoEmail:
+          "Annulation programmee. L'email de confirmation sera envoye lorsque la configuration SMTP sera active.",
+        cancellationScheduled: "Annulation programmee",
+        cancellationBody:
+          "Votre acces reste actif jusqu'a la fin de la periode payee. Aucun renouvellement ne sera facture.",
+        accessUntil: "Acces jusqu'au",
         includedFeatures: "Inclus",
         mostPopular: "Le plus populaire",
         startFree: "Commencer gratuitement",
@@ -758,6 +959,19 @@ export default function PricingPage() {
         notAvailable: "Non disponible",
         roleLabel: "Role",
         rawPlanLabel: "Plan brut",
+        transactionsTitle: "Transactions",
+        transactionsSubtitle:
+          "Historique des paiements Stripe avec email de facturation et recu.",
+        transactionDate: "Date",
+        transactionPlan: "Plan",
+        transactionAmount: "Montant",
+        transactionStatus: "Statut",
+        billingEmail: "Email de facturation",
+        receipt: "Recu",
+        viewReceipt: "Voir le recu",
+        noReceipt: "Non disponible",
+        noTransactions:
+          "Aucune transaction pour le moment. Les nouveaux paiements apparaitront ici.",
         valueTitle: "Pourquoi passer a un plan superieur",
         valueCards: [
           {
@@ -820,6 +1034,18 @@ export default function PricingPage() {
       currentPlan: "Current plan",
       billingStatus: "Status",
       manageBilling: "Manage billing",
+      cancelSubscription: "Cancel subscription",
+      cancelingSubscription: "Canceling...",
+      cancelConfirm:
+        "Confirm cancellation at the end of the paid billing period?",
+      cancelSuccessEmail:
+        "Cancellation scheduled. A confirmation email has been sent.",
+      cancelSuccessNoEmail:
+        "Cancellation scheduled. The confirmation email will send when SMTP is configured.",
+      cancellationScheduled: "Cancellation scheduled",
+      cancellationBody:
+        "Your access remains active until the end of the paid billing period. No renewal will be charged.",
+      accessUntil: "Access until",
       includedFeatures: "Included",
       mostPopular: "Most popular",
       startFree: "Start free",
@@ -859,6 +1085,19 @@ export default function PricingPage() {
       notAvailable: "Not available",
       roleLabel: "Role",
       rawPlanLabel: "Raw plan",
+      transactionsTitle: "Transactions",
+      transactionsSubtitle:
+        "Stripe payment history with billing email and receipt access.",
+      transactionDate: "Date",
+      transactionPlan: "Plan",
+      transactionAmount: "Amount",
+      transactionStatus: "Status",
+      billingEmail: "Billing Email",
+      receipt: "Receipt",
+      viewReceipt: "View Receipt",
+      noReceipt: "Not available",
+      noTransactions:
+        "No transactions yet. New payments will appear here.",
       valueTitle: "Why users upgrade",
       valueCards: [
         {
@@ -1179,8 +1418,43 @@ export default function PricingPage() {
               {recommendedPlan === "premium" ? text.premiumTitle : text.proTitle}
             </div>
           ) : null}
+          {cancellationScheduled ? (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+              <span className="font-semibold">{text.cancellationScheduled}: </span>
+              {text.cancellationBody}
+              {currentPeriodEndLabel !== "--" ? (
+                <span className="mt-1 block">
+                  {text.accessUntil}: {currentPeriodEndLabel}
+                </span>
+              ) : null}
+            </div>
+          ) : currentPlan !== "free" && hasStripeCustomer ? (
+            <div className="mt-4 rounded-lg border border-red-100 bg-red-50/60 px-4 py-3">
+              <p className="text-sm leading-6 text-red-900">
+                {language === "fr"
+                  ? "Vous pouvez programmer l'annulation a la fin de votre periode payee."
+                  : "You can schedule cancellation at the end of your paid period."}
+              </p>
+              <Button
+                variant="danger"
+                size="sm"
+                className="mt-3"
+                onClick={handleCancelSubscription}
+                loading={cancelLoading}
+                disabled={cancelLoading}
+              >
+                {cancelLoading ? text.cancelingSubscription : text.cancelSubscription}
+              </Button>
+            </div>
+          ) : null}
         </SurfaceCard>
       </div>
+
+      <TransactionHistory
+        transactions={transactions}
+        text={text}
+        language={language}
+      />
 
       <SurfaceCard className="mt-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">

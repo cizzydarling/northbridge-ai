@@ -37,6 +37,7 @@ from app.routes import (
 import app.models.disclosure_acceptance_model
 import app.models.generated_document_model
 import app.models.matter_model
+import app.models.billing_transaction_model
 import app.models.profile_model
 import app.models.recommendation
 import app.models.self_application_model

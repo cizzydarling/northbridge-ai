@@ -20,6 +20,7 @@ import app.models.recommendation  # noqa: E402
 import app.models.matter_model
 import app.models.self_application_model
 import app.models.self_document_model
+import app.models.billing_transaction_model
 
 
 config = context.config

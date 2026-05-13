@@ -30,14 +30,14 @@ export default function StatCard({
       trend: "border-red-200 bg-red-50 text-red-700",
     },
     info: {
-      card: "border-blue-200 bg-blue-50/40",
-      badge: "border-blue-200 bg-blue-50 text-blue-700",
-      trend: "border-blue-200 bg-blue-50 text-blue-700",
+      card: "border-teal-200 bg-teal-50/40",
+      badge: "border-teal-200 bg-teal-50 text-teal-700",
+      trend: "border-teal-200 bg-teal-50 text-teal-700",
     },
     premium: {
-      card: "border-violet-200 bg-gradient-to-br from-violet-50 to-white",
-      badge: "border-violet-200 bg-violet-50 text-violet-700",
-      trend: "border-violet-200 bg-violet-50 text-violet-700",
+      card: "border-amber-200 bg-stone-50",
+      badge: "border-amber-200 bg-amber-50 text-amber-800",
+      trend: "border-amber-200 bg-amber-50 text-amber-800",
     },
   };
 

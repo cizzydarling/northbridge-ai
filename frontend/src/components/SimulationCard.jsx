@@ -16,7 +16,7 @@ export default function SimulationCard({
   return (
     <div
       className={`rounded-2xl border bg-white p-5 shadow-sm transition ${
-        selected ? "border-blue-600 ring-2 ring-blue-100" : "border-slate-200"
+        selected ? "border-amber-500 ring-2 ring-amber-100" : "border-slate-200"
       }`}
     >
       <div className="flex items-start justify-between gap-4">
@@ -37,7 +37,7 @@ export default function SimulationCard({
             onClick={() => onSelect?.(simulation.id)}
             className={`rounded-lg px-3 py-2 text-sm font-medium ${
               selected
-                ? "bg-blue-600 text-white"
+                ? "bg-slate-950 text-white"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
@@ -92,7 +92,7 @@ export default function SimulationCard({
             pathwayComparison.simulated_eligible_pathways.map((pathway) => (
               <span
                 key={pathway}
-                className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700"
+                className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800"
               >
                 {pathway}
               </span>
@@ -113,7 +113,7 @@ export default function SimulationCard({
 
         <button
           onClick={() => onCompare?.(simulation)}
-          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
         >
           Compare
         </button>

@@ -115,14 +115,8 @@ export default function UpgradeModal({
       aria-labelledby="upgrade-modal-title"
     >
       <div className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
-        <div
-          className={`px-6 py-6 text-white ${
-            isPremium
-              ? "bg-gradient-to-br from-purple-900 via-violet-700 to-indigo-600"
-              : "bg-gradient-to-br from-blue-900 via-blue-700 to-indigo-600"
-          }`}
-        >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-100">
+        <div className="bg-slate-950 px-6 py-6 text-white">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100">
             {text.eyebrow}
           </p>
 
@@ -133,7 +127,7 @@ export default function UpgradeModal({
             {text.title}
           </h3>
 
-          <p className="mt-3 text-sm leading-7 text-blue-50">{text.body}</p>
+          <p className="mt-3 text-sm leading-7 text-slate-200">{text.body}</p>
         </div>
 
         <div className="px-6 py-6">
@@ -156,13 +150,13 @@ export default function UpgradeModal({
           <div
             className={`rounded-[24px] p-4 ${
               isPremium
-                ? "border border-purple-200 bg-purple-50"
+                ? "border border-amber-200 bg-amber-50"
                 : "border border-amber-200 bg-amber-50"
             }`}
           >
             <p
               className={`text-sm font-semibold ${
-                isPremium ? "text-purple-900" : "text-amber-900"
+                isPremium ? "text-amber-900" : "text-amber-900"
               }`}
             >
               {text.highlightsTitle}
@@ -185,8 +179,8 @@ export default function UpgradeModal({
               onClick={onUpgrade}
               className={`flex-1 rounded-2xl px-5 py-3 text-sm font-semibold text-white transition ${
                 isPremium
-                  ? "bg-purple-600 hover:bg-purple-700"
-                  : "bg-blue-600 hover:bg-blue-700"
+                  ? "bg-slate-950 hover:bg-slate-800"
+                  : "bg-slate-950 hover:bg-slate-800"
               }`}
             >
               {text.primary}

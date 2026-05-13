@@ -157,7 +157,7 @@ function SelectField({ label, name, value, onChange, options, placeholder }) {
         name={name}
         value={value}
         onChange={onChange}
-        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
       >
         <option value="">{placeholder}</option>
         {options.map((option) => {
@@ -572,7 +572,7 @@ export default function OnboardingModal() {
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
       <Card className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-[0_20px_80px_rgba(15,23,42,0.18)] sm:rounded-[32px]">
         <div className="border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">
             NorthBridgeAI
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
@@ -592,7 +592,7 @@ export default function OnboardingModal() {
                 key={item}
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
                   step === item
-                    ? "bg-blue-50 text-blue-700"
+                    ? "bg-amber-50 text-amber-800"
                     : "bg-slate-100 text-slate-500"
                 }`}
               >

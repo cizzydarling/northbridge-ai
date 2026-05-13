@@ -1,9 +1,12 @@
 import os
+import logging
+from datetime import datetime, timezone
 from typing import Any
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.access_control import (
@@ -15,10 +18,19 @@ from app.core.access_control import (
     get_user_plan,
 )
 from app.data.db import get_db
+from app.models.billing_transaction_model import BillingTransaction
 from app.models.user_models import User
 from app.routes.auth_routes import get_current_user
+from app.schemas.billing_schema import BillingTransactionResponse
+from app.services.email_service import (
+    build_payment_confirmation_email,
+    build_subscription_cancellation_email,
+    send_email,
+)
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+logger = logging.getLogger(__name__)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
@@ -88,6 +100,365 @@ def _stripe_get(value: Any, key: str, default: Any = None) -> Any:
     return getattr(value, key, default)
 
 
+def _stripe_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromtimestamp(int(value), tz=timezone.utc)
+    except (TypeError, ValueError, OSError):
+        return None
+
+
+def _first_present(*values: Any) -> Any:
+    for value in values:
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _checkout_billing_email(session: Any, user: User) -> str | None:
+    customer_details = _stripe_get(session, "customer_details", {}) or {}
+    return _first_present(
+        _stripe_get(customer_details, "email"),
+        _stripe_get(session, "customer_email"),
+        user.email,
+    )
+
+
+def _checkout_customer_name(session: Any) -> str | None:
+    customer_details = _stripe_get(session, "customer_details", {}) or {}
+    return _stripe_get(customer_details, "name")
+
+
+def _invoice_price(invoice: Any) -> Any | None:
+    lines = _stripe_get(_stripe_get(invoice, "lines"), "data", []) or []
+    if not lines:
+        return None
+    return _stripe_get(lines[0], "price", {}) or {}
+
+
+def _plan_display_name(plan: str | None) -> str:
+    normalized = _normalize_plan(plan)
+    plan_config = STRIPE_PLAN_CONFIG.get(normalized)
+    if plan_config:
+        return plan_config["name"]
+    return "NorthbridgeAI"
+
+
+def _format_transaction_amount(amount: int | None, currency: str | None) -> str:
+    if amount is None:
+        return "Not available"
+    normalized_currency = str(currency or "CAD").upper()
+    return f"{amount / 100:.2f} {normalized_currency}"
+
+
+def _customer_display_name(user: User, transaction: BillingTransaction) -> str | None:
+    if transaction.customer_name:
+        return transaction.customer_name
+
+    return _user_display_name(user)
+
+
+def _user_display_name(user: User) -> str | None:
+    profile = getattr(user, "profile", None)
+    first_name = str(getattr(user, "first_name", "") or getattr(profile, "first_name", "") or "").strip()
+    last_name = str(getattr(user, "last_name", "") or getattr(profile, "last_name", "") or "").strip()
+    full_name = " ".join(part for part in [first_name, last_name] if part).strip()
+    return full_name or None
+
+
+def _latest_billing_email(db: Session, user: User) -> str | None:
+    transaction = (
+        db.query(BillingTransaction)
+        .filter(BillingTransaction.user_id == user.id)
+        .filter(BillingTransaction.billing_email.isnot(None))
+        .order_by(BillingTransaction.created_at.desc())
+        .first()
+    )
+    return transaction.billing_email if transaction else None
+
+
+def _format_billing_date(value: datetime | None) -> str | None:
+    if not value:
+        return None
+    return value.strftime("%B %d, %Y")
+
+
+def _upsert_billing_transaction(
+    db: Session,
+    *,
+    user: User,
+    stripe_session_id: str | None = None,
+    stripe_invoice_id: str | None = None,
+    **values: Any,
+) -> BillingTransaction:
+    transaction = None
+
+    if stripe_session_id:
+        transaction = (
+            db.query(BillingTransaction)
+            .filter(BillingTransaction.stripe_session_id == stripe_session_id)
+            .first()
+        )
+
+    if not transaction and stripe_invoice_id:
+        transaction = (
+            db.query(BillingTransaction)
+            .filter(BillingTransaction.stripe_invoice_id == stripe_invoice_id)
+            .first()
+        )
+
+    if not transaction:
+        transaction = BillingTransaction(
+            user_id=user.id,
+            stripe_session_id=stripe_session_id,
+            stripe_invoice_id=stripe_invoice_id,
+        )
+        db.add(transaction)
+
+    transaction.user_id = user.id
+
+    if stripe_session_id:
+        transaction.stripe_session_id = stripe_session_id
+    if stripe_invoice_id:
+        transaction.stripe_invoice_id = stripe_invoice_id
+
+    for key, value in values.items():
+        if value is not None:
+            setattr(transaction, key, value)
+
+    db.commit()
+    db.refresh(transaction)
+    return transaction
+
+
+def _record_checkout_transaction(
+    db: Session,
+    *,
+    user: User,
+    session: Any,
+    plan: str | None,
+) -> BillingTransaction | None:
+    stripe_session_id = _stripe_get(session, "id")
+    stripe_invoice_id = _stripe_get(session, "invoice")
+    invoice = None
+
+    if stripe_invoice_id:
+        try:
+            invoice = stripe.Invoice.retrieve(stripe_invoice_id)
+        except Exception:
+            invoice = None
+
+    amount = _first_present(
+        _stripe_get(session, "amount_total"),
+        _stripe_get(invoice, "amount_paid") if invoice else None,
+        _stripe_get(invoice, "amount_due") if invoice else None,
+    )
+    currency = _first_present(
+        _stripe_get(session, "currency"),
+        _stripe_get(invoice, "currency") if invoice else None,
+    )
+    payment_status = _stripe_get(session, "payment_status")
+    status = "paid" if payment_status in {"paid", "no_payment_required"} else payment_status
+
+    return _upsert_billing_transaction(
+        db,
+        user=user,
+        stripe_session_id=stripe_session_id,
+        stripe_invoice_id=stripe_invoice_id,
+        plan=plan,
+        amount=amount,
+        currency=str(currency).upper() if currency else None,
+        status=status,
+        billing_email=_checkout_billing_email(session, user),
+        customer_name=_first_present(
+            _checkout_customer_name(session),
+            _stripe_get(invoice, "customer_name") if invoice else None,
+        ),
+        stripe_customer_id=_stripe_get(session, "customer"),
+        stripe_subscription_id=_stripe_get(session, "subscription"),
+        stripe_payment_intent_id=_stripe_get(session, "payment_intent"),
+        receipt_url=_stripe_get(invoice, "hosted_invoice_url") if invoice else None,
+        invoice_pdf=_stripe_get(invoice, "invoice_pdf") if invoice else None,
+        paid_at=_stripe_datetime(
+            _first_present(_stripe_get(session, "created"), _stripe_get(invoice, "created") if invoice else None)
+        ),
+    )
+
+
+def _safe_record_checkout_transaction(
+    db: Session,
+    *,
+    user: User,
+    session: Any,
+    plan: str | None,
+) -> BillingTransaction | None:
+    try:
+        return _record_checkout_transaction(db, user=user, session=session, plan=plan)
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Unable to persist Stripe checkout billing transaction.")
+    except Exception:
+        db.rollback()
+        logger.exception("Unexpected checkout billing transaction persistence error.")
+    return None
+
+
+def _record_invoice_transaction(
+    db: Session,
+    *,
+    user: User,
+    invoice: Any,
+) -> BillingTransaction | None:
+    price = _invoice_price(invoice)
+    price_id = _stripe_get(price, "id")
+    product_id = _stripe_get(price, "product")
+    plan = map_price_to_plan(price_id, product_id=product_id, price=price) or get_raw_user_plan(user)
+    status = _stripe_get(invoice, "status") or "paid"
+    currency = _stripe_get(invoice, "currency")
+
+    return _upsert_billing_transaction(
+        db,
+        user=user,
+        stripe_invoice_id=_stripe_get(invoice, "id"),
+        plan=plan,
+        amount=_first_present(_stripe_get(invoice, "amount_paid"), _stripe_get(invoice, "amount_due")),
+        currency=str(currency).upper() if currency else None,
+        status=status,
+        billing_email=_first_present(_stripe_get(invoice, "customer_email"), user.email),
+        customer_name=_stripe_get(invoice, "customer_name"),
+        stripe_customer_id=_stripe_get(invoice, "customer"),
+        stripe_subscription_id=_stripe_get(invoice, "subscription"),
+        stripe_payment_intent_id=_stripe_get(invoice, "payment_intent"),
+        receipt_url=_stripe_get(invoice, "hosted_invoice_url"),
+        invoice_pdf=_stripe_get(invoice, "invoice_pdf"),
+        paid_at=_stripe_datetime(_stripe_get(invoice, "created")),
+    )
+
+
+def _safe_record_invoice_transaction(db: Session, *, user: User, invoice: Any) -> BillingTransaction | None:
+    try:
+        return _record_invoice_transaction(db, user=user, invoice=invoice)
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Unable to persist Stripe invoice billing transaction.")
+    except Exception:
+        db.rollback()
+        logger.exception("Unexpected invoice billing transaction persistence error.")
+    return None
+
+
+def _send_payment_confirmation_email(
+    db: Session,
+    *,
+    user: User,
+    transaction: BillingTransaction,
+) -> None:
+    if transaction.confirmation_email_sent_at:
+        return
+
+    if str(transaction.status or "").lower() not in {"paid", "succeeded"}:
+        return
+
+    to_email = transaction.billing_email or user.email
+    if not to_email:
+        transaction.confirmation_email_status = "missing_recipient"
+        transaction.confirmation_email_error = "No billing email is available."
+        db.commit()
+        return
+
+    subject, text_body, html_body = build_payment_confirmation_email(
+        customer_name=_customer_display_name(user, transaction),
+        plan_name=_plan_display_name(transaction.plan),
+        amount=_format_transaction_amount(transaction.amount, transaction.currency),
+        billing_email=to_email,
+        receipt_url=transaction.receipt_url or transaction.invoice_pdf,
+    )
+
+    result = send_email(
+        to_email=to_email,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+    transaction.confirmation_email_status = result.status
+    transaction.confirmation_email_error = result.error
+    if result.sent:
+        transaction.confirmation_email_sent_at = datetime.now(timezone.utc)
+
+    db.commit()
+
+
+def _safe_send_payment_confirmation_email(
+    db: Session,
+    *,
+    user: User,
+    transaction: BillingTransaction | None,
+) -> None:
+    if not transaction:
+        return
+
+    try:
+        _send_payment_confirmation_email(db, user=user, transaction=transaction)
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Unable to update billing confirmation email status.")
+    except Exception:
+        db.rollback()
+        logger.exception("Unable to send billing confirmation email.")
+
+
+def _send_cancellation_confirmation_email(db: Session, *, user: User) -> str:
+    if (
+        user.subscription_cancel_at_period_end
+        and user.cancellation_email_sent_at
+        and user.cancellation_email_status == "sent"
+    ):
+        return "already_sent"
+
+    to_email = _latest_billing_email(db, user) or user.email
+    if not to_email:
+        user.cancellation_email_status = "missing_recipient"
+        user.cancellation_email_error = "No billing email is available."
+        db.commit()
+        return user.cancellation_email_status
+
+    subject, text_body, html_body = build_subscription_cancellation_email(
+        customer_name=_user_display_name(user),
+        plan_name=_plan_display_name(user.plan),
+        billing_email=to_email,
+        access_until=_format_billing_date(user.subscription_current_period_end),
+    )
+
+    result = send_email(
+        to_email=to_email,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+    user.cancellation_email_status = result.status
+    user.cancellation_email_error = result.error
+    if result.sent:
+        user.cancellation_email_sent_at = datetime.now(timezone.utc)
+
+    db.commit()
+    return result.status
+
+
+def _safe_send_cancellation_confirmation_email(db: Session, *, user: User) -> str:
+    try:
+        return _send_cancellation_confirmation_email(db, user=user)
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Unable to update cancellation email status.")
+    except Exception:
+        db.rollback()
+        logger.exception("Unable to send cancellation confirmation email.")
+    return "failed"
+
+
 def _normalize_plan(plan: str | None) -> str:
     value = str(plan or "").strip().lower()
     if value in {"pro", "individual_pro"}:
@@ -101,6 +472,14 @@ def get_or_create_stripe_customer(user: User, db: Session) -> str:
     ensure_stripe_configured()
 
     if user.stripe_customer_id:
+        try:
+            stripe.Customer.modify(
+                user.stripe_customer_id,
+                email=user.email,
+                metadata={"user_id": str(user.id)},
+            )
+        except Exception:
+            logger.exception("Unable to refresh Stripe customer email.")
         return user.stripe_customer_id
 
     customer = stripe.Customer.create(
@@ -219,6 +598,8 @@ def _apply_subscription_to_user(
     product_id: str | None = None,
     price: Any = None,
     plan: str | None = None,
+    cancel_at_period_end: bool | None = None,
+    current_period_end: datetime | None = None,
 ) -> User:
     resolved_plan = map_price_to_plan(
         price_id,
@@ -232,10 +613,23 @@ def _apply_subscription_to_user(
     if subscription_id:
         user.stripe_subscription_id = subscription_id
 
-    if status:
+    if cancel_at_period_end and status in {"active", "trialing"}:
+        user.subscription_status = "canceling"
+    elif status:
         user.subscription_status = status
     elif subscription_id:
         user.subscription_status = "active"
+
+    if cancel_at_period_end is not None:
+        user.subscription_cancel_at_period_end = bool(cancel_at_period_end)
+
+    if current_period_end is not None:
+        user.subscription_current_period_end = current_period_end
+
+    if not cancel_at_period_end and user.subscription_status in {"active", "trialing"}:
+        user.cancellation_email_sent_at = None
+        user.cancellation_email_status = None
+        user.cancellation_email_error = None
 
     if resolved_plan != "free":
         user.plan = resolved_plan
@@ -253,6 +647,8 @@ def _apply_subscription_event(db: Session, subscription: Any) -> User | None:
     price_id = _stripe_get(price, "id")
     product_id = _stripe_get(price, "product")
     metadata = _stripe_get(subscription, "metadata", {}) or {}
+    cancel_at_period_end = bool(_stripe_get(subscription, "cancel_at_period_end"))
+    current_period_end = _stripe_datetime(_stripe_get(subscription, "current_period_end"))
 
     user = _find_user_for_customer(
         db,
@@ -267,11 +663,13 @@ def _apply_subscription_event(db: Session, subscription: Any) -> User | None:
         user.plan = "free"
         user.subscription_status = "canceled"
         user.stripe_subscription_id = None
+        user.subscription_cancel_at_period_end = False
+        user.subscription_current_period_end = None
         db.commit()
         db.refresh(user)
         return user
 
-    return _apply_subscription_to_user(
+    updated_user = _apply_subscription_to_user(
         db,
         user,
         customer_id=customer_id,
@@ -281,7 +679,14 @@ def _apply_subscription_event(db: Session, subscription: Any) -> User | None:
         product_id=product_id,
         price=price,
         plan=metadata.get("plan"),
+        cancel_at_period_end=cancel_at_period_end,
+        current_period_end=current_period_end,
     )
+
+    if cancel_at_period_end:
+        _safe_send_cancellation_confirmation_email(db, user=updated_user)
+
+    return updated_user
 
 
 def _apply_checkout_session(db: Session, session: Any) -> User | None:
@@ -304,6 +709,8 @@ def _apply_checkout_session(db: Session, session: Any) -> User | None:
     price_id = None
     product_id = None
     price = None
+    cancel_at_period_end = None
+    current_period_end = None
 
     if subscription_id:
         try:
@@ -312,10 +719,12 @@ def _apply_checkout_session(db: Session, session: Any) -> User | None:
             price = _subscription_price(subscription)
             price_id = _stripe_get(price, "id")
             product_id = _stripe_get(price, "product")
+            cancel_at_period_end = bool(_stripe_get(subscription, "cancel_at_period_end"))
+            current_period_end = _stripe_datetime(_stripe_get(subscription, "current_period_end"))
         except Exception:
             pass
 
-    return _apply_subscription_to_user(
+    updated_user = _apply_subscription_to_user(
         db,
         user,
         customer_id=customer_id,
@@ -325,7 +734,24 @@ def _apply_checkout_session(db: Session, session: Any) -> User | None:
         product_id=product_id,
         price=price,
         plan=metadata.get("plan"),
+        cancel_at_period_end=cancel_at_period_end,
+        current_period_end=current_period_end,
     )
+
+    transaction = _safe_record_checkout_transaction(
+        db,
+        user=updated_user,
+        session=session,
+        plan=map_price_to_plan(price_id, product_id=product_id, price=price)
+        or _normalize_plan(metadata.get("plan")),
+    )
+    _safe_send_payment_confirmation_email(
+        db,
+        user=updated_user,
+        transaction=transaction,
+    )
+
+    return updated_user
 
 
 def _user_payload(user: User) -> dict:
@@ -336,6 +762,9 @@ def _user_payload(user: User) -> dict:
         "plan": get_user_plan(user),
         "raw_plan": get_raw_user_plan(user),
         "subscription_status": user.subscription_status,
+        "subscription_cancel_at_period_end": user.subscription_cancel_at_period_end,
+        "subscription_current_period_end": user.subscription_current_period_end,
+        "cancellation_email_status": user.cancellation_email_status,
         "stripe_customer_id": user.stripe_customer_id,
         "stripe_subscription_id": user.stripe_subscription_id,
     }
@@ -391,6 +820,20 @@ def get_billing_access(current_user: User = Depends(get_current_user)):
     return build_access_response(user=current_user)
 
 
+@router.get("/transactions", response_model=list[BillingTransactionResponse])
+def list_billing_transactions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return (
+        db.query(BillingTransaction)
+        .filter(BillingTransaction.user_id == current_user.id)
+        .order_by(BillingTransaction.paid_at.desc(), BillingTransaction.created_at.desc())
+        .limit(50)
+        .all()
+    )
+
+
 @router.post("/create-checkout-session")
 def create_checkout_session(
     payload: dict,
@@ -407,7 +850,9 @@ def create_checkout_session(
 
     session = stripe.checkout.Session.create(
         mode="subscription",
+        payment_method_types=["card"],
         customer=customer_id,
+        customer_update={"name": "auto", "address": "auto"},
         client_reference_id=str(current_user.id),
         line_items=[line_item],
         success_url=f"{FRONTEND_URL}/pricing?success=true&session_id={{CHECKOUT_SESSION_ID}}",
@@ -476,6 +921,82 @@ def create_portal_session(current_user: User = Depends(get_current_user)):
     return {"url": session.url}
 
 
+@router.post("/cancel-subscription")
+def cancel_subscription(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ensure_stripe_configured()
+
+    if not current_user.stripe_subscription_id:
+        raise HTTPException(status_code=400, detail="No active Stripe subscription found.")
+
+    try:
+        subscription = stripe.Subscription.retrieve(current_user.stripe_subscription_id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unable to retrieve Stripe subscription: {str(exc)}",
+        )
+
+    if _stripe_get(subscription, "status") == "canceled":
+        current_user.plan = "free"
+        current_user.subscription_status = "canceled"
+        current_user.stripe_subscription_id = None
+        current_user.subscription_cancel_at_period_end = False
+        current_user.subscription_current_period_end = None
+        db.commit()
+        db.refresh(current_user)
+        return {
+            "user": _user_payload(current_user),
+            "access": build_access_response(user=current_user),
+            "email_status": "not_sent",
+        }
+
+    if not bool(_stripe_get(subscription, "cancel_at_period_end")):
+        try:
+            subscription = stripe.Subscription.modify(
+                current_user.stripe_subscription_id,
+                cancel_at_period_end=True,
+                metadata={
+                    "user_id": str(current_user.id),
+                    "plan": get_raw_user_plan(current_user),
+                    "cancelled_from": "northbridgeai_account",
+                },
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unable to schedule subscription cancellation: {str(exc)}",
+            )
+
+    price = _subscription_price(subscription)
+    price_id = _stripe_get(price, "id")
+    product_id = _stripe_get(price, "product")
+
+    updated_user = _apply_subscription_to_user(
+        db,
+        current_user,
+        customer_id=_stripe_get(subscription, "customer"),
+        subscription_id=_stripe_get(subscription, "id"),
+        status=_stripe_get(subscription, "status") or "active",
+        price_id=price_id,
+        product_id=product_id,
+        price=price,
+        plan=get_raw_user_plan(current_user),
+        cancel_at_period_end=True,
+        current_period_end=_stripe_datetime(_stripe_get(subscription, "current_period_end")),
+    )
+
+    email_status = _safe_send_cancellation_confirmation_email(db, user=updated_user)
+
+    return {
+        "user": _user_payload(updated_user),
+        "access": build_access_response(user=updated_user),
+        "email_status": email_status,
+    }
+
+
 @router.post("/webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     ensure_webhook_configured()
@@ -515,6 +1036,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             user.plan = "free"
             user.subscription_status = "canceled"
             user.stripe_subscription_id = None
+            user.subscription_cancel_at_period_end = False
+            user.subscription_current_period_end = None
             db.commit()
 
     elif event_type == "customer.subscription.paused":
@@ -526,9 +1049,24 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     elif event_type == "invoice.payment_succeeded":
         customer_id = _stripe_get(data, "customer")
         user = _find_user_for_customer(db, customer_id=customer_id)
-        if user and user.plan != "free":
+        if user:
+            price = _invoice_price(data)
+            resolved_plan = map_price_to_plan(
+                _stripe_get(price, "id"),
+                product_id=_stripe_get(price, "product"),
+                price=price,
+            )
+            if resolved_plan:
+                user.plan = resolved_plan
             user.subscription_status = "active"
             db.commit()
+            db.refresh(user)
+            transaction = _safe_record_invoice_transaction(db, user=user, invoice=data)
+            _safe_send_payment_confirmation_email(
+                db,
+                user=user,
+                transaction=transaction,
+            )
 
     elif event_type == "invoice.payment_failed":
         customer_id = _stripe_get(data, "customer")

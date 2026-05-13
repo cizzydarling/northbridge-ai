@@ -52,11 +52,11 @@ textarea {
 }
 
 ::selection {
-  background: rgba(37, 99, 235, 0.16);
+  background: rgba(245, 158, 11, 0.18);
 }
 
 :focus-visible {
-  outline-color: #93c5fd;
+  outline-color: #fbbf24;
 }
 
 /* ======================

@@ -34,7 +34,7 @@ export default function Input({
           ${
             hasError
               ? "border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-100"
-              : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              : "border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
           }
 
           hover:border-slate-400

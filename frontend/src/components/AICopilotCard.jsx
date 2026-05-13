@@ -80,7 +80,7 @@ function extractActions(data) {
 
 function SparkBadge({ children }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-800">
       {children}
     </span>
   );
@@ -197,7 +197,7 @@ export default function AICopilotCard({
   return (
     <Card
       variant="glass"
-      className={`overflow-hidden border border-blue-100/80 bg-gradient-to-br from-white/90 via-white/80 to-blue-50/50 ${className}`}
+      className={`overflow-hidden border border-amber-100/80 bg-stone-50/80 ${className}`}
       padding="lg"
     >
       <div className="flex flex-col gap-6">

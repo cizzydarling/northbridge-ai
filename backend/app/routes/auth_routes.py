@@ -71,6 +71,12 @@ def serialize_user(user: User) -> dict:
         "role": user.role,
         "plan": getattr(user, "plan", "free"),
         "subscription_status": getattr(user, "subscription_status", None),
+        "subscription_cancel_at_period_end": getattr(
+            user, "subscription_cancel_at_period_end", None
+        ),
+        "subscription_current_period_end": getattr(
+            user, "subscription_current_period_end", None
+        ),
         "first_name": getattr(user, "first_name", None),
         "last_name": getattr(user, "last_name", None),
     }

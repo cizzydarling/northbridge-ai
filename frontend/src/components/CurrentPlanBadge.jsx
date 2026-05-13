@@ -83,9 +83,9 @@ export default function CurrentPlanBadge({ className = "" }) {
 
   const badgeClass =
     plan === "premium"
-      ? "border-violet-200 bg-violet-50 text-violet-700"
+      ? "border-amber-200 bg-amber-50 text-amber-800"
       : plan === "pro"
-      ? "border-blue-200 bg-blue-50 text-blue-700"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
       : "border-amber-200 bg-amber-50 text-amber-700";
 
   if (loading) {
@@ -112,7 +112,7 @@ export default function CurrentPlanBadge({ className = "" }) {
         <button
           type="button"
           onClick={() => navigate("/pricing")}
-          className="text-xs font-medium text-blue-600 transition hover:text-blue-800"
+          className="text-xs font-medium text-slate-700 transition hover:text-slate-950"
         >
           {ui.upgrade}
         </button>

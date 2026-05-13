@@ -285,6 +285,8 @@ export const getBillingStatus = () => api.get("/billing/me");
 export const getAvailablePlans = () => api.get("/billing/plans");
 export const getBillingPlans = getAvailablePlans;
 
+export const getBillingTransactions = () => api.get("/billing/transactions");
+
 export const devSetPlan = (planOrPayload, subscription_status = "active") => {
   const payload =
     typeof planOrPayload === "object" && planOrPayload !== null
@@ -310,6 +312,9 @@ export const createPortalSession = () =>
   api.post("/billing/create-portal-session");
 
 export const createBillingPortalSession = createPortalSession;
+
+export const cancelSubscription = () =>
+  api.post("/billing/cancel-subscription");
 
 /* =========================
    PERSONAL PROFILE

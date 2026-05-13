@@ -12,7 +12,7 @@ PRO_PLAN = "pro"
 PREMIUM_PLAN = "premium"
 AGENT_PLAN = "agent"
 
-ACTIVE_STATUSES = {"active", "trialing", "paid", "complete", "completed"}
+ACTIVE_STATUSES = {"active", "trialing", "paid", "complete", "completed", "canceling"}
 
 PLAN_MAPPING = {
     "free": FREE_PLAN,

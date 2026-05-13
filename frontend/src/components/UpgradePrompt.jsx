@@ -5,7 +5,7 @@ import Button from "./ui/Button";
 
 function AccentBadge({ children }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-700 backdrop-blur-sm">
+    <span className="inline-flex items-center rounded-full border border-amber-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-800 backdrop-blur-sm">
       {children}
     </span>
   );
@@ -46,7 +46,7 @@ export default function UpgradePrompt({
 
   return (
     <div
-      className={`overflow-hidden rounded-[28px] border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-[0_16px_48px_rgba(15,23,42,0.06)] ${className}`}
+      className={`overflow-hidden rounded-2xl border border-amber-200 bg-stone-50 shadow-[0_16px_48px_rgba(15,23,42,0.06)] ${className}`}
     >
       <div className={compact ? "p-5" : "p-6 md:p-7"}>
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
