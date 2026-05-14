@@ -172,6 +172,8 @@ export default function App() {
       <Route path="/billing" element={<PricingPage />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
+      <Route path="/fr/blog" element={<BlogPage />} />
+      <Route path="/fr/blog/:slug" element={<BlogPostPage />} />
       <Route
         path="/upgrade"
         element={<Navigate to="/pricing?source=app&intent=upgrade" replace />}

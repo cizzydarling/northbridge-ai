@@ -1,27 +1,78 @@
 import { useEffect, useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { Link, useLocation, useParams } from "react-router-dom";
 import MarketingShell from "../components/MarketingShell";
-import { blogArticles, getBlogArticle } from "../data/blogArticles";
+import {
+  getBlogArticle,
+  getBlogArticles,
+  normalizeBlogLanguage,
+} from "../data/blogArticles";
 import { getAbsoluteUrl, setJsonLd, setSeoMetadata, SITE_URL } from "../utils/seo";
+
+const postPageCopy = {
+  en: {
+    notFoundTitle: "Article Not Found",
+    notFoundDescription:
+      "Browse NorthBridgeAI articles about Canadian immigration planning, strategy, documents, forms, and AI support.",
+    notFoundHeading: "Article not found",
+    notFoundBody:
+      "The guide you are looking for may have moved. Browse the latest NorthBridgeAI immigration articles instead.",
+    backToBlog: "Back to blog",
+    backToInsights: "Back to insights",
+    importantNote: "Important note",
+    importantNoteBody:
+      "This article is informational only and is not legal advice. Applicants should verify requirements with official sources and speak with a licensed immigration professional when needed.",
+    officialSources: "Official sources",
+    startFree: "Start free",
+    seePlans: "See plans",
+    articleKeywords: "Article keywords",
+    relatedGuides: "Related guides",
+  },
+  fr: {
+    notFoundTitle: "Article introuvable",
+    notFoundDescription:
+      "Parcourez les articles NorthBridgeAI sur la planification de l'immigration canadienne, la strategie, les documents, les formulaires et l'assistance IA.",
+    notFoundHeading: "Article introuvable",
+    notFoundBody:
+      "Le guide que vous cherchez a peut-etre ete deplace. Consultez plutot les derniers articles d'immigration de NorthBridgeAI.",
+    backToBlog: "Retour au blog",
+    backToInsights: "Retour aux articles",
+    importantNote: "Note importante",
+    importantNoteBody:
+      "Cet article est fourni a titre informatif seulement et ne constitue pas un avis juridique. Les candidats devraient verifier les exigences aupres des sources officielles et consulter un professionnel autorise en immigration au besoin.",
+    officialSources: "Sources officielles",
+    startFree: "Commencer gratuitement",
+    seePlans: "Voir les forfaits",
+    articleKeywords: "Mots-cles de l'article",
+    relatedGuides: "Guides connexes",
+  },
+};
 
 export default function BlogPostPage() {
   const { slug } = useParams();
-  const article = getBlogArticle(slug);
+  const location = useLocation();
+  const { i18n } = useTranslation();
+  const routeLanguage = location.pathname.startsWith("/fr/") ? "fr" : null;
+  const language =
+    routeLanguage || normalizeBlogLanguage(i18n.resolvedLanguage || i18n.language);
+  const blogBasePath = language === "fr" ? "/fr/blog" : "/blog";
+  const copy = postPageCopy[language];
+  const article = useMemo(() => getBlogArticle(slug, language), [slug, language]);
+  const articles = useMemo(() => getBlogArticles(language), [language]);
 
   const relatedArticles = useMemo(() => {
     if (!article) return [];
-    return blogArticles
+    return articles
       .filter((item) => item.slug !== article.slug)
       .slice(0, 2);
-  }, [article]);
+  }, [article, articles]);
 
   useEffect(() => {
     if (!article) {
       setSeoMetadata({
-        title: "Article Not Found",
-        description:
-          "Browse NorthBridgeAI articles about Canadian immigration planning, strategy, documents, forms, and AI support.",
-        path: "/blog",
+        title: copy.notFoundTitle,
+        description: copy.notFoundDescription,
+        path: blogBasePath,
         keywords: ["NorthBridgeAI blog", "Canadian immigration planning"],
       });
       return undefined;
@@ -30,7 +81,7 @@ export default function BlogPostPage() {
     setSeoMetadata({
       title: article.title,
       description: article.description,
-      path: `/blog/${article.slug}`,
+      path: `${blogBasePath}/${article.slug}`,
       keywords: article.keywords,
       type: "article",
     });
@@ -42,7 +93,8 @@ export default function BlogPostPage() {
       description: article.description,
       datePublished: article.publishedAt,
       dateModified: article.publishedAt,
-      mainEntityOfPage: getAbsoluteUrl(`/blog/${article.slug}`),
+      inLanguage: language === "fr" ? "fr-CA" : "en-CA",
+      mainEntityOfPage: getAbsoluteUrl(`${blogBasePath}/${article.slug}`),
       keywords: article.keywords.join(", "),
       author: {
         "@type": "Organization",
@@ -58,7 +110,7 @@ export default function BlogPostPage() {
         ? article.sourceLinks.map((source) => source.url)
         : undefined,
     });
-  }, [article]);
+  }, [article, blogBasePath, copy, language]);
 
   if (!article) {
     return (
@@ -68,17 +120,16 @@ export default function BlogPostPage() {
             Blog
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-            Article not found
+            {copy.notFoundHeading}
           </h1>
           <p className="mt-4 text-base leading-8 text-slate-600">
-            The guide you are looking for may have moved. Browse the latest
-            NorthBridgeAI immigration articles instead.
+            {copy.notFoundBody}
           </p>
           <Link
-            to="/blog"
+            to={blogBasePath}
             className="mt-7 inline-flex h-11 items-center justify-center rounded-xl bg-amber-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-300"
           >
-            Back to blog
+            {copy.backToBlog}
           </Link>
         </section>
       </MarketingShell>
@@ -91,10 +142,10 @@ export default function BlogPostPage() {
         <header className="bg-[#121417] text-white">
           <div className="mx-auto max-w-4xl px-4 py-14 md:px-6 md:py-20">
             <Link
-              to="/blog"
+              to={blogBasePath}
               className="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-stone-200 transition hover:bg-white/10 hover:text-white"
             >
-              Back to insights
+              {copy.backToInsights}
             </Link>
             <div className="mt-8 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-amber-300">
               <span>{article.category}</span>
@@ -149,12 +200,10 @@ export default function BlogPostPage() {
 
             <div className="mt-10 rounded-lg border border-amber-200 bg-amber-50 p-5">
               <p className="text-sm font-semibold uppercase tracking-[0.12em] text-amber-800">
-                Important note
+                {copy.importantNote}
               </p>
               <p className="mt-2 text-sm leading-7 text-amber-950">
-                This article is informational only and is not legal advice.
-                Applicants should verify requirements with official sources and
-                speak with a licensed immigration professional when needed.
+                {copy.importantNoteBody}
               </p>
             </div>
 
@@ -162,7 +211,7 @@ export default function BlogPostPage() {
             article.sourceLinks.length > 0 ? (
               <div className="mt-6 rounded-lg border border-stone-200 bg-stone-50 p-5">
                 <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">
-                  Official sources
+                  {copy.officialSources}
                 </p>
                 <div className="mt-3 grid gap-2">
                   {article.sourceLinks.map((source) => (
@@ -197,20 +246,20 @@ export default function BlogPostPage() {
                   to="/auth"
                   className="inline-flex h-11 items-center justify-center rounded-xl bg-amber-400 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-300"
                 >
-                  Start free
+                  {copy.startFree}
                 </Link>
                 <Link
                   to="/pricing"
                   className="inline-flex h-11 items-center justify-center rounded-xl border border-stone-300 bg-white px-5 text-sm font-medium text-slate-800 transition hover:bg-stone-50"
                 >
-                  See plans
+                  {copy.seePlans}
                 </Link>
               </div>
             </div>
 
             <div className="rounded-lg border border-stone-200 bg-white p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                Article keywords
+                {copy.articleKeywords}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {article.keywords.map((keyword) => (
@@ -226,13 +275,13 @@ export default function BlogPostPage() {
 
             <div className="rounded-lg border border-stone-200 bg-white p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Related guides
+                {copy.relatedGuides}
               </p>
               <div className="mt-4 space-y-3">
                 {relatedArticles.map((item) => (
                   <Link
                     key={item.slug}
-                    to={`/blog/${item.slug}`}
+                    to={`${blogBasePath}/${item.slug}`}
                     className="block rounded-lg border border-stone-200 bg-stone-50 p-4 transition hover:border-amber-200 hover:bg-amber-50"
                   >
                     <p className="text-sm font-semibold leading-6 text-slate-950">
