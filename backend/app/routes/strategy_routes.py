@@ -20,6 +20,9 @@ from app.services.checklist_engine import build_checklist
 from app.services.decision_engine import build_user_decision_context
 from app.services.eligibility_engine import evaluate_matter_eligibility
 from app.services.forms_assistant import build_forms_assistant
+from app.services.immigration_intelligence_service import (
+    build_locked_immigration_intelligence_preview,
+)
 from app.services.pdf_service import generate_strategy_pdf
 from app.services.strategy_service import build_strategy
 from app.models.application_case_model import ApplicationCase
@@ -410,6 +413,11 @@ def build_strategy_payload(
         strategy["locked"] = False
         strategy["is_premium"] = is_premium
         strategy["can_export_pdf"] = is_premium
+        strategy["immigration_intelligence"] = (
+            strategy.get("immigration_intelligence")
+            if is_premium
+            else build_locked_immigration_intelligence_preview(language)
+        )
         strategy["export_upgrade_reason"] = None if is_premium else t(
             "Upgrade to Premium to unlock PDF export.",
             "Passez à Premium pour débloquer l’export PDF.",
@@ -436,6 +444,7 @@ def build_strategy_payload(
 
         # 🔥 show 1 province only (teaser)
         "province_recommendations": (strategy.get("province_recommendations") or [])[:1],
+        "immigration_intelligence": build_locked_immigration_intelligence_preview(language),
 
         "advisor_summary": strategy.get("advisor_summary"),
         "french_advantage": strategy.get("french_advantage") or {},
@@ -482,6 +491,7 @@ def run_permanent_residence_workspace(
         language=language,
         household_members=household_members or get_household_members(db, current_user.id),
         application_case=application_case,
+        include_immigration_intelligence=has_premium_access(current_user),
     )
 
     eligibility = build_pr_eligibility_from_strategy(strategy, language=language)
@@ -559,6 +569,7 @@ def get_my_strategy(
         language=language,
         household_members=household_members,
         application_case=case,
+        include_immigration_intelligence=is_premium,
     )
 
     strategy = build_strategy_payload(
@@ -576,6 +587,9 @@ def get_my_strategy(
             "is_pro": is_pro,
             "is_premium": is_premium,
             "can_export_pdf": is_premium,
+            "can_use_live_ircc_draws": is_premium,
+            "can_view_processing_times": is_premium,
+            "can_use_job_opportunity_matching": is_premium,
             "subscription_status": subscription_status,
             "plan": plan,
         },
@@ -749,7 +763,11 @@ def export_strategy_pdf(
             ),
         )
 
-    strategy = build_strategy(profile, language=language)
+    strategy = build_strategy(
+        profile,
+        language=language,
+        include_immigration_intelligence=True,
+    )
 
     try:
         pdf_buffer = generate_strategy_pdf(

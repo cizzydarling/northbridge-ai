@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 import app.services.ai_advisor as ai_advisor
-from app.core.access_control import has_individual_pro
+from app.core.access_control import has_individual_pro, has_premium_access
 from app.models.profile_model import Profile
 from app.models.self_application_model import SelfApplication
 from app.models.user_models import User
@@ -51,7 +51,7 @@ def _serialize_chat_history(chat_history: Optional[List[Any]]) -> List[Dict[str,
 def _resolve_ai_plan(current_user: User) -> str:
     plan_value = (getattr(current_user, "plan", None) or "").strip().lower()
 
-    if plan_value == "premium":
+    if plan_value in {"premium", "individual_premium"} or has_premium_access(current_user):
         return "premium"
 
     if has_individual_pro(current_user):
@@ -395,9 +395,17 @@ def build_self_user_ai_context(
     profile = get_self_profile(db, current_user.id)
     application = get_latest_self_application(db, current_user.id)
     ai_plan = _resolve_ai_plan(current_user)
-    is_premium = ai_plan in {"pro", "premium"}
+    is_premium = ai_plan == "premium"
 
-    strategy = build_strategy(profile, language=language) if profile else None
+    strategy = (
+        build_strategy(
+            profile,
+            language=language,
+            include_immigration_intelligence=is_premium,
+        )
+        if profile
+        else None
+    )
 
     decision = build_user_decision_context(
         strategy=strategy,

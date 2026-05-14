@@ -10,6 +10,7 @@ import UpgradePrompt from "../components/UpgradePrompt";
 import {
   exportMyStrategyPdf,
   getBillingAccess,
+  getImmigrationIntelligence,
   getMyStrategy,
   getMyStrategyLite,
   sendAIMessage,
@@ -641,6 +642,264 @@ function ProvinceCard({ title, items, emptyLabel }) {
         <p className="mt-4 text-sm text-slate-500">{emptyLabel}</p>
       )}
     </Card>
+  );
+}
+
+function ExternalResourceLink({ href, children }) {
+  if (!href) return null;
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+    >
+      {children}
+    </a>
+  );
+}
+
+function ImmigrationIntelligencePanel({ intelligence, text, language }) {
+  const data = intelligence || {};
+  const latestDraws = data.latest_draws || {};
+  const draws = Array.isArray(latestDraws.draws) ? latestDraws.draws : [];
+  const processing = data.processing_times || {};
+  const applications = Array.isArray(processing.applications)
+    ? processing.applications
+    : [];
+  const profileRelevant = Array.isArray(processing.profile_relevant)
+    ? processing.profile_relevant
+    : [];
+  const categorySelection = data.category_selection || {};
+  const categoryFit = Array.isArray(categorySelection.profile_fit)
+    ? categorySelection.profile_fit
+    : [];
+  const jobs = data.job_opportunities || {};
+  const jobLinks = Array.isArray(jobs.links) ? jobs.links : [];
+  const notes = Array.isArray(jobs.notes) ? jobs.notes : [];
+
+  if (data.locked) {
+    const teasers = Array.isArray(data.teaser_cards) ? data.teaser_cards : [];
+
+    return (
+      <Card padding="lg" className="space-y-5 rounded-lg">
+        <SectionTitle>{text.immigrationIntelligence}</SectionTitle>
+        <p className="text-sm leading-7 text-slate-600">
+          {data.upgrade_reason || text.blurIntelligenceBody}
+        </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {teasers.map((item, index) => (
+            <div
+              key={`${item.title || "teaser"}-${index}`}
+              className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+            >
+              <p className="text-sm font-semibold text-slate-900">
+                {item.title}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {item.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <Card padding="lg" className="rounded-lg border-slate-200 bg-white">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
+              {text.premiumSignal}
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+              {text.immigrationIntelligence}
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+              {data.ai_summary || text.intelligenceSummary}
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              {text.dataStatus}
+            </span>
+            <span className="mt-1 block font-semibold text-slate-900">
+              {data.source_status || latestDraws.status || "--"}
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-5 xl:grid-cols-3">
+        <Card padding="lg" className="space-y-4 rounded-lg">
+          <SectionTitle>{text.latestDraws}</SectionTitle>
+          <p className="text-sm leading-7 text-slate-600">
+            {latestDraws.summary || text.noLiveDraws}
+          </p>
+
+          {draws.length > 0 ? (
+            <div className="space-y-3">
+              {draws.slice(0, 4).map((draw, index) => (
+                <div
+                  key={`${draw.round || "draw"}-${index}`}
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {draw.round_type || text.latestDraws}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {draw.date || "--"}
+                      </p>
+                    </div>
+                    {draw.crs_cutoff ? (
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                        CRS {draw.crs_cutoff}
+                      </span>
+                    ) : null}
+                  </div>
+                  {draw.invitations_issued ? (
+                    <p className="mt-3 text-sm text-slate-600">
+                      {language === "fr" ? "Invitations" : "Invitations"}:{" "}
+                      {draw.invitations_issued}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <ExternalResourceLink
+            href={latestDraws.source_url || latestDraws.official_fallback_url}
+          >
+            {text.openOfficialSource}
+          </ExternalResourceLink>
+        </Card>
+
+        <Card padding="lg" className="space-y-4 rounded-lg">
+          <SectionTitle>{text.processingTimes}</SectionTitle>
+          <p className="text-sm leading-7 text-slate-600">
+            {processing.summary || text.processingTimesBody}
+          </p>
+
+          <div className="space-y-2">
+            {(profileRelevant.length ? profileRelevant : applications.slice(0, 4)).map(
+              (item, index) => (
+                <div
+                  key={`${item.application_type || item.key || "time"}-${index}`}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {item.application_label || item.label || "--"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {item.country || item.category || text.officialChecker}
+                      </p>
+                    </div>
+                    {item.processing_time ? (
+                      <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                        {item.processing_time}
+                      </span>
+                    ) : null}
+                  </div>
+                  {item.last_updated ? (
+                    <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                      {language === "fr" ? "Mis a jour" : "Updated"}{" "}
+                      {item.last_updated}
+                    </p>
+                  ) : null}
+                </div>
+              )
+            )}
+          </div>
+
+          <ExternalResourceLink href={processing.source_url}>
+            {text.openProcessingChecker}
+          </ExternalResourceLink>
+        </Card>
+
+        <Card padding="lg" className="space-y-4 rounded-lg">
+          <SectionTitle>{text.jobOpportunities}</SectionTitle>
+          <p className="text-sm leading-7 text-slate-600">
+            {jobs.profile_occupation
+              ? `${text.profileOccupation}: ${jobs.profile_occupation}`
+              : text.jobOpportunitiesBody}
+          </p>
+
+          <div className="space-y-2">
+            {jobLinks.slice(0, 4).map((item, index) => (
+              <a
+                key={`${item.label || "job"}-${index}`}
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-300 hover:bg-white"
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+
+          {notes.length > 0 ? (
+            <div className="space-y-2">
+              {notes.slice(0, 2).map((note, index) => (
+                <p
+                  key={`${note}-${index}`}
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+                >
+                  {note}
+                </p>
+              ))}
+            </div>
+          ) : null}
+        </Card>
+      </div>
+
+      <Card padding="lg" className="rounded-lg">
+        <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+          <div>
+            <SectionTitle>{text.categorySelection}</SectionTitle>
+            <p className="mt-3 text-sm leading-7 text-slate-600">
+              {data.profile_draw_fit?.summary || text.categoryBody}
+            </p>
+            <div className="mt-4">
+              <ExternalResourceLink href={categorySelection.source_url}>
+                {text.openOfficialSource}
+              </ExternalResourceLink>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {(categoryFit.length
+              ? categoryFit
+              : categorySelection.current_categories || []
+            )
+              .slice(0, 5)
+              .map((item, index) => (
+                <div
+                  key={`${item.key || item.label || "category"}-${index}`}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
+                >
+                  <p className="text-sm font-semibold text-slate-900">
+                    {item.label}
+                  </p>
+                  {item.reason ? (
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {item.reason}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 }
 
@@ -1809,6 +2068,16 @@ function buildStrategyDrawerContext({
         .join(" | ")
     : "";
 
+  const intelligence = strategy?.immigration_intelligence || {};
+  const intelligenceLines = [
+    intelligence?.profile_draw_fit?.summary,
+    intelligence?.latest_draws?.summary,
+    intelligence?.processing_times?.summary,
+    intelligence?.job_opportunities?.notes?.[0],
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
   return `
 ${language === "fr" ? "CONTEXTE STRATÉGIQUE" : "STRATEGY CONTEXT"}
 
@@ -1834,6 +2103,9 @@ ${safeRoadmap || "--"}
 
 Province recommendations:
 ${safeProvinces || "--"}
+
+Immigration intelligence:
+${intelligenceLines || "--"}
 
 NOC:
 Code: ${strategy?.noc_profile?.resolved_noc_code || strategy?.noc_summary?.noc_code || strategy?.noc_advantage?.noc_code || "--"}
@@ -1957,6 +2229,7 @@ export default function StrategyPage() {
       ]);
 
       let strategyData = null;
+      let accessData = null;
 
       if (liteRes.status === "fulfilled") {
         strategyData = liteRes.value?.data || null;
@@ -1979,17 +2252,48 @@ export default function StrategyPage() {
         }
       }
 
-      setData(strategyData);
-
       if (accessRes.status === "fulfilled") {
-        setAccess(accessRes.value?.data || null);
+        accessData = accessRes.value?.data || null;
       } else {
         const status = accessRes.reason?.response?.status;
         if (status !== 404) {
           console.error(accessRes.reason);
         }
-        setAccess(null);
       }
+
+      const hasInlineIntelligence = Boolean(
+        strategyData?.immigration_intelligence?.latest_draws ||
+          strategyData?.immigration_intelligence?.processing_times ||
+          strategyData?.immigration_intelligence?.locked
+      );
+      const shouldHydrateIntelligence = Boolean(
+        strategyData &&
+          !hasInlineIntelligence &&
+          (accessData?.is_premium || strategyData?.is_premium)
+      );
+
+      if (shouldHydrateIntelligence) {
+        try {
+          const intelligenceRes = await getImmigrationIntelligence(language);
+          const intelligenceData = intelligenceRes?.data || null;
+
+          if (intelligenceData) {
+            strategyData = {
+              ...strategyData,
+              immigration_intelligence: intelligenceData,
+              access: {
+                ...(strategyData.access || {}),
+                ...(intelligenceData.access || {}),
+              },
+            };
+          }
+        } catch (err) {
+          console.warn("Premium intelligence hydration failed", err);
+        }
+      }
+
+      setData(strategyData);
+      setAccess(accessData);
     } catch (err) {
       console.error(err);
       setMessage(
@@ -2375,6 +2679,18 @@ export default function StrategyPage() {
   const showTopPaywallHero = !hasFullStrategy;
   const proPath = buildProPricingPath("strategy", intent || "execute");
   const premiumPath = buildPremiumPricingPath("strategy", "export");
+  const premiumIntelligencePath = buildPremiumPricingPath(
+    "strategy",
+    "ircc-intelligence"
+  );
+  const immigrationIntelligence = strategy?.immigration_intelligence || null;
+  const hasPremiumIntelligence = Boolean(
+    access?.can_use_live_ircc_draws ||
+      access?.can_view_processing_times ||
+      access?.can_use_job_opportunity_matching ||
+      access?.is_premium ||
+      immigrationIntelligence?.locked === false
+  );
 
   const bestPathwayName =
     strategy?.best_pathway?.name ||
@@ -2631,6 +2947,27 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         riskAnalysis: "Risques à surveiller",
         noc: "Signal CNP",
         nocInsights: "Analyse CNP",
+        immigrationIntelligence: "Veille IRCC Premium",
+        premiumSignal: "Signal officiel",
+        latestDraws: "Dernieres rondes IRCC",
+        processingTimes: "Delais IRCC",
+        jobOpportunities: "Emplois et provinces",
+        categorySelection: "Categories Entree express",
+        dataStatus: "Statut des donnees",
+        openOfficialSource: "Ouvrir la source officielle",
+        openProcessingChecker: "Ouvrir le verificateur IRCC",
+        officialChecker: "Verificateur officiel",
+        profileOccupation: "Profession du profil",
+        intelligenceSummary:
+          "Surveillez les rondes IRCC, les delais, les categories et les signaux d'emploi pour guider la prochaine action.",
+        processingTimesBody:
+          "Les delais sont verifies dans l'outil officiel IRCC selon le type de demande et le pays.",
+        jobOpportunitiesBody:
+          "Comparez la demande d'emploi et les provinces recommandees pour choisir un parcours pratique.",
+        categoryBody:
+          "Comparez votre profil aux categories officielles avant de prioriser une voie.",
+        noLiveDraws:
+          "La liste live n'est pas disponible dans cette reponse. Utilisez la source officielle.",
         provinceRecommendations: "Provinces recommandées",
         completed: "Complétés",
         reviewed: "Révisés",
@@ -2686,6 +3023,9 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         blurRiskBody:
           "Comprenez ce qui peut ralentir votre dossier et comment réduire ces risques.",
         unlockNow: "Débloquer maintenant",
+        blurIntelligenceTitle: "Debloquez la veille immigration Premium",
+        blurIntelligenceBody:
+          "Suivez les rondes IRCC, les delais de traitement, les categories et les signaux Job Bank/PNP.",
         teer: "TEER",
         strategicValue: "Valeur stratégique",
         highDemandOccupation: "Profession en demande",
@@ -2728,9 +3068,30 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
       nextSteps: "Next Steps",
       roadmap: "Roadmap",
       riskAnalysis: "Risks to watch",
-      noc: "NOC Signal",
-      nocInsights: "NOC analysis",
-      provinceRecommendations: "Recommended Provinces",
+        noc: "NOC Signal",
+        nocInsights: "NOC analysis",
+        immigrationIntelligence: "Premium IRCC Intelligence",
+        premiumSignal: "Official signal",
+        latestDraws: "Latest IRCC draws",
+        processingTimes: "IRCC processing times",
+        jobOpportunities: "Jobs and provinces",
+        categorySelection: "Express Entry categories",
+        dataStatus: "Data status",
+        openOfficialSource: "Open official source",
+        openProcessingChecker: "Open IRCC checker",
+        officialChecker: "Official checker",
+        profileOccupation: "Profile occupation",
+        intelligenceSummary:
+          "Monitor IRCC rounds, processing times, categories, and job-market signals to guide the next move.",
+        processingTimesBody:
+          "Processing times are checked in the official IRCC tool by application type and country.",
+        jobOpportunitiesBody:
+          "Compare job demand and recommended provinces before choosing a practical pathway.",
+        categoryBody:
+          "Compare your profile to official categories before prioritizing a pathway.",
+        noLiveDraws:
+          "The live list is not available in this response. Use the official source.",
+        provinceRecommendations: "Recommended Provinces",
       completed: "Completed",
       reviewed: "Reviewed",
       total: "Tracked",
@@ -2776,9 +3137,12 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
       blurStepsBody:
         "Get the most important next steps tailored to your profile.",
       blurProvinceTitle: "Unlock your best province targets",
-      blurProvinceBody:
-        "See which provinces and provincial programs appear to fit your profile best.",
-      blurRoadmapTitle: "Unlock your full roadmap",
+        blurProvinceBody:
+          "See which provinces and provincial programs appear to fit your profile best.",
+        blurIntelligenceTitle: "Unlock Premium immigration intelligence",
+        blurIntelligenceBody:
+          "Track IRCC draws, processing times, Express Entry categories, and Job Bank/PNP signals.",
+        blurRoadmapTitle: "Unlock your full roadmap",
       blurRoadmapBody:
         "See the highest-impact actions, their difficulty, and their strategic upside.",
       blurRiskTitle: "Unlock risk analysis",
@@ -2830,10 +3194,15 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
           label: text.provinceRecommendations,
           locked: !hasFullStrategy,
         },
+        {
+          key: "intelligence",
+          label: text.immigrationIntelligence,
+          locked: !hasFullStrategy || !hasPremiumIntelligence,
+        },
       ],
       risks: [{ key: "risks", label: text.riskAnalysis, locked: !hasFullStrategy }],
     }),
-    [text, hasFullStrategy]
+    [text, hasFullStrategy, hasPremiumIntelligence]
   );
 
   const visibleSections = sectionsByTab[activeTab] || sectionsByTab.overview;
@@ -3569,6 +3938,28 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                           ]
                     }
                     emptyLabel={text.noItems}
+                  />
+                </BlurredSection>
+              ))}
+
+            {activeTab === "pathways" && activeSection === "intelligence" &&
+              (hasFullStrategy && hasPremiumIntelligence ? (
+                <ImmigrationIntelligencePanel
+                  intelligence={immigrationIntelligence}
+                  text={text}
+                  language={language}
+                />
+              ) : (
+                <BlurredSection
+                  title={text.blurIntelligenceTitle}
+                  body={text.blurIntelligenceBody}
+                  buttonLabel={text.premiumExportPrimary}
+                  onUpgrade={() => navigate(premiumIntelligencePath)}
+                >
+                  <ImmigrationIntelligencePanel
+                    intelligence={immigrationIntelligence}
+                    text={text}
+                    language={language}
                   />
                 </BlurredSection>
               ))}

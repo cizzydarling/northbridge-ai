@@ -1210,6 +1210,12 @@ export default function PricingPage() {
         features: [
           language === "fr" ? "Tout dans Pro" : "Everything in Pro",
           language === "fr" ? "Fenetre de preparation plus longue" : "Longer preparation window",
+          language === "fr"
+            ? "Veille IRCC: rondes, delais et categories"
+            : "IRCC intelligence: draws, times, and categories",
+          language === "fr"
+            ? "Signaux Job Bank et ciblage provincial"
+            : "Job Bank signals and province targeting",
           text.exports,
         ],
       },

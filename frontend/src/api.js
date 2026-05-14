@@ -181,6 +181,16 @@ function normalizeAccess(raw) {
 
     can_export_pdf:
       raw?.can_export_pdf ?? features?.pdf_export ?? isPremium,
+    can_use_live_ircc_draws:
+      raw?.can_use_live_ircc_draws ?? features?.live_ircc_draws ?? isPremium,
+    can_view_processing_times:
+      raw?.can_view_processing_times ??
+      features?.processing_time_tracker ??
+      isPremium,
+    can_use_job_opportunity_matching:
+      raw?.can_use_job_opportunity_matching ??
+      features?.job_opportunity_matching ??
+      isPremium,
     can_access_self_workspace:
       raw?.can_access_self_workspace ??
       features?.self_workspace ??
@@ -513,6 +523,23 @@ export const downloadStrategyReport = exportMyStrategyPdf;
 export const getMyStrategyLite = (language = getLanguage()) =>
   api.get("/self/strategy", {
     params: strategyParams(language),
+  });
+
+export const getImmigrationIntelligence = (language = getLanguage()) =>
+  api.get("/immigration-intelligence/summary", {
+    params: { language },
+  });
+
+export const getImmigrationProcessingTimes = (
+  { application_type, country } = {},
+  language = getLanguage()
+) =>
+  api.get("/immigration-intelligence/processing-times", {
+    params: {
+      language,
+      ...(application_type ? { application_type } : {}),
+      ...(country ? { country } : {}),
+    },
   });
 
 /* =========================

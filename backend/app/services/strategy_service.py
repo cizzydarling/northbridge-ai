@@ -4,6 +4,7 @@ from app.services import province_targeting_service
 from app.services.ai_advisor import generate_ai_strategy
 from app.services.crs_calculator import calculate_crs, build_recommendation_result
 from app.services.express_entry_draw_predictor_service import predict_express_entry_draw
+from app.services.immigration_intelligence_service import build_immigration_intelligence
 from app.services.noc_service import lookup_noc_by_code, suggest_noc_matches
 from app.services.probability_engine_service import estimate_immigration_probabilities
 from app.services.simulator_service import simulate_crs_improvements
@@ -1690,6 +1691,7 @@ def build_strategy(
     language: str = "en",
     household_members: Optional[List[Any]] = None,
     application_case: Optional[Any] = None,
+    include_immigration_intelligence: bool = False,
 ) -> Dict:
     language = _normalize_language(language)
 
@@ -1810,6 +1812,17 @@ def build_strategy(
         language=language,
     )
     draw_prediction = predict_express_entry_draw(profile, crs_score)
+    immigration_intelligence = (
+        build_immigration_intelligence(
+            profile=profile,
+            crs_score=crs_score,
+            province_recommendations=province_recommendations,
+            language=language,
+            include_live=True,
+        )
+        if include_immigration_intelligence
+        else None
+    )
 
     if province_recommendations:
         top_province = province_recommendations[0]
@@ -1893,6 +1906,7 @@ def build_strategy(
         "timeline_summary": timeline_summary,
         "probability_estimate": probability_estimate,
         "draw_prediction": draw_prediction,
+        "immigration_intelligence": immigration_intelligence,
         "risk_analysis": risk_analysis,
         "profile_snapshot": _build_profile_snapshot(profile),
     }
@@ -1945,6 +1959,7 @@ def build_strategy(
         "timeline_summary": timeline_summary,
         "probability_estimate": probability_estimate,
         "draw_prediction": draw_prediction,
+        "immigration_intelligence": immigration_intelligence,
         "strengths": strengths,
         "weaknesses": weaknesses,
         "next_steps": next_steps,

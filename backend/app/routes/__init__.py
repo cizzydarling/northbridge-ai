@@ -12,6 +12,7 @@ from . import document_review_routes
 from . import express_entry_routes
 from . import forms_routes
 from . import generated_document_routes
+from . import immigration_intelligence_routes
 from . import journey_routes
 from . import matter_routes
 from . import noc_routes
@@ -40,6 +41,7 @@ __all__ = [
     "express_entry_routes",
     "forms_routes",
     "generated_document_routes",
+    "immigration_intelligence_routes",
     "journey_routes",
     "matter_routes",
     "noc_routes",

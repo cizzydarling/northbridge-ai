@@ -140,6 +140,11 @@ def get_feature_access_map(user: Optional[User]) -> Dict[str, bool]:
         "pdf_export": is_premium,
         "exports": is_premium,
 
+        # ---- PREMIUM IMMIGRATION INTELLIGENCE ----
+        "live_ircc_draws": is_premium,
+        "processing_time_tracker": is_premium,
+        "job_opportunity_matching": is_premium,
+
         # ---- WORKSPACES ----
         "self_workspace": is_pro,
         "client_workspace": is_agent,
@@ -172,6 +177,9 @@ def build_upgrade_payload(
         "advanced_ai": ("advanced AI tools", "les outils IA avancés"),
         "priority_ai": ("priority AI", "l’IA prioritaire"),
         "exports": ("exports", "les exports"),
+        "live_ircc_draws": ("live IRCC draw monitoring", "la veille des rondes IRCC"),
+        "processing_time_tracker": ("processing-time tracking", "le suivi des delais"),
+        "job_opportunity_matching": ("job and province opportunity matching", "le jumelage emplois et provinces"),
         "pdf_export": ("PDF export", "l’export PDF"),
         "client_workspace": ("the client workspace", "l’espace client"),
         "agent_workspace": ("the agent workspace", "l’espace agent"),
@@ -419,6 +427,9 @@ def build_access_response(
         "can_use_priority_ai": features["priority_ai"],
 
         "can_export_pdf": features["pdf_export"],
+        "can_use_live_ircc_draws": features["live_ircc_draws"],
+        "can_view_processing_times": features["processing_time_tracker"],
+        "can_use_job_opportunity_matching": features["job_opportunity_matching"],
         "can_access_self_workspace": features["self_workspace"],
         "can_access_simulations": features["simulation_access"],
 

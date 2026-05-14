@@ -120,6 +120,7 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
     timeline_estimate = strategy.get("timeline_estimate")
     probability_estimate = strategy.get("probability_estimate")
     draw_prediction = strategy.get("draw_prediction")
+    immigration_intelligence = strategy.get("immigration_intelligence") or {}
 
     roadmap_titles = [
         step.get("title")
@@ -165,6 +166,7 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
         f"timeline_estimate: {json.dumps(timeline_estimate, ensure_ascii=False)}",
         f"probability_estimate: {json.dumps(probability_estimate, ensure_ascii=False)}",
         f"draw_prediction: {json.dumps(draw_prediction, ensure_ascii=False)}",
+        f"immigration_intelligence: {json.dumps(immigration_intelligence, ensure_ascii=False)}",
     ]
 
     if advisor_summary:
@@ -297,6 +299,7 @@ Règles:
 - ne donne pas d’avis juridique définitif
 - ne prétends pas garantir un résultat
 - base-toi sur le profil, la stratégie, la demande et le contexte décisionnel fournis
+- utilise immigration_intelligence lorsqu'il est fourni; si les donnees live IRCC ne sont pas disponibles, renvoie vers la source officielle au lieu d'inventer un chiffre
 - si le contexte est incomplet, indique clairement ce qui manque
 - ne mentionne jamais des limitations internes, de configuration ou d’indisponibilité
 - ne dis jamais que l’IA n’est pas configurée, pas prête ou pas disponible
@@ -399,6 +402,7 @@ Rules:
 - do not give definitive legal advice
 - do not claim guaranteed outcomes
 - base your answer on the supplied profile, strategy, application, and decision context
+- use immigration_intelligence when it is supplied; if live IRCC data is unavailable, point to the official source instead of inventing a number
 - if context is incomplete, clearly say what is missing
 - never mention internal limitations, configuration, or service availability
 - never say the AI is not configured, not ready, or unavailable

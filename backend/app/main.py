@@ -31,6 +31,7 @@ from app.routes import (
     strategy_routes,
     forms_routes,
     household_routes,
+    immigration_intelligence_routes,
     application_case_routes,
 )
 
@@ -109,6 +110,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(noc_routes.router)
     app.include_router(forms_routes.router)
     app.include_router(household_routes.router)
+    app.include_router(immigration_intelligence_routes.router)
     app.include_router(application_case_routes.router)
 
 
