@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 168" role="img" aria-labelledby="title desc">
+  <title id="title">NorthBridgeAI logo</title>
+  <desc id="desc">NorthBridgeAI wordmark with NB bridge icon.</desc>
+  <rect x="4" y="16" width="136" height="136" rx="28" fill="#172033"/>
+  <path d="M34 102c25-35 51-52 78-52s53 17 78 52" transform="translate(-40 0)" fill="none" stroke="#FBBF24" stroke-width="10" stroke-linecap="round"/>
+  <path d="M32 117h80" fill="none" stroke="#FBBF24" stroke-width="8" stroke-linecap="round"/>
+  <path d="M39 48h17l48 72H87L39 48Z" fill="#FFFFFF"/>
+  <path d="M39 48h16v72H39V48Z" fill="#FFFFFF"/>
+  <path d="M107 48h16v72h-16V48Z" fill="#FFFFFF"/>
+  <text x="172" y="101" fill="#172033" font-family="Inter, Arial, sans-serif" font-size="54" font-weight="800" letter-spacing="0">
+    NorthBridgeAI
+  </text>
+  <text x="176" y="132" fill="#64748B" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" letter-spacing="0">
+    Immigration strategy workspace
+  </text>
+</svg>

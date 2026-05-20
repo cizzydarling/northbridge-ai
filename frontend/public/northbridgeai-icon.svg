@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NorthBridgeAI icon</title>
+  <desc id="desc">NB monogram with a bridge line.</desc>
+  <rect width="512" height="512" rx="96" fill="#172033"/>
+  <path d="M112 328c47-66 96-99 144-99s97 33 144 99" fill="none" stroke="#FBBF24" stroke-width="34" stroke-linecap="round"/>
+  <path d="M112 370h288" fill="none" stroke="#FBBF24" stroke-width="28" stroke-linecap="round"/>
+  <path d="M139 154h48l138 190h-48L139 154Z" fill="#FFFFFF"/>
+  <path d="M139 154h44v190h-44V154Z" fill="#FFFFFF"/>
+  <path d="M329 154h44v190h-44V154Z" fill="#FFFFFF"/>
+</svg>

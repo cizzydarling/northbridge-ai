@@ -1,4 +1,6 @@
+import hashlib
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,12 +13,20 @@ from sqlalchemy.orm import Session
 from app.data.db import get_db
 from app.models.profile_model import Profile
 from app.models.user_models import User
+from app.services.email_service import (
+    build_email_confirmation_email,
+    build_onboarding_email,
+    build_password_reset_email,
+    send_email,
+)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret_key_change_me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+PASSWORD_RESET_EXPIRE_MINUTES = 45
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -43,6 +53,26 @@ class RegisterRequest(BaseModel):
         return value
 
 
+class EmailRequest(BaseModel):
+    email: EmailStr
+
+
+class TokenRequest(BaseModel):
+    token: str
+
+
+class PasswordResetRequest(BaseModel):
+    token: str
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_length(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be 72 bytes or fewer")
+        return value
+
+
 def hash_password(password: str) -> str:
     if len(password.encode("utf-8")) > 72:
         raise ValueError("Password must be 72 bytes or fewer")
@@ -58,6 +88,14 @@ def create_access_token(data: dict) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def _new_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -77,6 +115,7 @@ def serialize_user(user: User) -> dict:
         "subscription_current_period_end": getattr(
             user, "subscription_current_period_end", None
         ),
+        "email_confirmed_at": getattr(user, "email_confirmed_at", None),
         "first_name": getattr(user, "first_name", None),
         "last_name": getattr(user, "last_name", None),
     }
@@ -115,6 +154,50 @@ def create_default_profile_for_user(db: Session, user: User) -> Profile:
     return profile
 
 
+def _send_onboarding_email(db: Session, user: User) -> None:
+    if user.onboarding_email_sent_at:
+        return
+
+    subject, text_body, html_body = build_onboarding_email()
+    result = send_email(
+        to_email=user.email,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+    user.onboarding_email_status = result.status
+    user.onboarding_email_error = result.error
+    if result.sent:
+        user.onboarding_email_sent_at = datetime.now(timezone.utc)
+    db.flush()
+
+
+def _send_email_confirmation(db: Session, user: User) -> None:
+    if user.email_confirmed_at:
+        user.email_confirmation_status = "already_confirmed"
+        db.flush()
+        return
+
+    token = _new_token()
+    user.email_confirmation_token_hash = _hash_token(token)
+    user.email_confirmation_sent_at = datetime.now(timezone.utc)
+    confirmation_url = f"{FRONTEND_URL}/auth?confirm_token={token}"
+    subject, text_body, html_body = build_email_confirmation_email(
+        confirmation_url=confirmation_url,
+    )
+    result = send_email(
+        to_email=user.email,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+    user.email_confirmation_status = result.status
+    user.email_confirmation_error = result.error
+    db.flush()
+
+
 @router.post("/register")
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     existing_user = get_user_by_email(db, data.email)
@@ -133,6 +216,8 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         db.flush()
 
         create_default_profile_for_user(db, new_user)
+        _send_email_confirmation(db, new_user)
+        _send_onboarding_email(db, new_user)
 
         db.commit()
         db.refresh(new_user)
@@ -213,6 +298,95 @@ def get_current_user(
 @router.get("/me")
 def get_me(current_user: User = Depends(get_current_user)):
     return serialize_user(current_user)
+
+
+@router.post("/request-email-confirmation")
+def request_email_confirmation(
+    data: EmailRequest,
+    db: Session = Depends(get_db),
+):
+    user = get_user_by_email(db, data.email)
+    if user:
+        _send_email_confirmation(db, user)
+        db.commit()
+
+    return {"message": "If that account exists, a confirmation email has been sent."}
+
+
+@router.post("/confirm-email")
+def confirm_email(data: TokenRequest, db: Session = Depends(get_db)):
+    token_hash = _hash_token(data.token)
+    user = (
+        db.query(User)
+        .filter(User.email_confirmation_token_hash == token_hash)
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired confirmation link.")
+
+    user.email_confirmed_at = datetime.now(timezone.utc)
+    user.email_confirmation_token_hash = None
+    user.email_confirmation_status = "confirmed"
+    user.email_confirmation_error = None
+    db.commit()
+
+    return {"message": "Email confirmed."}
+
+
+@router.get("/confirm-email")
+def confirm_email_get(token: str, db: Session = Depends(get_db)):
+    return confirm_email(TokenRequest(token=token), db)
+
+
+@router.post("/request-password-reset")
+def request_password_reset(data: EmailRequest, db: Session = Depends(get_db)):
+    user = get_user_by_email(db, data.email)
+    if user:
+        token = _new_token()
+        user.password_reset_token_hash = _hash_token(token)
+        user.password_reset_expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=PASSWORD_RESET_EXPIRE_MINUTES
+        )
+        user.password_reset_sent_at = datetime.now(timezone.utc)
+        reset_url = f"{FRONTEND_URL}/auth?reset_token={token}"
+        subject, text_body, html_body = build_password_reset_email(reset_url=reset_url)
+        result = send_email(
+            to_email=user.email,
+            subject=subject,
+            text_body=text_body,
+            html_body=html_body,
+        )
+        user.password_reset_status = result.status
+        user.password_reset_error = result.error
+        db.commit()
+
+    return {"message": "If that account exists, a password reset email has been sent."}
+
+
+@router.post("/reset-password")
+def reset_password(data: PasswordResetRequest, db: Session = Depends(get_db)):
+    token_hash = _hash_token(data.token)
+    user = db.query(User).filter(User.password_reset_token_hash == token_hash).first()
+
+    if not user or not user.password_reset_expires_at:
+        raise HTTPException(status_code=400, detail="Invalid or expired password reset link.")
+
+    expires_at = user.password_reset_expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Invalid or expired password reset link.")
+
+    user.password = hash_password(data.password)
+    user.password_reset_token_hash = None
+    user.password_reset_expires_at = None
+    user.password_reset_status = "used"
+    user.password_reset_error = None
+    db.commit()
+
+    return {"message": "Password reset complete."}
 
 
 def require_agent(current_user: User = Depends(get_current_user)) -> User:

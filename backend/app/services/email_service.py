@@ -8,6 +8,9 @@ from typing import Optional
 
 
 DEFAULT_BILLING_EMAIL = "billing@northbridgeia.com"
+BRAND_NAME = "NorthBridgeAI"
+BRAND_COLOR = "#172033"
+BRAND_ACCENT_COLOR = "#FBBF24"
 
 
 @dataclass
@@ -30,8 +33,76 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 def _format_sender() -> str:
     email = (os.getenv("BILLING_EMAIL_FROM") or DEFAULT_BILLING_EMAIL).strip()
-    name = (os.getenv("BILLING_EMAIL_FROM_NAME") or "NorthbridgeAI Billing").strip()
+    name = (os.getenv("BILLING_EMAIL_FROM_NAME") or f"{BRAND_NAME} Billing").strip()
     return f"{name} <{email}>" if name else email
+
+
+def _frontend_url() -> str:
+    return (os.getenv("FRONTEND_URL") or "https://www.northbridgeia.com").rstrip("/")
+
+
+def _brand_logo_url() -> str | None:
+    configured = (os.getenv("BRAND_LOGO_URL") or "").strip()
+    if configured:
+        return configured
+    return f"{_frontend_url()}/northbridgeai-logo.svg"
+
+
+def _brand_icon_html() -> str:
+    logo_url = _brand_logo_url()
+    if logo_url:
+        return (
+            f'<img src="{html.escape(logo_url)}" alt="{BRAND_NAME}" '
+            'width="184" style="display:block;height:auto;max-width:184px" />'
+        )
+    return (
+        f'<div style="display:inline-flex;align-items:center;gap:10px">'
+        f'<span style="display:inline-flex;width:38px;height:38px;border-radius:10px;'
+        f'align-items:center;justify-content:center;background:{BRAND_COLOR};'
+        f'color:{BRAND_ACCENT_COLOR};font-weight:800">NB</span>'
+        f'<span style="font-size:18px;font-weight:800;color:{BRAND_COLOR}">{BRAND_NAME}</span>'
+        "</div>"
+    )
+
+
+def _branded_html(title: str, body_html: str, cta_label: str | None = None, cta_url: str | None = None) -> str:
+    cta_html = ""
+    if cta_label and cta_url:
+        cta_html = f"""
+        <p style="margin:28px 0">
+          <a href="{html.escape(cta_url)}"
+             style="display:inline-block;border-radius:8px;background:{BRAND_COLOR};color:#ffffff;
+                    padding:12px 18px;text-decoration:none;font-weight:700">
+            {html.escape(cta_label)}
+          </a>
+        </p>
+        """
+
+    return f"""
+    <div style="margin:0;padding:0;background:#f8fafc">
+      <div style="max-width:640px;margin:0 auto;padding:28px 18px">
+        <div style="margin-bottom:20px">{_brand_icon_html()}</div>
+        <div style="border:1px solid #e5e7eb;background:#ffffff;border-radius:12px;padding:28px;
+                    font-family:Arial,sans-serif;color:#111827;line-height:1.6">
+          <h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:{BRAND_COLOR}">
+            {html.escape(title)}
+          </h1>
+          {body_html}
+          {cta_html}
+          <p style="margin-top:28px;color:#6b7280;font-size:13px">
+            {BRAND_NAME}<br />
+            Canadian immigration planning, strategy, and document readiness.
+          </p>
+        </div>
+      </div>
+    </div>
+    """
+
+
+def _support_line(kind: str = "billing") -> str:
+    if kind == "billing":
+        return f"If you have billing questions, reply to this email or contact {DEFAULT_BILLING_EMAIL}."
+    return f"If you need help, reply to this email or contact {DEFAULT_BILLING_EMAIL}."
 
 
 def send_email(
@@ -102,21 +173,21 @@ def build_payment_confirmation_email(
     safe_name = (customer_name or "there").strip()
     receipt_line = f"Receipt: {receipt_url}" if receipt_url else "Receipt: available in your billing portal."
 
-    subject = "NorthbridgeAI payment confirmed"
+    subject = f"{BRAND_NAME} plan activated"
     text_body = f"""Hi {safe_name},
 
-Your NorthbridgeAI payment has been confirmed.
+Your {BRAND_NAME} payment has been confirmed and your plan is active.
 
 Plan: {plan_name}
 Amount: {amount}
 Billing email: {billing_email}
 {receipt_line}
 
-You can continue using your NorthbridgeAI workspace right away.
+You can continue using your {BRAND_NAME} workspace right away.
 
-If you have billing questions, reply to this email or contact {DEFAULT_BILLING_EMAIL}.
+{_support_line("billing")}
 
-NorthbridgeAI Billing
+{BRAND_NAME} Billing
 """
 
     receipt_html = (
@@ -125,10 +196,11 @@ NorthbridgeAI Billing
         else "<p>Your receipt is available in your billing portal.</p>"
     )
 
-    html_body = f"""
-    <div style="font-family:Arial,sans-serif;color:#111827;line-height:1.6">
+    html_body = _branded_html(
+        "Plan activated",
+        f"""
       <p>Hi {html.escape(safe_name)},</p>
-      <p>Your <strong>NorthbridgeAI</strong> payment has been confirmed.</p>
+      <p>Your <strong>{BRAND_NAME}</strong> payment has been confirmed and your plan is active.</p>
       <table style="border-collapse:collapse;margin:20px 0">
         <tr>
           <td style="padding:6px 18px 6px 0;color:#6b7280">Plan</td>
@@ -144,13 +216,14 @@ NorthbridgeAI Billing
         </tr>
       </table>
       {receipt_html}
-      <p>You can continue using your NorthbridgeAI workspace right away.</p>
+      <p>You can continue using your {BRAND_NAME} workspace right away.</p>
       <p style="color:#6b7280;font-size:13px">
-        If you have billing questions, reply to this email or contact {DEFAULT_BILLING_EMAIL}.
+        {_support_line("billing")}
       </p>
-      <p>NorthbridgeAI Billing</p>
-    </div>
-    """
+        """,
+        cta_label="Open workspace",
+        cta_url=f"{_frontend_url()}/dashboard",
+    )
 
     return subject, text_body, html_body
 
@@ -169,10 +242,10 @@ def build_subscription_cancellation_email(
         else "You will keep access until the end of your current billing period."
     )
 
-    subject = "NorthbridgeAI subscription cancellation confirmed"
+    subject = f"{BRAND_NAME} subscription cancellation confirmed"
     text_body = f"""Hi {safe_name},
 
-Your NorthbridgeAI subscription cancellation has been confirmed.
+Your {BRAND_NAME} subscription cancellation has been confirmed.
 
 Plan: {plan_name}
 Billing email: {billing_email}
@@ -180,15 +253,16 @@ Billing email: {billing_email}
 
 No further renewal payment will be taken for this subscription.
 
-If this was a mistake or you have billing questions, reply to this email or contact {DEFAULT_BILLING_EMAIL}.
+{_support_line("billing")}
 
-NorthbridgeAI Billing
+{BRAND_NAME} Billing
 """
 
-    html_body = f"""
-    <div style="font-family:Arial,sans-serif;color:#111827;line-height:1.6">
+    html_body = _branded_html(
+        "Cancellation confirmed",
+        f"""
       <p>Hi {html.escape(safe_name)},</p>
-      <p>Your <strong>NorthbridgeAI</strong> subscription cancellation has been confirmed.</p>
+      <p>Your <strong>{BRAND_NAME}</strong> subscription cancellation has been confirmed.</p>
       <table style="border-collapse:collapse;margin:20px 0">
         <tr>
           <td style="padding:6px 18px 6px 0;color:#6b7280">Plan</td>
@@ -202,10 +276,133 @@ NorthbridgeAI Billing
       <p>{html.escape(access_line)}</p>
       <p>No further renewal payment will be taken for this subscription.</p>
       <p style="color:#6b7280;font-size:13px">
-        If this was a mistake or you have billing questions, reply to this email or contact {DEFAULT_BILLING_EMAIL}.
+        {_support_line("billing")}
       </p>
-      <p>NorthbridgeAI Billing</p>
-    </div>
-    """
+        """,
+        cta_label="Manage billing",
+        cta_url=f"{_frontend_url()}/pricing",
+    )
 
+    return subject, text_body, html_body
+
+
+def build_billing_issue_email(
+    *,
+    customer_name: str | None,
+    plan_name: str,
+    billing_email: str,
+    hosted_invoice_url: str | None = None,
+) -> tuple[str, str, str]:
+    safe_name = (customer_name or "there").strip()
+    action_line = (
+        f"Update payment: {hosted_invoice_url}"
+        if hosted_invoice_url
+        else "Please update your payment method from your billing page."
+    )
+    subject = f"{BRAND_NAME} billing issue"
+    text_body = f"""Hi {safe_name},
+
+We could not process the latest payment for your {BRAND_NAME} subscription.
+
+Plan: {plan_name}
+Billing email: {billing_email}
+{action_line}
+
+Your workspace may become limited if the issue is not resolved.
+
+{_support_line("billing")}
+
+{BRAND_NAME} Billing
+"""
+    html_body = _branded_html(
+        "Billing issue",
+        f"""
+      <p>Hi {html.escape(safe_name)},</p>
+      <p>We could not process the latest payment for your <strong>{BRAND_NAME}</strong> subscription.</p>
+      <table style="border-collapse:collapse;margin:20px 0">
+        <tr>
+          <td style="padding:6px 18px 6px 0;color:#6b7280">Plan</td>
+          <td style="padding:6px 0;font-weight:600">{html.escape(plan_name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 18px 6px 0;color:#6b7280">Billing email</td>
+          <td style="padding:6px 0;font-weight:600">{html.escape(billing_email)}</td>
+        </tr>
+      </table>
+      <p>Your workspace may become limited if the issue is not resolved.</p>
+      <p style="color:#6b7280;font-size:13px">{_support_line("billing")}</p>
+        """,
+        cta_label="Update payment",
+        cta_url=hosted_invoice_url or f"{_frontend_url()}/pricing",
+    )
+    return subject, text_body, html_body
+
+
+def build_onboarding_email(*, customer_name: str | None = None) -> tuple[str, str, str]:
+    safe_name = (customer_name or "there").strip()
+    subject = f"Welcome to {BRAND_NAME}"
+    text_body = f"""Hi {safe_name},
+
+Welcome to {BRAND_NAME}. Your workspace is ready.
+
+Start by completing your profile, then review your strategy, documents, forms, and next steps.
+
+{_support_line("support")}
+
+{BRAND_NAME}
+"""
+    html_body = _branded_html(
+        f"Welcome to {BRAND_NAME}",
+        f"""
+      <p>Hi {html.escape(safe_name)},</p>
+      <p>Your workspace is ready.</p>
+      <p>Start by completing your profile, then review your strategy, documents, forms, and next steps.</p>
+        """,
+        cta_label="Start onboarding",
+        cta_url=f"{_frontend_url()}/onboarding",
+    )
+    return subject, text_body, html_body
+
+
+def build_email_confirmation_email(*, confirmation_url: str) -> tuple[str, str, str]:
+    subject = f"Confirm your {BRAND_NAME} email"
+    text_body = f"""Confirm your email to finish setting up your {BRAND_NAME} account.
+
+Confirmation link: {confirmation_url}
+
+If you did not create this account, you can ignore this email.
+
+{BRAND_NAME}
+"""
+    html_body = _branded_html(
+        "Confirm your email",
+        f"""
+      <p>Confirm your email to finish setting up your <strong>{BRAND_NAME}</strong> account.</p>
+      <p style="color:#6b7280;font-size:13px">If you did not create this account, you can ignore this email.</p>
+        """,
+        cta_label="Confirm email",
+        cta_url=confirmation_url,
+    )
+    return subject, text_body, html_body
+
+
+def build_password_reset_email(*, reset_url: str) -> tuple[str, str, str]:
+    subject = f"Reset your {BRAND_NAME} password"
+    text_body = f"""Use this link to reset your {BRAND_NAME} password:
+
+{reset_url}
+
+This link expires soon. If you did not request it, you can ignore this email.
+
+{BRAND_NAME}
+"""
+    html_body = _branded_html(
+        "Reset your password",
+        """
+      <p>Use this link to reset your password.</p>
+      <p style="color:#6b7280;font-size:13px">This link expires soon. If you did not request it, you can ignore this email.</p>
+        """,
+        cta_label="Reset password",
+        cta_url=reset_url,
+    )
     return subject, text_body, html_body

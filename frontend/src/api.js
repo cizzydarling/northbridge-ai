@@ -254,6 +254,13 @@ export const getLatestDisclosureAcceptance = ({
 ========================= */
 
 export const registerUser = (payload) => api.post("/auth/register", payload);
+export const requestEmailConfirmation = (email) =>
+  api.post("/auth/request-email-confirmation", { email });
+export const confirmEmail = (token) => api.post("/auth/confirm-email", { token });
+export const requestPasswordReset = (email) =>
+  api.post("/auth/request-password-reset", { email });
+export const resetPassword = ({ token, password }) =>
+  api.post("/auth/reset-password", { token, password });
 
 export const loginUser = async ({ email, password }) => {
   const formData = new URLSearchParams();

@@ -23,6 +23,7 @@ from app.models.user_models import User
 from app.routes.auth_routes import get_current_user
 from app.schemas.billing_schema import BillingTransactionResponse
 from app.services.email_service import (
+    build_billing_issue_email,
     build_payment_confirmation_email,
     build_subscription_cancellation_email,
     send_email,
@@ -54,7 +55,7 @@ STRIPE_PLAN_CONFIG = {
         "currency": "cad",
         "interval": "day",
         "interval_count": 30,
-        "name": "NorthbridgeAI Pro",
+        "name": "NorthBridgeAI Pro",
     },
     "individual_premium": {
         "price_id": STRIPE_PRICE_INDIVIDUAL_PREMIUM,
@@ -63,7 +64,7 @@ STRIPE_PLAN_CONFIG = {
         "currency": "cad",
         "interval": "day",
         "interval_count": 90,
-        "name": "NorthbridgeAI Premium",
+        "name": "NorthBridgeAI Premium",
     },
 }
 
@@ -142,7 +143,7 @@ def _plan_display_name(plan: str | None) -> str:
     plan_config = STRIPE_PLAN_CONFIG.get(normalized)
     if plan_config:
         return plan_config["name"]
-    return "NorthbridgeAI"
+    return "NorthBridgeAI"
 
 
 def _format_transaction_amount(amount: int | None, currency: str | None) -> str:
@@ -456,6 +457,61 @@ def _safe_send_cancellation_confirmation_email(db: Session, *, user: User) -> st
     except Exception:
         db.rollback()
         logger.exception("Unable to send cancellation confirmation email.")
+    return "failed"
+
+
+def _send_billing_issue_email(
+    db: Session,
+    *,
+    user: User,
+    invoice: Any,
+) -> str:
+    to_email = _first_present(_stripe_get(invoice, "customer_email"), _latest_billing_email(db, user), user.email)
+    if not to_email:
+        user.billing_issue_email_status = "missing_recipient"
+        user.billing_issue_email_error = "No billing email is available."
+        db.commit()
+        return user.billing_issue_email_status
+
+    price = _invoice_price(invoice)
+    plan = map_price_to_plan(
+        _stripe_get(price, "id"),
+        product_id=_stripe_get(price, "product"),
+        price=price,
+    ) or get_raw_user_plan(user)
+
+    subject, text_body, html_body = build_billing_issue_email(
+        customer_name=_stripe_get(invoice, "customer_name") or _user_display_name(user),
+        plan_name=_plan_display_name(plan),
+        billing_email=to_email,
+        hosted_invoice_url=_stripe_get(invoice, "hosted_invoice_url"),
+    )
+
+    result = send_email(
+        to_email=to_email,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+    user.billing_issue_email_status = result.status
+    user.billing_issue_email_error = result.error
+    if result.sent:
+        user.billing_issue_email_sent_at = datetime.now(timezone.utc)
+
+    db.commit()
+    return result.status
+
+
+def _safe_send_billing_issue_email(db: Session, *, user: User, invoice: Any) -> str:
+    try:
+        return _send_billing_issue_email(db, user=user, invoice=invoice)
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Unable to update billing issue email status.")
+    except Exception:
+        db.rollback()
+        logger.exception("Unable to send billing issue email.")
     return "failed"
 
 
@@ -1061,6 +1117,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             if resolved_plan:
                 user.plan = resolved_plan
             user.subscription_status = "active"
+            user.billing_issue_email_status = None
+            user.billing_issue_email_error = None
+            user.billing_issue_email_sent_at = None
             db.commit()
             db.refresh(user)
             transaction = _safe_record_invoice_transaction(db, user=user, invoice=data)
@@ -1076,6 +1135,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         if user:
             user.subscription_status = "past_due"
             db.commit()
+            _safe_send_billing_issue_email(db, user=user, invoice=data)
 
     return JSONResponse({"received": True})
 

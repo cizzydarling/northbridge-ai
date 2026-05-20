@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   loginUser,
   registerUser,
+  confirmEmail,
+  requestPasswordReset,
+  resetPassword,
   setToken,
   setCurrentUserLocal,
   refreshCurrentUser,
@@ -44,6 +47,8 @@ export default function AuthPage() {
   const { t, i18n } = useTranslation();
 
   const [isLogin, setIsLogin] = useState(true);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetToken, setResetToken] = useState("");
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -62,13 +67,67 @@ export default function AuthPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const confirmToken = params.get("confirm_token");
+    const passwordToken = params.get("reset_token");
+
+    if (passwordToken) {
+      setResetToken(passwordToken);
+      setForgotMode(false);
+      setIsLogin(true);
+      return;
+    }
+
+    if (!confirmToken) return;
+
+    setLoading(true);
+    confirmEmail(confirmToken)
+      .then(() => {
+        setMessage(
+          i18n.language === "fr"
+            ? "Email confirme. Vous pouvez vous connecter."
+            : "Email confirmed. You can sign in."
+        );
+      })
+      .catch((err) => {
+        setMessage(getErrorMessage(err, "Unable to confirm email."));
+      })
+      .finally(() => {
+        setLoading(false);
+        const next = new URL(window.location.href);
+        next.searchParams.delete("confirm_token");
+        window.history.replaceState({}, "", next.toString());
+      });
+  }, [i18n.language]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (resetToken) {
+        await resetPassword({
+          token: resetToken,
+          password: form.password,
+        });
+        setMessage(
+          i18n.language === "fr"
+            ? "Mot de passe reinitialise. Vous pouvez vous connecter."
+            : "Password reset. You can sign in."
+        );
+        setResetToken("");
+        setForm((prev) => ({ ...prev, password: "" }));
+      } else if (forgotMode) {
+        await requestPasswordReset(form.email);
+        setMessage(
+          i18n.language === "fr"
+            ? "Si ce compte existe, un email de reinitialisation a ete envoye."
+            : "If that account exists, a password reset email has been sent."
+        );
+        setForgotMode(false);
+      } else if (isLogin) {
         const res = await loginUser({
           email: form.email,
           password: form.password,
@@ -133,7 +192,23 @@ export default function AuthPage() {
     message &&
     (message.toLowerCase().includes("success") ||
       message.toLowerCase().includes("successfully") ||
+      message.toLowerCase().includes("confirmed") ||
+      message.toLowerCase().includes("sent") ||
+      message.toLowerCase().includes("confirme") ||
+      message.toLowerCase().includes("envoye") ||
       message.toLowerCase().includes("succès"));
+
+  const formTitle = resetToken
+    ? i18n.language === "fr"
+      ? "Reinitialiser le mot de passe"
+      : "Reset password"
+    : forgotMode
+    ? i18n.language === "fr"
+      ? "Recevoir un lien"
+      : "Get a reset link"
+    : isLogin
+    ? t("auth.welcomeBack")
+    : t("auth.createAccount");
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -272,7 +347,7 @@ export default function AuthPage() {
                     {t("app.name")}
                   </p>
                   <h1 className="mt-1 text-3xl font-bold text-slate-900">
-                    {isLogin ? t("auth.welcomeBack") : t("auth.createAccount")}
+                    {formTitle}
                   </h1>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
                     {t("auth.subtitle")}
@@ -310,6 +385,8 @@ export default function AuthPage() {
                   type="button"
                   onClick={() => {
                     setIsLogin(true);
+                    setForgotMode(false);
+                    setResetToken("");
                     setMessage("");
                   }}
                   className={`flex h-11 items-center justify-center rounded-xl text-sm font-medium transition ${
@@ -325,6 +402,8 @@ export default function AuthPage() {
                   type="button"
                   onClick={() => {
                     setIsLogin(false);
+                    setForgotMode(false);
+                    setResetToken("");
                     setMessage("");
                   }}
                   className={`flex h-11 items-center justify-center rounded-xl text-sm font-medium transition ${
@@ -338,25 +417,29 @@ export default function AuthPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
-                <Input
-                  label={t("auth.email")}
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  required
-                />
+                {!resetToken && (
+                  <Input
+                    label={t("auth.email")}
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    required
+                  />
+                )}
 
-                <Input
-                  label={t("auth.password")}
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  required
-                />
+                {!forgotMode && (
+                  <Input
+                    label={t("auth.password")}
+                    type="password"
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    required
+                  />
+                )}
 
-                {!isLogin && (
+                {!isLogin && !forgotMode && !resetToken && (
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-700">
                       {t("auth.role", { defaultValue: "Role" })}
@@ -380,6 +463,14 @@ export default function AuthPage() {
                 >
                   {loading
                     ? t("auth.pleaseWait")
+                    : resetToken
+                    ? i18n.language === "fr"
+                      ? "Enregistrer le nouveau mot de passe"
+                      : "Save new password"
+                    : forgotMode
+                    ? i18n.language === "fr"
+                      ? "Envoyer le lien"
+                      : "Send reset link"
                     : isLogin
                     ? i18n.language === "fr"
                       ? "Accéder à mon espace"
@@ -403,16 +494,39 @@ export default function AuthPage() {
               )}
 
               <div className="mt-6 border-t border-slate-200 pt-6">
+                {isLogin && !forgotMode && !resetToken && (
+                  <button
+                    type="button"
+                    className="mb-4 w-full text-center text-sm font-medium text-amber-700 hover:text-amber-800"
+                    onClick={() => {
+                      setForgotMode(true);
+                      setMessage("");
+                    }}
+                  >
+                    {i18n.language === "fr"
+                      ? "Mot de passe oublie ?"
+                      : "Forgot password?"}
+                  </button>
+                )}
+
                 <Button
                   type="button"
                   variant="secondary"
                   className="h-12 w-full"
                   onClick={() => {
-                    setIsLogin(!isLogin);
+                    if (forgotMode || resetToken) {
+                      setForgotMode(false);
+                      setResetToken("");
+                      setIsLogin(true);
+                    } else {
+                      setIsLogin(!isLogin);
+                    }
                     setMessage("");
                   }}
                 >
-                  {isLogin
+                  {forgotMode || resetToken
+                    ? t("auth.switchToLogin")
+                    : isLogin
                     ? t("auth.switchToRegister")
                     : t("auth.switchToLogin")}
                 </Button>
