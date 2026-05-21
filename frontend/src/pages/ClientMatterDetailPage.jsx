@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import { evaluateMatterEligibility } from "../utils/eligibilityEngine";
@@ -418,20 +418,15 @@ export default function ClientMatterDetailPage() {
   const [eligibilityResult, setEligibilityResult] = useState({});
   const [formsAssistantResult, setFormsAssistantResult] = useState({});
 
-  useEffect(() => {
-    if (!clientId || !matterId) return;
-    loadPage();
-  }, [clientId, matterId]);
-
-  async function loadMatterDocuments() {
+  const loadMatterDocuments = useCallback(async () => {
     const docsRes = await getClientDocuments(clientId);
     const filteredDocs = (docsRes.data || []).filter(
       (doc) => Number(doc.matter_id) === Number(matterId)
     );
     setMatterDocuments(filteredDocs);
-  }
+  }, [clientId, matterId]);
 
-  async function loadPage() {
+  const loadPage = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -475,7 +470,12 @@ export default function ClientMatterDetailPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [clientId, matterId, loadMatterDocuments]);
+
+  useEffect(() => {
+    if (!clientId || !matterId) return;
+    loadPage();
+  }, [clientId, matterId, loadPage]);
 
   function handleChange(field, value) {
     setForm((prev) => {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { City } from "country-state-city";
 import {
   getMyProfile,
   suggestNOC,
@@ -48,6 +47,8 @@ const PROVINCES = [
   "Prince Edward Island",
   "Newfoundland and Labrador",
 ];
+
+const EMPTY_CITY_OPTIONS = [];
 
 function normalizeText(value) {
   return String(value || "").trim();
@@ -212,6 +213,7 @@ export default function OnboardingPage() {
 
   const [cityQuery, setCityQuery] = useState("");
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  const availableCities = EMPTY_CITY_OPTIONS;
 
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -232,21 +234,6 @@ export default function OnboardingPage() {
   const filteredCountries = useMemo(() => {
     return getCountryMatches(countries, countryQuery);
   }, [countries, countryQuery]);
-
-  const selectedCountry = useMemo(() => {
-    return (
-      countries.find((country) => country.name === form.current_country) || null
-    );
-  }, [countries, form.current_country]);
-
-  const availableCities = useMemo(() => {
-    if (!selectedCountry?.isoCode) return [];
-
-    return City.getCitiesOfCountry(selectedCountry.isoCode)
-      .map((city) => city.name)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
-  }, [selectedCountry]);
 
   const filteredCities = useMemo(() => {
     if (!availableCities.length) return [];
@@ -958,7 +945,9 @@ export default function OnboardingPage() {
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <Button
               onClick={() =>
-                navigate("/pricing?plan=pro&source=onboarding&intent=execute")
+                navigate(
+                  "/legal/disclosure?redirect=/pricing%3Fplan%3Dpro%26source%3Donboarding%26intent%3Dexecute"
+                )
               }
               className="w-full rounded-2xl"
             >
@@ -967,7 +956,9 @@ export default function OnboardingPage() {
 
             <Button
               variant="secondary"
-              onClick={() => navigate("/dashboard")}
+              onClick={() =>
+                navigate("/legal/disclosure?redirect=/dashboard")
+              }
               className="w-full rounded-2xl"
             >
               {pageText.completedSecondary}

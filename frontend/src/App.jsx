@@ -1,41 +1,42 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import "./i18n";
-import { getCurrentUserLocal, getMyProfile, logoutUser } from "./api";
+import {
+  getCurrentUserLocal,
+  getDisclosureStatus,
+  getMyProfile,
+  logoutUser,
+} from "./api";
 
-// Public
-import LandingPage from "./pages/LandingPage";
-import AuthPage from "./pages/AuthPage";
-import PricingPage from "./pages/PricingPage";
-import BillingSuccessPage from "./pages/BillingSuccessPage";
-import HouseholdPage from "./pages/HouseholdPage";
-import ApplicationCasesPage from "./pages/ApplicationCasesPage";
-import BlogPage from "./pages/BlogPage";
-import BlogPostPage from "./pages/BlogPostPage";
-
-// Self flow
-import SelfDashboardPage from "./pages/SelfDashboardPage";
-import ProfilePage from "./pages/ProfilePage";
-import StrategyPage from "./pages/StrategyPage";
-import StrategySimulatorPage from "./pages/StrategySimulatorPage";
-import ChatPage from "./pages/ChatPage";
-import SelfApplicationPage from "./pages/SelfApplicationPage";
-import SelfDocumentsPage from "./pages/SelfDocumentsPage";
-import DisclosureAcceptancePage from "./pages/DisclosureAcceptancePage";
-import DocumentGeneratorPage from "./pages/DocumentGeneratorPage";
-import DocumentReviewPage from "./pages/DocumentReviewPage";
-import FormsPage from "./pages/FormsPage";
-import OnboardingPage from "./pages/OnboardingPage";
-
-// Client flow
-import ClientsPage from "./pages/ClientsPage";
-import ClientOverviewPage from "./pages/ClientOverviewPage";
-import ClientProfilePage from "./pages/ClientProfilePage";
-import ClientStrategyPage from "./pages/ClientStrategyPage";
-import ClientSimulationPage from "./pages/ClientSimulationPage";
-import ClientDocumentsPage from "./pages/ClientDocumentsPage";
-import ClientMattersPage from "./pages/ClientMattersPage";
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const BillingSuccessPage = lazy(() => import("./pages/BillingSuccessPage"));
+const HouseholdPage = lazy(() => import("./pages/HouseholdPage"));
+const ApplicationCasesPage = lazy(() => import("./pages/ApplicationCasesPage"));
+const BlogPage = lazy(() => import("./pages/BlogPage"));
+const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
+const LegalPage = lazy(() => import("./pages/LegalPage"));
+const SelfDashboardPage = lazy(() => import("./pages/SelfDashboardPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const StrategyPage = lazy(() => import("./pages/StrategyPage"));
+const StrategySimulatorPage = lazy(() => import("./pages/StrategySimulatorPage"));
+const ChatPage = lazy(() => import("./pages/ChatPage"));
+const SelfApplicationPage = lazy(() => import("./pages/SelfApplicationPage"));
+const SelfDocumentsPage = lazy(() => import("./pages/SelfDocumentsPage"));
+const DisclosureAcceptancePage = lazy(() => import("./pages/DisclosureAcceptancePage"));
+const DocumentGeneratorPage = lazy(() => import("./pages/DocumentGeneratorPage"));
+const DocumentReviewPage = lazy(() => import("./pages/DocumentReviewPage"));
+const FormsPage = lazy(() => import("./pages/FormsPage"));
+const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
+const ClientsPage = lazy(() => import("./pages/ClientsPage"));
+const ClientOverviewPage = lazy(() => import("./pages/ClientOverviewPage"));
+const ClientProfilePage = lazy(() => import("./pages/ClientProfilePage"));
+const ClientStrategyPage = lazy(() => import("./pages/ClientStrategyPage"));
+const ClientSimulationPage = lazy(() => import("./pages/ClientSimulationPage"));
+const ClientDocumentsPage = lazy(() => import("./pages/ClientDocumentsPage"));
+const ClientMattersPage = lazy(() => import("./pages/ClientMattersPage"));
 
 function PublicOnlyRoute({ children }) {
   const user = getCurrentUserLocal();
@@ -64,6 +65,7 @@ function ProtectedRoute({ children }) {
 function OnboardingGate({ children }) {
   const user = getCurrentUserLocal();
   const location = useLocation();
+  const bypassOnboardingGate = location.pathname === "/legal/disclosure";
 
   const [loading, setLoading] = useState(true);
   const [hasProfile, setHasProfile] = useState(false);
@@ -72,7 +74,7 @@ function OnboardingGate({ children }) {
     let mounted = true;
 
     async function checkProfile() {
-      if (!user) {
+      if (!user || bypassOnboardingGate) {
         setLoading(false);
         return;
       }
@@ -114,7 +116,7 @@ function OnboardingGate({ children }) {
     return () => {
       mounted = false;
     };
-  }, [user, location.pathname]);
+  }, [user, location.pathname, bypassOnboardingGate]);
 
   if (loading) {
     return (
@@ -125,7 +127,7 @@ function OnboardingGate({ children }) {
   }
 
   if (user?.role !== "agent" && user?.plan !== "agent_pro") {
-    if (!hasProfile && location.pathname !== "/onboarding") {
+    if (!hasProfile && location.pathname !== "/onboarding" && !bypassOnboardingGate) {
       return <Navigate to="/onboarding" replace />;
     }
 
@@ -137,17 +139,90 @@ function OnboardingGate({ children }) {
   return children;
 }
 
+function DisclosureGate({ children }) {
+  const user = getCurrentUserLocal();
+  const location = useLocation();
+  const [loading, setLoading] = useState(true);
+  const [accepted, setAccepted] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkDisclosures() {
+      if (!user || location.pathname === "/legal/disclosure") {
+        if (mounted) {
+          setAccepted(true);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const res = await getDisclosureStatus();
+        if (mounted) {
+          setAccepted(Boolean(res.data?.accepted));
+        }
+      } catch (err) {
+        if (err?.response?.status === 401) {
+          logoutUser();
+        }
+        if (mounted) {
+          setAccepted(false);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    checkDisclosures();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user, location.pathname]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-slate-600">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!accepted) {
+    const redirect = encodeURIComponent(
+      `${location.pathname}${location.search || ""}`
+    );
+    return <Navigate to={`/legal/disclosure?redirect=${redirect}`} replace />;
+  }
+
+  return children;
+}
+
 function ProtectedAppRoute({ children }) {
   return (
     <ProtectedRoute>
-      <OnboardingGate>{children}</OnboardingGate>
+      <DisclosureGate>
+        <OnboardingGate>{children}</OnboardingGate>
+      </DisclosureGate>
     </ProtectedRoute>
+  );
+}
+
+function AppLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <p className="text-slate-600">Loading...</p>
+    </div>
   );
 }
 
 export default function App() {
   return (
-    <Routes>
+    <Suspense fallback={<AppLoading />}>
+      <Routes>
       {/* PUBLIC */}
       <Route
         path="/"
@@ -170,6 +245,9 @@ export default function App() {
       {/* Pricing must be available both before and after login */}
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/billing" element={<PricingPage />} />
+      <Route path="/legal" element={<LegalPage />} />
+      <Route path="/terms" element={<LegalPage />} />
+      <Route path="/privacy" element={<LegalPage />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />
       <Route path="/fr/blog" element={<BlogPage />} />
@@ -386,7 +464,8 @@ export default function App() {
       />
 
       {/* FALLBACK */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

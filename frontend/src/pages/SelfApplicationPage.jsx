@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -55,11 +55,7 @@ export default function SelfApplicationPage() {
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("priority");
 
-  useEffect(() => {
-    loadPage();
-  }, [language]);
-
-  async function loadPage() {
+  const loadPage = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -97,7 +93,11 @@ export default function SelfApplicationPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [language]);
+
+  useEffect(() => {
+    loadPage();
+  }, [loadPage]);
 
   const hasDecisionEngine = Boolean(access?.features?.decision_engine);
   const hasAdvancedCopilot = Boolean(access?.features?.advanced_ai_copilot);

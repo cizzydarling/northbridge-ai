@@ -242,6 +242,7 @@ export default function AuthPage() {
                 <p className="mt-5 text-lg leading-8 text-slate-300">
                   {heroSubtitle}
                 </p>
+
               </div>
 
               <div className="mt-10 grid max-w-xl gap-4 sm:grid-cols-3">
@@ -542,6 +543,18 @@ export default function AuthPage() {
                     ? "En continuant, vous accédez à une plateforme de planification et de soutien informatif."
                     : "By continuing, you access a planning and informational support platform."}
                 </p>
+
+                <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs font-medium text-slate-500">
+                  <Link className="hover:text-slate-900" to="/legal">
+                    Legal
+                  </Link>
+                  <Link className="hover:text-slate-900" to="/terms">
+                    Terms
+                  </Link>
+                  <Link className="hover:text-slate-900" to="/privacy">
+                    Privacy
+                  </Link>
+                </div>
               </div>
             </Card>
           </div>

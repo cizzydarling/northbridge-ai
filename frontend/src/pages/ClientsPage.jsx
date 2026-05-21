@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import {
@@ -32,7 +32,7 @@ export default function ClientsPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     setLoading(true);
     setMessage("");
 
@@ -55,11 +55,11 @@ export default function ClientsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
 
   useEffect(() => {
     fetchClients();
-  }, [navigate]);
+  }, [fetchClients]);
 
   const filteredClients = useMemo(() => {
     const query = search.trim().toLowerCase();

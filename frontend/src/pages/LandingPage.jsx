@@ -321,6 +321,12 @@ export default function LandingPage() {
             >
               {isFrench ? "Tarifs" : "Pricing"}
             </Link>
+            <Link className="rounded-md px-2 py-1 hover:bg-slate-100" to="/legal">
+              Legal
+            </Link>
+            <Link className="rounded-md px-2 py-1 hover:bg-slate-100" to="/privacy">
+              Privacy
+            </Link>
             <button
               type="button"
               onClick={() => switchLanguage("en")}

@@ -18,12 +18,78 @@ router = APIRouter(prefix="/disclosures", tags=["Disclosures"])
 
 
 DISCLOSURE_REGISTRY: Dict[str, Dict[str, str]] = {
-    "terms_of_use": {"version": "v2", "text": "..."},
-    "privacy_consent": {"version": "v2", "text": "..."},
-    "ai_assistance_disclaimer": {"version": "v2", "text": "..."},
-    "no_legal_advice_acknowledgment": {"version": "v2", "text": "..."},
-    "user_responsibility_acknowledgment": {"version": "v2", "text": "..."},
-    "limitation_of_scope_acknowledgment": {"version": "v2", "text": "..."},
+    "terms_of_use": {
+        "version": "v3",
+        "title": "Terms of Use",
+        "text": (
+            "By using NorthBridgeAI, you acknowledge and agree that the platform provides "
+            "administrative, educational, informational, workflow, organization, and "
+            "document-preparation support only. NorthBridgeAI does not guarantee eligibility, "
+            "approval, invitation, permit issuance, permanent residence, citizenship, or any "
+            "immigration outcome. You remain solely responsible for reviewing all information, "
+            "confirming its accuracy, and deciding whether and how to use any content, output, "
+            "recommendation, checklist, template, or draft generated or displayed by the platform."
+        ),
+    },
+    "privacy_consent": {
+        "version": "v3",
+        "title": "Privacy and Data Processing Consent",
+        "text": (
+            "You consent to the collection, storage, organization, use, and processing of the "
+            "information and documents you submit for the operation of the platform, including "
+            "profile analysis, workflow support, document organization, AI-assisted features, "
+            "report generation, and related service delivery. You are responsible for ensuring "
+            "that you have the right to provide any third-party personal information or documents "
+            "uploaded to the platform."
+        ),
+    },
+    "ai_assistance_disclaimer": {
+        "version": "v3",
+        "title": "AI Assistance Disclaimer",
+        "text": (
+            "You understand and accept that AI-generated content may contain errors, omissions, "
+            "incomplete reasoning, formatting issues, or outdated information. AI outputs may "
+            "misinterpret facts, fail to account for exceptions, or present information in a way "
+            "that is not appropriate for your specific legal or procedural situation. All AI-generated "
+            "outputs, including recommendations, explanations, drafts, checklists, probabilities, "
+            "and summaries, must be independently reviewed and verified before being relied upon or used."
+        ),
+    },
+    "no_legal_advice_acknowledgment": {
+        "version": "v3",
+        "title": "No Legal Advice Acknowledgment",
+        "text": (
+            "You acknowledge that NorthBridgeAI does not provide legal advice, legal representation, "
+            "or regulated immigration representation unless such professional services are explicitly "
+            "offered through a properly authorized lawyer or regulated immigration professional under "
+            "a separate valid engagement. Use of this platform alone does not create a lawyer-client, "
+            "consultant-client, fiduciary, or other professional advisory relationship."
+        ),
+    },
+    "user_responsibility_acknowledgment": {
+        "version": "v3",
+        "title": "User Responsibility Acknowledgment",
+        "text": (
+            "You acknowledge that you are solely responsible for the accuracy, completeness, and "
+            "truthfulness of the information you provide, the documents you upload, and the final "
+            "content of any immigration-related form, application, letter, declaration, or submission. "
+            "You also acknowledge that deadlines, eligibility rules, documentary requirements, and "
+            "government processes may change and that it is your responsibility to confirm current "
+            "official requirements before taking action."
+        ),
+    },
+    "limitation_of_scope_acknowledgment": {
+        "version": "v3",
+        "title": "Platform Scope and Limitation Acknowledgment",
+        "text": (
+            "You understand that the platform is intended to support planning, organization, education, "
+            "and workflow assistance only. NorthBridgeAI is not responsible for decisions made by "
+            "immigration authorities, for user misunderstandings, for incomplete or incorrect "
+            "user-provided information, or for actions taken by users without independent review. "
+            "Past outputs, saved strategies, or prior guidance should not be treated as guarantees "
+            "of current accuracy or future results."
+        ),
+    },
 }
 
 
@@ -119,6 +185,61 @@ def get_latest_acceptance_record(
     return query.order_by(DisclosureAcceptance.accepted_at.desc()).first()
 
 
+def required_disclosure_items() -> list[dict]:
+    return [
+        {
+            "disclosure_type": key,
+            "disclosure_version": val["version"],
+            "title": val["title"],
+            "accepted_text_snapshot": val["text"],
+        }
+        for key, val in DISCLOSURE_REGISTRY.items()
+    ]
+
+
+def get_missing_required_disclosures(
+    db: Session,
+    current_user: User,
+    *,
+    client_id: Optional[int] = None,
+    matter_id: Optional[int] = None,
+) -> list[dict]:
+    missing = []
+
+    for item in required_disclosure_items():
+        latest = get_latest_acceptance_record(
+            db,
+            current_user,
+            item["disclosure_type"],
+            client_id,
+            matter_id,
+        )
+        if not latest or latest.disclosure_version != item["disclosure_version"]:
+            missing.append(item)
+
+    return missing
+
+
+def require_global_disclosures_accepted(db: Session, current_user: User) -> None:
+    missing = get_missing_required_disclosures(db, current_user)
+    if missing:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "disclosures_required",
+                "message": "Required disclosures must be accepted before continuing.",
+                "redirect": "/legal/disclosure",
+                "missing_disclosures": [
+                    {
+                        "disclosure_type": item["disclosure_type"],
+                        "disclosure_version": item["disclosure_version"],
+                    }
+                    for item in missing
+                ],
+            },
+        )
+
+
 # ------------------------
 # ROUTES
 # ------------------------
@@ -126,15 +247,73 @@ def get_latest_acceptance_record(
 @router.get("/requirements")
 def get_disclosure_requirements():
     return {
-        "required_disclosures": [
-            {
-                "disclosure_type": key,
-                "disclosure_version": val["version"],
-                "accepted_text_snapshot": val["text"],
-            }
-            for key, val in DISCLOSURE_REGISTRY.items()
-        ]
+        "required_disclosures": required_disclosure_items()
     }
+
+
+@router.get("/status")
+def get_disclosure_status(
+    client_id: Optional[int] = None,
+    matter_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    validate_scope_or_400(db, current_user, client_id, matter_id)
+    missing = get_missing_required_disclosures(
+        db,
+        current_user,
+        client_id=client_id,
+        matter_id=matter_id,
+    )
+    return {
+        "required": required_disclosure_items(),
+        "accepted": not missing,
+        "missing_disclosures": missing,
+    }
+
+
+@router.get("/mine", response_model=list[DisclosureAcceptanceResponse])
+def get_my_disclosures(
+    client_id: Optional[int] = None,
+    matter_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    validate_scope_or_400(db, current_user, client_id, matter_id)
+    query = db.query(DisclosureAcceptance).filter(
+        DisclosureAcceptance.user_id == current_user.id,
+    )
+
+    if client_id is None:
+        query = query.filter(DisclosureAcceptance.client_id.is_(None))
+    else:
+        query = query.filter(DisclosureAcceptance.client_id == client_id)
+
+    if matter_id is None:
+        query = query.filter(DisclosureAcceptance.matter_id.is_(None))
+    else:
+        query = query.filter(DisclosureAcceptance.matter_id == matter_id)
+
+    return query.order_by(DisclosureAcceptance.accepted_at.desc()).all()
+
+
+@router.get("/latest", response_model=Optional[DisclosureAcceptanceResponse])
+def get_latest_disclosure_acceptance(
+    disclosure_type: str,
+    client_id: Optional[int] = None,
+    matter_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    validate_disclosure_type_or_400(disclosure_type)
+    validate_scope_or_400(db, current_user, client_id, matter_id)
+    return get_latest_acceptance_record(
+        db,
+        current_user,
+        disclosure_type,
+        client_id,
+        matter_id,
+    )
 
 
 @router.post("/accept", response_model=DisclosureAcceptanceResponse)
@@ -177,7 +356,7 @@ def accept_disclosure(
         matter_id=payload.matter_id,
         disclosure_type=payload.disclosure_type,
         disclosure_version=required_version,
-        accepted_text_snapshot=payload.accepted_text_snapshot,
+        accepted_text_snapshot=disclosure["text"],
         accepted_by_email_snapshot=current_user.email,
         acceptance_scope=determine_scope(payload.client_id, payload.matter_id),
         ip_address=metadata["ip_address"],

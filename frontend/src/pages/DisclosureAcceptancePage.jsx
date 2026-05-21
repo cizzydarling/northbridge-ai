@@ -8,63 +8,7 @@ import {
   acceptDisclosure,
   getLatestDisclosureAcceptance,
 } from "../api";
-
-const REQUIRED_DISCLOSURES = [
-  {
-    type: "terms_of_use",
-    version: "v2",
-    titleKey: "legal.sections.termsOfUseTitle",
-    defaultTitle: "Terms of Use",
-    textKey: "legal.custom.termsOfUseBody",
-    defaultText:
-      "By using NorthBridgeAI, you acknowledge and agree that the platform provides administrative, educational, informational, workflow, organization, and document-preparation support only. NorthBridgeAI does not guarantee eligibility, approval, invitation, permit issuance, permanent residence, citizenship, or any immigration outcome. You remain solely responsible for reviewing all information, confirming its accuracy, and deciding whether and how to use any content, output, recommendation, checklist, template, or draft generated or displayed by the platform.",
-  },
-  {
-    type: "privacy_consent",
-    version: "v2",
-    titleKey: "legal.custom.privacyConsentTitle",
-    defaultTitle: "Privacy and Data Processing Consent",
-    textKey: "legal.custom.privacyConsentBody",
-    defaultText:
-      "You consent to the collection, storage, organization, use, and processing of the information and documents you submit for the operation of the platform, including profile analysis, workflow support, document organization, AI-assisted features, report generation, and related service delivery. You are responsible for ensuring that you have the right to provide any third-party personal information or documents uploaded to the platform.",
-  },
-  {
-    type: "ai_assistance_disclaimer",
-    version: "v2",
-    titleKey: "legal.sections.aiDisclaimerTitle",
-    defaultTitle: "AI Assistance Disclaimer",
-    textKey: "legal.custom.aiDisclaimerBody",
-    defaultText:
-      "You understand and accept that AI-generated content may contain errors, omissions, incomplete reasoning, formatting issues, or outdated information. AI outputs may misinterpret facts, fail to account for exceptions, or present information in a way that is not appropriate for your specific legal or procedural situation. All AI-generated outputs, including recommendations, explanations, drafts, checklists, probabilities, and summaries, must be independently reviewed and verified before being relied upon or used.",
-  },
-  {
-    type: "no_legal_advice_acknowledgment",
-    version: "v2",
-    titleKey: "legal.sections.notLegalAdviceTitle",
-    defaultTitle: "No Legal Advice Acknowledgment",
-    textKey: "legal.custom.notLegalAdviceBody",
-    defaultText:
-      "You acknowledge that NorthBridgeAI does not provide legal advice, legal representation, or regulated immigration representation unless such professional services are explicitly offered through a properly authorized lawyer or regulated immigration professional under a separate valid engagement. Use of this platform alone does not create a lawyer-client, consultant-client, fiduciary, or other professional advisory relationship.",
-  },
-  {
-    type: "user_responsibility_acknowledgment",
-    version: "v2",
-    titleKey: "legal.custom.userResponsibilityTitle",
-    defaultTitle: "User Responsibility Acknowledgment",
-    textKey: "legal.custom.userResponsibilityBody",
-    defaultText:
-      "You acknowledge that you are solely responsible for the accuracy, completeness, and truthfulness of the information you provide, the documents you upload, and the final content of any immigration-related form, application, letter, declaration, or submission. You also acknowledge that deadlines, eligibility rules, documentary requirements, and government processes may change and that it is your responsibility to confirm current official requirements before taking action.",
-  },
-  {
-    type: "limitation_of_scope_acknowledgment",
-    version: "v2",
-    titleKey: "legal.custom.scopeTitle",
-    defaultTitle: "Platform Scope and Limitation Acknowledgment",
-    textKey: "legal.custom.scopeBody",
-    defaultText:
-      "You understand that the platform is intended to support planning, organization, education, and workflow assistance only. NorthBridgeAI is not responsible for decisions made by immigration authorities, for user misunderstandings, for incomplete or incorrect user-provided information, or for actions taken by users without independent review. Past outputs, saved strategies, or prior guidance should not be treated as guarantees of current accuracy or future results.",
-  },
-];
+import { REQUIRED_DISCLOSURES } from "../data/legalDisclosures";
 
 export default function DisclosureAcceptancePage() {
   const navigate = useNavigate();
@@ -255,41 +199,62 @@ export default function DisclosureAcceptancePage() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-4xl space-y-6">
-        <section className="rounded-3xl bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 px-6 py-8 text-white shadow-xl md:px-8 md:py-10">
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+      <div className="space-y-5">
+        <section className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+          <div className="rounded-[30px] border border-slate-900/10 bg-[#172033] p-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-200">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50">
                 {t("app.name", { defaultValue: "NorthBridgeAI" })}
               </p>
-              <h1 className="mt-3 text-3xl font-bold md:text-4xl">
+              <h1 className="mt-4 max-w-3xl text-3xl font-semibold tracking-tight md:text-5xl">
                 {t("legal.custom.requiredDisclosuresTitle", {
                   defaultValue: "Required Disclosures and Acknowledgments",
                 })}
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-blue-100 md:text-base">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/68 md:text-base">
                 {t("legal.custom.requiredDisclosuresBody", {
                   defaultValue:
                     "Please read each disclosure carefully. These acknowledgments are required before continuing to AI-assisted guidance, planning, document, or workflow features.",
                 })}
               </p>
             </div>
+          </div>
 
-            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_14px_45px_rgba(15,23,42,0.06)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              {t("legal.custom.reviewLabel", {
+                defaultValue: "Review",
+              })}
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+              {completionPercent}%
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {allAlreadyAccepted
+                ? t("legal.custom.alreadyAccepted", {
+                    defaultValue:
+                      "These disclosures have already been accepted for this scope and version.",
+                  })
+                : t("legal.custom.reviewSubtitle", {
+                    defaultValue:
+                      "You must actively confirm each item before continuing.",
+                  })}
+            </p>
+
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-cyan-500 transition-all duration-300"
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
+
+            <div className="mt-5 grid gap-3">
               <DisclosureMetric
                 label={t("legal.custom.scopeLabel", {
                   defaultValue: "Scope",
                 })}
                 value={t("legal.custom.scopeValue", {
                   defaultValue: "Planning Only",
-                })}
-              />
-              <DisclosureMetric
-                label={t("legal.custom.reviewLabel", {
-                  defaultValue: "Review",
-                })}
-                value={t("legal.custom.reviewValue", {
-                  defaultValue: "Required",
                 })}
               />
               <DisclosureMetric
@@ -325,27 +290,14 @@ export default function DisclosureAcceptancePage() {
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-2 flex items-center justify-between text-sm text-slate-600">
-            <span>
+        <Card className="overflow-hidden rounded-[26px]" padding="none">
+          <div className="border-b border-slate-200 px-6 py-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
               {t("legal.custom.progress", {
                 defaultValue: "Completion",
               })}
-            </span>
-            <span>{completionPercent}%</span>
-          </div>
-
-          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
-            <div
-              className="h-full bg-blue-900 transition-all duration-300"
-              style={{ width: `${completionPercent}%` }}
-            />
-          </div>
-        </div>
-
-        <Card className="shadow-xl">
-          <div className="border-b border-slate-200 px-6 py-6">
-            <h2 className="text-2xl font-bold text-slate-900">
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
               {t("legal.custom.reviewTitle", {
                 defaultValue: "Review each required acknowledgment",
               })}
@@ -365,7 +317,7 @@ export default function DisclosureAcceptancePage() {
               return (
                 <div
                   key={item.type}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:shadow-sm"
+                  className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-5 transition hover:border-cyan-200 hover:bg-white hover:shadow-[0_16px_42px_rgba(15,23,42,0.08)]"
                 >
                   <label className="flex cursor-pointer items-start gap-4">
                     <input
@@ -373,12 +325,12 @@ export default function DisclosureAcceptancePage() {
                       checked={checked[item.type] === true}
                       onChange={() => toggleChecked(item.type)}
                       disabled={alreadyAccepted}
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-amber-300"
                     />
 
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600">
                           {index + 1}
                         </span>
 
@@ -403,12 +355,6 @@ export default function DisclosureAcceptancePage() {
                         })}
                       </p>
 
-                      <p className="mt-3 text-xs text-slate-500">
-                        {t("legal.custom.versionLabel", {
-                          defaultValue: "Version",
-                        })}
-                        : {item.version}
-                      </p>
                     </div>
                   </label>
                 </div>
@@ -424,7 +370,7 @@ export default function DisclosureAcceptancePage() {
                     setFinalCertificationChecked((prev) => !prev)
                   }
                   disabled={allAlreadyAccepted}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-amber-300"
                 />
 
                 <div>
@@ -464,20 +410,6 @@ export default function DisclosureAcceptancePage() {
             </Button>
           </div>
         </Card>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-600 shadow-sm">
-          <p className="font-semibold text-slate-900">
-            {t("legal.custom.reviewRecommendationTitle", {
-              defaultValue: "Recommended protection step",
-            })}
-          </p>
-          <p className="mt-2">
-            {t("legal.custom.reviewRecommendationBody", {
-              defaultValue:
-                "For stronger legal protection, have your final disclosure language, privacy policy, terms of use, client engagement wording, and workflow-specific acknowledgments reviewed by a licensed lawyer before public launch.",
-            })}
-          </p>
-        </div>
       </div>
     </Layout>
   );
@@ -485,11 +417,13 @@ export default function DisclosureAcceptancePage() {
 
 function DisclosureMetric({ label, value }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">
+    <div className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-bold text-white">{value}</p>
+      <p className="mt-2 text-lg font-semibold tracking-tight text-slate-950">
+        {value}
+      </p>
     </div>
   );
 }

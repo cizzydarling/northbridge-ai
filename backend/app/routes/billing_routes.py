@@ -21,6 +21,7 @@ from app.data.db import get_db
 from app.models.billing_transaction_model import BillingTransaction
 from app.models.user_models import User
 from app.routes.auth_routes import get_current_user
+from app.routes.disclosure_routes import require_global_disclosures_accepted
 from app.schemas.billing_schema import BillingTransactionResponse
 from app.services.email_service import (
     build_billing_issue_email,
@@ -897,6 +898,7 @@ def create_checkout_session(
     current_user: User = Depends(get_current_user),
 ):
     ensure_stripe_configured()
+    require_global_disclosures_accepted(db, current_user)
 
     selected_plan = _normalize_plan(payload.get("plan"))
 

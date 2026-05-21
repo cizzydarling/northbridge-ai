@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -32,11 +32,7 @@ export default function BillingSuccessPage() {
 
   const sessionId = searchParams.get("session_id") || "";
 
-  useEffect(() => {
-    loadPage();
-  }, []);
-
-  async function loadPage() {
+  const loadPage = useCallback(async () => {
     try {
       setLoading(true);
       setMessage("");
@@ -69,7 +65,11 @@ export default function BillingSuccessPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [language]);
+
+  useEffect(() => {
+    loadPage();
+  }, [loadPage]);
 
   const normalizedPlan = normalizePlan(access?.plan || billingStatus?.plan || "free");
   const rawPlan = billingStatus?.raw_plan || access?.raw_plan || "free";

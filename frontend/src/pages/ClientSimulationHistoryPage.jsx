@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import {
@@ -20,7 +20,7 @@ export default function ClientSimulationHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  const fetchSimulations = async () => {
+  const fetchSimulations = useCallback(async () => {
     try {
       setLoading(true);
       setMessage("");
@@ -51,11 +51,11 @@ export default function ClientSimulationHistoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId, navigate]);
 
   useEffect(() => {
     fetchSimulations();
-  }, [clientId]);
+  }, [fetchSimulations]);
 
   const handleRename = async (simulation) => {
     const newName = window.prompt("Enter a new scenario name:", simulation.name);

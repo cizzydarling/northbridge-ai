@@ -1,5 +1,4 @@
 import StrategyProgressCard from "../components/StrategyProgressCard";
-import { getActiveCaseId } from "../utils/activeCase";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -2145,7 +2144,6 @@ export default function StrategyPage() {
   const [drawerInput, setDrawerInput] = useState("");
   const [drawerError, setDrawerError] = useState("");
   const [aiMode, setAiMode] = useState("general");
-  const [activeCaseId, setActiveCaseId] = useState(getActiveCaseId());
   
 
   useEffect(() => {
@@ -2199,7 +2197,6 @@ export default function StrategyPage() {
 
   useEffect(() => {
   function handleActiveCaseUpdate() {
-    setActiveCaseId(getActiveCaseId());
     loadPage();
   }
 
@@ -2619,12 +2616,16 @@ export default function StrategyPage() {
   const probabilityValue = formatProbabilityValue(probabilityEstimate);
 
   const noc = strategy?.noc_summary || {};
-  const nocAdvantage = strategy?.noc_advantage || {};
+  const nocAdvantage = useMemo(
+    () => strategy?.noc_advantage || {},
+    [strategy?.noc_advantage]
+  );
   const provinceRecommendations = Array.isArray(strategy?.province_recommendations)
     ? strategy.province_recommendations
     : [];
 
   const documentStats = useMemo(() => {
+    void engineVersion;
     const engine = readCompletionEngine();
     const values = Object.values(engine || {});
 
@@ -2733,15 +2734,17 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
       : "Your strategy is built from your profile and current opportunities.");
 
   const bestPathway = strategy?.best_pathway || null;
-  const nocProfile = strategy?.noc_profile || {};
+  const nocProfile = useMemo(
+    () => strategy?.noc_profile || {},
+    [strategy?.noc_profile]
+  );
   const previewProvince =
     Array.isArray(strategy?.province_recommendations) &&
     strategy.province_recommendations.length > 0
       ? strategy.province_recommendations[0]
       : null;
 
-  const overviewCards = useMemo(() => {
-    return [
+  const overviewCards = [
       {
         key: "best-pathway",
         node: (
@@ -2870,20 +2873,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
           </BlurredSection>
         ),
       },
-    ];
-  }, [
-    language,
-    bestPathway,
-    bestPathwayName,
-    confidenceValue,
-    heroSummary,
-    nocProfile,
-    nocAdvantage,
-    hasFullStrategy,
-    previewProvince,
-    navigate,
-    proPath,
-  ]);
+  ];
 
   const emptyStateCopy =
   language === "fr"
@@ -3166,7 +3156,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
       unlockNocAnalysis: "Unlock NOC analysis",
       unlockProvinceTargets: "Unlock your target provinces",
     };
-  }, [language, activeCaseId]);
+  }, [language]);
 
   const topTabs = useMemo(
     () => [

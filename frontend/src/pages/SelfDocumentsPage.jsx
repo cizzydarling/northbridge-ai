@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
@@ -1144,38 +1144,7 @@ export default function SelfDocumentsPage() {
   const [activeCategory, setActiveCategory] = useState(getCategoryOrder()[0]);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
 
-  useEffect(() => {
-    loadAccess();
-
-    function handleEngineUpdate() {
-      setEngineVersion((prev) => prev + 1);
-    }
-
-    window.addEventListener("nbai-document-engine-updated", handleEngineUpdate);
-
-    return () => {
-      window.removeEventListener(
-        "nbai-document-engine-updated",
-        handleEngineUpdate
-      );
-    };
-  }, [language, activeCaseId]);
-
-  useEffect(() => {
-  function handleActiveCaseUpdate() {
-    setActiveCaseId(getActiveCaseId());
-    loadAccess();
-  }
-
-  window.addEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
-
-  return () => {
-    window.removeEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
-
-  async function loadAccess() {
+  const loadAccess = useCallback(async () => {
     try {
       const [accessRes, strategyLiteRes] = await Promise.allSettled([
         getBillingAccess(),
@@ -1203,11 +1172,49 @@ export default function SelfDocumentsPage() {
       setAccess(null);
       setStrategy(null);
     }
+  }, [language]);
+
+  useEffect(() => {
+    loadAccess();
+
+    function handleEngineUpdate() {
+      setEngineVersion((prev) => prev + 1);
+    }
+
+    window.addEventListener("nbai-document-engine-updated", handleEngineUpdate);
+
+    return () => {
+      window.removeEventListener(
+        "nbai-document-engine-updated",
+        handleEngineUpdate
+      );
+    };
+  }, [language, activeCaseId, loadAccess]);
+
+  useEffect(() => {
+  function handleActiveCaseUpdate() {
+    setActiveCaseId(getActiveCaseId());
+    loadAccess();
   }
-  const engine = useMemo(() => readCompletionEngine(), [engineVersion]);
-  const familyRequirements = Array.isArray(strategy?.family_document_requirements)
-    ? strategy.family_document_requirements
-    : [];
+
+  window.addEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
+
+  return () => {
+    window.removeEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
+  };
+  }, [loadAccess]);
+
+  const engine = useMemo(() => {
+    void engineVersion;
+    return readCompletionEngine();
+  }, [engineVersion]);
+  const familyRequirements = useMemo(
+    () =>
+      Array.isArray(strategy?.family_document_requirements)
+        ? strategy.family_document_requirements
+        : [],
+    [strategy?.family_document_requirements]
+  );
 
   function readFormsPreview() {
     try {
@@ -1245,7 +1252,10 @@ export default function SelfDocumentsPage() {
     };
   }, [engine]);
 
-  const formsPreview = useMemo(() => readFormsPreview(), [engineVersion]);
+  const formsPreview = useMemo(() => {
+    void engineVersion;
+    return readFormsPreview();
+  }, [engineVersion]);
 
   const submissionReadiness = useMemo(() => {
     return buildSubmissionReadiness({

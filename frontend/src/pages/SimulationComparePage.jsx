@@ -61,7 +61,7 @@ export default function SimulationComparePage() {
     };
 
     fetchSimulations();
-  }, [clientId]);
+  }, [clientId, navigate]);
 
   const toggleSelect = (simulationId) => {
     setSelectedIds((prev) => {

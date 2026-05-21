@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import Button from "../components/ui/Button";
 import {
@@ -783,12 +783,19 @@ export default function PricingPage() {
     } catch (err) {
       console.error(err);
       const detail = err?.response?.data?.detail;
+      if (detail?.code === "disclosures_required") {
+        const redirect = encodeURIComponent(
+          `/pricing?plan=${plan}&source=disclosure&intent=checkout`
+        );
+        navigate(`/legal/disclosure?redirect=${redirect}`);
+        return;
+      }
       const localStripeHint =
         isLocalDev && detail
           ? ` ${language === "fr" ? "Verifiez les variables Stripe locales si vous testez le paiement." : "Check local Stripe variables if you are testing checkout."}`
           : "";
       setMessage(
-        detail
+        typeof detail === "string"
           ? `${detail}${localStripeHint}`
           : language === "fr"
             ? "Impossible de demarrer le paiement."
@@ -1579,6 +1586,18 @@ export default function PricingPage() {
           </div>
         </SurfaceCard>
       ) : null}
+
+      <div className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-slate-500">
+        <Link className="hover:text-slate-900" to="/legal">
+          Legal disclosures
+        </Link>
+        <Link className="hover:text-slate-900" to="/terms">
+          Terms
+        </Link>
+        <Link className="hover:text-slate-900" to="/privacy">
+          Privacy
+        </Link>
+      </div>
     </Layout>
   );
 }

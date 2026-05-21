@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -24,7 +24,7 @@ export default function ClientStrategyPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const loadPage = async ({ isRefresh = false } = {}) => {
+  const loadPage = useCallback(async ({ isRefresh = false } = {}) => {
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -72,11 +72,11 @@ export default function ClientStrategyPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [clientId, navigate]);
 
   useEffect(() => {
     loadPage();
-  }, [clientId]);
+  }, [loadPage]);
 
   const handleExport = async () => {
     try {
@@ -129,8 +129,14 @@ export default function ClientStrategyPage() {
   const roadmap = strategy?.roadmap || [];
   const improvementScenarios = strategy?.improvement_scenarios || [];
   const probabilityEstimate = strategy?.probability_estimate || {};
-  const timelineEstimate = strategy?.timeline_estimate || {};
-  const drawPrediction = strategy?.draw_prediction || {};
+  const timelineEstimate = useMemo(
+    () => strategy?.timeline_estimate || {},
+    [strategy?.timeline_estimate]
+  );
+  const drawPrediction = useMemo(
+    () => strategy?.draw_prediction || {},
+    [strategy?.draw_prediction]
+  );
   const advisorSummary = strategy?.advisor_summary || "";
   const aiStrategy = strategy?.ai_strategy || "";
   const crsScore = strategy?.crs_score ?? "--";

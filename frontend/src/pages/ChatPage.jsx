@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
@@ -300,55 +300,14 @@ export default function ChatPage() {
     };
   }, [firstName, language]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading, lastSuggestedActions, lastInsights]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadProfileAndBoot() {
-      try {
-        const res = await getMyProfile();
-        if (!mounted) return;
-        setProfile(res.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        const starterMessages = [
-          {
-            role: "assistant",
-            content: welcomeText,
-          },
-        ];
-
-        if (mounted) {
-          setMessages(starterMessages);
-          setPageLoading(false);
-        }
-
-        if (mounted && String(initialPrompt || "").trim()) {
-          void runPrompt(
-            String(initialPrompt || "").trim(),
-            starterMessages,
-            language
-          );
-        }
-      }
-    }
-
-    loadProfileAndBoot();
-
-    return () => {
-      mounted = false;
-    };
-  }, [welcomeText, initialPrompt, language]);
-
-  async function runPrompt(promptText, baseMessages = messages, languageOverride) {
+  const runPrompt = useCallback(async (promptText, baseMessages, languageOverride) => {
     const trimmed = String(promptText || "").trim();
     if (!trimmed) return;
 
-    const nextMessages = [...baseMessages, { role: "user", content: trimmed }];
+    const nextMessages = [
+      ...(Array.isArray(baseMessages) ? baseMessages : []),
+      { role: "user", content: trimmed },
+    ];
 
     setMessages(nextMessages);
     setInput("");
@@ -414,11 +373,55 @@ export default function ChatPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [language, ui.errorReply]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading, lastSuggestedActions, lastInsights]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadProfileAndBoot() {
+      try {
+        const res = await getMyProfile();
+        if (!mounted) return;
+        setProfile(res.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        const starterMessages = [
+          {
+            role: "assistant",
+            content: welcomeText,
+          },
+        ];
+
+        if (mounted) {
+          setMessages(starterMessages);
+          setPageLoading(false);
+        }
+
+        if (mounted && String(initialPrompt || "").trim()) {
+          void runPrompt(
+            String(initialPrompt || "").trim(),
+            starterMessages,
+            language
+          );
+        }
+      }
+    }
+
+    loadProfileAndBoot();
+
+    return () => {
+      mounted = false;
+    };
+  }, [welcomeText, initialPrompt, language, runPrompt]);
 
   async function handleSend() {
     if (!input.trim() || loading) return;
-    await runPrompt(input);
+    await runPrompt(input, messages);
   }
 
   function handleKeyDown(e) {
@@ -441,7 +444,7 @@ export default function ChatPage() {
   }
 
   function handleStarterPromptClick(prompt) {
-    void runPrompt(prompt);
+    void runPrompt(prompt, messages);
   }
 
   if (pageLoading) {

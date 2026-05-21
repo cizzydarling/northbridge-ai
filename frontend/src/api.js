@@ -233,6 +233,9 @@ export const acceptDisclosure = (payload) =>
 export const getDisclosureRequirements = () =>
   api.get("/disclosures/requirements");
 
+export const getDisclosureStatus = (params = {}) =>
+  api.get("/disclosures/status", { params });
+
 export const getMyDisclosures = (params = {}) =>
   api.get("/disclosures/mine", { params });
 

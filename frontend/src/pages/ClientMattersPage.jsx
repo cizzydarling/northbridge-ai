@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import {
@@ -49,7 +49,7 @@ export default function ClientMattersPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const loadPage = async ({ isRefresh = false } = {}) => {
+  const loadPage = useCallback(async ({ isRefresh = false } = {}) => {
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -87,11 +87,11 @@ export default function ClientMattersPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [clientId, navigate]);
 
   useEffect(() => {
     loadPage();
-  }, [clientId]);
+  }, [loadPage]);
 
   const filteredMatters = useMemo(() => {
     const query = search.trim().toLowerCase();

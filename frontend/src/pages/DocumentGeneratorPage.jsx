@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -892,9 +892,32 @@ export default function DocumentGeneratorPage() {
   const [scoringConfidence, setScoringConfidence] = useState(false);
   const [message, setMessage] = useState("");
 
+  const loadDrafts = useCallback(async () => {
+    try {
+      const res = await getSavedDocuments();
+      setDrafts(res.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const loadAccess = useCallback(async () => {
+    try {
+      const res = await getBillingAccess();
+      setAccess(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const loadPage = useCallback(async () => {
+    setGeneratorUsage(readGeneratorUsage());
+    await Promise.all([loadDrafts(), loadAccess()]);
+  }, [loadAccess, loadDrafts]);
+
   useEffect(() => {
     loadPage();
-  }, []);
+  }, [loadPage]);
 
   useEffect(() => {
     const queryDocumentType = searchParams.get("document_type");
@@ -969,29 +992,6 @@ export default function DocumentGeneratorPage() {
 
     setSections(splitContentIntoSections(result.content));
   }, [result]);
-
-  async function loadPage() {
-    setGeneratorUsage(readGeneratorUsage());
-    await Promise.all([loadDrafts(), loadAccess()]);
-  }
-
-  async function loadDrafts() {
-    try {
-      const res = await getSavedDocuments();
-      setDrafts(res.data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function loadAccess() {
-    try {
-      const res = await getBillingAccess();
-      setAccess(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  }
 
   const selectedDocumentMeta =
     DOCUMENT_TYPES.find((item) => item.value === documentType) ||
