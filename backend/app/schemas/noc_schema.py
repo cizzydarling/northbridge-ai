@@ -8,6 +8,7 @@ class NocSuggestRequest(BaseModel):
     job_description: Optional[str] = ""
     duties: Optional[List[str]] = None
     top_k: int = 3
+    language: Optional[str] = "en"
 
 
 class NocAlternative(BaseModel):

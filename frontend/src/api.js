@@ -708,6 +708,15 @@ export const downloadFormsPackage = (payload) =>
    NOC
 ========================= */
 
+function getSavedAppLanguage() {
+  if (typeof window === "undefined") return "en";
+  const savedLanguage =
+    window.localStorage.getItem("i18nextLng") ||
+    window.localStorage.getItem("language") ||
+    "en";
+  return String(savedLanguage).toLowerCase().startsWith("fr") ? "fr" : "en";
+}
+
 export const suggestNOC = (payload) =>
   api.post("/noc/suggest", {
     occupation: payload?.occupation?.trim() || "",
@@ -718,6 +727,7 @@ export const suggestNOC = (payload) =>
           .filter(Boolean)
       : [],
     top_k: payload?.top_k || 3,
+    language: payload?.language || getSavedAppLanguage(),
   });
 
 export const getNOCDetails = (nocCode) => api.get(`/noc/${nocCode}`);

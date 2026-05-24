@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import re
@@ -11,6 +12,12 @@ DATA_FILE = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
     "data",
     "noc_2021_seed.json",
+)
+
+FR_ELEMENTS_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "data",
+    "noc_2021_elements_fr.csv",
 )
 
 
@@ -56,6 +63,29 @@ SENIORITY_WORDS = {
     "entry",
     "level",
     "specialist",
+}
+
+NOC_TITLE_TRANSLATIONS_FR = {
+    "10022": "Directeurs/directrices de la publicité, du marketing et des relations publiques",
+    "11100": "Vérificateurs/vérificatrices et comptables",
+    "11201": "Professionnels/professionnelles en consultation en gestion aux entreprises",
+    "13100": "Agents/agentes d'administration",
+    "13110": "Adjoints administratifs/adjointes administratives",
+    "21221": "Spécialistes des systèmes opérationnels",
+    "21222": "Spécialistes en informatique",
+    "21223": "Analystes de bases de données et administrateurs/administratrices de données",
+    "21232": "Développeurs/développeuses de logiciels et programmeurs/programmeuses",
+    "31102": "Omnipraticiens/omnipraticiennes et médecins en médecine familiale",
+    "31301": "Infirmiers autorisés/infirmières autorisées et infirmiers psychiatriques autorisés/infirmières psychiatriques autorisées",
+    "32101": "Infirmiers auxiliaires autorisés/infirmières auxiliaires autorisées",
+    "33102": "Aides-infirmiers/aides-infirmières, aides-soignants/aides-soignantes et préposés/préposées aux bénéficiaires",
+    "41200": "Professeurs/professeures et chargés/chargées de cours au niveau universitaire",
+    "41210": "Enseignants/enseignantes au niveau collégial et autres instructeurs/instructrices en formation professionnelle",
+    "41220": "Enseignants/enseignantes au niveau secondaire",
+    "41221": "Enseignants/enseignantes aux niveaux primaire et préscolaire",
+    "41401": "Économistes, recherchistes et analystes des politiques économiques",
+    "64409": "Autres représentants/représentantes des services à la clientèle et d'information",
+    "70010": "Directeurs/directrices de la construction",
 }
 
 
@@ -122,6 +152,36 @@ def _deduplicate_preserve_order(items: List[str]) -> List[str]:
 
 def _extract_numeric_noc(value: Optional[str]) -> str:
     return "".join(ch for ch in str(value or "") if ch.isdigit())
+
+
+def _split_bilingual_title(value: Optional[str]) -> List[str]:
+    text = str(value or "").strip()
+    if not text:
+        return []
+
+    titles = [text]
+    if "/" in text:
+        parts = [part.strip() for part in re.split(r"\s*/\s*", text) if part.strip()]
+        titles.extend(parts)
+
+    return _deduplicate_preserve_order(titles)
+
+
+def _normalize_language(language: Optional[str]) -> str:
+    return "fr" if str(language or "").strip().lower().startswith("fr") else "en"
+
+
+def _localized_noc_title(noc: Optional[str], title: Optional[str], language: Optional[str]) -> str:
+    if _normalize_language(language) != "fr":
+        return str(title or "")
+
+    normalized_noc = _extract_numeric_noc(noc)
+    french_record = load_french_noc_index().get(normalized_noc, {})
+    return (
+        french_record.get("title")
+        or NOC_TITLE_TRANSLATIONS_FR.get(normalized_noc)
+        or str(title or "")
+    )
 
 
 def _strip_seniority_tokens(value: Optional[str]) -> str:
@@ -538,6 +598,95 @@ def load_noc_dataset() -> List[Dict[str, Any]]:
         return json.load(f)
 
 
+@lru_cache(maxsize=1)
+def load_french_noc_index() -> Dict[str, Dict[str, Any]]:
+    if not os.path.exists(FR_ELEMENTS_FILE):
+        return {}
+
+    index: Dict[str, Dict[str, Any]] = {}
+    with open(FR_ELEMENTS_FILE, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.reader(f)
+        next(reader, None)
+
+        for row in reader:
+            if len(row) < 5:
+                continue
+
+            level, code, title, element_type, description = [item.strip() for item in row[:5]]
+            if level != "5":
+                continue
+
+            normalized_code = _extract_numeric_noc(code)
+            if not normalized_code:
+                continue
+
+            record = index.setdefault(
+                normalized_code,
+                {
+                    "title": title,
+                    "titles": [],
+                    "illustrative_titles": [],
+                    "all_examples": [],
+                    "inclusions": [],
+                    "duties": [],
+                    "requirements": [],
+                    "additional": [],
+                },
+            )
+
+            if title and not record.get("title"):
+                record["title"] = title
+
+            record["titles"].extend(_split_bilingual_title(title))
+
+            if not description:
+                continue
+
+            if element_type in {"Exemple(s) illustratif(s)"}:
+                record["illustrative_titles"].extend(_split_bilingual_title(description))
+            elif element_type == "Tous les exemples":
+                record["all_examples"].extend(_split_bilingual_title(description))
+            elif element_type == "Inclusion(s)":
+                record["inclusions"].extend(_split_bilingual_title(description))
+            elif element_type == "Fonctions principales":
+                record["duties"].append(description)
+            elif element_type == "Conditions d'accès à la profession":
+                record["requirements"].append(description)
+            elif element_type == "Renseignements supplémentaires":
+                record["additional"].append(description)
+
+    for record in index.values():
+        for key, value in list(record.items()):
+            if isinstance(value, list):
+                record[key] = _deduplicate_preserve_order(value)
+
+        all_match_titles = (
+            list(record.get("titles") or [])
+            + list(record.get("illustrative_titles") or [])
+            + list(record.get("all_examples") or [])
+            + list(record.get("inclusions") or [])
+        )
+        search_blob = _build_french_search_blob(record)
+        record["normalized_title"] = _normalize_text(record.get("title"))
+        record["normalized_title_core"] = _strip_seniority_tokens(record.get("title"))
+        record["normalized_titles"] = [_normalize_text(item) for item in (record.get("titles") or [])]
+        record["normalized_title_cores"] = [
+            _strip_seniority_tokens(item) for item in (record.get("titles") or [])
+        ]
+        record["normalized_examples"] = [_normalize_text(item) for item in all_match_titles]
+        record["normalized_example_cores"] = [
+            _strip_seniority_tokens(item) for item in all_match_titles
+        ]
+        record["normalized_duties"] = [_normalize_text(item) for item in (record.get("duties") or [])]
+        record["normalized_requirements"] = [
+            _normalize_text(item) for item in (record.get("requirements") or [])
+        ]
+        record["search_blob"] = search_blob
+        record["search_tokens"] = set(_tokenize(search_blob))
+
+    return index
+
+
 def _build_search_blob(record: Dict[str, Any]) -> str:
     parts: List[str] = []
     parts.append(record.get("title", ""))
@@ -545,6 +694,30 @@ def _build_search_blob(record: Dict[str, Any]) -> str:
     parts.extend(record.get("keywords", []) or [])
     parts.extend(record.get("main_duties", []) or [])
     parts.extend(record.get("employment_requirements", []) or [])
+    return _normalize_text(" ".join(parts))
+
+
+def _build_french_search_blob(french_record: Dict[str, Any]) -> str:
+    if not french_record:
+        return ""
+
+    parts: List[str] = []
+    for key in (
+        "title",
+        "titles",
+        "illustrative_titles",
+        "all_examples",
+        "inclusions",
+        "duties",
+        "requirements",
+        "additional",
+    ):
+        value = french_record.get(key)
+        if isinstance(value, list):
+            parts.extend(value)
+        elif value:
+            parts.append(str(value))
+
     return _normalize_text(" ".join(parts))
 
 
@@ -655,7 +828,14 @@ def _score_record(
         " ".join([occupation_norm, occupation_core, job_description_norm, duties_text])
     )
 
-    blob = _build_search_blob(record)
+    french_record = load_french_noc_index().get(_extract_numeric_noc(record.get("noc")), {})
+    english_blob = record.get("_search_blob")
+    if not english_blob:
+        english_blob = _build_search_blob(record)
+        record["_search_blob"] = english_blob
+        record["_search_tokens"] = set(_tokenize(english_blob))
+    french_blob = french_record.get("search_blob", "")
+    blob = f"{english_blob} {french_blob}".strip()
 
     title_raw = record.get("title", "")
     title = _normalize_text(title_raw)
@@ -664,6 +844,17 @@ def _score_record(
     example_title_cores = [_strip_seniority_tokens(x) for x in (record.get("example_titles") or [])]
     keywords = [_normalize_text(x) for x in (record.get("keywords") or [])]
     main_duties = [_normalize_text(x) for x in (record.get("main_duties") or [])]
+
+    french_title = french_record.get("normalized_title", "")
+    french_title_core = french_record.get("normalized_title_core", "")
+    french_titles = list(french_record.get("normalized_titles") or [])
+    french_title_cores = list(french_record.get("normalized_title_cores") or [])
+    french_examples = list(french_record.get("normalized_examples") or [])
+    french_example_cores = list(french_record.get("normalized_example_cores") or [])
+    french_duties = list(french_record.get("normalized_duties") or [])
+    french_requirements = list(french_record.get("normalized_requirements") or [])
+    main_duties = main_duties + french_duties
+    keywords = keywords + french_titles + french_requirements
 
     score = 0.0
     why: List[str] = []
@@ -675,6 +866,19 @@ def _score_record(
         score += 50
         why.append("Exact core occupation title match.")
 
+    if french_title and occupation_norm == french_title:
+        score += 62
+        why.append("Exact French occupation title match.")
+    elif french_title_core and occupation_core == french_title_core:
+        score += 54
+        why.append("Exact French core occupation title match.")
+    elif occupation_norm and occupation_norm in french_titles:
+        score += 58
+        why.append("Exact French class title match.")
+    elif occupation_core and occupation_core in french_title_cores:
+        score += 50
+        why.append("Exact French core class title match.")
+
     if occupation_norm and occupation_norm in example_titles:
         score += 48
         why.append("Exact example title match.")
@@ -682,9 +886,20 @@ def _score_record(
         score += 42
         why.append("Exact core example title match.")
 
+    if occupation_norm and occupation_norm in french_examples:
+        score += 56
+        why.append("Exact French example title match.")
+    elif occupation_core and occupation_core in french_example_cores:
+        score += 48
+        why.append("Exact French core example title match.")
+
     best_title_similarity = max(
         [_title_similarity(occupation_norm, title), _title_similarity(occupation_core, title_core)] +
-        [_title_similarity(variant, title) for variant in occupation_variants],
+        [_title_similarity(occupation_norm, french_title), _title_similarity(occupation_core, french_title_core)] +
+        [_title_similarity(variant, title) for variant in occupation_variants] +
+        [_title_similarity(variant, french_title) for variant in occupation_variants] +
+        [_title_similarity(occupation_norm, item) for item in french_titles[:25]] +
+        [_title_similarity(occupation_norm, item) for item in french_examples[:50]],
         default=0.0,
     )
 
@@ -707,6 +922,12 @@ def _score_record(
             why.append("Close example title match.")
             break
 
+    for variant in occupation_variants:
+        if variant and variant in french_examples and variant != occupation_norm:
+            score += 32
+            why.append("Close French example title match.")
+            break
+
     if occupation_norm and _contains_phrase(blob, occupation_norm):
         score += 18
         why.append("Occupation title appears in NOC profile.")
@@ -726,7 +947,9 @@ def _score_record(
     for variant in occupation_variants:
         variant_tokens.update(_tokenize(variant))
 
-    blob_tokens = set(_tokenize(blob))
+    blob_tokens = set(record.get("_search_tokens") or set()).union(
+        french_record.get("search_tokens") or set()
+    )
     overlap = occupation_tokens.intersection(blob_tokens)
     core_overlap = core_tokens.intersection(blob_tokens)
     variant_overlap = variant_tokens.intersection(blob_tokens)
@@ -848,6 +1071,7 @@ def suggest_noc_matches(
     job_description: str = "",
     duties: Optional[List[str]] = None,
     top_k: int = 3,
+    language: str = "en",
 ) -> Dict[str, Any]:
     duties = [item.strip() for item in (duties or []) if str(item or "").strip()]
     occupation = str(occupation or "").strip()
@@ -906,7 +1130,7 @@ def suggest_noc_matches(
     serialized_top = [
         {
             "noc": item.noc,
-            "title": item.title,
+            "title": _localized_noc_title(item.noc, item.title, language),
             "teer": item.teer,
             "score": item.score,
             "confidence": item.confidence,
@@ -920,6 +1144,12 @@ def suggest_noc_matches(
 
     alternatives = serialized_top[1:]
     noc_summary = _build_noc_summary(best, occupation)
+    if noc_summary:
+        noc_summary["noc_title"] = _localized_noc_title(
+            noc_summary.get("noc_code"),
+            noc_summary.get("noc_title"),
+            language,
+        )
 
     match_quality = "low"
     if best.confidence >= 0.9:
@@ -932,7 +1162,7 @@ def suggest_noc_matches(
         "job_description_input": job_description,
         "duties_input": duties,
         "suggested_noc": best.noc,
-        "suggested_title": best.title,
+        "suggested_title": _localized_noc_title(best.noc, best.title, language),
         "teer": best.teer,
         "confidence": best.confidence,
         "score": best.score,

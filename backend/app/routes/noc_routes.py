@@ -16,6 +16,7 @@ def suggest_noc(
     job_description = (payload.job_description or "").strip()
     duties = [duty.strip() for duty in (payload.duties or []) if duty and duty.strip()]
     top_k = payload.top_k or 3
+    language = (payload.language or "en").strip()
 
     if not occupation:
         raise HTTPException(status_code=400, detail="Occupation is required.")
@@ -25,6 +26,7 @@ def suggest_noc(
         job_description=job_description,
         duties=duties,
         top_k=top_k,
+        language=language,
     )
 
     if not result:
