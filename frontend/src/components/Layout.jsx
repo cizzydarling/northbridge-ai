@@ -337,7 +337,7 @@ export default function Layout({ children }) {
           path: "/documents/review",
           icon: "RV",
         },
-        { label: "Forms Studio", path: "/forms", icon: "FM" },
+        { label: language === "fr" ? "Studio formulaires" : "Forms Studio", path: "/forms", icon: "FM" },
         { label: language === "fr" ? "Famille" : "Household", path: "/household", icon: "HH" },
         { label: language === "fr" ? "Demandes" : "Applications", path: "/applications", icon: "CA" },
         { label: t("nav.profile"), path: "/profile", icon: "PF" },

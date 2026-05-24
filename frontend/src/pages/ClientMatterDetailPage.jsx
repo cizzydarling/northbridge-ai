@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import { evaluateMatterEligibility } from "../utils/eligibilityEngine";
@@ -387,9 +388,11 @@ function buildSpousalSponsorshipChecklist(values) {
 }
 
 export default function ClientMatterDetailPage() {
+  const { i18n } = useTranslation();
   const navigate = useNavigate();
   const { clientId, matterId } = useParams();
   const apiBaseUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+  const language = i18n.language === "fr" ? "fr" : "en";
 
   const [client, setClient] = useState(null);
   const [matter, setMatter] = useState(null);
@@ -585,7 +588,7 @@ export default function ClientMatterDetailPage() {
       setError("");
       setMessage("");
 
-      const result = buildFormsAssistant(form.matter_type, intakePayload);
+      const result = buildFormsAssistant(form.matter_type, intakePayload, language);
       setFormsAssistantResult(result);
 
       const updatedEligibility = {

@@ -955,7 +955,7 @@ export default function FormsPage() {
     if (language === "fr") {
       return {
         brand: "NorthBridgeAI",
-        title: "AI Forms Studio",
+        title: "Studio formulaires IA",
         subtitle:
           "Prévisualisez gratuitement votre dossier de formulaires, identifiez les éléments manquants, puis débloquez le téléchargement quand vous êtes prêt à avancer.",
         heroEyebrow: "Centre de commande formulaires",

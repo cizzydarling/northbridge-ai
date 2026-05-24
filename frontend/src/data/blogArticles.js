@@ -1,5 +1,175 @@
 export const blogArticles = [
   {
+    slug: "in-canada-workers-initiative-33000-pr-2026",
+    title: "Canada's In-Canada Workers Initiative: What 33,000 PR Transitions Could Mean",
+    description:
+      "IRCC is accelerating permanent residence for up to 33,000 workers already in Canada in 2026 and 2027. Here is how applicants should read the update without overgeneralizing it.",
+    category: "Permanent residence update",
+    readTime: "5 min read",
+    publishedAt: "2026-05-24",
+    displayDate: "May 24, 2026",
+    keywords: [
+      "In-Canada Workers Initiative",
+      "Canada permanent residence 2026",
+      "rural immigration Canada",
+      "temporary residents to permanent residence",
+      "NorthBridgeAI PR strategy",
+    ],
+    summaryBullets: [
+      "IRCC announced progress on a one-time initiative to transition up to 33,000 workers in Canada to permanent residence in 2026 and 2027.",
+      "The initial acceleration focuses on eligible applications from existing inventories tied to specific regional and occupation-driven pathways.",
+      "Applicants should not assume the measure creates a new open application stream; eligibility and existing application context matter.",
+    ],
+    sourceLinks: [
+      {
+        label: "IRCC news release on the In-Canada Workers Initiative",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/news/2026/04/filling-labour-gaps-in-smaller-communities-by-accelerating-permanent-residence-for-33000-workers.html",
+      },
+      {
+        label: "IRCC Canada's immigration levels",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/corporate-initiatives/levels.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "The update is targeted, not universal",
+        paragraphs: [
+          "IRCC says the initiative is designed to support smaller and rural communities with labour gaps by accelerating the transition of up to 33,000 workers already in Canada to permanent residence across 2026 and 2027.",
+          "The important detail is scope. IRCC describes an initial focus on eligible applications from existing inventories of work permit holders who have applied through pathways such as the Provincial Nominee Program, Atlantic Immigration Program, community immigration pilots, caregiver pilots, or the Agri-Food Pilot.",
+        ],
+      },
+      {
+        heading: "Why this matters for strategy",
+        paragraphs: [
+          "For workers already in Canada, this reinforces a broader direction: Canada is prioritizing people who are already contributing, have regional ties, and support labour needs. That does not mean every temporary resident will be fast-tracked.",
+          "A practical review should look at the person's pathway, province, community ties, work permit history, NOC, application status, and whether they are already inside one of the targeted inventories.",
+        ],
+      },
+      {
+        heading: "What applicants should do now",
+        paragraphs: [
+          "Applicants should keep their profile, address history, employment records, and document package current. If they are in an eligible inventory, IRCC says no action is required for applicants being granted permanent residence under the initial criteria.",
+          "For everyone else, the lesson is preparation: build a strategy around real eligibility, not headlines. NorthBridgeAI can help compare regional fit, occupation signals, document readiness, and the next realistic route.",
+        ],
+      },
+    ],
+    ctaTitle: "Check whether your Canadian experience is strategically useful",
+    ctaBody:
+      "Use NorthBridgeAI to connect your work history, province, NOC, pathway, and document readiness into a clearer PR plan.",
+  },
+  {
+    slug: "bill-c12-immigration-asylum-changes-2026",
+    title: "Bill C-12 Is Now Law: Immigration and Asylum Changes Applicants Should Understand",
+    description:
+      "A practical overview of Canada's 2026 immigration and asylum changes under Bill C-12, including new asylum eligibility rules and broader document-management powers.",
+    category: "Policy update",
+    readTime: "6 min read",
+    publishedAt: "2026-05-24",
+    displayDate: "May 24, 2026",
+    keywords: [
+      "Bill C-12 immigration Canada",
+      "Canada asylum changes 2026",
+      "IRCC document authorities",
+      "Strengthening Canada's Immigration System and Borders Act",
+      "NorthBridgeAI policy update",
+    ],
+    summaryBullets: [
+      "Bill C-12 received royal assent on March 26, 2026, and introduced changes across asylum eligibility, asylum processing, information sharing, and immigration document authorities.",
+      "Some asylum claims made after specific timing rules will not be referred to the Immigration and Refugee Board.",
+      "The law gives the government tools to cancel, suspend, or change groups of immigration documents or pause application processing in public-interest situations.",
+    ],
+    sourceLinks: [
+      {
+        label: "IRCC backgrounder on Bill C-12 measures",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/news/2026/03/new-immigration-and-asylum-measures-from-bill-c-12-the-strengthening-canadas-immigration-system-and-borders-act-have-become-law.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "The change is broader than asylum alone",
+        paragraphs: [
+          "IRCC describes Bill C-12 as strengthening Canada's immigration and asylum systems in four areas: new asylum eligibility requirements, a modernized asylum process, domestic information sharing, and immigration document and application authorities.",
+          "For applicants, the practical takeaway is that immigration planning should pay more attention to timing, documentation, and official instructions. The system is becoming more controlled and more responsive to public-interest concerns.",
+        ],
+      },
+      {
+        heading: "Asylum timing rules now matter even more",
+        paragraphs: [
+          "IRCC states that new eligibility requirements apply to claims made on or after June 3, 2025. Some claims made more than one year after first entry into Canada after June 24, 2020, will not be referred to the Immigration and Refugee Board.",
+          "The update also affects certain claims from people entering between ports of entry along the Canada-US land border and claiming after 14 days. These are high-stakes rules, so people affected should seek qualified legal advice rather than relying on general information.",
+        ],
+      },
+      {
+        heading: "Document-management powers are now more explicit",
+        paragraphs: [
+          "IRCC says the government now has tools to manage groups of immigration documents, such as visas, eTAs, work permits, and study permits, and to pause intake or processing in certain public-interest situations.",
+          "This does not mean every document is unstable. It means applicants should keep records organized, monitor official updates, and avoid assuming that a past rule will continue unchanged.",
+        ],
+      },
+    ],
+    ctaTitle: "Turn policy changes into a readiness checklist",
+    ctaBody:
+      "Use NorthBridgeAI to review your timeline, documents, application type, and next steps against current immigration signals.",
+  },
+  {
+    slug: "settlement-services-economic-immigrants-2026",
+    title: "Settlement Service Eligibility Is Changing for Economic Immigrants",
+    description:
+      "IRCC is changing how long some economic immigrants can access federally funded settlement services. Here is what new permanent residents should know.",
+    category: "Newcomer planning",
+    readTime: "4 min read",
+    publishedAt: "2026-05-24",
+    displayDate: "May 24, 2026",
+    keywords: [
+      "settlement services Canada 2026",
+      "economic immigrants settlement eligibility",
+      "new permanent resident Canada",
+      "Canada immigration services",
+      "NorthBridgeAI newcomer planning",
+    ],
+    summaryBullets: [
+      "IRCC announced changes to settlement service eligibility for economic immigrants as part of a broader return to sustainable immigration levels.",
+      "The change affects the length of time some permanent residents in economic categories can access federally funded settlement services.",
+      "Newcomers should plan early for language, employment, credential, housing, and community-support needs.",
+    ],
+    sourceLinks: [
+      {
+        label: "IRCC notice on settlement service eligibility changes",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/news/notices/changes-settlement-service-eligibility-economic-immigrants.html",
+      },
+      {
+        label: "IRCC 2026-2028 Immigration Levels Plan supplementary information",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/corporate-initiatives/levels/supplementary-immigration-levels-2026-2028.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "Settlement planning should start before arrival",
+        paragraphs: [
+          "IRCC announced that the length of time some economic immigrants can access federally funded settlement services as permanent residents will change gradually.",
+          "For applicants, this makes pre-arrival planning more important. Language support, credential recognition, employment documents, school planning, banking, housing, and community services should not be left until after landing.",
+        ],
+      },
+      {
+        heading: "This fits the larger sustainability direction",
+        paragraphs: [
+          "The settlement-service update sits alongside Canada's broader 2026-2028 immigration planning direction: stabilized permanent resident admissions, reduced temporary resident arrivals, and more targeted use of immigration to fill economic needs.",
+          "In practical terms, immigration strategy is no longer only about receiving an approval. It is also about knowing what happens after approval and what support windows may apply.",
+        ],
+      },
+      {
+        heading: "How to prepare a stronger newcomer plan",
+        paragraphs: [
+          "Applicants should document their employment plan, language goals, credential steps, province-specific supports, and family settlement needs. A clear plan can reduce stress after arrival and help newcomers use available services while they remain eligible.",
+          "NorthBridgeAI helps users connect immigration planning with post-arrival readiness, so the file is not just approved but easier to act on.",
+        ],
+      },
+    ],
+    ctaTitle: "Plan beyond approval",
+    ctaBody:
+      "Use NorthBridgeAI to organize your immigration documents, settlement checklist, and next actions before the transition becomes urgent.",
+  },
+  {
     slug: "express-entry-draws-2026-crs-cutoff-guide",
     title: "Express Entry Draws in 2026: How to Read CRS Cut-Offs Without Panicking",
     description:
@@ -700,6 +870,173 @@ export const blogArticles = [
 ];
 
 const blogTranslationsFr = {
+  "in-canada-workers-initiative-33000-pr-2026": {
+    title:
+      "Initiative pour les travailleurs deja au Canada : ce que 33 000 transitions vers la RP peuvent changer",
+    description:
+      "IRCC accelere la residence permanente pour jusqu'a 33 000 travailleurs deja au Canada en 2026 et 2027. Voici comment lire cette annonce sans la generaliser.",
+    category: "Mise a jour residence permanente",
+    readTime: "5 min de lecture",
+    displayDate: "24 mai 2026",
+    keywords: [
+      "travailleurs au Canada residence permanente",
+      "residence permanente Canada 2026",
+      "immigration rurale Canada",
+      "residents temporaires vers residence permanente",
+      "strategie RP NorthBridgeAI",
+    ],
+    summaryBullets: [
+      "IRCC a annonce des progres sur une initiative ponctuelle visant jusqu'a 33 000 travailleurs deja au Canada en 2026 et 2027.",
+      "La premiere acceleration vise des demandes admissibles deja dans certains inventaires regionaux ou lies a des professions.",
+      "Les candidats ne doivent pas supposer qu'il s'agit d'un nouveau volet ouvert a tous; l'admissibilite et le contexte de la demande comptent.",
+    ],
+    sourceLinks: [
+      {
+        label: "Communique d'IRCC sur l'initiative pour les travailleurs au Canada",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/news/2026/04/filling-labour-gaps-in-smaller-communities-by-accelerating-permanent-residence-for-33000-workers.html",
+      },
+      {
+        label: "IRCC - niveaux d'immigration du Canada",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/corporate-initiatives/levels.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "Une mesure ciblee, pas universelle",
+        paragraphs: [
+          "IRCC indique que l'initiative soutient les petites collectivites et les regions rurales qui ont des besoins de main-d'oeuvre, en accelerant la transition vers la residence permanente de travailleurs deja au Canada.",
+          "Le detail important est la portee. La premiere phase vise des demandes admissibles dans des inventaires existants, notamment des candidats lies aux provinces, a l'Atlantique, aux projets pilotes communautaires, aux aides familiaux ou a l'agroalimentaire.",
+        ],
+      },
+      {
+        heading: "Pourquoi cela compte pour la strategie",
+        paragraphs: [
+          "Pour les travailleurs deja au Canada, cette annonce confirme une direction plus large : le Canada valorise les personnes qui contribuent deja, ont des liens regionaux et repondent a des besoins economiques.",
+          "Une bonne analyse doit regarder le parcours, la province, les liens communautaires, l'historique du permis, le NOC, l'etat de la demande et la presence eventuelle dans un inventaire vise.",
+        ],
+      },
+      {
+        heading: "Que faire maintenant",
+        paragraphs: [
+          "Les candidats devraient garder leur profil, leurs adresses, leurs preuves d'emploi et leurs documents a jour. IRCC indique qu'aucune action n'est requise pour les personnes visees par les premiers criteres.",
+          "Pour les autres, la lecon est la preparation : construire une strategie sur une admissibilite reelle, pas seulement sur un titre d'actualite.",
+        ],
+      },
+    ],
+    ctaTitle: "Verifiez si votre experience canadienne soutient votre strategie",
+    ctaBody:
+      "NorthBridgeAI relie votre emploi, votre province, votre NOC, votre parcours et vos documents pour clarifier votre plan de residence permanente.",
+  },
+  "bill-c12-immigration-asylum-changes-2026": {
+    title:
+      "Le projet de loi C-12 est en vigueur : changements en immigration et en asile a comprendre",
+    description:
+      "Un apercu pratique des changements de 2026 touchant l'immigration et l'asile, dont les nouvelles regles d'admissibilite et les pouvoirs de gestion des documents.",
+    category: "Mise a jour politique",
+    readTime: "6 min de lecture",
+    displayDate: "24 mai 2026",
+    keywords: [
+      "projet de loi C-12 immigration Canada",
+      "changements asile Canada 2026",
+      "documents immigration IRCC",
+      "Loi visant a renforcer le systeme d'immigration et les frontieres du Canada",
+      "mise a jour NorthBridgeAI",
+    ],
+    summaryBullets: [
+      "Le projet de loi C-12 a recu la sanction royale le 26 mars 2026 et modifie l'asile, le traitement des demandes, l'echange d'information et les pouvoirs relatifs aux documents.",
+      "Certaines demandes d'asile deposees apres des delais precis ne seront pas renvoyees a la Commission de l'immigration et du statut de refugie.",
+      "La loi donne au gouvernement des outils pour annuler, suspendre ou modifier des groupes de documents d'immigration, ou suspendre le traitement dans certains cas d'interet public.",
+    ],
+    sourceLinks: [
+      {
+        label: "Document d'information d'IRCC sur les mesures du projet de loi C-12",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/news/2026/03/new-immigration-and-asylum-measures-from-bill-c-12-the-strengthening-canadas-immigration-system-and-borders-act-have-become-law.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "Le changement depasse l'asile",
+        paragraphs: [
+          "IRCC presente C-12 comme une modernisation de plusieurs volets : admissibilite a l'asile, processus d'asile, partage d'information et gestion des documents et demandes d'immigration.",
+          "Pour les candidats, cela signifie qu'il faut accorder encore plus d'attention au calendrier, aux documents et aux instructions officielles.",
+        ],
+      },
+      {
+        heading: "Les delais en matiere d'asile deviennent essentiels",
+        paragraphs: [
+          "IRCC indique que de nouvelles exigences s'appliquent aux demandes presentees le 3 juin 2025 ou apres. Certaines demandes faites plus d'un an apres la premiere entree au Canada apres le 24 juin 2020 ne seront pas renvoyees a la CISR.",
+          "Ces regles sont sensibles et peuvent avoir des consequences importantes. Les personnes touchees devraient obtenir un avis juridique qualifie.",
+        ],
+      },
+      {
+        heading: "Les pouvoirs sur les documents sont plus explicites",
+        paragraphs: [
+          "IRCC indique que le gouvernement peut maintenant gerer des groupes de documents comme les visas, AVE, permis de travail et permis d'etudes dans certaines situations d'interet public.",
+          "Cela ne veut pas dire que chaque document est instable. Cela veut dire qu'il faut conserver des dossiers propres, suivre les mises a jour officielles et eviter les suppositions.",
+        ],
+      },
+    ],
+    ctaTitle: "Transformez les changements de politique en checklist",
+    ctaBody:
+      "NorthBridgeAI aide a revoir votre calendrier, vos documents, votre type de demande et vos prochaines etapes.",
+  },
+  "settlement-services-economic-immigrants-2026": {
+    title:
+      "L'admissibilite aux services d'etablissement change pour certains immigrants economiques",
+    description:
+      "IRCC modifie la duree d'acces a certains services d'etablissement finances par le gouvernement federal. Voici ce que les nouveaux residents permanents devraient savoir.",
+    category: "Preparation a l'arrivee",
+    readTime: "4 min de lecture",
+    displayDate: "24 mai 2026",
+    keywords: [
+      "services d'etablissement Canada 2026",
+      "immigrants economiques services etablissement",
+      "nouveau resident permanent Canada",
+      "services immigration Canada",
+      "preparation newcomer NorthBridgeAI",
+    ],
+    summaryBullets: [
+      "IRCC a annonce des changements a l'admissibilite aux services d'etablissement pour certains immigrants economiques.",
+      "Le changement touche la duree pendant laquelle certains residents permanents economiques peuvent utiliser les services finances par le federal.",
+      "Les nouveaux arrivants devraient planifier tot la langue, l'emploi, les equivalences, le logement et les soutiens communautaires.",
+    ],
+    sourceLinks: [
+      {
+        label: "Avis d'IRCC sur les changements aux services d'etablissement",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/news/notices/changes-settlement-service-eligibility-economic-immigrants.html",
+      },
+      {
+        label: "IRCC - renseignements supplementaires sur les niveaux 2026-2028",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/corporate-initiatives/levels/supplementary-immigration-levels-2026-2028.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "La planification doit commencer avant l'arrivee",
+        paragraphs: [
+          "IRCC a annonce que la duree d'acces de certains immigrants economiques aux services d'etablissement finances par le federal changera progressivement.",
+          "Cela rend la preparation avant l'arrivee plus importante : langue, reconnaissance des titres, emploi, ecole, banque, logement et services communautaires.",
+        ],
+      },
+      {
+        heading: "Une direction plus durable",
+        paragraphs: [
+          "Cette mise a jour s'inscrit dans la direction 2026-2028 : admissions permanentes stabilisees, arrivees temporaires reduites et immigration plus ciblee selon les besoins economiques.",
+          "En pratique, la strategie ne s'arrete pas a l'approbation. Elle doit aussi prevoir ce qui se passe apres l'arrivee.",
+        ],
+      },
+      {
+        heading: "Preparer un plan plus solide",
+        paragraphs: [
+          "Les candidats devraient documenter leur plan d'emploi, leurs objectifs linguistiques, les etapes d'equivalence, les soutiens provinciaux et les besoins familiaux.",
+          "NorthBridgeAI aide a relier la planification d'immigration a la preparation apres l'arrivee, pour rendre la transition plus claire.",
+        ],
+      },
+    ],
+    ctaTitle: "Planifiez au-dela de l'approbation",
+    ctaBody:
+      "NorthBridgeAI organise vos documents, votre checklist d'etablissement et vos prochaines actions avant que la transition devienne urgente.",
+  },
   "express-entry-draws-2026-crs-cutoff-guide": {
     title: "Tirages Entree express en 2026 : comprendre les seuils CRS sans paniquer",
     description:

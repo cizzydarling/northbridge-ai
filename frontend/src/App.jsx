@@ -38,6 +38,24 @@ const ClientSimulationPage = lazy(() => import("./pages/ClientSimulationPage"));
 const ClientDocumentsPage = lazy(() => import("./pages/ClientDocumentsPage"));
 const ClientMattersPage = lazy(() => import("./pages/ClientMattersPage"));
 
+function getCurrentLanguage() {
+  const savedLanguage =
+    localStorage.getItem("i18nextLng") || localStorage.getItem("language") || "en";
+  return String(savedLanguage).toLowerCase().startsWith("fr") ? "fr" : "en";
+}
+
+function LoadingScreen() {
+  const language = getCurrentLanguage();
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <p className="text-slate-600">
+        {language === "fr" ? "Chargement..." : "Loading..."}
+      </p>
+    </div>
+  );
+}
+
 function PublicOnlyRoute({ children }) {
   const user = getCurrentUserLocal();
 
@@ -119,11 +137,7 @@ function OnboardingGate({ children }) {
   }, [user, location.pathname, bypassOnboardingGate]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-slate-600">Loading...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (user?.role !== "agent" && user?.plan !== "agent_pro") {
@@ -184,11 +198,7 @@ function DisclosureGate({ children }) {
   }, [user, location.pathname]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-slate-600">Loading...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!accepted) {
@@ -212,11 +222,7 @@ function ProtectedAppRoute({ children }) {
 }
 
 function AppLoading() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <p className="text-slate-600">Loading...</p>
-    </div>
-  );
+  return <LoadingScreen />;
 }
 
 export default function App() {

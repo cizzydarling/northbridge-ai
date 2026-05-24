@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import unicodedata
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Set
@@ -60,6 +61,8 @@ SENIORITY_WORDS = {
 
 def _normalize_text(value: Optional[str]) -> str:
     text = str(value or "").strip().lower()
+    text = unicodedata.normalize("NFD", text)
+    text = "".join(char for char in text if unicodedata.category(char) != "Mn")
     text = text.replace("&", " and ")
     text = text.replace("/", " ")
     text = text.replace("\\", " ")
@@ -178,6 +181,36 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "frontend developer",
             "front end developer",
         ],
+        "developpeur logiciel": [
+            "software developer",
+            "software engineer",
+            "developer",
+            "programmer",
+            "computer programmer",
+            "application developer",
+            "web developer",
+        ],
+        "developpeuse logiciel": [
+            "software developer",
+            "software engineer",
+            "developer",
+            "programmer",
+            "computer programmer",
+            "application developer",
+            "web developer",
+        ],
+        "ingenieur logiciel": [
+            "software engineer",
+            "software developer",
+            "developer",
+            "programmer",
+        ],
+        "ingenieure logiciel": [
+            "software engineer",
+            "software developer",
+            "developer",
+            "programmer",
+        ],
         "software engineer": [
             "software developer",
             "developer",
@@ -224,8 +257,23 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "business intelligence analyst",
             "data reporting analyst",
         ],
+        "analyste de donnees": [
+            "data analyst",
+            "business analyst",
+            "data specialist",
+            "reporting analyst",
+            "bi analyst",
+            "business intelligence analyst",
+        ],
         "business analyst": [
             "analyst",
+            "data analyst",
+            "systems analyst",
+            "business systems analyst",
+            "process analyst",
+        ],
+        "analyste daffaires": [
+            "business analyst",
             "data analyst",
             "systems analyst",
             "business systems analyst",
@@ -243,6 +291,26 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "implementation manager",
             "delivery manager",
             "operations manager",
+        ],
+        "gestionnaire de projet": [
+            "project manager",
+            "program manager",
+            "project coordinator",
+            "implementation manager",
+            "delivery manager",
+            "operations manager",
+        ],
+        "charge de projet": [
+            "project manager",
+            "project coordinator",
+            "program coordinator",
+            "implementation coordinator",
+        ],
+        "chargee de projet": [
+            "project manager",
+            "project coordinator",
+            "program coordinator",
+            "implementation coordinator",
         ],
         "project coordinator": [
             "project manager",
@@ -262,7 +330,71 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "registered psychiatric nurse",
             "nursing",
         ],
+        "infirmier": [
+            "nurse",
+            "registered nurse",
+            "licensed practical nurse",
+            "registered psychiatric nurse",
+            "nursing",
+        ],
+        "infirmiere": [
+            "nurse",
+            "registered nurse",
+            "licensed practical nurse",
+            "registered psychiatric nurse",
+            "nursing",
+        ],
+        "infirmier autorise": [
+            "registered nurse",
+            "nurse",
+            "registered psychiatric nurse",
+        ],
+        "infirmiere autorisee": [
+            "registered nurse",
+            "nurse",
+            "registered psychiatric nurse",
+        ],
+        "infirmier auxiliaire": [
+            "licensed practical nurse",
+            "nurse",
+            "nursing",
+        ],
+        "infirmiere auxiliaire": [
+            "licensed practical nurse",
+            "nurse",
+            "nursing",
+        ],
+        "prepose aux beneficiaires": [
+            "nurse aide",
+            "health care aide",
+            "patient service associate",
+            "continuing care assistant",
+        ],
+        "preposee aux beneficiaires": [
+            "nurse aide",
+            "health care aide",
+            "patient service associate",
+            "continuing care assistant",
+        ],
+        "medecin": [
+            "physician",
+            "doctor",
+            "general practitioner",
+            "specialist physician",
+        ],
+        "docteur": [
+            "physician",
+            "doctor",
+            "general practitioner",
+        ],
         "accountant": [
+            "financial accountant",
+            "accounting analyst",
+            "auditor",
+            "accounting",
+        ],
+        "comptable": [
+            "accountant",
             "financial accountant",
             "accounting analyst",
             "auditor",
@@ -274,11 +406,37 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "administrative officer",
             "office administrator",
         ],
+        "adjoint administratif": [
+            "administrative assistant",
+            "office assistant",
+            "admin assistant",
+            "administrative officer",
+            "office administrator",
+        ],
+        "adjointe administrative": [
+            "administrative assistant",
+            "office assistant",
+            "admin assistant",
+            "administrative officer",
+            "office administrator",
+        ],
         "customer service representative": [
             "customer service agent",
             "client service representative",
             "call center agent",
             "support representative",
+        ],
+        "representant service client": [
+            "customer service representative",
+            "customer service agent",
+            "client service representative",
+            "call center agent",
+        ],
+        "representante service client": [
+            "customer service representative",
+            "customer service agent",
+            "client service representative",
+            "call center agent",
         ],
         "teacher": [
             "secondary school teacher",
@@ -288,6 +446,26 @@ def _expand_occupation_variants(value: Optional[str]) -> List[str]:
             "vocational instructor",
             "university professor",
             "lecturer",
+        ],
+        "enseignant": [
+            "teacher",
+            "secondary school teacher",
+            "elementary school teacher",
+            "college instructor",
+            "vocational instructor",
+        ],
+        "enseignante": [
+            "teacher",
+            "secondary school teacher",
+            "elementary school teacher",
+            "college instructor",
+            "vocational instructor",
+        ],
+        "professeur": [
+            "teacher",
+            "university professor",
+            "lecturer",
+            "college instructor",
         ],
         "school teacher": [
             "secondary school teacher",

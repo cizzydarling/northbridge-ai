@@ -326,7 +326,7 @@ export default function SelfDashboardPage() {
       locked: false,
     },
     {
-      title: language === "fr" ? "Forms Studio" : "Forms Studio",
+      title: language === "fr" ? "Studio formulaires" : "Forms Studio",
       body:
         language === "fr"
           ? "Preparez les formulaires lies au type de demande."

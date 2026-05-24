@@ -178,13 +178,26 @@ export default function SelfApplicationPage() {
   const text = useMemo(() => {
     return language === "fr"
       ? {
-          title: "Votre parcours d’application",
-          subtitle: "Exécutez votre stratégie étape par étape.",
-          priority: "Priorité",
+          title: "Votre parcours de demande",
+          subtitle: "Executez votre strategie et vos prochaines etapes.",
+          priority: "Priorite",
           nextActions: "Actions",
           pathways: "Voies",
           checklist: "Checklist",
-          noData: "Aucune donnée",
+          noData: "Aucune donnee",
+          loading: "Chargement...",
+          unlockDecisionEngine: "Debloquer le moteur de decision",
+          unlockDecisionEngineBody:
+            "Passez a Pro pour obtenir un accompagnement complet d'execution.",
+          viewPricing: "Voir les tarifs",
+          aiTitle: "Copilote IA",
+          aiDescription: "Obtenez votre meilleure prochaine action.",
+          aiButton: "Optimiser",
+          aiPrompt:
+            "Analyse mon parcours d'immigration et indique-moi la prochaine meilleure etape.",
+          strategy: "Strategie",
+          forms: "Formulaires",
+          documents: "Documents",
         }
       : {
           title: "Your Application Journey",
@@ -194,6 +207,19 @@ export default function SelfApplicationPage() {
           pathways: "Pathways",
           checklist: "Checklist",
           noData: "No data",
+          loading: "Loading...",
+          unlockDecisionEngine: "Unlock decision engine",
+          unlockDecisionEngineBody:
+            "Upgrade to Pro for full execution guidance.",
+          viewPricing: "View pricing",
+          aiTitle: "AI Copilot",
+          aiDescription: "Get your next best action.",
+          aiButton: "Optimize",
+          aiPrompt:
+            "Analyze my immigration journey and tell me the next best step.",
+          strategy: "Strategy",
+          forms: "Forms",
+          documents: "Documents",
         };
   }, [language]);
 
@@ -213,7 +239,7 @@ export default function SelfApplicationPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="py-20 text-center text-slate-500">Loading...</div>
+        <div className="py-20 text-center text-slate-500">{text.loading}</div>
       </Layout>
     );
   }
@@ -268,18 +294,18 @@ export default function SelfApplicationPage() {
       {!hasDecisionEngine && (
         <UpgradePrompt
           className="mb-6"
-          title="Unlock decision engine"
-          body="Upgrade to Pro for full execution guidance."
-          buttonLabel="View pricing"
+          title={text.unlockDecisionEngine}
+          body={text.unlockDecisionEngineBody}
+          buttonLabel={text.viewPricing}
         />
       )}
 
       <AICopilotCard
-        title="AI Copilot"
-        description="Get your next best action."
-        buttonLabel="Optimize"
+        title={text.aiTitle}
+        description={text.aiDescription}
+        buttonLabel={text.aiButton}
         language={language}
-        prompt="Analyze my immigration journey and tell me next best step."
+        prompt={text.aiPrompt}
         premiumLocked={!hasAdvancedCopilot}
         className="mb-6"
       />
@@ -308,10 +334,10 @@ export default function SelfApplicationPage() {
 
                 <div className="mt-6 flex gap-3">
                   <Button onClick={() => navigate("/strategy")}>
-                    Strategy
+                    {text.strategy}
                   </Button>
                   <Button variant="secondary" onClick={() => navigate("/forms")}>
-                    Forms
+                    {text.forms}
                   </Button>
                 </div>
               </>
@@ -386,7 +412,7 @@ export default function SelfApplicationPage() {
 
                 <div className="mt-6">
                   <Button onClick={() => navigate("/self/documents")}>
-                    Documents
+                    {text.documents}
                   </Button>
                 </div>
               </>

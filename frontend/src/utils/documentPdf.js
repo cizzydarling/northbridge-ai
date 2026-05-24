@@ -112,7 +112,13 @@ function createPdfLayout(doc, language, title) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text("Premium PDF export - verify official requirements before filing.", marginX, footerY);
+    doc.text(
+      lang === "fr"
+        ? "Export PDF Premium - verifiez les exigences officielles avant le depot."
+        : "Premium PDF export - verify official requirements before filing.",
+      marginX,
+      footerY
+    );
     doc.text(
       `${lang === "fr" ? "Page" : "Page"} ${pageNumber}`,
       pageWidth - marginX,
