@@ -10,11 +10,28 @@ import { getApplicationCase } from "../api";
 import api, {
   getBillingAccess,
   getFormsApplicationTypes,
+  getMyProfile,
   getSavedSelfApplication,
   runSelfWorkspace,
 } from "../api";
 
 const LOCAL_FORMS_DRAFT_KEY = "nbai_forms_studio_draft_v1";
+const PROFILE_SYNC_FIELDS = [
+  "first_name",
+  "last_name",
+  "nationality",
+  "current_country",
+  "current_city",
+  "marital_status",
+  "preferred_language",
+  "age",
+  "education",
+  "language_score",
+  "experience_years",
+  "occupation",
+  "noc_code",
+  "preferred_province",
+];
 
 function buildProPricingPath(source = "forms", intent = "execute") {
   return `/pricing?plan=pro&source=${source}&intent=${intent}`;
@@ -108,6 +125,16 @@ function writeLocalDraft(value) {
   localStorage.setItem(LOCAL_FORMS_DRAFT_KEY, JSON.stringify(value || {}));
 }
 
+function getProfileApplicationData(profile) {
+  return PROFILE_SYNC_FIELDS.reduce((acc, key) => {
+    const value = profile?.[key];
+    if (value === null || typeof value === "undefined") return acc;
+    if (typeof value === "string" && !value.trim()) return acc;
+    acc[key] = value;
+    return acc;
+  }, {});
+}
+
 function FieldInput({ field, value, onChange }) {
   const commonClassName =
     "w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100";
@@ -159,6 +186,22 @@ function PlanPill({ active = false, children }) {
     >
       {children}
     </span>
+  );
+}
+
+function StudioTabButton({ active, children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+        active
+          ? "border-slate-950 bg-slate-950 text-white"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -550,6 +593,8 @@ export default function FormsPage() {
   const [access, setAccess] = useState(null);
   const [activeCaseId, setActiveCaseId] = useState(getActiveCaseId());
   const [activeCase, setActiveCase] = useState(null);
+  const [activeStudioTab, setActiveStudioTab] = useState("setup");
+  const [activeResultTab, setActiveResultTab] = useState("summary");
 
   const saveTimerRef = useRef(null);
 
@@ -576,6 +621,13 @@ export default function FormsPage() {
     loadAccess();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
+
+  useEffect(() => {
+    if (preview) {
+      setActiveStudioTab("results");
+      setActiveResultTab("summary");
+    }
+  }, [preview]);
 
   useEffect(() => {
     if (!selectedApplicationType) return;
@@ -691,20 +743,34 @@ export default function FormsPage() {
       setLoadingSavedApp(true);
 
       const localDraft = readLocalDraft();
+      let profileApplicationData = {};
+
+      try {
+        const profileRes = await getMyProfile();
+        profileApplicationData = getProfileApplicationData(profileRes?.data || {});
+      } catch {
+        profileApplicationData = {};
+      }
 
       try {
         const res = await getSavedSelfApplication();
         const savedApplication = res?.data || {};
         const intake = savedApplication?.intake_payload || {};
-
-        setSavedApplicationData(intake);
-        setInlineApplicationData({
+        const mergedDraft = {
           ...intake,
           ...localDraft,
-        });
+          ...profileApplicationData,
+          application_type:
+            localDraft?.application_type ||
+            intake?.application_type ||
+            profileApplicationData?.application_type,
+        };
+
+        setSavedApplicationData(intake);
+        setInlineApplicationData(mergedDraft);
 
         const inferredApplicationType =
-          mapMatterTypeToApplicationType(savedApplication);
+          mergedDraft.application_type || mapMatterTypeToApplicationType(savedApplication);
         if (inferredApplicationType) {
           setSelectedApplicationType(inferredApplicationType);
         }
@@ -718,8 +784,13 @@ export default function FormsPage() {
           )
         );
       } catch {
-        setSavedApplicationData(localDraft || {});
-        setInlineApplicationData(localDraft || {});
+        const mergedDraft = {
+          ...(localDraft || {}),
+          ...profileApplicationData,
+          application_type: localDraft?.application_type,
+        };
+        setSavedApplicationData(mergedDraft || {});
+        setInlineApplicationData(mergedDraft || {});
         setRepresentativeUsed(
           Boolean(
             localDraft?.representative_used ||
@@ -1159,8 +1230,30 @@ export default function FormsPage() {
         onPricing={() => navigate(proPath)}
       />
 
-      <div className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="mb-5 flex flex-wrap gap-2">
+        <StudioTabButton
+          active={activeStudioTab === "setup"}
+          onClick={() => setActiveStudioTab("setup")}
+        >
+          {pageText.setupTitle}
+        </StudioTabButton>
+        <StudioTabButton
+          active={activeStudioTab === "results"}
+          onClick={() => setActiveStudioTab("results")}
+        >
+          {pageText.summaryTitle}
+        </StudioTabButton>
+        <StudioTabButton
+          active={activeStudioTab === "plans"}
+          onClick={() => setActiveStudioTab("plans")}
+        >
+          {pageText.launchEyebrow}
+        </StudioTabButton>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-6 xl:sticky xl:top-24 self-start">
+          {activeStudioTab === "setup" && (
           <Card variant="premium" padding="lg" className="rounded-lg">
             <StepHeader
               step="STEP 1"
@@ -1245,7 +1338,9 @@ export default function FormsPage() {
               </div>
             </div>
           </Card>
+          )}
 
+          {activeStudioTab === "setup" && (
           <Card padding="lg" className="rounded-lg">
             <StepHeader
               step="STEP 2"
@@ -1303,7 +1398,9 @@ export default function FormsPage() {
               </p>
             </div>
           </Card>
+          )}
 
+          {activeStudioTab === "plans" && (
           <Card padding="lg" className="rounded-lg">
             <SectionIntro
               eyebrow={pageText.launchEyebrow}
@@ -1340,6 +1437,7 @@ export default function FormsPage() {
               />
             </div>
           </Card>
+          )}
 
           <div className="text-xs leading-6 text-slate-500">
             {pageText.disclaimer}
@@ -1456,6 +1554,28 @@ export default function FormsPage() {
                 </div>
               )}
 
+              <div className="flex flex-wrap gap-2">
+                <StudioTabButton
+                  active={activeResultTab === "summary"}
+                  onClick={() => setActiveResultTab("summary")}
+                >
+                  {pageText.aiEyebrow}
+                </StudioTabButton>
+                <StudioTabButton
+                  active={activeResultTab === "forms"}
+                  onClick={() => setActiveResultTab("forms")}
+                >
+                  {pageText.formsTitle}
+                </StudioTabButton>
+                <StudioTabButton
+                  active={activeResultTab === "missing"}
+                  onClick={() => setActiveResultTab("missing")}
+                >
+                  {pageText.missingTitle}
+                </StudioTabButton>
+              </div>
+
+              {activeResultTab === "summary" && (
               <Card variant="soft" padding="lg" className="rounded-lg">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
@@ -1490,7 +1610,9 @@ export default function FormsPage() {
                     : pageText.aiPromptLocked}
                 </div>
               </Card>
+              )}
 
+              {activeResultTab === "forms" && (
               <Card padding="lg" className="rounded-lg">
                 <SectionIntro
                   eyebrow={pageText.formsTitle}
@@ -1591,7 +1713,9 @@ export default function FormsPage() {
                   ))}
                 </div>
               </Card>
+              )}
 
+              {activeResultTab === "missing" && (
               <Card variant="soft" padding="lg" className="rounded-lg">
                 <SectionIntro
                   eyebrow={pageText.missingTitle}
@@ -1616,6 +1740,7 @@ export default function FormsPage() {
                   )}
                 </div>
               </Card>
+              )}
             </>
           ) : (
             <Card variant="soft" padding="lg" className="rounded-lg">

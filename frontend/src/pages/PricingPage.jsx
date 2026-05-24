@@ -332,32 +332,30 @@ function PricingHero({
     : planLabel;
 
   return (
-    <section className="mb-6 overflow-hidden rounded-lg border border-stone-300 bg-[#121417] p-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+    <section className="mb-6 overflow-hidden rounded-lg border border-blue-100 bg-blue-50/70 p-6 text-slate-950 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
       <div className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr]">
         <div className="max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-300">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
             {text.brand}
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
             {text.title}
           </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-200 md:text-base">
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
             {text.subtitle}
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2">
-            <StatusPill dark active={currentPlan === "free"}>
+            <StatusPill active={currentPlan === "free"}>
               {text.freeTitle}
             </StatusPill>
             <StatusPill
-              dark
               active={currentPlan === "pro"}
               featured={recommendedPlan === "pro"}
             >
               {text.proTitle}
             </StatusPill>
             <StatusPill
-              dark
               active={currentPlan === "premium"}
               featured={recommendedPlan === "premium"}
             >
@@ -368,17 +366,16 @@ function PricingHero({
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             {currentPlan === "premium" ? (
               <>
-                <Button variant="white" onClick={onDashboard}>
+                <Button onClick={onDashboard}>
                   {text.openDashboard}
                 </Button>
-                <Button variant="outlineLight" onClick={onStrategy}>
+                <Button variant="secondary" onClick={onStrategy}>
                   {text.openStrategy}
                 </Button>
               </>
             ) : (
               <>
                 <Button
-                  variant="white"
                   onClick={onPro}
                   loading={checkoutLoadingPlan === "pro"}
                   disabled={checkoutLoadingPlan === "pro"}
@@ -388,7 +385,7 @@ function PricingHero({
                     : text.quickDecisionCta}
                 </Button>
                 <Button
-                  variant="outlineLight"
+                  variant="secondary"
                   onClick={onPremium}
                   loading={checkoutLoadingPlan === "premium"}
                   disabled={checkoutLoadingPlan === "premium"}
@@ -402,25 +399,22 @@ function PricingHero({
           </div>
         </div>
 
-        <div className="rounded-lg border border-white/10 bg-white/5 p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-300">
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             {text.summaryTitle}
           </p>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <Metric
-              dark
               label={text.currentPlan}
               value={planLabel}
               detail={currentPlan !== "free" ? text.paymentConfirmed : ""}
             />
             <Metric
-              dark
               label={text.billingStatus}
               value={subscriptionStatus || text.notAvailable}
             />
             <Metric
-              dark
               label={text.recommendedPlanLabel}
               value={recommendationLabel}
               detail={recommendedPlan ? recommendedPlanMessage : ""}
@@ -430,7 +424,7 @@ function PricingHero({
           {hasStripeCustomer && currentPlan !== "free" ? (
             <div className="mt-4">
               <Button
-                variant="outlineLight"
+                variant="secondary"
                 onClick={onPortal}
                 disabled={portalLoading}
                 loading={portalLoading}
@@ -964,12 +958,19 @@ export default function PricingPage() {
           "Pour preparer un dossier plus complet avec plus de temps et export PDF.",
         comparisonTitle: "Ce que chaque plan debloque",
         strategy: "Strategie complete",
-        forms: "Telechargement formulaires",
+        strategyPreview: "Apercu de strategie",
+        formsPreview: "Apercu formulaires",
+        formsDownload: "Telechargement formulaires",
         documents: "Generation documents",
         review: "Revision IA",
+        irccIntel: "Veille IRCC et ciblage provincial",
         exports: "Export PDF",
         yes: "Oui",
         limited: "Limite",
+        preview: "Apercu",
+        savedProgress: "Progression sauvegardee",
+        limitedUsage: "Limite",
+        longerWindow: "Fenetre plus longue",
         no: "Non",
         notAvailable: "Non disponible",
         roleLabel: "Role",
@@ -1090,12 +1091,19 @@ export default function PricingPage() {
         "For preparing a fuller case with more time and final PDF export.",
       comparisonTitle: "What each plan unlocks",
       strategy: "Full strategy",
-      forms: "Forms download",
+      strategyPreview: "Strategy preview",
+      formsPreview: "Forms preview",
+      formsDownload: "Forms download",
       documents: "Document generation",
       review: "AI review",
+      irccIntel: "IRCC intelligence and province targeting",
       exports: "PDF export",
       yes: "Yes",
       limited: "Limited",
+      preview: "Preview",
+      savedProgress: "Saved progress",
+      limitedUsage: "Limited use",
+      longerWindow: "Longer window",
       no: "No",
       notAvailable: "Not available",
       roleLabel: "Role",
@@ -1184,6 +1192,7 @@ export default function PricingPage() {
         features: [
           language === "fr" ? "Profil et orientation de base" : "Profile and basic direction",
           language === "fr" ? "Apercu de strategie" : "Strategy preview",
+          language === "fr" ? "Choix du type de demande" : "Application type selection",
           language === "fr" ? "Previsualisation des formulaires" : "Forms preview",
         ],
       },
@@ -1199,7 +1208,7 @@ export default function PricingPage() {
         fitNote: text.proFit,
         features: [
           text.strategy,
-          text.forms,
+          text.formsDownload,
           text.documents,
           text.review,
         ],
@@ -1238,8 +1247,11 @@ export default function PricingPage() {
   const comparisonRows = useMemo(
     () => [
       { label: text.strategy, free: text.limited, pro: text.yes, premium: text.yes },
-      { label: text.documents, free: text.limited, pro: text.yes, premium: text.yes },
-      { label: text.forms, free: text.no, pro: text.yes, premium: text.yes },
+      { label: text.formsPreview, free: text.yes, pro: text.yes, premium: text.yes },
+      { label: text.formsDownload, free: text.no, pro: text.yes, premium: text.yes },
+      { label: text.documents, free: text.limitedUsage, pro: text.yes, premium: text.yes },
+      { label: text.review, free: text.limitedUsage, pro: text.yes, premium: text.yes },
+      { label: text.irccIntel, free: text.no, pro: text.limited, premium: text.yes },
       { label: text.exports, free: text.no, pro: text.no, premium: text.yes },
     ],
     [text]
@@ -1525,25 +1537,24 @@ export default function PricingPage() {
       </SurfaceCard>
 
       {currentPlan === "free" || currentPlan === "pro" ? (
-        <SurfaceCard className="mt-8 border-stone-300 bg-[#121417] text-center text-white">
-          <h2 className="text-3xl font-semibold tracking-tight">
-            {text.bottomCtaTitle}
-          </h2>
-          <p className="mt-3 text-sm text-stone-300">{text.bottomCtaBody}</p>
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-            <Button
-              onClick={() => handleCheckout("pro")}
-              disabled={checkoutLoadingPlan === "pro"}
-              loading={checkoutLoadingPlan === "pro"}
-              variant="white"
-            >
-              {checkoutLoadingPlan === "pro" ? text.loading : text.bottomCtaPrimary}
-            </Button>
-            <Button
-              variant="outlineLight"
-              onClick={() => handleCheckout("premium")}
-              disabled={checkoutLoadingPlan === "premium"}
-              loading={checkoutLoadingPlan === "premium"}
+      <SurfaceCard className="mt-8 border-blue-100 bg-blue-50/70 text-center">
+        <h2 className="text-3xl font-semibold tracking-tight">
+          {text.bottomCtaTitle}
+        </h2>
+        <p className="mt-3 text-sm text-slate-600">{text.bottomCtaBody}</p>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
+          <Button
+            onClick={() => handleCheckout("pro")}
+            disabled={checkoutLoadingPlan === "pro"}
+            loading={checkoutLoadingPlan === "pro"}
+          >
+            {checkoutLoadingPlan === "pro" ? text.loading : text.bottomCtaPrimary}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => handleCheckout("premium")}
+            disabled={checkoutLoadingPlan === "premium"}
+            loading={checkoutLoadingPlan === "premium"}
             >
               {checkoutLoadingPlan === "premium"
                 ? text.loading

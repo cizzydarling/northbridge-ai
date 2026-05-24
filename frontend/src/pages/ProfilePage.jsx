@@ -28,10 +28,10 @@ const defaultForm = {
   marital_status: "",
   preferred_language: "en",
 
-  age: 30,
-  education: "master",
-  language_score: 8,
-  experience_years: 5,
+  age: "",
+  education: "",
+  language_score: "",
+  experience_years: "",
   has_job_offer: false,
   has_canadian_experience: false,
   studied_in_canada: false,
@@ -84,6 +84,12 @@ function hydrateProfileForm(data) {
   });
 
   return merged;
+}
+
+function normalizeNumber(value) {
+  if (value === "" || value === null || typeof value === "undefined") return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
 export default function ProfilePage() {
@@ -545,9 +551,9 @@ export default function ProfilePage() {
     try {
       const payload = {
         ...form,
-        age: Number(form.age),
-        language_score: Number(form.language_score),
-        experience_years: Number(form.experience_years),
+        age: normalizeNumber(form.age),
+        language_score: normalizeNumber(form.language_score),
+        experience_years: normalizeNumber(form.experience_years),
         first_name: form.first_name?.trim() || null,
         last_name: form.last_name?.trim() || null,
         nationality: form.nationality?.trim() || null,
@@ -909,6 +915,7 @@ Return:
                         onChange={handleChange}
                         className="input"
                       >
+                        <option value="">{pageText.select}</option>
                         <option value="high school">{pageText.highSchool}</option>
                         <option value="diploma">{pageText.diploma}</option>
                         <option value="bachelor">{pageText.bachelor}</option>

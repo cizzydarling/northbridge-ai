@@ -23,10 +23,10 @@ const defaultForm = {
   marital_status: "",
   preferred_language: "en",
 
-  age: 30,
-  education: "master",
-  language_score: 8,
-  experience_years: 5,
+  age: "",
+  education: "",
+  language_score: "",
+  experience_years: "",
   has_job_offer: false,
   has_canadian_experience: false,
   studied_in_canada: false,
@@ -1347,6 +1347,7 @@ Explain:
                       onChange={handleChange}
                       className="input"
                     >
+                      <option value="">{pageText.select}</option>
                       <option value="high school">{pageText.highSchool}</option>
                       <option value="diploma">{pageText.diploma}</option>
                       <option value="bachelor">{pageText.bachelor}</option>

@@ -159,15 +159,8 @@ export default function DisclosureAcceptancePage() {
         });
       }
 
-      setMessage(
-        t("legal.custom.acceptedSuccess", {
-          defaultValue: "Disclosures accepted successfully.",
-        })
-      );
-
-      setTimeout(() => {
-        navigate(redirectTo);
-      }, 700);
+      window.dispatchEvent(new Event("nbai-disclosures-accepted"));
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error(err);
       setError(
