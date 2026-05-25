@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import Button from "../components/ui/Button";
+import LockBadge from "../components/ui/LockBadge";
 import {
   getBillingStatus,
   getCurrentUserLocal,
@@ -34,6 +35,133 @@ function hasAgentWorkspaceAccess(user, billingPlan) {
   if (!user) return false;
   if (user.role === "admin") return true;
   return user.role === "agent" && normalizePlan(billingPlan || user.plan) === "agent";
+}
+
+const PROGRAM_LABELS_FR = {
+  "Express Entry": "Entrée express",
+  "Express Entry (borderline, improve score if possible)":
+    "Entrée express (profil limite, amélioration recommandée)",
+  "Provincial Nominee Program": "Programme des candidats des provinces",
+  "Provincial Nominee Program (PNP) pathways":
+    "Volets des programmes des candidats des provinces (PCP)",
+  "British Columbia Provincial Nominee Program":
+    "Programme des candidats de la Colombie-Britannique",
+  "Ontario Provincial Nominee Program":
+    "Programme ontarien des candidats à l'immigration",
+  "Alberta Provincial Nominee Program":
+    "Programme des candidats de l'Alberta",
+  "Manitoba Provincial Nominee Program":
+    "Programme des candidats du Manitoba",
+  "Saskatchewan Provincial Nominee Program":
+    "Programme des candidats de la Saskatchewan",
+  "Nova Scotia Provincial Nominee Program":
+    "Programme des candidats de la Nouvelle-Écosse",
+  "New Brunswick Provincial Nominee Program":
+    "Programme des candidats du Nouveau-Brunswick",
+  "Prince Edward Island Provincial Nominee Program":
+    "Programme des candidats de l'Île-du-Prince-Édouard",
+  "Newfoundland and Labrador Provincial Nominee Program":
+    "Programme des candidats de Terre-Neuve-et-Labrador",
+  "Yukon Provincial Nominee Program":
+    "Programme des candidats du Yukon",
+  "Francophone and bilingual pathways": "Voies francophones et bilingues",
+  "Occupation-linked category-based selections":
+    "Sélections par catégorie liées à la profession",
+  "Category-based selections": "Sélections par catégorie",
+  "Work Permit": "Permis de travail",
+};
+
+const ROLE_LABELS_FR = {
+  admin: "Administrateur",
+  agent: "Agent",
+  client: "Client",
+  individual: "Particulier",
+  user: "Utilisateur",
+};
+
+const STATUS_LABELS_FR = {
+  active: "Actif",
+  inactive: "Inactif",
+  trialing: "Essai actif",
+  past_due: "Paiement en retard",
+  canceled: "Annulé",
+  cancelled: "Annulé",
+  "not active": "Non actif",
+};
+
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function translateProgramLabel(value, language) {
+  const text = normalizeText(value);
+  if (language !== "fr" || !text) return text;
+
+  if (PROGRAM_LABELS_FR[text]) return PROGRAM_LABELS_FR[text];
+
+  return text
+    .replace(/\bBC Provincial Nominee Program\b/g, PROGRAM_LABELS_FR["British Columbia Provincial Nominee Program"])
+    .replace(/\bBritish Columbia Provincial Nominee Program\b/g, PROGRAM_LABELS_FR["British Columbia Provincial Nominee Program"])
+    .replace(/\bProvincial Nominee Program\b/g, PROGRAM_LABELS_FR["Provincial Nominee Program"])
+    .replace(/\bExpress Entry\b/g, PROGRAM_LABELS_FR["Express Entry"])
+    .replace(/\bWork Permit\b/g, PROGRAM_LABELS_FR["Work Permit"]);
+}
+
+function translateStrategySummary(value, language) {
+  const text = normalizeText(value);
+  if (language !== "fr" || !text) return text;
+
+  let translated = text
+    .replace(
+      /Based on your profile, your estimated CRS score is ([0-9-]+)\./gi,
+      "Selon votre profil, votre score CRS estimé est de $1."
+    )
+    .replace(
+      /Your strongest current options are ([^.]+)\./gi,
+      (_, programs) =>
+        `Vos options actuelles les plus solides sont ${translateProgramLabel(
+          programs,
+          "fr"
+        )}.`
+    )
+    .replace(
+      /Key areas to improve include CRS score may still be below recent competitive draws\./gi,
+      "Les points à améliorer incluent un score CRS qui pourrait encore être inférieur aux seuils compétitifs récents."
+    )
+    .replace(
+      /Recommended next steps:/gi,
+      "Prochaines étapes recommandées :"
+    )
+    .replace(
+      /Francophone opportunities should be treated as a strategic priority\./gi,
+      "Les possibilités francophones devraient être traitées comme une priorité stratégique."
+    )
+    .replace(
+      /Your occupation also appears to merit targeted review of occupation-based pathways and provinces that favor this kind of profile\./gi,
+      "Votre profession semble aussi mériter une analyse ciblée des voies par profession et des provinces qui recrutent ce type de profil."
+    )
+    .replace(
+      /A likely NOC was also auto-detected to improve strategy precision\./gi,
+      "Un code CNP probable a aussi été détecté automatiquement pour renforcer la précision de la stratégie."
+    );
+
+  Object.entries(PROGRAM_LABELS_FR).forEach(([en, fr]) => {
+    translated = translated.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), fr);
+  });
+
+  return translated.replace(/\s+/g, " ").trim();
+}
+
+function translateRoleLabel(value, language) {
+  const role = normalizeText(value).toLowerCase();
+  if (language !== "fr") return role || "individual";
+  return ROLE_LABELS_FR[role] || normalizeText(value) || "Particulier";
+}
+
+function translateStatusLabel(value, language) {
+  const status = normalizeText(value);
+  if (language !== "fr") return status;
+  return STATUS_LABELS_FR[status.toLowerCase()] || status;
 }
 
 function Panel({ children, className = "" }) {
@@ -104,9 +232,11 @@ function ActionButton({ title, body, onClick, locked = false }) {
       <div className="flex items-start justify-between gap-3">
         <p className="font-semibold tracking-tight text-slate-950">{title}</p>
         {locked ? (
-          <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
-            Pro
-          </span>
+          <LockBadge
+            locked
+            label="Pro"
+            className="h-6 w-6"
+          />
         ) : null}
       </div>
       <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
@@ -148,10 +278,12 @@ export default function SelfDashboardPage() {
   const role = currentUser?.role || "individual";
   const normalizedPlan = normalizePlan(billing?.raw_plan || billing?.plan || currentUser?.plan);
   const currentPlan = billing?.raw_plan || billing?.plan || currentUser?.plan || "free";
-  const subscriptionStatus =
+  const subscriptionStatus = translateStatusLabel(
     billing?.subscription_status ||
-    currentUser?.subscription_status ||
-    (language === "fr" ? "non actif" : "not active");
+      currentUser?.subscription_status ||
+      (language === "fr" ? "Non actif" : "not active"),
+    language
+  );
   const isAgent = role === "agent" || role === "admin";
   const paidAccess = hasPaidPlan(currentUser, currentPlan);
   const hasAgentPlan = hasAgentWorkspaceAccess(currentUser, currentPlan);
@@ -178,7 +310,7 @@ export default function SelfDashboardPage() {
 
         const [profileRes, strategyRes, billingRes] = await Promise.allSettled([
           getMyProfile(),
-          getMyStrategy(),
+          getMyStrategy(language),
           getBillingStatus(),
         ]);
 
@@ -224,7 +356,7 @@ export default function SelfDashboardPage() {
     };
 
     loadDashboard();
-  }, [navigate, t]);
+  }, [language, navigate, t]);
 
   const dashboardUser = useMemo(
     () => ({
@@ -232,6 +364,19 @@ export default function SelfDashboardPage() {
       profile: profile || currentUser?.profile,
       first_name: profile?.first_name || currentUser?.first_name,
       last_name: profile?.last_name || currentUser?.last_name,
+      email:
+        profile?.email ||
+        currentUser?.email ||
+        currentUser?.username ||
+        currentUser?.preferred_username ||
+        currentUser?.profile?.email,
+      display_name:
+        profile?.display_name ||
+        profile?.full_name ||
+        profile?.name ||
+        currentUser?.display_name ||
+        currentUser?.full_name ||
+        currentUser?.name,
     }),
     [currentUser, profile]
   );
@@ -262,7 +407,9 @@ export default function SelfDashboardPage() {
   }, [profile]);
 
   const recommendedPrograms = Array.isArray(strategy?.recommended_programs)
-    ? strategy.recommended_programs
+    ? strategy.recommended_programs.map((program) =>
+        translateProgramLabel(program, language)
+      )
     : [];
 
   const nextSteps = Array.isArray(strategy?.next_steps)
@@ -273,15 +420,37 @@ export default function SelfDashboardPage() {
     strategy?.best_pathway?.name ||
     strategy?.best_pathway?.title ||
     recommendedPrograms[0] ||
-    (language === "fr" ? "A determiner" : "To be determined");
+    (language === "fr" ? "À déterminer" : "To be determined");
+
+  const localizedBestPathway = translateProgramLabel(bestPathway, language);
 
   const crsScore = strategy?.crs_score ?? "--";
   const strategySummary =
-    strategy?.advisor_summary ||
-    strategy?.strategy_headline ||
+    translateStrategySummary(
+      strategy?.advisor_summary || strategy?.strategy_headline,
+      language
+    ) ||
     (language === "fr"
-      ? "Completez votre profil pour obtenir une strategie plus precise."
+      ? "Complétez votre profil pour obtenir une stratégie plus précise."
       : "Complete your profile to generate a sharper strategy.");
+
+  const roleLabel = translateRoleLabel(role, language);
+
+  const heroSummary = !profile
+    ? language === "fr"
+      ? "Commencez par compléter votre profil pour personnaliser les scores, les voies et les documents."
+      : "Start by completing your profile so scores, pathways, and documents can be personalized."
+    : !strategy
+    ? language === "fr"
+      ? "Votre espace rassemble le profil, la stratégie et les prochaines actions à préparer."
+      : "Your workspace brings profile, strategy, and next actions into one place."
+    : paidAccess
+    ? language === "fr"
+      ? "Votre dossier est prêt à avancer vers la stratégie, les documents et les formulaires prioritaires."
+      : "Your case is ready to move into priority strategy, documents, and forms."
+    : language === "fr"
+    ? "Votre stratégie est prête; passez à Pro pour débloquer les outils d'exécution."
+    : "Your strategy is ready; upgrade to Pro to unlock execution tools.";
 
   const planLabel =
     normalizedPlan === "premium"
@@ -301,23 +470,29 @@ export default function SelfDashboardPage() {
     : "/strategy";
 
   const primaryLabel = !profile
-    ? t("dashboard.createProfile", { defaultValue: "Create profile" })
+    ? language === "fr"
+      ? "Créer le profil"
+      : "Create profile"
     : isAgent && hasAgentPlan
-    ? t("dashboard.openClientWorkspace", { defaultValue: "Open client workspace" })
-    : t("dashboard.openStrategy", { defaultValue: "Open strategy" });
+    ? language === "fr"
+      ? "Ouvrir l'espace client"
+      : "Open client workspace"
+    : language === "fr"
+    ? "Ouvrir la stratégie"
+    : "Open strategy";
 
   const actions = [
     {
-      title: t("dashboard.updateProfile", { defaultValue: "Update profile" }),
+      title: language === "fr" ? "Mettre à jour le profil" : "Update profile",
       body:
         language === "fr"
-          ? "Affinez les donnees qui alimentent la strategie."
+          ? "Affinez les données qui alimentent la stratégie."
           : "Refine the data that powers your strategy.",
       path: "/profile",
       locked: false,
     },
     {
-      title: t("dashboard.openStrategy", { defaultValue: "Open strategy" }),
+      title: language === "fr" ? "Ouvrir la stratégie" : "Open strategy",
       body:
         language === "fr"
           ? "Consultez les voies, scores et prochaines actions."
@@ -329,7 +504,7 @@ export default function SelfDashboardPage() {
       title: language === "fr" ? "Studio formulaires" : "Forms Studio",
       body:
         language === "fr"
-          ? "Preparez les formulaires lies au type de demande."
+          ? "Préparez les formulaires liés au type de demande."
           : "Prepare forms tied to the application type.",
       path: paidAccess ? "/forms" : "/pricing?plan=pro&source=dashboard&intent=forms",
       locked: !paidAccess,
@@ -338,7 +513,7 @@ export default function SelfDashboardPage() {
       title: language === "fr" ? "Documents" : "Documents",
       body:
         language === "fr"
-          ? "Generez et revisez les documents du dossier."
+          ? "Générez et révisez les documents du dossier."
           : "Generate and review application documents.",
       path: paidAccess ? "/documents" : "/pricing?plan=pro&source=dashboard&intent=documents",
       locked: !paidAccess,
@@ -372,7 +547,7 @@ export default function SelfDashboardPage() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <Eyebrow tone="light">
-                {language === "fr" ? "Command center" : "Command center"}
+                {language === "fr" ? "Centre de pilotage" : "Command center"}
               </Eyebrow>
               <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
                 {language === "fr"
@@ -380,7 +555,7 @@ export default function SelfDashboardPage() {
                   : `Welcome back${firstName ? `, ${firstName}` : ""}`}
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/68 md:text-base">
-                {strategySummary}
+                {heroSummary}
               </p>
             </div>
 
@@ -400,9 +575,7 @@ export default function SelfDashboardPage() {
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4">
               <Eyebrow tone="light">
-                {t("dashboard.profileCompletion", {
-                  defaultValue: "Profile completion",
-                })}
+                {language === "fr" ? "Profil complété" : "Profile completion"}
               </Eyebrow>
               <div className="mt-4">
                 <ProgressBar value={profileCompletion} />
@@ -410,15 +583,13 @@ export default function SelfDashboardPage() {
             </div>
             <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4">
               <Eyebrow tone="light">
-                {t("dashboard.currentCrsScore", {
-                  defaultValue: "Current CRS score",
-                })}
+                {language === "fr" ? "Score CRS actuel" : "Current CRS score"}
               </Eyebrow>
               <p className="mt-3 text-3xl font-semibold">{crsScore}</p>
             </div>
             <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4">
               <Eyebrow tone="light">
-                {t("dashboard.currentPlan", { defaultValue: "Current plan" })}
+                {language === "fr" ? "Plan actuel" : "Current plan"}
               </Eyebrow>
               <p className="mt-3 text-3xl font-semibold">{planLabel}</p>
             </div>
@@ -427,17 +598,17 @@ export default function SelfDashboardPage() {
 
         <Panel className="flex flex-col justify-between gap-6">
           <div>
-            <Eyebrow>{language === "fr" ? "Next best move" : "Next best move"}</Eyebrow>
+            <Eyebrow>{language === "fr" ? "Priorité" : "Next best move"}</Eyebrow>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
               {!profile
                 ? language === "fr"
-                  ? "Completez votre profil"
+                  ? "Complétez votre profil"
                   : "Complete your profile"
                 : !paidAccess
                 ? language === "fr"
-                  ? "Debloquez l'execution"
+                  ? "Débloquez l’exécution"
                   : "Unlock execution"
-                : bestPathway}
+                : localizedBestPathway}
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-600">
               {!profile
@@ -446,10 +617,10 @@ export default function SelfDashboardPage() {
                   : "Your profile powers scores, pathways, and forms."
                 : !paidAccess
                 ? language === "fr"
-                  ? "Passez a Pro pour finaliser les outils d'execution."
+                  ? "Passez à Pro pour finaliser les outils d’exécution."
                   : "Upgrade to Pro to unlock execution tools."
                 : language === "fr"
-                ? "Continuez vers la strategie et les documents prioritaires."
+                ? "Continuez vers la stratégie et les documents prioritaires."
                 : "Continue into strategy and priority documents."}
             </p>
           </div>
@@ -466,37 +637,43 @@ export default function SelfDashboardPage() {
             }
           >
             {!profile
-              ? t("dashboard.createProfile", { defaultValue: "Create profile" })
+              ? language === "fr"
+                ? "Créer le profil"
+                : "Create profile"
               : !paidAccess
-              ? t("strategy.upgradeNow", { defaultValue: "Upgrade now" })
-              : t("dashboard.openStrategy", { defaultValue: "Open strategy" })}
+              ? language === "fr"
+                ? "Passer à Pro"
+                : "Upgrade now"
+              : language === "fr"
+              ? "Ouvrir la stratégie"
+              : "Open strategy"}
           </Button>
         </Panel>
       </section>
 
       <section className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile
-          label={t("dashboard.bestPathway", { defaultValue: "Best pathway" })}
-          value={bestPathway}
+          label={language === "fr" ? "Meilleure voie" : "Best pathway"}
+          value={localizedBestPathway}
           detail={
             recommendedPrograms.length
               ? `${recommendedPrograms.length} ${
-                  language === "fr" ? "voies detectees" : "pathways detected"
+                  language === "fr" ? "voies détectées" : "pathways detected"
                 }`
               : language === "fr"
-              ? "En attente de donnees"
+              ? "En attente de données"
               : "Waiting for more data"
           }
           tone="focus"
         />
         <MetricTile
           label={language === "fr" ? "Statut dossier" : "Case status"}
-          value={strategy ? (language === "fr" ? "Actif" : "Active") : language === "fr" ? "Setup" : "Setup"}
-          detail={profile ? (language === "fr" ? "Profil trouve" : "Profile found") : language === "fr" ? "Profil requis" : "Profile required"}
+          value={strategy ? (language === "fr" ? "Actif" : "Active") : language === "fr" ? "Configuration" : "Setup"}
+          detail={profile ? (language === "fr" ? "Profil trouvé" : "Profile found") : language === "fr" ? "Profil requis" : "Profile required"}
           tone={profile ? "good" : "warm"}
         />
         <MetricTile
-          label={language === "fr" ? "Acces" : "Access"}
+          label={language === "fr" ? "Accès" : "Access"}
           value={planLabel}
           detail={subscriptionStatus}
           tone={paidAccess ? "good" : "warm"}
@@ -507,10 +684,10 @@ export default function SelfDashboardPage() {
           detail={
             nextSteps.length
               ? language === "fr"
-                ? "Priorites disponibles"
+                ? "Priorités disponibles"
                 : "Priorities available"
               : language === "fr"
-              ? "A generer"
+              ? "À générer"
               : "To generate"
           }
           tone="default"
@@ -521,7 +698,7 @@ export default function SelfDashboardPage() {
         <Panel>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <Eyebrow>{language === "fr" ? "Execution" : "Execution"}</Eyebrow>
+              <Eyebrow>{language === "fr" ? "Exécution" : "Execution"}</Eyebrow>
               <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
                 {language === "fr" ? "Actions rapides" : "Quick actions"}
               </h2>
@@ -553,9 +730,9 @@ export default function SelfDashboardPage() {
         <Panel>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <Eyebrow>{language === "fr" ? "Strategie" : "Strategy"}</Eyebrow>
+              <Eyebrow>{language === "fr" ? "Stratégie" : "Strategy"}</Eyebrow>
               <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-                {language === "fr" ? "Snapshot du dossier" : "Case snapshot"}
+                {language === "fr" ? "Aperçu du dossier" : "Case snapshot"}
               </h2>
             </div>
             <Button size="sm" variant="secondary" onClick={() => navigate("/strategy")}>
@@ -568,7 +745,7 @@ export default function SelfDashboardPage() {
           </div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {(recommendedPrograms.length ? recommendedPrograms.slice(0, 4) : [bestPathway]).map(
+            {(recommendedPrograms.length ? recommendedPrograms.slice(0, 4) : [localizedBestPathway]).map(
               (program, index) => (
                 <div
                   key={`${program}-${index}`}
@@ -586,7 +763,7 @@ export default function SelfDashboardPage() {
         <Panel>
           <Eyebrow>{language === "fr" ? "Progression" : "Progression"}</Eyebrow>
           <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-            {language === "fr" ? "Parcours de preparation" : "Preparation path"}
+            {language === "fr" ? "Parcours de préparation" : "Preparation path"}
           </h2>
 
           <div className="mt-6">
@@ -596,36 +773,36 @@ export default function SelfDashboardPage() {
               detail={
                 profile
                   ? language === "fr"
-                    ? "Les donnees principales sont disponibles."
+                    ? "Les données principales sont disponibles."
                     : "Core profile data is available."
                   : language === "fr"
-                  ? "Completez votre profil pour commencer."
+                  ? "Complétez votre profil pour commencer."
                   : "Complete your profile to begin."
               }
             />
             <TimelineItem
               active={Boolean(strategy)}
-              label={language === "fr" ? "Strategie" : "Strategy"}
+              label={language === "fr" ? "Stratégie" : "Strategy"}
               detail={
                 strategy
                   ? language === "fr"
-                    ? "Une analyse est prete pour execution."
+                    ? "Une analyse est prête pour exécution."
                     : "An analysis is ready for execution."
                   : language === "fr"
-                  ? "Generez votre strategie apres le profil."
+                  ? "Générez votre stratégie après le profil."
                   : "Generate your strategy after profile setup."
               }
             />
             <TimelineItem
               active={paidAccess}
-              label={language === "fr" ? "Execution" : "Execution"}
+              label={language === "fr" ? "Exécution" : "Execution"}
               detail={
                 paidAccess
                   ? language === "fr"
                     ? "Les outils premium sont actifs."
                     : "Premium execution tools are active."
                   : language === "fr"
-                  ? "Passez a Pro pour les outils d'execution."
+                  ? "Passez à Pro pour les outils d’exécution."
                   : "Upgrade to Pro for execution tools."
               }
             />
@@ -635,20 +812,20 @@ export default function SelfDashboardPage() {
         <Panel>
           <Eyebrow>{language === "fr" ? "Compte" : "Account"}</Eyebrow>
           <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-            {language === "fr" ? "Resume" : "Summary"}
+            {language === "fr" ? "Résumé" : "Summary"}
           </h2>
 
           <div className="mt-5 space-y-3">
             <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
               <Eyebrow>{language === "fr" ? "Nom" : "Name"}</Eyebrow>
               <p className="mt-2 text-sm font-semibold text-slate-950">
-                {displayName || (language === "fr" ? "Utilisateur" : "User")}
+                {displayName || "—"}
               </p>
             </div>
             <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
-              <Eyebrow>{language === "fr" ? "Role" : "Role"}</Eyebrow>
-              <p className="mt-2 text-sm font-semibold capitalize text-slate-950">
-                {role}
+              <Eyebrow>{language === "fr" ? "Rôle" : "Role"}</Eyebrow>
+              <p className="mt-2 text-sm font-semibold text-slate-950">
+                {roleLabel}
               </p>
             </div>
             <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">

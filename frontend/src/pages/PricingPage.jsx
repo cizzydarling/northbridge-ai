@@ -193,7 +193,7 @@ function ComparisonValue({ value, emphasized = false, language = "en" }) {
   if (normalized === "limited" || normalized === "limite" || normalized === "limité") {
     return (
       <span className="inline-flex rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-        {language === "fr" ? "Limite" : "Limited"}
+        {language === "fr" ? "Limité" : "Limited"}
       </span>
     );
   }
@@ -701,7 +701,7 @@ export default function PricingPage() {
 
         setMessage(
           language === "fr"
-            ? "Paiement confirme. Votre abonnement a ete actualise."
+            ? "Paiement confirmé. Votre abonnement a été actualisé."
             : "Payment confirmed. Your subscription has been refreshed."
         );
 
@@ -713,7 +713,7 @@ export default function PricingPage() {
         console.error(err);
         setMessage(
           language === "fr"
-            ? "Le paiement a reussi, mais l'actualisation du compte a echoue. Rechargez la page dans quelques secondes."
+            ? "Le paiement a réussi, mais l’actualisation du compte a échoué. Rechargez la page dans quelques secondes."
             : "Payment succeeded, but account refresh failed. Reload the page in a few seconds."
         );
       } finally {
@@ -733,7 +733,7 @@ export default function PricingPage() {
 
   useEffect(() => {
     if (cancelledFlag !== "true") return;
-    setMessage(language === "fr" ? "Paiement annule." : "Checkout cancelled.");
+    setMessage(language === "fr" ? "Paiement annulé." : "Checkout cancelled.");
 
     const next = new URLSearchParams(searchParams);
     next.delete("cancelled");
@@ -762,7 +762,7 @@ export default function PricingPage() {
 
         setMessage(
           language === "fr"
-            ? "Plan active instantanement (mode developpement)."
+            ? "Plan activé instantanément (mode développement)."
             : "Plan activated instantly (development mode)."
         );
 
@@ -786,7 +786,7 @@ export default function PricingPage() {
       }
       const localStripeHint =
         isLocalDev && detail
-          ? ` ${language === "fr" ? "Verifiez les variables Stripe locales si vous testez le paiement." : "Check local Stripe variables if you are testing checkout."}`
+          ? ` ${language === "fr" ? "Vérifiez les variables Stripe locales si vous testez le paiement." : "Check local Stripe variables if you are testing checkout."}`
           : "";
       setMessage(
         typeof detail === "string"
@@ -877,7 +877,7 @@ export default function PricingPage() {
 
       setMessage(
         language === "fr"
-          ? "Plan mis a jour pour le developpement."
+          ? "Plan mis à jour pour le développement."
           : "Plan updated for development."
       );
     } catch (err) {
@@ -896,7 +896,17 @@ export default function PricingPage() {
   const currentPlan = normalizePlan(access?.plan || billingStatus?.plan || "free");
   const rawPlan = billingStatus?.raw_plan || access?.raw_plan || "free";
   const subscriptionStatus = billingStatus?.subscription_status || "";
-  const currentRole = billingStatus?.role || "individual";
+  const currentRoleRaw = billingStatus?.role || "individual";
+  const currentRole =
+    language === "fr"
+      ? {
+          admin: "Administrateur",
+          agent: "Agent",
+          client: "Client",
+          individual: "Particulier",
+          user: "Utilisateur",
+        }[String(currentRoleRaw).toLowerCase()] || currentRoleRaw
+      : currentRoleRaw;
   const hasStripeCustomer = Boolean(billingStatus?.stripe_customer_id);
   const cancellationScheduled = Boolean(
     billingStatus?.subscription_cancel_at_period_end ||
@@ -913,32 +923,32 @@ export default function PricingPage() {
         brand: "NorthBridgeAI",
         title: "Choisissez le plan qui fait avancer votre dossier",
         subtitle:
-          "Commencez gratuitement, passez a Pro pour executer votre strategie, puis choisissez Premium pour plus de temps et l'export final.",
+          "Commencez gratuitement, passez à Pro pour exécuter votre stratégie, puis choisissez Premium pour plus de temps et l’export final.",
         currentPlan: "Plan actuel",
         billingStatus: "Statut",
-        manageBilling: "Gerer ma facturation",
+        manageBilling: "Gérer ma facturation",
         cancelSubscription: "Annuler l'abonnement",
         cancelingSubscription: "Annulation...",
         cancelConfirm:
-          "Confirmez-vous l'annulation de votre abonnement a la fin de la periode payee ?",
+          "Confirmez-vous l’annulation de votre abonnement à la fin de la période payée ?",
         cancelSuccessEmail:
-          "Annulation programmee. Un email de confirmation a ete envoye.",
+          "Annulation programmée. Un courriel de confirmation a été envoyé.",
         cancelSuccessNoEmail:
-          "Annulation programmee. L'email de confirmation sera envoye lorsque la configuration SMTP sera active.",
-        cancellationScheduled: "Annulation programmee",
+          "Annulation programmée. Le courriel de confirmation sera envoyé lorsque la configuration SMTP sera active.",
+        cancellationScheduled: "Annulation programmée",
         cancellationBody:
-          "Votre acces reste actif jusqu'a la fin de la periode payee. Aucun renouvellement ne sera facture.",
-        accessUntil: "Acces jusqu'au",
+          "Votre accès reste actif jusqu’à la fin de la période payée. Aucun renouvellement ne sera facturé.",
+        accessUntil: "Accès jusqu’au",
         includedFeatures: "Inclus",
         mostPopular: "Le plus populaire",
         startFree: "Commencer gratuitement",
         upgradeToPro: "Choisir Pro",
         upgradeToPremium: "Choisir Premium",
         current: "Plan actuel",
-        devTools: "Outils de developpement",
-        switchToFree: "Passer a Gratuit",
-        switchToPro: "Passer a Pro",
-        switchToPremium: "Passer a Premium",
+        devTools: "Outils de développement",
+        switchToFree: "Passer à Gratuit",
+        switchToPro: "Passer à Pro",
+        switchToPremium: "Passer à Premium",
         explore: "Explorer",
         build: "Agir maintenant",
         accelerate: "Finaliser",
@@ -948,93 +958,93 @@ export default function PricingPage() {
         freePrice: "0 $",
         proPrice: "39 $ / 30 jours",
         premiumPrice: "99 $ / 90 jours",
-        proSubprice: "Pour debloquer l'execution",
+        proSubprice: "Pour débloquer l’exécution",
         premiumSubprice: "Pour finaliser le dossier",
         freeDesc:
           "Pour structurer votre profil, voir les premiers signaux et comprendre ce qui manque.",
         proDesc:
-          "Pour avancer maintenant avec strategie complete, formulaires, documents et revision IA.",
+          "Pour avancer maintenant avec stratégie complète, formulaires, documents et révision IA.",
         premiumDesc:
-          "Pour preparer un dossier plus complet avec plus de temps et export PDF.",
-        comparisonTitle: "Ce que chaque plan debloque",
-        strategy: "Strategie complete",
-        strategyPreview: "Apercu de strategie",
-        formsPreview: "Apercu formulaires",
-        formsDownload: "Telechargement formulaires",
-        documents: "Generation documents",
-        review: "Revision IA",
+          "Pour préparer un dossier plus complet avec plus de temps et l’export PDF.",
+        comparisonTitle: "Ce que chaque plan débloque",
+        strategy: "Stratégie complète",
+        strategyPreview: "Aperçu de stratégie",
+        formsPreview: "Aperçu des formulaires",
+        formsDownload: "Téléchargement des formulaires",
+        documents: "Génération de documents",
+        review: "Révision IA",
         irccIntel: "Veille IRCC et ciblage provincial",
         exports: "Export PDF",
         yes: "Oui",
-        limited: "Limite",
-        preview: "Apercu",
-        savedProgress: "Progression sauvegardee",
-        limitedUsage: "Limite",
-        longerWindow: "Fenetre plus longue",
+        limited: "Limité",
+        preview: "Aperçu",
+        savedProgress: "Progression sauvegardée",
+        limitedUsage: "Usage limité",
+        longerWindow: "Fenêtre plus longue",
         no: "Non",
         notAvailable: "Non disponible",
-        roleLabel: "Role",
+        roleLabel: "Rôle",
         rawPlanLabel: "Plan brut",
         transactionsTitle: "Transactions",
         transactionsSubtitle:
-          "Historique des paiements Stripe avec email de facturation et recu.",
+          "Historique des paiements Stripe avec courriel de facturation et reçu.",
         transactionDate: "Date",
         transactionPlan: "Plan",
         transactionAmount: "Montant",
         transactionStatus: "Statut",
         billingEmail: "Email de facturation",
-        receipt: "Recu",
-        viewReceipt: "Voir le recu",
+        receipt: "Reçu",
+        viewReceipt: "Voir le reçu",
         noReceipt: "Non disponible",
         noTransactions:
-          "Aucune transaction pour le moment. Les nouveaux paiements apparaitront ici.",
-        valueTitle: "Pourquoi passer a un plan superieur",
+          "Aucune transaction pour le moment. Les nouveaux paiements apparaîtront ici.",
+        valueTitle: "Pourquoi passer à un plan supérieur",
         valueCards: [
           {
-            title: "Clarte",
+            title: "Clarté",
             body: "Voyez ce qui manque, ce qui bloque et quelles actions comptent le plus.",
           },
           {
             title: "Vitesse",
-            body: "Generez, telechargez et reviseez sans reconstruire votre dossier a la main.",
+            body: "Générez, téléchargez et révisez sans reconstruire votre dossier à la main.",
           },
           {
-            title: "Controle",
+            title: "Contrôle",
             body: "Choisissez Pro pour agir vite ou Premium pour finaliser avec plus de marge.",
           },
         ],
         ctaTitle: "Quel plan choisir",
         ctaBody:
-          "Gratuit sert a explorer. Pro sert a executer. Premium sert a finaliser avec plus de temps et l'export PDF.",
+          "Gratuit sert à explorer. Pro sert à exécuter. Premium sert à finaliser avec plus de temps et l’export PDF.",
         summaryTitle: "Abonnement",
         premiumBadge: "Meilleure valeur",
-        paymentConfirmed: "Acces debloque",
+        paymentConfirmed: "Accès débloqué",
         paymentConfirmedBody:
-          "Votre abonnement est actif. Vous pouvez revenir au tableau de bord ou ouvrir votre strategie.",
+          "Votre abonnement est actif. Vous pouvez revenir au tableau de bord ou ouvrir votre stratégie.",
         openDashboard: "Ouvrir le tableau de bord",
-        openStrategy: "Ouvrir ma strategie",
-        bestFitLabel: "Ideal si",
+        openStrategy: "Ouvrir ma stratégie",
+        bestFitLabel: "Idéal si",
         freeFit: "vous voulez explorer avant de payer.",
-        proFit: "vous etes pret a agir maintenant.",
+        proFit: "vous êtes prêt à agir maintenant.",
         premiumFit: "vous voulez finaliser un dossier plus complet.",
         recommendedPlanLabel: "Recommandation",
         recommendedPro:
-          "Pro est le meilleur point de depart pour debloquer la strategie complete et commencer l'execution.",
+          "Pro est le meilleur point de départ pour débloquer la stratégie complète et commencer l’exécution.",
         recommendedPremium:
-          "Premium est le meilleur choix pour l'export PDF et une preparation plus complete.",
-        recommendationPill: "Recommande",
-        targetedTitle: "Parcours recommande",
+          "Premium est le meilleur choix pour l’export PDF et une préparation plus complète.",
+        recommendationPill: "Recommandé",
+        targetedTitle: "Parcours recommandé",
         targetedPro:
-          "Vous etes arrive ici pour debloquer la strategie complete. Pro est le meilleur choix pour cette etape.",
+          "Vous êtes arrivé ici pour débloquer la stratégie complète. Pro est le meilleur choix pour cette étape.",
         targetedPremium:
-          "Vous etes arrive ici pour l'export PDF ou une preparation plus complete. Premium est le meilleur choix.",
-        quickDecision: "Decision rapide",
-        quickDecisionTitle: "Pret a avancer ? Commencez avec Pro",
+          "Vous êtes arrivé ici pour l’export PDF ou une préparation plus complète. Premium est le meilleur choix.",
+        quickDecision: "Décision rapide",
+        quickDecisionTitle: "Prêt à avancer ? Commencez avec Pro",
         quickDecisionBody:
-          "La plupart des utilisateurs choisissent Pro pour debloquer leur strategie complete et commencer l'execution.",
+          "La plupart des utilisateurs choisissent Pro pour débloquer leur stratégie complète et commencer l’exécution.",
         quickDecisionCta: "Commencer avec Pro",
-        bottomCtaTitle: "Debloquez votre strategie aujourd'hui",
-        bottomCtaBody: "Passez a Pro pour commencer a avancer immediatement.",
+        bottomCtaTitle: "Débloquez votre stratégie aujourd’hui",
+        bottomCtaBody: "Passez à Pro pour commencer à avancer immédiatement.",
         bottomCtaPrimary: "Choisir Pro",
         bottomCtaSecondary: "Voir Premium",
         loading: "Chargement...",
@@ -1191,9 +1201,9 @@ export default function PricingPage() {
         fitNote: text.freeFit,
         features: [
           language === "fr" ? "Profil et orientation de base" : "Profile and basic direction",
-          language === "fr" ? "Apercu de strategie" : "Strategy preview",
+          language === "fr" ? "Aperçu de stratégie" : "Strategy preview",
           language === "fr" ? "Choix du type de demande" : "Application type selection",
-          language === "fr" ? "Previsualisation des formulaires" : "Forms preview",
+          language === "fr" ? "Prévisualisation des formulaires" : "Forms preview",
         ],
       },
       {
@@ -1225,9 +1235,9 @@ export default function PricingPage() {
         badge: text.premiumBadge,
         features: [
           language === "fr" ? "Tout dans Pro" : "Everything in Pro",
-          language === "fr" ? "Fenetre de preparation plus longue" : "Longer preparation window",
+          language === "fr" ? "Fenêtre de préparation plus longue" : "Longer preparation window",
           language === "fr"
-            ? "Veille IRCC: rondes, delais et categories"
+            ? "Veille IRCC : rondes, délais et catégories"
             : "IRCC intelligence: draws, times, and categories",
           language === "fr"
             ? "Signaux Job Bank et ciblage provincial"
@@ -1313,7 +1323,7 @@ export default function PricingPage() {
               </p>
               <p className="mt-3 text-sm leading-7 text-slate-700">
                 {language === "fr"
-                  ? "Actualisation de votre acces et de vos fonctionnalites..."
+                  ? "Actualisation de votre accès et de vos fonctionnalités..."
                   : "Refreshing your access and unlocked features..."}
               </p>
             </div>
@@ -1330,7 +1340,7 @@ export default function PricingPage() {
               </div>
               <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
                 {language === "fr"
-                  ? `Votre acces ${getDisplayPlan(currentPlan, language)} est actif`
+                  ? `Votre accès ${getDisplayPlan(currentPlan, language)} est actif`
                   : `Your ${getDisplayPlan(currentPlan, language)} access is active`}
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-700">
@@ -1465,7 +1475,7 @@ export default function PricingPage() {
             <div className="mt-4 rounded-lg border border-red-100 bg-red-50/60 px-4 py-3">
               <p className="text-sm leading-6 text-red-900">
                 {language === "fr"
-                  ? "Vous pouvez programmer l'annulation a la fin de votre periode payee."
+                  ? "Vous pouvez programmer l’annulation à la fin de votre période payée."
                   : "You can schedule cancellation at the end of your paid period."}
               </p>
               <Button

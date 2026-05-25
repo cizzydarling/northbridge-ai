@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import LockBadge from "../components/ui/LockBadge";
 import UpgradePrompt from "../components/UpgradePrompt";
 import { getActiveCaseId } from "../utils/activeCase";
 import { getApplicationCase } from "../api";
@@ -324,9 +325,12 @@ function FormsStudioHero({
   const previewLabel = preview
     ? `${previewScore}%`
     : pageText.previewNotGenerated;
-  const downloadLabel = canDownloadForms
-    ? pageText.downloadUnlocked
-    : pageText.downloadLocked;
+  const downloadLabel = (
+    <LockBadge
+      locked={!canDownloadForms}
+      label={canDownloadForms ? pageText.downloadUnlocked : pageText.downloadLocked}
+    />
+  );
 
   return (
     <section className="mb-6 rounded-lg border border-stone-200 bg-stone-50 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
@@ -895,17 +899,25 @@ export default function FormsPage() {
           language,
           representative_used: representativeUsed,
           application_data: mergedApplicationData,
+          download_format: access?.is_premium ? "pdf" : "json",
         },
         {
           responseType: "blob",
         }
       );
 
-      const blob = new Blob([res.data], { type: "application/json" });
+      const isPdf = access?.is_premium;
+      const blob = new Blob([res.data], {
+        type: isPdf ? "application/pdf" : "application/json",
+      });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `forms_package_${selectedApplicationType}.json`;
+      link.download = isPdf
+        ? `${
+            language === "fr" ? "dossier_formulaires" : "forms_package"
+          }_${selectedApplicationType}.pdf`
+        : `forms_package_${selectedApplicationType}.json`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -969,8 +981,8 @@ export default function FormsPage() {
         previewStatus: "Statut aperçu",
         previewNotGenerated: "Non généré",
         downloadAccess: "Accès téléchargement",
-        downloadUnlocked: "Débloqué",
-        downloadLocked: "Verrouillé",
+        downloadUnlocked: "Téléchargement disponible",
+        downloadLocked: "Accès requis",
         generatorReady: "Générateur prêt",
         setupEyebrow: "Configuration",
         setupTitle: "Construire un dossier de formulaires",
@@ -982,6 +994,7 @@ export default function FormsPage() {
         preview: "Prévisualiser le dossier",
         previewing: "Prévisualisation...",
         download: "Télécharger le dossier",
+        downloadPdf: "Télécharger le PDF",
         downloading: "Téléchargement...",
         inlineEyebrow: "Complétion",
         inlineTitle: "Compléter les champs utiles",
@@ -1092,8 +1105,8 @@ export default function FormsPage() {
       previewStatus: "Preview status",
       previewNotGenerated: "Not generated",
       downloadAccess: "Download access",
-      downloadUnlocked: "Unlocked",
-      downloadLocked: "Locked",
+      downloadUnlocked: "Download available",
+      downloadLocked: "Access required",
       generatorReady: "Generator ready",
       setupEyebrow: "Setup",
       setupTitle: "Build a forms package",
@@ -1105,6 +1118,7 @@ export default function FormsPage() {
       preview: "Preview package",
       previewing: "Previewing...",
       download: "Download package",
+      downloadPdf: "Download PDF",
       downloading: "Downloading...",
       inlineEyebrow: "Completion",
       inlineTitle: "Complete useful fields",
@@ -1314,15 +1328,18 @@ export default function FormsPage() {
                         : pageText.previewHintLocked}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <PlanPill active={canDownloadForms}>
-                        {canDownloadForms
-                          ? language === "fr"
-                            ? "Téléchargement débloqué"
-                            : "Download unlocked"
-                          : language === "fr"
-                          ? "Téléchargement verrouillé"
-                          : "Download locked"}
-                      </PlanPill>
+                      <LockBadge
+                        locked={!canDownloadForms}
+                        label={
+                          canDownloadForms
+                            ? language === "fr"
+                              ? "Téléchargement disponible"
+                              : "Download available"
+                            : language === "fr"
+                            ? "Téléchargement indisponible"
+                            : "Download unavailable"
+                        }
+                      />
                       <PlanPill active={canUseFormsAI}>
                         {canUseFormsAI
                           ? language === "fr"
@@ -1530,6 +1547,8 @@ export default function FormsPage() {
                       >
                         {downloadLoading
                           ? pageText.downloading
+                          : access?.is_premium
+                          ? pageText.downloadPdf
                           : pageText.download}
                       </Button>
                     )}

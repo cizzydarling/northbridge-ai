@@ -5,6 +5,7 @@ import Layout from "../components/Layout";
 import UpgradeModal from "../components/UpgradeModal";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import LockBadge from "../components/ui/LockBadge";
 import {
   getBillingStatus,
   getMyProfile,
@@ -15,6 +16,11 @@ import {
   getUserDisplayName,
   refreshCurrentUser,
 } from "../api";
+import {
+  translateProgramLabel,
+  translateStatusLabel,
+  translateStrategySummary,
+} from "../utils/frenchLocalization";
 
 function normalizePlan(plan) {
   const value = String(plan || "").trim().toLowerCase();
@@ -272,7 +278,7 @@ function SectionTitle({ eyebrow, title, action = null }) {
   );
 }
 
-function ActionCard({ title, body, buttonLabel, onClick, locked = false }) {
+function ActionCard({ title, body, buttonLabel, onClick, locked = false, lockedLabel = "Access required" }) {
   return (
     <Card padding="md" hover className="rounded-[28px]">
       <div className="flex h-full flex-col justify-between gap-5">
@@ -282,9 +288,7 @@ function ActionCard({ title, body, buttonLabel, onClick, locked = false }) {
               {title}
             </h3>
             {locked ? (
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
-                Lock
-              </span>
+              <LockBadge locked label={lockedLabel} />
             ) : null}
           </div>
           <p className="text-sm leading-6 text-slate-600">{body}</p>
@@ -334,6 +338,33 @@ export default function Dashboard() {
 
   const hasStrategy = useMemo(() => isStrategyUsable(strategy), [strategy]);
 
+  const localizedRecommendations = useMemo(
+    () =>
+      recommendations.map((item) => {
+        if (typeof item === "string") return translateProgramLabel(item, language);
+        const label = item?.name || item?.title || item?.program || "";
+        return {
+          ...item,
+          name: label ? translateProgramLabel(label, language) : item?.name,
+          title: item?.title ? translateProgramLabel(item.title, language) : item?.title,
+          program: item?.program
+            ? translateProgramLabel(item.program, language)
+            : item?.program,
+        };
+      }),
+    [language, recommendations]
+  );
+
+  const localizedBestPathway = useMemo(
+    () => translateProgramLabel(bestPathway, language),
+    [bestPathway, language]
+  );
+
+  const localizedTopImprovement = useMemo(
+    () => translateStrategySummary(topImprovement, language),
+    [language, topImprovement]
+  );
+
   useEffect(() => {
     const forceRefresh = localStorage.getItem("nbai_force_refresh");
 
@@ -382,11 +413,11 @@ export default function Dashboard() {
           let strategyData = null;
 
           try {
-            const liteRes = await getMyStrategyLite();
+            const liteRes = await getMyStrategyLite(language);
             strategyData = liteRes.data;
           } catch {
             try {
-              const fullRes = await getMyStrategy();
+              const fullRes = await getMyStrategy(language);
               strategyData = fullRes.data;
             } catch (err) {
               console.error("Strategy load failed:", err);
@@ -402,7 +433,7 @@ export default function Dashboard() {
     }
 
     load();
-  }, [navigate]);
+  }, [navigate, language]);
 
   useEffect(() => {
     function handleRefresh() {
@@ -462,11 +493,11 @@ export default function Dashboard() {
         billingStatus: "Statut d’abonnement",
         premiumAccess: "Accès Premium",
         active: "Actif",
-        inactive: "Acces gratuit",
+        inactive: "Accès gratuit",
         unlocked: "Débloqué",
-        locked: "Verrouillé",
+        locked: "Accès requis",
         managePlan: "Gérer le plan",
-        upgrade: "Mettre a niveau",
+        upgrade: "Mettre à niveau",
         goPremium: "Passer à Premium",
         unlockTitle: "Débloquez l’exécution complète",
         unlockBody: "Passez à Pro pour utiliser les documents, les formulaires et la révision IA.",
@@ -522,7 +553,7 @@ export default function Dashboard() {
       active: "Active",
       inactive: "Free access",
       unlocked: "Unlocked",
-      locked: "Locked",
+      locked: "Access required",
       managePlan: "Manage plan",
       upgrade: "Upgrade",
       goPremium: "Go Premium",
@@ -538,10 +569,10 @@ export default function Dashboard() {
     };
   }, [language]);
 
-  const heroSummary =
-    strategyHeadline ||
-    summary ||
-    (hasStrategy ? pageText.readyBody : pageText.pendingBody);
+  const heroSummary = hasStrategy ? pageText.readyBody : pageText.pendingBody;
+  const snapshotSummary =
+    translateStrategySummary(strategyHeadline || summary, language) ||
+    (hasStrategy ? pageText.strategyAvailable : pageText.noStrategyYet);
 
   const displayPlanLabel =
     currentPlan === "free"
@@ -550,17 +581,32 @@ export default function Dashboard() {
       ? "Premium"
       : "Pro";
 
-  const subscriptionStatusLabel = billing?.subscription_status
-    ? billing.subscription_status
-    : paidAccess
-    ? pageText.active
-    : pageText.inactive;
+  const subscriptionStatusLabel = (() => {
+    const status = String(billing?.subscription_status || "").toLowerCase();
+    if (status && language === "fr") {
+      return translateStatusLabel(status, language);
+    }
+    return billing?.subscription_status || (paidAccess ? pageText.active : pageText.inactive);
+  })();
 
   const accountDisplayName = getUserDisplayName(
     {
       ...currentUser,
       first_name: profile?.first_name || currentUser?.first_name,
       last_name: profile?.last_name || currentUser?.last_name,
+      email:
+        profile?.email ||
+        currentUser?.email ||
+        currentUser?.username ||
+        currentUser?.preferred_username ||
+        currentUser?.profile?.email,
+      display_name:
+        profile?.display_name ||
+        profile?.full_name ||
+        profile?.name ||
+        currentUser?.display_name ||
+        currentUser?.full_name ||
+        currentUser?.name,
     },
     "—"
   );
@@ -657,7 +703,7 @@ export default function Dashboard() {
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
                 {hasStrategy
-                  ? bestPathway || pageText.readyTitle
+                  ? localizedBestPathway || pageText.readyTitle
                   : pageText.pendingTitle}
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-blue-100 md:text-base">
@@ -744,13 +790,13 @@ export default function Dashboard() {
                 />
                 <MetricCard
                   label={pageText.bestPathway}
-                  value={hasStrategy ? bestPathway || pageText.noPathway : pageText.noStrategy}
+                  value={hasStrategy ? localizedBestPathway || pageText.noPathway : pageText.noStrategy}
                   body={pageText.bestPathway}
                   tone={hasStrategy ? "emerald" : "default"}
                 />
                 <MetricCard
                   label={pageText.topImprovement}
-                  value={hasStrategy ? topImprovement || pageText.noImprovement : pageText.noStrategy}
+                  value={hasStrategy ? localizedTopImprovement || pageText.noImprovement : pageText.noStrategy}
                   body={pageText.recommendedAction}
                   tone={hasStrategy ? "amber" : "default"}
                 />
@@ -778,7 +824,7 @@ export default function Dashboard() {
                         {pageText.strategySnapshot}
                       </p>
                       <p className="mt-2 text-sm leading-7 text-slate-700">
-                        {heroSummary}
+                        {snapshotSummary}
                       </p>
                     </div>
 
@@ -787,16 +833,16 @@ export default function Dashboard() {
                         {pageText.recommendedPrograms}
                       </p>
 
-                      {recommendations.length > 0 ? (
+                      {localizedRecommendations.length > 0 ? (
                         <div className="mt-3 grid gap-2 md:grid-cols-2">
-                          {recommendations.slice(0, 4).map((item, index) => {
+                          {localizedRecommendations.slice(0, 4).map((item, index) => {
                             const label =
                               typeof item === "string"
                                 ? item
                                 : item?.name ||
                                   item?.title ||
                                   item?.program ||
-                                  "Recommendation";
+                                  (language === "fr" ? "Recommandation" : "Recommendation");
 
                             return (
                               <div
@@ -877,7 +923,7 @@ export default function Dashboard() {
                 <div className="mt-5 grid grid-cols-3 gap-2">
                   <MiniStat label={pageText.profileCompletion} value={`${profileCompletion}%`} />
                   <MiniStat label={pageText.crsScore} value={hasStrategy ? crsScore ?? "—" : "—"} />
-                  <MiniStat label={pageText.recommendedPrograms} value={recommendations.length || 0} />
+                  <MiniStat label={pageText.recommendedPrograms} value={localizedRecommendations.length || 0} />
                 </div>
 
                 <div className="mt-5 grid gap-2">
@@ -922,6 +968,7 @@ export default function Dashboard() {
                     body={item.body}
                     buttonLabel={item.button}
                     locked={item.locked}
+                    lockedLabel={language === "fr" ? "Accès requis" : "Access required"}
                     onClick={() => navigate(item.path)}
                   />
                 ))}
@@ -936,8 +983,14 @@ export default function Dashboard() {
                   {nextSteps.slice(0, 4).map((item, index) => {
                     const label =
                       typeof item === "string"
-                        ? item
-                        : item?.label || item?.title || item?.action || "Next step";
+                        ? translateStrategySummary(item, language)
+                        : translateStrategySummary(
+                            item?.label ||
+                              item?.title ||
+                              item?.action ||
+                              (language === "fr" ? "Prochaine étape" : "Next step"),
+                            language
+                          );
 
                     return (
                       <div
@@ -969,7 +1022,12 @@ export default function Dashboard() {
                 <InfoRow label={pageText.billingStatus} value={subscriptionStatusLabel} />
                 <InfoRow
                   label={pageText.premiumAccess}
-                  value={isPremium ? pageText.unlocked : pageText.locked}
+                  value={
+                    <LockBadge
+                      locked={!isPremium}
+                      label={isPremium ? pageText.unlocked : pageText.locked}
+                    />
+                  }
                 />
               </div>
 
@@ -992,7 +1050,12 @@ export default function Dashboard() {
                 <MiniStat label={pageText.currentPlan} value={displayPlanLabel} />
                 <MiniStat
                   label={pageText.premiumAccess}
-                  value={isPremium ? pageText.unlocked : pageText.locked}
+                  value={
+                    <LockBadge
+                      locked={!isPremium}
+                      label={isPremium ? pageText.unlocked : pageText.locked}
+                    />
+                  }
                 />
               </div>
 

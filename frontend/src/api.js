@@ -32,6 +32,18 @@ export const getCurrentUserLocal = () => {
   return raw ? JSON.parse(raw) : null;
 };
 
+function humanizeEmailName(email) {
+  const localPart = String(email || "").split("@")[0]?.trim();
+  if (!localPart) return "";
+
+  return localPart
+    .replace(/[._-]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export const getUserDisplayName = (user, fallback = "User") => {
   const firstName =
     user?.first_name?.trim?.() ||
@@ -44,7 +56,27 @@ export const getUserDisplayName = (user, fallback = "User") => {
     "";
 
   const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-  return fullName || fallback;
+  const savedDisplayName =
+    user?.display_name?.trim?.() ||
+    user?.full_name?.trim?.() ||
+    user?.name?.trim?.() ||
+    user?.profile?.display_name?.trim?.() ||
+    user?.profile?.full_name?.trim?.() ||
+    user?.profile?.name?.trim?.() ||
+    "";
+
+  return (
+    fullName ||
+    savedDisplayName ||
+    humanizeEmailName(
+      user?.email ||
+        user?.username ||
+        user?.preferred_username ||
+        user?.profile?.email ||
+        user?.profile?.username
+    ) ||
+    fallback
+  );
 };
 
 export const saveCurrentUser = (user) => {

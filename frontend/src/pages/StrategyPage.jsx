@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import LockBadge from "../components/ui/LockBadge";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
   exportMyStrategyPdf,
@@ -809,7 +810,7 @@ function ImmigrationIntelligencePanel({ intelligence, text, language }) {
                   </div>
                   {item.last_updated ? (
                     <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-slate-400">
-                      {language === "fr" ? "Mis a jour" : "Updated"}{" "}
+                      {language === "fr" ? "Mis à jour" : "Updated"}{" "}
                       {item.last_updated}
                     </p>
                   ) : null}
@@ -1204,7 +1205,7 @@ function PlanChip({ active = false, children }) {
   );
 }
 
-function TopTabButton({ active, label, onClick, locked = false }) {
+function TopTabButton({ active, label, onClick, locked = false, lockedLabel = "Access required" }) {
   return (
     <button
       type="button"
@@ -1218,21 +1219,13 @@ function TopTabButton({ active, label, onClick, locked = false }) {
       <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
 
       {locked ? (
-        <span
-          className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-            active
-              ? "border-amber-200/40 bg-amber-200/15 text-amber-100"
-              : "border-amber-200 bg-amber-50 text-amber-700"
-          }`}
-        >
-          Lock
-        </span>
+        <LockBadge locked active={active} label={lockedLabel} className="h-6 w-6" />
       ) : null}
     </button>
   );
 }
 
-function SidebarButton({ active, label, onClick, locked = false }) {
+function SidebarButton({ active, label, onClick, locked = false, lockedLabel = "Access required" }) {
   return (
     <button
       type="button"
@@ -1245,15 +1238,7 @@ function SidebarButton({ active, label, onClick, locked = false }) {
     >
       <span className={active ? "font-semibold" : "font-medium"}>{label}</span>
       {locked ? (
-        <span
-          className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-            active
-              ? "border-amber-200/40 bg-amber-200/15 text-amber-100"
-              : "border-amber-200 bg-amber-50 text-amber-700"
-          }`}
-        >
-          Lock
-        </span>
+        <LockBadge locked active={active} label={lockedLabel} className="h-6 w-6" />
       ) : null}
     </button>
   );
@@ -1498,9 +1483,7 @@ function SectionChrome({ activeTab, activeSectionLabel, lockedLabel, text }) {
       </div>
 
       {lockedLabel ? (
-        <span className="inline-flex w-fit rounded-md border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-          {lockedLabel}
-        </span>
+        <LockBadge locked label={lockedLabel} />
       ) : null}
     </div>
   );
@@ -2939,25 +2922,25 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         nocInsights: "Analyse CNP",
         immigrationIntelligence: "Veille IRCC Premium",
         premiumSignal: "Signal officiel",
-        latestDraws: "Dernieres rondes IRCC",
-        processingTimes: "Delais IRCC",
+        latestDraws: "Dernières rondes IRCC",
+        processingTimes: "Délais IRCC",
         jobOpportunities: "Emplois et provinces",
-        categorySelection: "Categories Entree express",
-        dataStatus: "Statut des donnees",
+        categorySelection: "Catégories Entrée express",
+        dataStatus: "Statut des données",
         openOfficialSource: "Ouvrir la source officielle",
         openProcessingChecker: "Ouvrir le verificateur IRCC",
         officialChecker: "Verificateur officiel",
         profileOccupation: "Profession du profil",
         intelligenceSummary:
-          "Surveillez les rondes IRCC, les delais, les categories et les signaux d'emploi pour guider la prochaine action.",
+          "Surveillez les rondes IRCC, les délais, les catégories et les signaux d’emploi pour guider la prochaine action.",
         processingTimesBody:
-          "Les delais sont verifies dans l'outil officiel IRCC selon le type de demande et le pays.",
+          "Les délais sont vérifiés dans l’outil officiel IRCC selon le type de demande et le pays.",
         jobOpportunitiesBody:
-          "Comparez la demande d'emploi et les provinces recommandees pour choisir un parcours pratique.",
+          "Comparez la demande d’emploi et les provinces recommandées pour choisir un parcours pratique.",
         categoryBody:
-          "Comparez votre profil aux categories officielles avant de prioriser une voie.",
+          "Comparez votre profil aux catégories officielles avant de prioriser une voie.",
         noLiveDraws:
-          "La liste live n'est pas disponible dans cette reponse. Utilisez la source officielle.",
+          "La liste en direct n’est pas disponible dans cette réponse. Utilisez la source officielle.",
         provinceRecommendations: "Provinces recommandées",
         completed: "Complétés",
         reviewed: "Révisés",
@@ -3013,9 +2996,9 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         blurRiskBody:
           "Comprenez ce qui peut ralentir votre dossier et comment réduire ces risques.",
         unlockNow: "Débloquer maintenant",
-        blurIntelligenceTitle: "Debloquez la veille immigration Premium",
+        blurIntelligenceTitle: "Débloquez la veille immigration Premium",
         blurIntelligenceBody:
-          "Suivez les rondes IRCC, les delais de traitement, les categories et les signaux Job Bank/PNP.",
+          "Suivez les rondes IRCC, les délais de traitement, les catégories et les signaux Guichet-Emplois/PCP.",
         teer: "TEER",
         strategicValue: "Valeur stratégique",
         highDemandOccupation: "Profession en demande",
@@ -3025,7 +3008,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
         recommendedNocActions: "Actions liées au CNP",
         premiumExportPrimary: "Passer à Premium",
         navTitle: "Navigation",
-        lockedShort: "Verrouillé",
+        lockedShort: "Accès requis",
         bestPathwayPreview: "Aperçu du meilleur parcours",
         recommendedProvince: "Province recommandée",
         reviewMyProfile: "Vérifier mon profil",
@@ -3148,7 +3131,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
       recommendedNocActions: "NOC-related actions",
       premiumExportPrimary: "Upgrade to Premium",
       navTitle: "Navigation",
-      lockedShort: "Locked",
+      lockedShort: "Access required",
       bestPathwayPreview: "Best pathway preview",
       recommendedProvince: "Recommended province",
       reviewMyProfile: "Review my profile",
@@ -3381,6 +3364,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
             active={activeTab === tab.key}
             label={tab.label}
             locked={tab.locked}
+            lockedLabel={language === "fr" ? "Accès requis" : "Access required"}
             onClick={() => switchTab(tab.key)}
           />
         ))}
@@ -3495,6 +3479,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
                       active={activeSection === section.key}
                       label={section.label}
                       locked={section.locked}
+                      lockedLabel={language === "fr" ? "Accès requis" : "Access required"}
                       onClick={() => setActiveSection(section.key)}
                     />
                   ))}

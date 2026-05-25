@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy.orm import Session
 
 from app.data.db import get_db
@@ -25,6 +30,7 @@ class FormsPackagePreviewRequest(BaseModel):
     language: str = "en"
     representative_used: Optional[bool] = False
     application_data: Optional[Dict[str, Any]] = None
+    download_format: Optional[str] = "json"
 
 
 def _normalize_language(language: str) -> str:
@@ -45,6 +51,160 @@ def _can_download_forms(user: User) -> bool:
         "pro",
         "premium",
     }
+
+
+def _can_export_forms_pdf(user: User) -> bool:
+    plan = str(getattr(user, "plan", "") or "").strip().lower()
+    role = str(getattr(user, "role", "") or "").strip().lower()
+
+    if role == "admin":
+        return True
+
+    return plan in {"individual_premium", "premium"}
+
+
+def _pdf_text(value: Any) -> str:
+    text = str(value if value is not None else "").strip()
+    return text or "-"
+
+
+def _build_forms_package_pdf(package: Dict[str, Any], lang: str) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=42,
+        leftMargin=42,
+        topMargin=42,
+        bottomMargin=42,
+    )
+    styles = getSampleStyleSheet()
+    story = []
+
+    summary = package.get("summary") or {}
+    title = (
+        "Dossier de formulaires NorthBridgeAI"
+        if lang == "fr"
+        else "NorthBridgeAI Forms Package"
+    )
+    story.append(Paragraph(title, styles["Title"]))
+    story.append(Spacer(1, 10))
+    story.append(
+        Paragraph(
+            _pdf_text(summary.get("application_label")),
+            styles["Heading2"],
+        )
+    )
+    story.append(Spacer(1, 8))
+
+    meta_rows = [
+        [
+            "Complétude" if lang == "fr" else "Completeness",
+            f"{summary.get('completeness_score', 0)}%",
+        ],
+        [
+            "Nombre de formulaires" if lang == "fr" else "Forms count",
+            _pdf_text(summary.get("forms_count")),
+        ],
+    ]
+    meta_table = Table(meta_rows, colWidths=[180, 300])
+    meta_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#eef2ff")),
+                ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#111827")),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    story.append(meta_table)
+    story.append(Spacer(1, 16))
+
+    story.append(
+        Paragraph(
+            "Formulaires requis et conditionnels"
+            if lang == "fr"
+            else "Required and conditional forms",
+            styles["Heading2"],
+        )
+    )
+    story.append(Spacer(1, 8))
+
+    forms = package.get("forms") or []
+    if forms:
+        rows = [[
+            "Code",
+            "Titre" if lang == "fr" else "Title",
+            "Statut" if lang == "fr" else "Status",
+            "Champs manquants" if lang == "fr" else "Missing fields",
+        ]]
+        for form in forms:
+            status = (
+                "Prêt" if lang == "fr" else "Ready"
+            ) if form.get("ready") else (
+                "À compléter" if lang == "fr" else "Needs completion"
+            )
+            missing = ", ".join(form.get("missing_fields") or []) or "-"
+            rows.append([
+                _pdf_text(form.get("code")),
+                Paragraph(_pdf_text(form.get("title")), styles["BodyText"]),
+                status,
+                Paragraph(missing, styles["BodyText"]),
+            ])
+
+        table = Table(rows, colWidths=[70, 210, 90, 150], repeatRows=1)
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("PADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        story.append(table)
+    else:
+        story.append(
+            Paragraph(
+                "Aucun formulaire détecté." if lang == "fr" else "No forms detected.",
+                styles["BodyText"],
+            )
+        )
+
+    missing_items = package.get("missing_fields") or []
+    if missing_items:
+        story.append(Spacer(1, 16))
+        story.append(
+            Paragraph(
+                "Points à compléter" if lang == "fr" else "Items to complete",
+                styles["Heading2"],
+            )
+        )
+        for item in missing_items[:40]:
+            story.append(
+                Paragraph(
+                    f"{_pdf_text(item.get('form_code'))}: {_pdf_text(item.get('field'))}",
+                    styles["BodyText"],
+                )
+            )
+
+    story.append(Spacer(1, 16))
+    story.append(
+        Paragraph(
+            "Ce document est un outil de préparation. Vérifiez toujours les exigences officielles avant tout dépôt."
+            if lang == "fr"
+            else "This document is a preparation aid. Always verify official requirements before filing.",
+            styles["BodyText"],
+        )
+    )
+
+    doc.build(story)
+    return buffer.getvalue()
 
 
 def _profile_to_dict(profile: Profile) -> Dict[str, Any]:
@@ -266,7 +426,34 @@ def download_forms_package(
         application_data=application_data,
     )
 
-    filename = f"forms_package_{normalize_application_type(payload.application_type)}.json"
+    normalized_type = normalize_application_type(payload.application_type)
+    requested_format = str(payload.download_format or "json").strip().lower()
+
+    if requested_format == "pdf":
+        if not _can_export_forms_pdf(current_user):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Forms PDF export is available on Premium plans."
+                    if lang == "en"
+                    else "L’export PDF des formulaires est disponible avec le forfait Premium."
+                ),
+            )
+
+        filename = (
+            f"dossier_formulaires_{normalized_type}.pdf"
+            if lang == "fr"
+            else f"forms_package_{normalized_type}.pdf"
+        )
+        return Response(
+            content=_build_forms_package_pdf(package, lang),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
+        )
+
+    filename = f"forms_package_{normalized_type}.json"
     body = json.dumps(package, ensure_ascii=False, indent=2)
 
     return Response(

@@ -923,7 +923,7 @@ const blogTranslationsFr = {
         ],
       },
     ],
-    ctaTitle: "Verifiez si votre experience canadienne soutient votre strategie",
+    ctaTitle: "Vérifiez si votre expérience canadienne soutient votre stratégie",
     ctaBody:
       "NorthBridgeAI relie votre emploi, votre province, votre NOC, votre parcours et vos documents pour clarifier votre plan de residence permanente.",
   },
@@ -945,7 +945,7 @@ const blogTranslationsFr = {
     summaryBullets: [
       "Le projet de loi C-12 a recu la sanction royale le 26 mars 2026 et modifie l'asile, le traitement des demandes, l'echange d'information et les pouvoirs relatifs aux documents.",
       "Certaines demandes d'asile deposees apres des delais precis ne seront pas renvoyees a la Commission de l'immigration et du statut de refugie.",
-      "La loi donne au gouvernement des outils pour annuler, suspendre ou modifier des groupes de documents d'immigration, ou suspendre le traitement dans certains cas d'interet public.",
+      "La loi donne au gouvernement des outils pour annuler, suspendre ou modifier des groupes de documents d'immigration, ou suspendre le traitement dans certains cas d'intérêt public.",
     ],
     sourceLinks: [
       {
@@ -1529,7 +1529,7 @@ const blogTranslationsFr = {
       {
         heading: "Les changements exigent une verification recente",
         paragraphs: [
-          "Les regles pour les etudiants et diplomes changent regulierement. Verifiez toujours les pages officielles avant de faire un choix important.",
+          "Les règles pour les étudiants et diplômés changent régulièrement. Vérifiez toujours les pages officielles avant de faire un choix important.",
           "Une bonne strategie d'etudes doit etre mise a jour quand les politiques changent.",
         ],
       },
@@ -1685,7 +1685,7 @@ const blogTranslationsFr = {
         ],
       },
       {
-        heading: "Verifiez le dossier comme un ensemble",
+        heading: "Vérifiez le dossier comme un ensemble",
         paragraphs: [
           "Chaque formulaire doit etre compare aux documents de preuve. Les periodes sans activite, les changements de pays et les anciens emplois doivent etre expliques clairement.",
           "NorthBridgeAI aide a organiser cette verification de facon plus systematique.",
@@ -1699,7 +1699,7 @@ const blogTranslationsFr = {
         ],
       },
     ],
-    ctaTitle: "Verifiez vos formulaires avant soumission",
+    ctaTitle: "Vérifiez vos formulaires avant soumission",
     ctaBody:
       "NorthBridgeAI vous aide a repérer les incoherences et a preparer un dossier plus clair.",
   },

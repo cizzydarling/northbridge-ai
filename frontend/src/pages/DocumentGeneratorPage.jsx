@@ -2329,7 +2329,7 @@ export default function DocumentGeneratorPage() {
             {locked ? (
               <div className="mt-6">
                 <UpgradePrompt
-                  title={language === "fr" ? "Fonction verrouillée" : "Feature locked"}
+                  title={language === "fr" ? "Accès Pro requis" : "Pro access required"}
                   body={upgradeReason}
                   buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
                 />

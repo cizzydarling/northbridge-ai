@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import LockBadge from "../components/ui/LockBadge";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
   getBillingAccess,
@@ -346,7 +347,11 @@ function FirstRunHero({
 
           <div className="mt-5 flex flex-wrap gap-2">
             <StatPill active={unlocked}>
-              {unlocked ? text.unlockedBadge : text.lockedBadge}
+              <LockBadge
+                locked={!unlocked}
+                label={unlocked ? text.unlockedBadge : text.lockedBadge}
+                className="h-5 w-5"
+              />
             </StatPill>
             {isPremium ? <StatPill active>{text.premiumBadge}</StatPill> : null}
           </div>
@@ -1537,7 +1542,7 @@ export default function SelfDocumentsPage() {
         upgradeTitle: "Débloquez la génération de documents",
         upgradeBody:
           "Passez à Pro pour générer et réviser vos documents avec l’IA.",
-        featureLocked: "Fonction verrouillée",
+        featureLocked: "Accès Pro requis",
         featureLockedBody: "Passez à Pro pour générer et réviser ce document.",
         generate: "Générer",
         review: "Réviser",
@@ -1591,7 +1596,7 @@ export default function SelfDocumentsPage() {
       upgradeTitle: "Unlock document generation",
       upgradeBody:
         "Upgrade to Pro to generate and review your documents with AI.",
-      featureLocked: "Feature locked",
+      featureLocked: "Pro access required",
       featureLockedBody: "Upgrade to Pro to generate and review this document.",
       generate: "Generate",
       review: "Review",
@@ -2023,7 +2028,7 @@ export default function SelfDocumentsPage() {
                     activeGroupStats.total,
                   ],
                   [
-                    language === "fr" ? "Completes" : "Done",
+                    language === "fr" ? "Complétés" : "Done",
                     activeGroupStats.completed,
                   ],
                   [

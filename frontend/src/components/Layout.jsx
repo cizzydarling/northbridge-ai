@@ -11,6 +11,7 @@ import {
 import Button from "../components/ui/Button";
 import OnboardingModal from "../components/OnboardingModal";
 import DevPlanSwitcher from "../components/DevPlanSwitcher";
+import { translateRoleLabel } from "../utils/frenchLocalization";
 
 function normalizePlan(plan) {
   const value = String(plan || "").trim().toLowerCase();
@@ -86,6 +87,116 @@ function SectionLabel({ children, dark = false }) {
   );
 }
 
+function NavIcon({ name }) {
+  const commonProps = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true",
+  };
+
+  const icons = {
+    dashboard: (
+      <svg {...commonProps}>
+        <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+        <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+        <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+        <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+      </svg>
+    ),
+    clients: (
+      <svg {...commonProps}>
+        <path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20" />
+        <circle cx="9.5" cy="7.5" r="3.5" />
+        <path d="M21 20v-1.2a3.4 3.4 0 0 0-2.8-3.4" />
+        <path d="M16.5 4.4a3.2 3.2 0 0 1 0 6.2" />
+      </svg>
+    ),
+    matters: (
+      <svg {...commonProps}>
+        <path d="M4 7.5h16" />
+        <path d="M6 4.5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-12a2 2 0 0 1 2-2Z" />
+        <path d="M8 12h8" />
+        <path d="M8 16h5" />
+      </svg>
+    ),
+    strategy: (
+      <svg {...commonProps}>
+        <circle cx="12" cy="12" r="8.5" />
+        <circle cx="12" cy="12" r="3.5" />
+        <path d="M12 3.5V6" />
+        <path d="M12 18v2.5" />
+        <path d="M3.5 12H6" />
+        <path d="M18 12h2.5" />
+      </svg>
+    ),
+    documents: (
+      <svg {...commonProps}>
+        <path d="M7 3.5h7l3.5 3.5v13.5H7a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z" />
+        <path d="M14 3.5V8h4" />
+        <path d="M8.5 12h7" />
+        <path d="M8.5 16h5" />
+      </svg>
+    ),
+    application: (
+      <svg {...commonProps}>
+        <path d="M6.5 4.5h8.2L18 7.8v11.7H6.5a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z" />
+        <path d="M14.5 4.5V8H18" />
+        <path d="m8.5 13 2 2 4.5-5" />
+      </svg>
+    ),
+    profile: (
+      <svg {...commonProps}>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+      </svg>
+    ),
+    pricing: (
+      <svg {...commonProps}>
+        <path d="M4.5 7.5h15v12h-15z" />
+        <path d="M4.5 10.5h15" />
+        <path d="M8 15.5h3" />
+      </svg>
+    ),
+    generator: (
+      <svg {...commonProps}>
+        <path d="M12 3.5 13.4 8l4.1 1.5-4.1 1.5L12 15.5 10.6 11l-4.1-1.5L10.6 8 12 3.5Z" />
+        <path d="M18 14.5 18.8 17l2.2.8-2.2.8L18 21l-.8-2.4-2.2-.8 2.2-.8.8-2.5Z" />
+        <path d="M5.5 15.5 6 17l1.5.5L6 18l-.5 1.5L5 18l-1.5-.5L5 17l.5-1.5Z" />
+      </svg>
+    ),
+    review: (
+      <svg {...commonProps}>
+        <path d="M5.5 4.5h13v15h-13z" />
+        <path d="m8.5 12 2 2 4.5-5" />
+        <path d="M8.5 17h7" />
+      </svg>
+    ),
+    forms: (
+      <svg {...commonProps}>
+        <path d="M6.5 3.5h11v17h-11z" />
+        <path d="M9 8h6" />
+        <path d="M9 12h6" />
+        <path d="M9 16h3.5" />
+      </svg>
+    ),
+    household: (
+      <svg {...commonProps}>
+        <path d="m3.5 11 8.5-7 8.5 7" />
+        <path d="M6 10v10h12V10" />
+        <path d="M9 20v-5a3 3 0 0 1 6 0v5" />
+      </svg>
+    ),
+  };
+
+  return icons[name] || icons.dashboard;
+}
+
 function SidebarLink({ item, active, onClick }) {
   return (
     <button
@@ -99,13 +210,13 @@ function SidebarLink({ item, active, onClick }) {
       }`}
     >
       <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-[11px] font-semibold ${
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${
           active
             ? "border-amber-200 bg-amber-50 text-amber-800"
             : "border-white/10 bg-white/6 text-white/70 group-hover:border-white/20 group-hover:text-white"
         }`}
       >
-        {item.icon}
+        <NavIcon name={item.icon} />
       </span>
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
     </button>
@@ -285,17 +396,27 @@ export default function Layout({ children }) {
       profile: profileIdentity || currentUser?.profile,
       first_name: profileIdentity?.first_name || currentUser?.first_name,
       last_name: profileIdentity?.last_name || currentUser?.last_name,
+      email:
+        profileIdentity?.email ||
+        currentUser?.email ||
+        currentUser?.username ||
+        currentUser?.preferred_username ||
+        currentUser?.profile?.email ||
+        currentUser?.profile?.username,
+      display_name:
+        profileIdentity?.display_name ||
+        profileIdentity?.full_name ||
+        profileIdentity?.name ||
+        currentUser?.display_name ||
+        currentUser?.full_name ||
+        currentUser?.name,
     }),
     [currentUser, profileIdentity]
   );
 
   const displayName = useMemo(
-    () =>
-      getUserDisplayName(
-        identityUser,
-        language === "fr" ? "Utilisateur" : "User"
-      ),
-    [identityUser, language]
+    () => getUserDisplayName(identityUser, ""),
+    [identityUser]
   );
 
   const initials = useMemo(() => {
@@ -303,44 +424,46 @@ export default function Layout({ children }) {
     return (parts[0]?.[0] || "N") + (parts[1]?.[0] || "B");
   }, [displayName]);
 
+  const roleLabel = translateRoleLabel(currentUser?.role, language);
+
   const primaryNavItems = isAgentWorkspace
     ? [
-        { label: t("nav.dashboard"), path: "/dashboard", icon: "DB" },
-        { label: t("nav.clients"), path: "/clients", icon: "CL" },
-        { label: t("nav.matters"), path: "/matters", icon: "MT" },
-        { label: t("nav.strategy"), path: "/strategy", icon: "ST" },
+        { label: t("nav.dashboard"), path: "/dashboard", icon: "dashboard" },
+        { label: t("nav.clients"), path: "/clients", icon: "clients" },
+        { label: t("nav.matters"), path: "/matters", icon: "matters" },
+        { label: t("nav.strategy"), path: "/strategy", icon: "strategy" },
       ]
     : [
-        { label: t("nav.dashboard"), path: "/dashboard", icon: "DB" },
-        { label: t("nav.strategy"), path: "/strategy", icon: "ST" },
-        { label: language === "fr" ? "Documents" : "Documents", path: "/documents", icon: "DC" },
-        { label: t("layout.myApplication"), path: "/self/application", icon: "AP" },
+        { label: t("nav.dashboard"), path: "/dashboard", icon: "dashboard" },
+        { label: t("nav.strategy"), path: "/strategy", icon: "strategy" },
+        { label: language === "fr" ? "Documents" : "Documents", path: "/documents", icon: "documents" },
+        { label: t("layout.myApplication"), path: "/self/application", icon: "application" },
       ];
 
   const toolsItems = isAgentWorkspace
     ? [
-        { label: t("nav.profile"), path: "/profile", icon: "PF" },
+        { label: t("nav.profile"), path: "/profile", icon: "profile" },
         {
           label: language === "fr" ? "Tarifs" : "Pricing",
           path: "/pricing",
-          icon: "PR",
+          icon: "pricing",
         },
       ]
     : [
         {
-          label: language === "fr" ? "Generateur" : "Generator",
+          label: language === "fr" ? "Générateur" : "Generator",
           path: "/documents/generator",
-          icon: "GN",
+          icon: "generator",
         },
         {
-          label: language === "fr" ? "Review IA" : "AI Review",
+          label: language === "fr" ? "Révision IA" : "AI Review",
           path: "/documents/review",
-          icon: "RV",
+          icon: "review",
         },
-        { label: language === "fr" ? "Studio formulaires" : "Forms Studio", path: "/forms", icon: "FM" },
-        { label: language === "fr" ? "Famille" : "Household", path: "/household", icon: "HH" },
-        { label: language === "fr" ? "Demandes" : "Applications", path: "/applications", icon: "CA" },
-        { label: t("nav.profile"), path: "/profile", icon: "PF" },
+        { label: language === "fr" ? "Studio formulaires" : "Forms Studio", path: "/forms", icon: "forms" },
+        { label: language === "fr" ? "Famille" : "Household", path: "/household", icon: "household" },
+        { label: language === "fr" ? "Demandes" : "Applications", path: "/applications", icon: "application" },
+        { label: t("nav.profile"), path: "/profile", icon: "profile" },
       ];
 
   function handleLogout() {
@@ -426,7 +549,7 @@ export default function Layout({ children }) {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{displayName}</p>
                   <p className="truncate text-xs text-white/50">
-                    {currentUser?.role || t("common.unknown")}
+                    {roleLabel || t("common.unknown")}
                   </p>
                 </div>
               </div>
@@ -440,7 +563,7 @@ export default function Layout({ children }) {
             <nav className="mt-7 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <div className="space-y-2">
                 <SectionLabel dark>
-                  {language === "fr" ? "Workspace" : "Workspace"}
+                  {language === "fr" ? "Espace de travail" : "Workspace"}
                 </SectionLabel>
                 <div className="mt-2 space-y-1.5">
                   {primaryNavItems.map((item) => (
@@ -456,7 +579,7 @@ export default function Layout({ children }) {
 
               <div className="mt-7 space-y-2">
                 <SectionLabel dark>
-                  {language === "fr" ? "Execution" : "Execution"}
+                  {language === "fr" ? "Exécution" : "Execution"}
                 </SectionLabel>
                 <div className="mt-2 space-y-1.5">
                   {toolsItems.map((item) => (
@@ -504,7 +627,7 @@ export default function Layout({ children }) {
 
               <div className="hidden min-w-0 lg:block">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  {language === "fr" ? "Case workspace" : "Case workspace"}
+                  {language === "fr" ? "Espace dossier" : "Case workspace"}
                 </p>
                 <p className="mt-0.5 truncate text-sm font-medium text-slate-600">
                   {location.pathname === "/dashboard"
@@ -572,7 +695,7 @@ export default function Layout({ children }) {
                             <PlanPill plan={effectivePlan} language={language} />
                           )}
                           <span className="text-xs capitalize text-slate-500">
-                            {currentUser?.role || t("common.unknown")}
+                            {roleLabel || t("common.unknown")}
                           </span>
                         </div>
                       </div>
@@ -683,7 +806,7 @@ export default function Layout({ children }) {
                     <PlanPill plan={effectivePlan} language={language} />
                   )}
                   <span className="text-xs capitalize text-slate-500">
-                    {currentUser?.role || t("common.unknown")}
+                    {roleLabel || t("common.unknown")}
                   </span>
                 </div>
                 <Button
@@ -696,7 +819,7 @@ export default function Layout({ children }) {
               </div>
 
               <div className="mb-6 space-y-2">
-                <SectionLabel>{language === "fr" ? "Workspace" : "Workspace"}</SectionLabel>
+                <SectionLabel>{language === "fr" ? "Espace de travail" : "Workspace"}</SectionLabel>
                 <div className="mt-2 space-y-2">
                   {primaryNavItems.map((item) => (
                     <MobileNavButton
@@ -711,7 +834,7 @@ export default function Layout({ children }) {
               </div>
 
               <div className="mb-6 space-y-2">
-                <SectionLabel>{language === "fr" ? "Execution" : "Execution"}</SectionLabel>
+                <SectionLabel>{language === "fr" ? "Exécution" : "Execution"}</SectionLabel>
                 <div className="mt-2 space-y-2">
                   {toolsItems.map((item) => (
                     <MobileNavButton
