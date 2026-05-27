@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import Depends, HTTPException
@@ -49,12 +50,29 @@ def get_subscription_status(user: Optional[User]) -> str:
     return _normalize(getattr(user, "subscription_status", None))
 
 
+def has_current_access_period(user: Optional[User]) -> bool:
+    if not user:
+        return False
+
+    period_end = getattr(user, "subscription_current_period_end", None)
+    if not period_end:
+        return True
+
+    if period_end.tzinfo is None:
+        period_end = period_end.replace(tzinfo=timezone.utc)
+
+    return period_end > datetime.now(timezone.utc)
+
+
 def has_active_paid_access(user: Optional[User]) -> bool:
     plan = get_user_plan(user)
     raw_plan = get_raw_user_plan(user)
     status = get_subscription_status(user)
 
     if plan == FREE_PLAN and raw_plan == "free":
+        return False
+
+    if not has_current_access_period(user):
         return False
 
     if not status:

@@ -53,6 +53,7 @@ export default function AuthPage() {
     email: "",
     password: "",
     role: "individual",
+    access_code: "",
   });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -156,6 +157,7 @@ export default function AuthPage() {
           email: form.email,
           password: form.password,
           role: form.role,
+          access_code: form.access_code.trim() || null,
         });
 
         setMessage(t("auth.registrationSuccess"));
@@ -455,6 +457,21 @@ export default function AuthPage() {
                       <option value="agent">{t("auth.agent")}</option>
                     </select>
                   </div>
+                )}
+
+                {!isLogin && !forgotMode && !resetToken && (
+                  <Input
+                    label={
+                      i18n.language === "fr"
+                        ? "Code d'acces fondateur (facultatif)"
+                        : "Founder access code (optional)"
+                    }
+                    type="text"
+                    name="access_code"
+                    value={form.access_code}
+                    onChange={handleChange}
+                    placeholder="NB-FOUNDER-2026"
+                  />
                 )}
 
                 <Button

@@ -44,3 +44,8 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    promo_code_redemptions = relationship(
+        "PromoCodeRedemption",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )

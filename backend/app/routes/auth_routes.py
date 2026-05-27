@@ -19,6 +19,7 @@ from app.services.email_service import (
     build_password_reset_email,
     send_email,
 )
+from app.services.promo_code_service import redeem_promo_code
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -36,6 +37,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     role: str = "individual"
+    access_code: str | None = None
 
     @field_validator("password")
     @classmethod
@@ -216,6 +218,8 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         db.flush()
 
         create_default_profile_for_user(db, new_user)
+        if data.access_code:
+            redeem_promo_code(db, user=new_user, code=data.access_code, commit=False)
         _send_email_confirmation(db, new_user)
         _send_onboarding_email(db, new_user)
 

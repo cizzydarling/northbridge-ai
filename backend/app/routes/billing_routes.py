@@ -6,6 +6,7 @@ from typing import Any
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, field_validator
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -19,8 +20,9 @@ from app.core.access_control import (
 )
 from app.data.db import get_db
 from app.models.billing_transaction_model import BillingTransaction
+from app.models.promo_code_model import PromoCode
 from app.models.user_models import User
-from app.routes.auth_routes import get_current_user
+from app.routes.auth_routes import get_current_user, require_admin
 from app.routes.disclosure_routes import require_global_disclosures_accepted
 from app.schemas.billing_schema import BillingTransactionResponse
 from app.services.email_service import (
@@ -29,6 +31,7 @@ from app.services.email_service import (
     build_subscription_cancellation_email,
     send_email,
 )
+from app.services.promo_code_service import normalize_promo_code, redeem_promo_code
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
@@ -73,6 +76,66 @@ APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 DEV_ENVS = {"development", "dev", "local", "test"}
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+class RedeemPromoCodeRequest(BaseModel):
+    code: str
+
+
+class PromoCodeCreateRequest(BaseModel):
+    code: str
+    access_type: str = "individual_premium"
+    duration_days: int = 30
+    expires_at: datetime | None = None
+    max_uses: int | None = None
+    active: bool = True
+    description: str | None = None
+
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, value: str) -> str:
+        normalized = normalize_promo_code(value)
+        if not normalized:
+            raise ValueError("Code is required")
+        return normalized
+
+    @field_validator("access_type")
+    @classmethod
+    def validate_access_type(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        allowed = {"individual_pro", "individual_premium", "agent_pro"}
+        if normalized not in allowed:
+            raise ValueError("Access type must be individual_pro, individual_premium, or agent_pro")
+        return normalized
+
+    @field_validator("duration_days")
+    @classmethod
+    def validate_duration_days(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("Duration must be at least 1 day")
+        return value
+
+    @field_validator("max_uses")
+    @classmethod
+    def validate_max_uses(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("Max uses must be at least 1")
+        return value
+
+
+def _promo_code_payload(promo_code: PromoCode) -> dict:
+    return {
+        "id": promo_code.id,
+        "code": promo_code.code,
+        "access_type": promo_code.access_type,
+        "duration_days": promo_code.duration_days,
+        "expires_at": promo_code.expires_at,
+        "max_uses": promo_code.max_uses,
+        "current_uses": promo_code.current_uses,
+        "active": promo_code.active,
+        "description": promo_code.description,
+        "created_at": promo_code.created_at,
+    }
 
 
 def _stripe_ready() -> bool:
@@ -875,6 +938,59 @@ def get_billing_status(current_user: User = Depends(get_current_user)):
 @router.get("/access")
 def get_billing_access(current_user: User = Depends(get_current_user)):
     return build_access_response(user=current_user)
+
+
+@router.post("/redeem-code")
+def redeem_access_code(
+    payload: RedeemPromoCodeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = redeem_promo_code(db, user=current_user, code=payload.code)
+    return {
+        **result,
+        "user": _user_payload(current_user),
+        "access": build_access_response(user=current_user),
+    }
+
+
+@router.get("/admin/promo-codes")
+def list_promo_codes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    del current_user
+    return [
+        _promo_code_payload(promo_code)
+        for promo_code in db.query(PromoCode).order_by(PromoCode.created_at.desc()).all()
+    ]
+
+
+@router.post("/admin/promo-codes")
+def create_promo_code(
+    payload: PromoCodeCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    del current_user
+    normalized_code = normalize_promo_code(payload.code)
+    existing = db.query(PromoCode).filter(PromoCode.code == normalized_code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Access code already exists.")
+
+    promo_code = PromoCode(
+        code=normalized_code,
+        access_type=payload.access_type,
+        duration_days=payload.duration_days,
+        expires_at=payload.expires_at,
+        max_uses=payload.max_uses,
+        active=payload.active,
+        description=payload.description,
+    )
+    db.add(promo_code)
+    db.commit()
+    db.refresh(promo_code)
+    return _promo_code_payload(promo_code)
 
 
 @router.get("/transactions", response_model=list[BillingTransactionResponse])

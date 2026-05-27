@@ -13,6 +13,7 @@ import {
   getBillingStatus,
   getBillingTransactions,
   refreshCurrentUser,
+  redeemAccessCode,
   syncCheckoutSession,
 } from "../api";
 
@@ -465,6 +466,51 @@ function DecisionPanel({ text, checkoutLoadingPlan, onPro }) {
   );
 }
 
+function FounderCodePanel({
+  text,
+  code,
+  onCodeChange,
+  onRedeem,
+  loading,
+  disabled,
+}) {
+  return (
+    <SurfaceCard className="mb-6 border-emerald-200 bg-emerald-50/70">
+      <div className="grid gap-5 lg:grid-cols-[1fr_360px] lg:items-end">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+            {text.founderCodeEyebrow}
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+            {text.founderCodeTitle}
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-700">
+            {text.founderCodeBody}
+          </p>
+        </div>
+
+        <form onSubmit={onRedeem} className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+          <input
+            value={code}
+            onChange={(event) => onCodeChange(event.target.value)}
+            disabled={disabled || loading}
+            placeholder="NB-FOUNDER-2026"
+            className="h-12 w-full rounded-lg border border-emerald-200 bg-white px-4 text-sm font-semibold uppercase tracking-[0.08em] text-slate-950 outline-none transition placeholder:font-medium placeholder:tracking-normal placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+          />
+          <Button
+            type="submit"
+            disabled={disabled || loading || !code.trim()}
+            loading={loading}
+            className="h-12 shrink-0"
+          >
+            {loading ? text.loading : text.redeemFounderCode}
+          </Button>
+        </form>
+      </div>
+    </SurfaceCard>
+  );
+}
+
 function PlanCard({
   plan,
   text,
@@ -619,6 +665,8 @@ export default function PricingPage() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [devSwitchLoading, setDevSwitchLoading] = useState("");
   const [successRefreshing, setSuccessRefreshing] = useState(false);
+  const [founderCode, setFounderCode] = useState("");
+  const [founderCodeLoading, setFounderCodeLoading] = useState(false);
 
   const successFlag = searchParams.get("success");
   const checkoutSessionId = searchParams.get("session_id");
@@ -800,6 +848,47 @@ export default function PricingPage() {
     }
   }
 
+  async function handleRedeemFounderCode(event) {
+    event.preventDefault();
+    const code = founderCode.trim();
+    if (!code) return;
+
+    try {
+      setFounderCodeLoading(true);
+      setMessage("");
+
+      const res = await redeemAccessCode(code);
+      if (res?.data?.user) {
+        await refreshCurrentUser();
+      }
+      await loadBillingPage();
+
+      window.dispatchEvent(new Event("userUpdated"));
+      window.dispatchEvent(new Event("nbai-strategy-refresh"));
+      window.dispatchEvent(new Event("nbai-document-engine-updated"));
+
+      const grantedUntil = res?.data?.granted_until
+        ? formatBillingDate(res.data.granted_until, language)
+        : "";
+      setFounderCode("");
+      setMessage(
+        language === "fr"
+          ? `Code applique. Votre acces Premium est actif${grantedUntil ? ` jusqu'au ${grantedUntil}` : ""}.`
+          : `Code applied. Your Premium access is active${grantedUntil ? ` until ${grantedUntil}` : ""}.`
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        err?.response?.data?.detail ||
+          (language === "fr"
+            ? "Impossible d'appliquer ce code d'acces."
+            : "Unable to apply this access code.")
+      );
+    } finally {
+      setFounderCodeLoading(false);
+    }
+  }
+
   async function handlePortal() {
     try {
       setPortalLoading(true);
@@ -945,6 +1034,11 @@ export default function PricingPage() {
         upgradeToPro: "Choisir Pro",
         upgradeToPremium: "Choisir Premium",
         current: "Plan actuel",
+        founderCodeEyebrow: "Acces fondateur",
+        founderCodeTitle: "Vous avez un code beta ?",
+        founderCodeBody:
+          "Entrez votre code pour debloquer temporairement les fonctions Premium pendant la beta fermee.",
+        redeemFounderCode: "Appliquer le code",
         devTools: "Outils de développement",
         switchToFree: "Passer à Gratuit",
         switchToPro: "Passer à Pro",
@@ -1078,6 +1172,11 @@ export default function PricingPage() {
       upgradeToPro: "Choose Pro",
       upgradeToPremium: "Choose Premium",
       current: "Current plan",
+      founderCodeEyebrow: "Founder access",
+      founderCodeTitle: "Have a beta code?",
+      founderCodeBody:
+        "Enter it here to temporarily unlock Premium features during the closed beta.",
+      redeemFounderCode: "Apply code",
       devTools: "Development tools",
       switchToFree: "Switch to Free",
       switchToPro: "Switch to Pro",
@@ -1358,6 +1457,15 @@ export default function PricingPage() {
           </div>
         </SurfaceCard>
       ) : null}
+
+      <FounderCodePanel
+        text={text}
+        code={founderCode}
+        onCodeChange={setFounderCode}
+        onRedeem={handleRedeemFounderCode}
+        loading={founderCodeLoading}
+        disabled={Boolean(checkoutLoadingPlan || portalLoading || cancelLoading)}
+      />
 
       <PricingHero
         text={text}
