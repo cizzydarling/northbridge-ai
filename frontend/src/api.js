@@ -339,9 +339,6 @@ export const getBillingPlans = getAvailablePlans;
 
 export const getBillingTransactions = () => api.get("/billing/transactions");
 
-export const redeemAccessCode = (code) =>
-  api.post("/billing/redeem-code", { code });
-
 export const devSetPlan = (planOrPayload, subscription_status = "active") => {
   const payload =
     typeof planOrPayload === "object" && planOrPayload !== null
