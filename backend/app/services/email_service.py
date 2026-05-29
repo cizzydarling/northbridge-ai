@@ -225,6 +225,7 @@ def _send_email_with_resend(
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "northbridgeai/1.0",
         },
         method="POST",
     )
