@@ -1,10 +1,13 @@
 import html
+import json
 import os
 import smtplib
 import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Optional
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 
 DEFAULT_BILLING_EMAIL = "billing@northbridgeia.com"
@@ -21,12 +24,14 @@ class EmailSendResult:
 
 
 def email_configured() -> bool:
-    return bool(os.getenv("SMTP_HOST"))
+    return bool(os.getenv("RESEND_API_KEY") or os.getenv("SMTP_HOST"))
 
 
 def get_email_settings_summary() -> dict:
     return {
         "configured": email_configured(),
+        "provider": "resend" if os.getenv("RESEND_API_KEY") else "smtp",
+        "resend_configured": bool(os.getenv("RESEND_API_KEY")),
         "smtp_host_configured": bool(os.getenv("SMTP_HOST")),
         "smtp_port": os.getenv("SMTP_PORT", "587"),
         "smtp_username_configured": bool(os.getenv("SMTP_USERNAME")),
@@ -49,6 +54,10 @@ def _format_sender() -> str:
     email = (os.getenv("BILLING_EMAIL_FROM") or DEFAULT_BILLING_EMAIL).strip()
     name = (os.getenv("BILLING_EMAIL_FROM_NAME") or f"{BRAND_NAME} Billing").strip()
     return f"{name} <{email}>" if name else email
+
+
+def _sender_email() -> str:
+    return (os.getenv("BILLING_EMAIL_FROM") or DEFAULT_BILLING_EMAIL).strip()
 
 
 def _frontend_url() -> str:
@@ -127,11 +136,20 @@ def send_email(
     html_body: str,
     reply_to: str | None = None,
 ) -> EmailSendResult:
+    if os.getenv("RESEND_API_KEY"):
+        return _send_email_with_resend(
+            to_email=to_email,
+            subject=subject,
+            text_body=text_body,
+            html_body=html_body,
+            reply_to=reply_to,
+        )
+
     if not email_configured():
         return EmailSendResult(
             sent=False,
             status="not_configured",
-            error="SMTP_HOST is not configured.",
+            error="RESEND_API_KEY or SMTP_HOST is not configured.",
         )
 
     smtp_host = os.getenv("SMTP_HOST", "").strip()
@@ -174,6 +192,66 @@ def send_email(
         return EmailSendResult(sent=False, status="failed", error=str(exc))
 
     return EmailSendResult(sent=True, status="sent")
+
+
+def _send_email_with_resend(
+    *,
+    to_email: str,
+    subject: str,
+    text_body: str,
+    html_body: str,
+    reply_to: str | None = None,
+) -> EmailSendResult:
+    api_key = os.getenv("RESEND_API_KEY", "").strip()
+    if not api_key:
+        return EmailSendResult(
+            sent=False,
+            status="not_configured",
+            error="RESEND_API_KEY is not configured.",
+        )
+
+    payload = {
+        "from": _format_sender(),
+        "to": [to_email],
+        "subject": subject,
+        "html": html_body,
+        "text": text_body,
+        "reply_to": reply_to or os.getenv("BILLING_EMAIL_REPLY_TO") or _sender_email(),
+    }
+
+    request = Request(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=20) as response:
+            if 200 <= response.status < 300:
+                return EmailSendResult(sent=True, status="sent")
+            return EmailSendResult(
+                sent=False,
+                status="failed",
+                error=f"Resend returned HTTP {response.status}.",
+            )
+    except HTTPError as exc:
+        try:
+            body = exc.read().decode("utf-8")
+        except Exception:
+            body = str(exc)
+        return EmailSendResult(
+            sent=False,
+            status="failed",
+            error=f"Resend HTTP {exc.code}: {body}",
+        )
+    except URLError as exc:
+        return EmailSendResult(sent=False, status="failed", error=str(exc.reason))
+    except Exception as exc:
+        return EmailSendResult(sent=False, status="failed", error=str(exc))
 
 
 def build_payment_confirmation_email(
