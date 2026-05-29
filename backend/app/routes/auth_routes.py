@@ -17,6 +17,7 @@ from app.services.email_service import (
     build_email_confirmation_email,
     build_onboarding_email,
     build_password_reset_email,
+    get_email_settings_summary,
     send_email,
 )
 from app.services.promo_code_service import redeem_promo_code
@@ -57,6 +58,10 @@ class RegisterRequest(BaseModel):
 
 class EmailRequest(BaseModel):
     email: EmailStr
+
+
+class EmailTestRequest(BaseModel):
+    email: EmailStr | None = None
 
 
 class TokenRequest(BaseModel):
@@ -346,6 +351,7 @@ def confirm_email_get(token: str, db: Session = Depends(get_db)):
 @router.post("/request-password-reset")
 def request_password_reset(data: EmailRequest, db: Session = Depends(get_db)):
     user = get_user_by_email(db, data.email)
+    email_status = "not_found"
     if user:
         token = _new_token()
         user.password_reset_token_hash = _hash_token(token)
@@ -364,8 +370,22 @@ def request_password_reset(data: EmailRequest, db: Session = Depends(get_db)):
         user.password_reset_status = result.status
         user.password_reset_error = result.error
         db.commit()
+        email_status = result.status
 
-    return {"message": "If that account exists, a password reset email has been sent."}
+    if email_status in {"failed", "not_configured"}:
+        return {
+            "message": "Password reset email could not be sent. Please contact support.",
+            "email_status": email_status,
+            "email_sent": False,
+            "delivery_failed": True,
+        }
+
+    return {
+        "message": "If that account exists, a password reset email has been sent.",
+        "email_status": "sent_or_not_found",
+        "email_sent": email_status == "sent",
+        "delivery_failed": False,
+    }
 
 
 @router.post("/reset-password")
@@ -403,3 +423,39 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
+
+
+@router.get("/admin/email-settings")
+def get_auth_email_settings(current_user: User = Depends(require_admin)):
+    del current_user
+    return get_email_settings_summary()
+
+
+@router.post("/admin/test-email")
+def send_auth_test_email(
+    data: EmailTestRequest,
+    current_user: User = Depends(require_admin),
+):
+    to_email = data.email or current_user.email
+    subject = "NorthBridgeAI email test"
+    text_body = (
+        "This is a NorthBridgeAI SMTP test email. "
+        "If you received it, backend email delivery is configured."
+    )
+    html_body = """
+    <p>This is a <strong>NorthBridgeAI SMTP test email</strong>.</p>
+    <p>If you received it, backend email delivery is configured.</p>
+    """
+    result = send_email(
+        to_email=to_email,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
+    return {
+        "sent": result.sent,
+        "status": result.status,
+        "error": result.error,
+        "to": to_email,
+        "settings": get_email_settings_summary(),
+    }

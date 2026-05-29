@@ -120,13 +120,17 @@ export default function AuthPage() {
         setResetToken("");
         setForm((prev) => ({ ...prev, password: "" }));
       } else if (forgotMode) {
-        await requestPasswordReset(form.email);
+        const resetRes = await requestPasswordReset(form.email);
+        const resetMessage = resetRes?.data?.message;
         setMessage(
-          i18n.language === "fr"
+          resetMessage ||
+            (i18n.language === "fr"
             ? "Si ce compte existe, un email de reinitialisation a ete envoye."
-            : "If that account exists, a password reset email has been sent."
+            : "If that account exists, a password reset email has been sent.")
         );
-        setForgotMode(false);
+        if (!resetRes?.data?.delivery_failed) {
+          setForgotMode(false);
+        }
       } else if (isLogin) {
         const res = await loginUser({
           email: form.email,
@@ -190,6 +194,8 @@ export default function AuthPage() {
 
   const isSuccessMessage =
     message &&
+    !message.toLowerCase().includes("could not") &&
+    !message.toLowerCase().includes("impossible") &&
     (message.toLowerCase().includes("success") ||
       message.toLowerCase().includes("successfully") ||
       message.toLowerCase().includes("confirmed") ||

@@ -24,6 +24,20 @@ def email_configured() -> bool:
     return bool(os.getenv("SMTP_HOST"))
 
 
+def get_email_settings_summary() -> dict:
+    return {
+        "configured": email_configured(),
+        "smtp_host_configured": bool(os.getenv("SMTP_HOST")),
+        "smtp_port": os.getenv("SMTP_PORT", "587"),
+        "smtp_username_configured": bool(os.getenv("SMTP_USERNAME")),
+        "smtp_use_tls": _env_bool("SMTP_USE_TLS", True),
+        "smtp_use_ssl": _env_bool("SMTP_USE_SSL", False),
+        "from": _format_sender(),
+        "reply_to": os.getenv("BILLING_EMAIL_REPLY_TO") or DEFAULT_BILLING_EMAIL,
+        "frontend_url": _frontend_url(),
+    }
+
+
 def _env_bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     if value is None:
