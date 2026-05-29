@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.access_control import (
     get_current_user,
+    ensure_confirmed_email,
     has_individual_pro,
     has_premium_access,
 )
@@ -741,6 +742,7 @@ def export_strategy_pdf(
     current_user=Depends(require_self_user),
 ):
     language = normalize_language(language)
+    ensure_confirmed_email(current_user)
 
     if not has_premium_access(current_user):
         raise HTTPException(

@@ -15,6 +15,7 @@ from app.core.access_control import (
     PREMIUM_PLAN,
     PRO_PLAN,
     build_access_response,
+    ensure_confirmed_email,
     get_raw_user_plan,
     get_user_plan,
 )
@@ -1014,6 +1015,7 @@ def create_checkout_session(
     current_user: User = Depends(get_current_user),
 ):
     ensure_stripe_configured()
+    ensure_confirmed_email(current_user)
     require_global_disclosures_accepted(db, current_user)
 
     selected_plan = _normalize_plan(payload.get("plan"))

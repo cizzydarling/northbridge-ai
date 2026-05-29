@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.core.access_control import has_individual_pro
+from app.core.access_control import ensure_confirmed_email, has_individual_pro
 from app.data.db import get_db
 from app.models.generated_document_model import GeneratedDocument
 from app.models.profile_model import Profile
@@ -393,6 +393,7 @@ def generate_document_docx(
     current_user: User = Depends(get_current_user),
 ):
     language = _normalize_language(payload.language)
+    ensure_confirmed_email(current_user)
 
     if not has_individual_pro(current_user):
         raise HTTPException(

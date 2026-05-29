@@ -50,6 +50,24 @@ def get_subscription_status(user: Optional[User]) -> str:
     return _normalize(getattr(user, "subscription_status", None))
 
 
+def has_confirmed_email(user: Optional[User]) -> bool:
+    if not user:
+        return False
+    return bool(getattr(user, "email_confirmed_at", None))
+
+
+def ensure_confirmed_email(user: Optional[User]) -> None:
+    if has_confirmed_email(user):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "code": "email_confirmation_required",
+            "message": "Please confirm your email address before continuing.",
+        },
+    )
+
+
 def has_current_access_period(user: Optional[User]) -> bool:
     if not user:
         return False

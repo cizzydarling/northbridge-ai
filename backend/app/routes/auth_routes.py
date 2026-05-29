@@ -315,11 +315,26 @@ def request_email_confirmation(
     db: Session = Depends(get_db),
 ):
     user = get_user_by_email(db, data.email)
+    email_status = "not_found"
     if user:
         _send_email_confirmation(db, user)
         db.commit()
+        email_status = user.email_confirmation_status or "failed"
 
-    return {"message": "If that account exists, a confirmation email has been sent."}
+    if email_status in {"failed", "not_configured"}:
+        return {
+            "message": "Confirmation email could not be sent. Please contact support.",
+            "email_status": email_status,
+            "email_sent": False,
+            "delivery_failed": True,
+        }
+
+    return {
+        "message": "If that account exists, a confirmation email has been sent.",
+        "email_status": "sent_or_not_found",
+        "email_sent": email_status == "sent",
+        "delivery_failed": False,
+    }
 
 
 @router.post("/confirm-email")

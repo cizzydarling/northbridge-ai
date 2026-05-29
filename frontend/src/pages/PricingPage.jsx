@@ -784,6 +784,14 @@ export default function PricingPage() {
         navigate(`/legal/disclosure?redirect=${redirect}`);
         return;
       }
+      if (detail?.code === "email_confirmation_required") {
+        setMessage(
+          language === "fr"
+            ? "Confirmez votre adresse courriel avant de passer au paiement."
+            : detail.message || "Please confirm your email address before checkout."
+        );
+        return;
+      }
       const localStripeHint =
         isLocalDev && detail
           ? ` ${language === "fr" ? "Vérifiez les variables Stripe locales si vous testez le paiement." : "Check local Stripe variables if you are testing checkout."}`
@@ -791,6 +799,8 @@ export default function PricingPage() {
       setMessage(
         typeof detail === "string"
           ? `${detail}${localStripeHint}`
+          : typeof detail?.message === "string"
+          ? `${detail.message}${localStripeHint}`
           : language === "fr"
             ? "Impossible de demarrer le paiement."
             : "Unable to start checkout."

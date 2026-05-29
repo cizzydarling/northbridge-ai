@@ -7,6 +7,8 @@ import {
   getMyProfile,
   getUserDisplayName,
   logoutUser,
+  requestEmailConfirmation,
+  refreshCurrentUser,
 } from "../api";
 import Button from "../components/ui/Button";
 import OnboardingModal from "../components/OnboardingModal";
@@ -252,6 +254,8 @@ export default function Layout({ children }) {
   const [loadingPlan, setLoadingPlan] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [confirmationSending, setConfirmationSending] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
 
   const accountRef = useRef(null);
   const mobileMenuPanelRef = useRef(null);
@@ -275,6 +279,41 @@ export default function Layout({ children }) {
     return () => {
       window.removeEventListener("storage", handleUserUpdate);
       window.removeEventListener("userUpdated", handleUserUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function refreshUserOnReturn() {
+      if (!getCurrentUserLocal()) return;
+      try {
+        const res = await refreshCurrentUser();
+        if (mounted) {
+          const nextUser = res?.data || getCurrentUserLocal();
+          setCurrentUser(nextUser);
+          setEffectivePlan(normalizePlan(nextUser?.plan));
+        }
+      } catch {
+        if (mounted) {
+          setCurrentUser(getCurrentUserLocal());
+        }
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        refreshUserOnReturn();
+      }
+    }
+
+    window.addEventListener("focus", refreshUserOnReturn);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("focus", refreshUserOnReturn);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -389,6 +428,8 @@ export default function Layout({ children }) {
 
   const isAgentWorkspace =
     currentUser?.role === "agent" || currentUser?.role === "admin";
+  const emailConfirmed = Boolean(currentUser?.email_confirmed_at);
+  const showEmailConfirmationBanner = Boolean(currentUser && !emailConfirmed);
 
   const identityUser = useMemo(
     () => ({
@@ -474,6 +515,31 @@ export default function Layout({ children }) {
   function switchLanguage(lang) {
     i18n.changeLanguage(lang);
     localStorage.setItem("language", lang);
+  }
+
+  async function handleResendConfirmation() {
+    if (!currentUser?.email) return;
+
+    try {
+      setConfirmationSending(true);
+      setConfirmationMessage("");
+      const res = await requestEmailConfirmation(currentUser.email);
+      setConfirmationMessage(
+        res?.data?.message ||
+          (language === "fr"
+            ? "Si ce compte existe, un courriel de confirmation a ete envoye."
+            : "If that account exists, a confirmation email has been sent.")
+      );
+    } catch (err) {
+      console.error(err);
+      setConfirmationMessage(
+        language === "fr"
+          ? "Impossible d'envoyer le courriel de confirmation."
+          : "Unable to send confirmation email."
+      );
+    } finally {
+      setConfirmationSending(false);
+    }
   }
 
   function isActive(path) {
@@ -763,6 +829,46 @@ export default function Layout({ children }) {
           <OnboardingModal />
 
           <main className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:py-8">
+            {showEmailConfirmationBanner && (
+              <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-950 shadow-sm sm:px-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {language === "fr"
+                        ? "Confirmez votre adresse courriel"
+                        : "Confirm your email address"}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-amber-900/80">
+                      {language === "fr"
+                        ? "Vous pouvez continuer a explorer NorthBridgeAI. La facturation et les telechargements seront disponibles apres confirmation."
+                        : "You can keep exploring NorthBridgeAI. Billing and downloads unlock after confirmation."}
+                    </p>
+                    {confirmationMessage && (
+                      <p className="mt-2 text-sm font-medium text-amber-950">
+                        {confirmationMessage}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="shrink-0 rounded-2xl border-amber-300 bg-white"
+                    onClick={handleResendConfirmation}
+                    disabled={confirmationSending}
+                    loading={confirmationSending}
+                  >
+                    {confirmationSending
+                      ? language === "fr"
+                        ? "Envoi..."
+                        : "Sending..."
+                      : language === "fr"
+                      ? "Renvoyer le courriel"
+                      : "Resend email"}
+                  </Button>
+                </div>
+              </div>
+            )}
             {children}
           </main>
         </div>

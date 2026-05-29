@@ -13,6 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy.orm import Session
 
+from app.core.access_control import ensure_confirmed_email
 from app.data.db import get_db
 from app.models.profile_model import Profile
 from app.models.self_application_model import SelfApplication
@@ -389,6 +390,7 @@ def download_forms_package(
     current_user: User = Depends(get_current_user),
 ):
     lang = _normalize_language(payload.language)
+    ensure_confirmed_email(current_user)
 
     if not _can_download_forms(current_user):
         raise HTTPException(
