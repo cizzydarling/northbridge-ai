@@ -427,7 +427,7 @@ export default function Layout({ children }) {
   }, [mobileMenuOpen]);
 
   const isAgentWorkspace =
-    currentUser?.role === "agent" || currentUser?.role === "admin";
+    currentUser?.role === "agent" || currentUser?.plan === "agent_pro";
   const emailConfirmed = Boolean(currentUser?.email_confirmed_at);
   const showEmailConfirmationBanner = Boolean(currentUser && !emailConfirmed);
 

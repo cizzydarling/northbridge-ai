@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import "./i18n";
@@ -126,27 +126,33 @@ function BootstrapGate({ children }) {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [bootstrap, setBootstrap] = useState(null);
+  const bootstrapLoadedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
     async function loadBootstrap() {
       if (!getCurrentUserLocal()) {
+        bootstrapLoadedRef.current = false;
         if (mounted) setLoading(false);
         return;
       }
 
       try {
-        setLoading(true);
+        if (!bootstrapLoadedRef.current) {
+          setLoading(true);
+        }
         const res = await getAppBootstrap();
         if (!mounted) return;
 
         syncLocalUser(res.data?.user);
         setBootstrap(res.data);
+        bootstrapLoadedRef.current = true;
         prefetchAppRoutes(res.data?.user);
       } catch (err) {
         if (err?.response?.status === 401) {
           logoutUser();
+          bootstrapLoadedRef.current = false;
         }
         if (mounted) setBootstrap(null);
       } finally {
@@ -156,13 +162,11 @@ function BootstrapGate({ children }) {
 
     loadBootstrap();
 
-    window.addEventListener("userUpdated", loadBootstrap);
     window.addEventListener("nbai-bootstrap-refresh", loadBootstrap);
     window.addEventListener("nbai-disclosures-accepted", loadBootstrap);
 
     return () => {
       mounted = false;
-      window.removeEventListener("userUpdated", loadBootstrap);
       window.removeEventListener("nbai-bootstrap-refresh", loadBootstrap);
       window.removeEventListener("nbai-disclosures-accepted", loadBootstrap);
     };

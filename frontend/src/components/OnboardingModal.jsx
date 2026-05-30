@@ -280,7 +280,7 @@ export default function OnboardingModal() {
         return;
       }
 
-      if (currentUser?.role === "agent" || currentUser?.role === "admin") {
+      if (currentUser?.role === "agent" || currentUser?.plan === "agent_pro") {
         if (mounted) {
           setOpen(false);
           setChecking(false);
@@ -356,7 +356,7 @@ export default function OnboardingModal() {
     return () => {
       mounted = false;
     };
-  }, [blockedRoutes, currentUser?.role, language]);
+  }, [blockedRoutes, currentUser?.plan, currentUser?.role, language]);
 
   function handleChange(e) {
     const { name, value } = e.target;

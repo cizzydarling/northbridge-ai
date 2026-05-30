@@ -33,8 +33,10 @@ function hasPaidPlan(user, billingPlan) {
 
 function hasAgentWorkspaceAccess(user, billingPlan) {
   if (!user) return false;
-  if (user.role === "admin") return true;
-  return user.role === "agent" && normalizePlan(billingPlan || user.plan) === "agent";
+  return (
+    user.role === "agent" ||
+    normalizePlan(billingPlan || user.plan) === "agent"
+  );
 }
 
 const PROGRAM_LABELS_FR = {
@@ -284,7 +286,7 @@ export default function SelfDashboardPage() {
       (language === "fr" ? "Non actif" : "not active"),
     language
   );
-  const isAgent = role === "agent" || role === "admin";
+  const isAgent = role === "agent" || normalizedPlan === "agent";
   const paidAccess = hasPaidPlan(currentUser, currentPlan);
   const hasAgentPlan = hasAgentWorkspaceAccess(currentUser, currentPlan);
 

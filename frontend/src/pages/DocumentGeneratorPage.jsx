@@ -23,7 +23,6 @@ import {
   scoreAIDocumentConfidence,
   updateDocument,
 } from "../api";
-import { exportDocumentToPdf } from "../utils/documentPdf";
 
 const DOCUMENT_TYPES = [
   {
@@ -1230,6 +1229,8 @@ export default function DocumentGeneratorPage() {
         );
         return;
       }
+
+      const { exportDocumentToPdf } = await import("../utils/documentPdf");
 
       exportDocumentToPdf({
         title: result?.title || documentTypeLabel,
