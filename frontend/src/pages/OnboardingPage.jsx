@@ -902,6 +902,7 @@ export default function OnboardingPage() {
 
       await updateMyProfile(payload);
       localStorage.setItem("nbai_force_refresh", "true");
+      window.dispatchEvent(new Event("nbai-bootstrap-refresh"));
       setCompleted(true);
     } catch (err) {
       console.error("Onboarding save failed:", err);

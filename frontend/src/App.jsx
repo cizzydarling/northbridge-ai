@@ -3,9 +3,8 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import "./i18n";
 import {
+  getAppBootstrap,
   getCurrentUserLocal,
-  getDisclosureStatus,
-  getMyProfile,
   logoutUser,
 } from "./api";
 
@@ -37,6 +36,48 @@ const ClientStrategyPage = lazy(() => import("./pages/ClientStrategyPage"));
 const ClientSimulationPage = lazy(() => import("./pages/ClientSimulationPage"));
 const ClientDocumentsPage = lazy(() => import("./pages/ClientDocumentsPage"));
 const ClientMattersPage = lazy(() => import("./pages/ClientMattersPage"));
+
+let appRoutePrefetchStarted = false;
+
+function prefetchAppRoutes(user) {
+  if (appRoutePrefetchStarted || typeof window === "undefined") return;
+  appRoutePrefetchStarted = true;
+
+  const run = () => {
+    if (user?.role === "agent" || user?.plan === "agent_pro") {
+      import("./pages/ClientsPage");
+      import("./pages/ClientOverviewPage");
+      import("./pages/ClientProfilePage");
+      import("./pages/ClientStrategyPage");
+      import("./pages/ClientDocumentsPage");
+      return;
+    }
+
+    import("./pages/SelfDashboardPage");
+    import("./pages/ProfilePage");
+    import("./pages/StrategyPage");
+    import("./pages/SelfDocumentsPage");
+    import("./pages/PricingPage");
+  };
+
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(run, { timeout: 2500 });
+  } else {
+    window.setTimeout(run, 900);
+  }
+}
+
+function syncLocalUser(user) {
+  if (!user) return;
+
+  const next = JSON.stringify(user);
+  const current = localStorage.getItem("current_user");
+
+  if (current !== next) {
+    localStorage.setItem("current_user", next);
+    localStorage.setItem("user", next);
+  }
+}
 
 function getCurrentLanguage() {
   const savedLanguage =
@@ -80,132 +121,82 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-function OnboardingGate({ children }) {
+function BootstrapGate({ children }) {
   const user = getCurrentUserLocal();
   const location = useLocation();
-  const bypassOnboardingGate = location.pathname === "/legal/disclosure";
-
   const [loading, setLoading] = useState(true);
-  const [hasProfile, setHasProfile] = useState(false);
+  const [bootstrap, setBootstrap] = useState(null);
 
   useEffect(() => {
     let mounted = true;
 
-    async function checkProfile() {
-      if (!user || bypassOnboardingGate) {
-        setLoading(false);
-        return;
-      }
-
-      if (user.role === "agent" || user.plan === "agent_pro") {
-        if (mounted) {
-          setHasProfile(true);
-          setLoading(false);
-        }
+    async function loadBootstrap() {
+      if (!getCurrentUserLocal()) {
+        if (mounted) setLoading(false);
         return;
       }
 
       try {
-        await getMyProfile();
-        if (mounted) {
-          setHasProfile(true);
-        }
-      } catch (err) {
-        if (err?.response?.status === 404) {
-          if (mounted) {
-            setHasProfile(false);
-          }
-        } else if (err?.response?.status === 401) {
-          logoutUser();
-        } else {
-          if (mounted) {
-            setHasProfile(false);
-          }
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
+        setLoading(true);
+        const res = await getAppBootstrap();
+        if (!mounted) return;
 
-    checkProfile();
-
-    return () => {
-      mounted = false;
-    };
-  }, [user, location.pathname, bypassOnboardingGate]);
-
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (user?.role !== "agent" && user?.plan !== "agent_pro") {
-    if (!hasProfile && location.pathname !== "/onboarding" && !bypassOnboardingGate) {
-      return <Navigate to="/onboarding" replace />;
-    }
-
-    if (hasProfile && location.pathname === "/onboarding") {
-      return <Navigate to="/dashboard" replace />;
-    }
-  }
-
-  return children;
-}
-
-function DisclosureGate({ children }) {
-  const user = getCurrentUserLocal();
-  const location = useLocation();
-  const [loading, setLoading] = useState(true);
-  const [accepted, setAccepted] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function checkDisclosures() {
-      if (!user || location.pathname === "/legal/disclosure") {
-        if (mounted) {
-          setAccepted(true);
-          setLoading(false);
-        }
-        return;
-      }
-
-      try {
-        const res = await getDisclosureStatus();
-        if (mounted) {
-          setAccepted(Boolean(res.data?.accepted));
-        }
+        syncLocalUser(res.data?.user);
+        setBootstrap(res.data);
+        prefetchAppRoutes(res.data?.user);
       } catch (err) {
         if (err?.response?.status === 401) {
           logoutUser();
         }
-        if (mounted) {
-          setAccepted(false);
-        }
+        if (mounted) setBootstrap(null);
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     }
 
-    checkDisclosures();
+    loadBootstrap();
+
+    window.addEventListener("userUpdated", loadBootstrap);
+    window.addEventListener("nbai-bootstrap-refresh", loadBootstrap);
+    window.addEventListener("nbai-disclosures-accepted", loadBootstrap);
 
     return () => {
       mounted = false;
+      window.removeEventListener("userUpdated", loadBootstrap);
+      window.removeEventListener("nbai-bootstrap-refresh", loadBootstrap);
+      window.removeEventListener("nbai-disclosures-accepted", loadBootstrap);
     };
-  }, [user, location.pathname]);
+  }, [user?.email]);
 
   if (loading) {
     return <LoadingScreen />;
   }
 
-  if (!accepted) {
+  if (!bootstrap) {
+    return <Navigate to="/auth" replace state={{ from: location }} />;
+  }
+
+  const isDisclosurePage = location.pathname === "/legal/disclosure";
+  const disclosureAccepted = Boolean(bootstrap.disclosures?.accepted);
+
+  if (!disclosureAccepted && !isDisclosurePage) {
     const redirect = encodeURIComponent(
       `${location.pathname}${location.search || ""}`
     );
     return <Navigate to={`/legal/disclosure?redirect=${redirect}`} replace />;
+  }
+
+  const bootstrapUser = bootstrap.user || user;
+  const isAgent = bootstrapUser?.role === "agent" || bootstrapUser?.plan === "agent_pro";
+
+  if (!isAgent) {
+    if (!bootstrap.profile_exists && location.pathname !== "/onboarding" && !isDisclosurePage) {
+      return <Navigate to="/onboarding" replace />;
+    }
+
+    if (bootstrap.profile_exists && location.pathname === "/onboarding") {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return children;
@@ -214,9 +205,7 @@ function DisclosureGate({ children }) {
 function ProtectedAppRoute({ children }) {
   return (
     <ProtectedRoute>
-      <DisclosureGate>
-        <OnboardingGate>{children}</OnboardingGate>
-      </DisclosureGate>
+      <BootstrapGate>{children}</BootstrapGate>
     </ProtectedRoute>
   );
 }

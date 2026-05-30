@@ -255,6 +255,16 @@ export const getBillingAccess = async () => {
 
 export const getMyAccess = getBillingAccess;
 
+export const getAppBootstrap = async () => {
+  const res = await api.get("/app/bootstrap");
+  return {
+    data: {
+      ...res.data,
+      access: normalizeAccess(res.data?.access),
+    },
+  };
+};
+
 /* =========================
    DISCLOSURE
 ========================= */

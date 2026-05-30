@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routes import (
     ai_routes,
+    app_routes,
     auth_routes,
     billing_routes,
     client_document_routes,
@@ -90,6 +91,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(express_entry_routes.router, prefix="/express-entry", tags=["Express Entry"])
 
     app.include_router(auth_routes.router)
+    app.include_router(app_routes.router)
     app.include_router(profile_routes.router)
     app.include_router(strategy_routes.router)
     app.include_router(ai_routes.router)
