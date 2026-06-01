@@ -23,6 +23,7 @@ from app.services.citizenship_service import (
     STUDY_SECTIONS,
     compute_progress,
     ensure_seed_questions,
+    normalize_french_text,
     normalize_language,
     question_explanation,
     serialize_question,
@@ -34,24 +35,31 @@ router = APIRouter(prefix="/citizenship", tags=["Citizenship Coach"])
 @router.get("/study-guide")
 def get_study_guide(language: str = Query(default="en")):
     lang = normalize_language(language)
+    title = "Citizenship Coach"
+    description = "Practice Canadian citizenship test themes and language confidence."
+    official_note = (
+        "Practice content is educational support and is not a substitute for the official Discover Canada study guide."
+    )
+
+    if lang == "fr":
+        title = normalize_french_text("Coach de citoyennete")
+        description = normalize_french_text(
+            "Pratiquez les themes du test de citoyennete et la confiance linguistique."
+        )
+        official_note = normalize_french_text(
+            "Le contenu de pratique est un soutien educatif et ne remplace pas le guide officiel Decouvrir le Canada."
+        )
+
     return {
         "language": lang,
-        "title": "Citizenship Coach" if lang == "en" else "Coach de citoyennete",
-        "description": (
-            "Practice Canadian citizenship test themes and language confidence."
-            if lang == "en"
-            else "Pratiquez les themes du test de citoyennete et la confiance linguistique."
-        ),
-        "official_note": (
-            "Practice content is educational support and is not a substitute for the official Discover Canada study guide."
-            if lang == "en"
-            else "Le contenu de pratique est un soutien educatif et ne remplace pas le guide officiel Decouvrir le Canada."
-        ),
+        "title": title,
+        "description": description,
+        "official_note": official_note,
         "sections": [
             {
                 "key": item["key"],
-                "title": item["title_fr"] if lang == "fr" else item["title_en"],
-                "summary": item["summary_fr"] if lang == "fr" else item["summary_en"],
+                "title": normalize_french_text(item["title_fr"]) if lang == "fr" else item["title_en"],
+                "summary": normalize_french_text(item["summary_fr"]) if lang == "fr" else item["summary_en"],
             }
             for item in STUDY_SECTIONS
         ],
@@ -173,7 +181,8 @@ def get_progress(
 @router.get("/language-prompts")
 def get_language_prompts(language: str = Query(default="en")):
     lang = normalize_language(language)
-    return {"language": lang, "prompts": LANGUAGE_PROMPTS[lang]}
+    prompts = normalize_french_text(LANGUAGE_PROMPTS[lang]) if lang == "fr" else LANGUAGE_PROMPTS[lang]
+    return {"language": lang, "prompts": prompts}
 
 
 @router.get("/language-sessions", response_model=list[LanguagePracticeSessionResponse])
@@ -209,3 +218,4 @@ def create_language_session(
     db.commit()
     db.refresh(session)
     return session
+

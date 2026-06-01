@@ -520,6 +520,15 @@ export default function SelfDashboardPage() {
       path: paidAccess ? "/documents" : "/pricing?plan=pro&source=dashboard&intent=documents",
       locked: !paidAccess,
     },
+    {
+      title: language === "fr" ? "Citoyenneté" : "Citizenship practice",
+      body:
+        language === "fr"
+          ? "Préparez le test de citoyenneté et pratiquez l'anglais ou le français."
+          : "Prepare for the citizenship test and practice English or French.",
+      path: "/citizenship",
+      locked: false,
+    },
   ];
 
   if (loading) {

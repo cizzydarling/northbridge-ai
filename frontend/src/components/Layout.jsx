@@ -194,6 +194,15 @@ function NavIcon({ name }) {
         <path d="M9 20v-5a3 3 0 0 1 6 0v5" />
       </svg>
     ),
+    citizenship: (
+      <svg {...commonProps}>
+        <path d="M5 5.5h14" />
+        <path d="M7 3.5h10v17H7z" />
+        <path d="M9.5 9h5" />
+        <path d="M9.5 12.5h5" />
+        <path d="M9.5 16h3" />
+      </svg>
+    ),
   };
 
   return icons[name] || icons.dashboard;
@@ -502,6 +511,7 @@ export default function Layout({ children }) {
           icon: "review",
         },
         { label: language === "fr" ? "Studio formulaires" : "Forms Studio", path: "/forms", icon: "forms" },
+        { label: language === "fr" ? "Citoyenneté" : "Citizenship", path: "/citizenship", icon: "citizenship" },
         { label: language === "fr" ? "Famille" : "Household", path: "/household", icon: "household" },
         { label: language === "fr" ? "Demandes" : "Applications", path: "/applications", icon: "application" },
         { label: t("nav.profile"), path: "/profile", icon: "profile" },
@@ -527,7 +537,7 @@ export default function Layout({ children }) {
       setConfirmationMessage(
         res?.data?.message ||
           (language === "fr"
-            ? "Si ce compte existe, un courriel de confirmation a ete envoye."
+            ? "Si ce compte existe, un courriel de confirmation a été envoyé."
             : "If that account exists, a confirmation email has been sent.")
       );
     } catch (err) {

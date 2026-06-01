@@ -266,6 +266,43 @@ export const getAppBootstrap = async () => {
 };
 
 /* =========================
+   CITIZENSHIP COACH
+========================= */
+
+export const getCitizenshipStudyGuide = (language = getLanguage()) =>
+  api.get("/citizenship/study-guide", { params: { language } });
+
+export const getCitizenshipQuestions = ({
+  language = getLanguage(),
+  mode = "practice",
+  limit = 10,
+  section,
+} = {}) =>
+  api.get("/citizenship/questions", {
+    params: {
+      language,
+      mode,
+      limit,
+      ...(section ? { section } : {}),
+    },
+  });
+
+export const submitCitizenshipQuiz = (payload) =>
+  api.post("/citizenship/quiz-attempts", payload);
+
+export const getCitizenshipProgress = () =>
+  api.get("/citizenship/progress");
+
+export const getLanguagePracticePrompts = (language = getLanguage()) =>
+  api.get("/citizenship/language-prompts", { params: { language } });
+
+export const getLanguagePracticeSessions = () =>
+  api.get("/citizenship/language-sessions");
+
+export const createLanguagePracticeSession = (payload) =>
+  api.post("/citizenship/language-sessions", payload);
+
+/* =========================
    DISCLOSURE
 ========================= */
 

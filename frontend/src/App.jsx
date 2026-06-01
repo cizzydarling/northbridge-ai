@@ -28,6 +28,10 @@ const DisclosureAcceptancePage = lazy(() => import("./pages/DisclosureAcceptance
 const DocumentGeneratorPage = lazy(() => import("./pages/DocumentGeneratorPage"));
 const DocumentReviewPage = lazy(() => import("./pages/DocumentReviewPage"));
 const FormsPage = lazy(() => import("./pages/FormsPage"));
+const CitizenshipPracticePage = lazy(() => import("./pages/CitizenshipPracticePage"));
+const CitizenshipQuizPage = lazy(() => import("./pages/CitizenshipQuizPage"));
+const CitizenshipProgressPage = lazy(() => import("./pages/CitizenshipProgressPage"));
+const LanguagePracticePage = lazy(() => import("./pages/LanguagePracticePage"));
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
 const ClientsPage = lazy(() => import("./pages/ClientsPage"));
 const ClientOverviewPage = lazy(() => import("./pages/ClientOverviewPage"));
@@ -57,6 +61,7 @@ function prefetchAppRoutes(user) {
     import("./pages/ProfilePage");
     import("./pages/StrategyPage");
     import("./pages/SelfDocumentsPage");
+    import("./pages/CitizenshipPracticePage");
     import("./pages/PricingPage");
   };
 
@@ -344,6 +349,42 @@ export default function App() {
         element={
           <ProtectedAppRoute>
             <FormsPage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/citizenship"
+        element={
+          <ProtectedAppRoute>
+            <CitizenshipPracticePage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/citizenship/quiz"
+        element={
+          <ProtectedAppRoute>
+            <CitizenshipQuizPage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/citizenship/progress"
+        element={
+          <ProtectedAppRoute>
+            <CitizenshipProgressPage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/language-practice"
+        element={
+          <ProtectedAppRoute>
+            <LanguagePracticePage />
           </ProtectedAppRoute>
         }
       />
