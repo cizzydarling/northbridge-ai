@@ -16,6 +16,7 @@ from app.routes import (
     client_routes,
     client_simulation_routes,
     client_strategy_routes,
+    citizenship_routes,
     crs_routes,
     disclosure_routes,
     document_review_routes,
@@ -40,6 +41,7 @@ import app.models.disclosure_acceptance_model
 import app.models.generated_document_model
 import app.models.matter_model
 import app.models.billing_transaction_model
+import app.models.citizenship_models
 import app.models.promo_code_model
 import app.models.profile_model
 import app.models.recommendation
@@ -103,6 +105,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(client_strategy_routes.router)
     app.include_router(client_simulation_routes.router)
     app.include_router(client_document_routes.router)
+    app.include_router(citizenship_routes.router)
 
     app.include_router(simulation_scenarios_routes.router)
     app.include_router(disclosure_routes.router)

@@ -7,6 +7,7 @@ from . import client_profile_routes
 from . import client_routes
 from . import client_simulation_routes
 from . import client_strategy_routes
+from . import citizenship_routes
 from . import crs_routes
 from . import disclosure_routes
 from . import document_review_routes
@@ -37,6 +38,7 @@ __all__ = [
     "client_routes",
     "client_simulation_routes",
     "client_strategy_routes",
+    "citizenship_routes",
     "crs_routes",
     "disclosure_routes",
     "document_review_routes",
