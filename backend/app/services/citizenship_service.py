@@ -1,3 +1,5 @@
+import random
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -104,6 +106,251 @@ SAMPLE_QUESTIONS = [
     },
 ]
 
+ADDITIONAL_SAMPLE_QUESTIONS = [
+    {
+        "section": "rights_responsibilities",
+        "question_text_en": "Which document protects basic freedoms such as religion, expression, and peaceful assembly?",
+        "question_text_fr": "Quel document protege les libertes fondamentales comme la religion, l'expression et les rassemblements pacifiques?",
+        "options_en": ["The Canada Health Act", "The Canadian Charter of Rights and Freedoms", "The National Building Code", "The Employment Insurance Act"],
+        "options_fr": ["La Loi canadienne sur la sante", "La Charte canadienne des droits et libertes", "Le Code national du batiment", "La Loi sur l'assurance-emploi"],
+        "correct_option_index": 1,
+        "explanation_en": "The Charter protects fundamental freedoms and democratic, mobility, legal, equality, and language rights.",
+        "explanation_fr": "La Charte protege les libertes fondamentales ainsi que les droits democratiques, de mobilite, juridiques, a l'egalite et linguistiques.",
+    },
+    {
+        "section": "government",
+        "question_text_en": "What is the role of the opposition parties in Parliament?",
+        "question_text_fr": "Quel est le role des partis d'opposition au Parlement?",
+        "options_en": ["To question and improve government proposals", "To command the armed forces", "To appoint provincial premiers", "To replace the courts"],
+        "options_fr": ["Questionner et ameliorer les propositions du gouvernement", "Commander les forces armees", "Nommer les premiers ministres provinciaux", "Remplacer les tribunaux"],
+        "correct_option_index": 0,
+        "explanation_en": "Opposition parties review, question, and debate government actions and proposed laws.",
+        "explanation_fr": "Les partis d'opposition examinent, questionnent et debattent les actions du gouvernement et les projets de loi.",
+    },
+    {
+        "section": "history_symbols",
+        "question_text_en": "Which people are recognized as the first inhabitants of Canada?",
+        "question_text_fr": "Quels peuples sont reconnus comme les premiers habitants du Canada?",
+        "options_en": ["The Fathers of Confederation", "The first railway workers", "Indigenous peoples", "The first provincial premiers"],
+        "options_fr": ["Les Peres de la Confederation", "Les premiers travailleurs du chemin de fer", "Les peuples autochtones", "Les premiers ministres provinciaux"],
+        "correct_option_index": 2,
+        "explanation_en": "First Nations, Inuit, and Metis peoples are Indigenous peoples of Canada.",
+        "explanation_fr": "Les Premieres Nations, les Inuits et les Metis sont des peuples autochtones du Canada.",
+    },
+    {
+        "section": "geography_economy",
+        "question_text_en": "Which region is often associated with the provinces Manitoba, Saskatchewan, and Alberta?",
+        "question_text_fr": "Quelle region est souvent associee au Manitoba, a la Saskatchewan et a l'Alberta?",
+        "options_en": ["The Prairies", "The Atlantic region", "The Arctic region", "The Pacific coast"],
+        "options_fr": ["Les Prairies", "La region de l'Atlantique", "La region arctique", "La cote du Pacifique"],
+        "correct_option_index": 0,
+        "explanation_en": "Manitoba, Saskatchewan, and Alberta are commonly known as the Prairie provinces.",
+        "explanation_fr": "Le Manitoba, la Saskatchewan et l'Alberta sont communement appeles les provinces des Prairies.",
+    },
+    {
+        "section": "government",
+        "question_text_en": "What does a bill become after it is passed by Parliament and receives Royal Assent?",
+        "question_text_fr": "Que devient un projet de loi apres son adoption par le Parlement et la sanction royale?",
+        "options_en": ["A regulation only", "A law", "A campaign promise", "A court order"],
+        "options_fr": ["Un reglement seulement", "Une loi", "Une promesse electorale", "Une ordonnance du tribunal"],
+        "correct_option_index": 1,
+        "explanation_en": "A bill becomes law after parliamentary approval and Royal Assent.",
+        "explanation_fr": "Un projet de loi devient une loi apres l'approbation parlementaire et la sanction royale.",
+    },
+    {
+        "section": "rights_responsibilities",
+        "question_text_en": "Which of the following is a democratic right in Canada?",
+        "question_text_fr": "Laquelle des options suivantes est un droit democratique au Canada?",
+        "options_en": ["Voting in federal, provincial, or territorial elections", "Avoiding jury duty when called", "Appointing senators directly", "Ignoring local laws"],
+        "options_fr": ["Voter aux elections federales, provinciales ou territoriales", "Eviter le devoir de jury lorsqu'on est convoque", "Nommer directement les senateurs", "Ignorer les lois locales"],
+        "correct_option_index": 0,
+        "explanation_en": "Eligible citizens have the right to vote in Canadian elections.",
+        "explanation_fr": "Les citoyens admissibles ont le droit de voter aux elections canadiennes.",
+    },
+    {
+        "section": "history_symbols",
+        "question_text_en": "What event in 1867 created the Dominion of Canada?",
+        "question_text_fr": "Quel evenement en 1867 a cree le Dominion du Canada?",
+        "options_en": ["Confederation", "The Quiet Revolution", "The Statute of Westminster", "The building of the CN Tower"],
+        "options_fr": ["La Confederation", "La Revolution tranquille", "Le Statut de Westminster", "La construction de la tour CN"],
+        "correct_option_index": 0,
+        "explanation_en": "Confederation in 1867 united the founding provinces into the Dominion of Canada.",
+        "explanation_fr": "La Confederation de 1867 a uni les provinces fondatrices au sein du Dominion du Canada.",
+    },
+    {
+        "section": "geography_economy",
+        "question_text_en": "Which province is Canada's most populous province?",
+        "question_text_fr": "Quelle province est la plus peuplee du Canada?",
+        "options_en": ["Ontario", "Prince Edward Island", "Newfoundland and Labrador", "Saskatchewan"],
+        "options_fr": ["L'Ontario", "L'Ile-du-Prince-Edouard", "Terre-Neuve-et-Labrador", "La Saskatchewan"],
+        "correct_option_index": 0,
+        "explanation_en": "Ontario has the largest population among Canadian provinces.",
+        "explanation_fr": "L'Ontario compte la plus grande population parmi les provinces canadiennes.",
+    },
+    {
+        "section": "government",
+        "question_text_en": "Who is Canada's Head of State?",
+        "question_text_fr": "Qui est le chef d'Etat du Canada?",
+        "options_en": ["The Prime Minister", "The Speaker of the House", "The Sovereign", "The Chief Justice"],
+        "options_fr": ["Le premier ministre", "Le president de la Chambre", "Le souverain", "Le juge en chef"],
+        "correct_option_index": 2,
+        "explanation_en": "Canada is a constitutional monarchy, and the Sovereign is the Head of State.",
+        "explanation_fr": "Le Canada est une monarchie constitutionnelle, et le souverain est le chef d'Etat.",
+    },
+    {
+        "section": "history_symbols",
+        "question_text_en": "What does the poppy commonly represent in Canada?",
+        "question_text_fr": "Que represente couramment le coquelicot au Canada?",
+        "options_en": ["Remembrance of those who served and died in war", "A provincial election", "A national sports team", "A court ceremony"],
+        "options_fr": ["Le souvenir des personnes qui ont servi et sont mortes a la guerre", "Une election provinciale", "Une equipe sportive nationale", "Une ceremonie judiciaire"],
+        "correct_option_index": 0,
+        "explanation_en": "The poppy is worn around Remembrance Day to honour military service and sacrifice.",
+        "explanation_fr": "Le coquelicot est porte autour du jour du Souvenir pour honorer le service militaire et le sacrifice.",
+    },
+    {
+        "section": "rights_responsibilities",
+        "question_text_en": "Which statement best describes equality before the law?",
+        "question_text_fr": "Quel enonce decrit le mieux l'egalite devant la loi?",
+        "options_en": ["Only elected officials must follow the law", "Everyone is treated with equal dignity and protection under the law", "Only citizens can use the courts", "Laws apply only during elections"],
+        "options_fr": ["Seuls les elus doivent respecter la loi", "Toute personne est traitee avec une dignite et une protection egales devant la loi", "Seuls les citoyens peuvent utiliser les tribunaux", "Les lois s'appliquent seulement pendant les elections"],
+        "correct_option_index": 1,
+        "explanation_en": "Canadian legal principles include equal protection and equal benefit of the law.",
+        "explanation_fr": "Les principes juridiques canadiens comprennent la protection et le benefice egaux de la loi.",
+    },
+    {
+        "section": "geography_economy",
+        "question_text_en": "Which city is the capital of Canada?",
+        "question_text_fr": "Quelle ville est la capitale du Canada?",
+        "options_en": ["Toronto", "Ottawa", "Montreal", "Vancouver"],
+        "options_fr": ["Toronto", "Ottawa", "Montreal", "Vancouver"],
+        "correct_option_index": 1,
+        "explanation_en": "Ottawa, Ontario, is Canada's capital city.",
+        "explanation_fr": "Ottawa, en Ontario, est la capitale du Canada.",
+    },
+    {
+        "section": "history_symbols",
+        "question_text_en": "Which two official languages are used by the federal government?",
+        "question_text_fr": "Quelles sont les deux langues officielles utilisees par le gouvernement federal?",
+        "options_en": ["English and French", "English and Spanish", "French and Inuktitut", "English and German"],
+        "options_fr": ["L'anglais et le francais", "L'anglais et l'espagnol", "Le francais et l'inuktitut", "L'anglais et l'allemand"],
+        "correct_option_index": 0,
+        "explanation_en": "English and French are Canada's two official languages at the federal level.",
+        "explanation_fr": "L'anglais et le francais sont les deux langues officielles du Canada au niveau federal.",
+    },
+    {
+        "section": "government",
+        "question_text_en": "What is the name for an electoral district represented by a Member of Parliament?",
+        "question_text_fr": "Comment appelle-t-on une circonscription electorale representee par un depute?",
+        "options_en": ["A riding", "A ward only", "A ministry", "A senate seat"],
+        "options_fr": ["Une circonscription", "Un quartier seulement", "Un ministere", "Un siege au Senat"],
+        "correct_option_index": 0,
+        "explanation_en": "A federal electoral district is commonly called a riding.",
+        "explanation_fr": "Une circonscription electorale federale est souvent appelee une circonscription.",
+    },
+    {
+        "section": "rights_responsibilities",
+        "question_text_en": "Which of the following is a legal responsibility in Canada?",
+        "question_text_fr": "Laquelle des options suivantes est une responsabilite legale au Canada?",
+        "options_en": ["Obeying the law", "Choosing judges directly", "Setting provincial borders personally", "Refusing to pay any taxes"],
+        "options_fr": ["Respecter la loi", "Choisir directement les juges", "Fixer personnellement les frontieres provinciales", "Refuser de payer tout impot"],
+        "correct_option_index": 0,
+        "explanation_en": "Everyone in Canada is expected to obey the law.",
+        "explanation_fr": "Toute personne au Canada doit respecter la loi.",
+    },
+    {
+        "section": "geography_economy",
+        "question_text_en": "Which ocean is on Canada's west coast?",
+        "question_text_fr": "Quel ocean se trouve sur la cote ouest du Canada?",
+        "options_en": ["Atlantic Ocean", "Pacific Ocean", "Indian Ocean", "Southern Ocean"],
+        "options_fr": ["L'ocean Atlantique", "L'ocean Pacifique", "L'ocean Indien", "L'ocean Austral"],
+        "correct_option_index": 1,
+        "explanation_en": "British Columbia is on Canada's Pacific coast.",
+        "explanation_fr": "La Colombie-Britannique se trouve sur la cote pacifique du Canada.",
+    },
+    {
+        "section": "history_symbols",
+        "question_text_en": "What is the Canadian national anthem?",
+        "question_text_fr": "Quel est l'hymne national du Canada?",
+        "options_en": ["O Canada", "God Save the King", "The Maple Leaf Forever", "The Canadian Song"],
+        "options_fr": ["O Canada", "Dieu sauve le roi", "The Maple Leaf Forever", "La chanson canadienne"],
+        "correct_option_index": 0,
+        "explanation_en": "O Canada is the national anthem.",
+        "explanation_fr": "O Canada est l'hymne national.",
+    },
+    {
+        "section": "government",
+        "question_text_en": "Which level of government is usually responsible for schools and education?",
+        "question_text_fr": "Quel ordre de gouvernement est generalement responsable des ecoles et de l'education?",
+        "options_en": ["Provincial or territorial", "Only municipal", "Only federal", "Only the courts"],
+        "options_fr": ["Provincial ou territorial", "Seulement municipal", "Seulement federal", "Seulement les tribunaux"],
+        "correct_option_index": 0,
+        "explanation_en": "Education is mainly a provincial and territorial responsibility.",
+        "explanation_fr": "L'education releve principalement des provinces et des territoires.",
+    },
+    {
+        "section": "rights_responsibilities",
+        "question_text_en": "Why is voting considered important in Canada?",
+        "question_text_fr": "Pourquoi le vote est-il considere important au Canada?",
+        "options_en": ["It lets citizens help choose representatives", "It replaces paying taxes", "It appoints every judge", "It changes the Constitution every time"],
+        "options_fr": ["Il permet aux citoyens de contribuer au choix des representants", "Il remplace le paiement des impots", "Il nomme tous les juges", "Il modifie la Constitution a chaque fois"],
+        "correct_option_index": 0,
+        "explanation_en": "Voting is a central way citizens participate in democratic government.",
+        "explanation_fr": "Le vote est une facon essentielle pour les citoyens de participer au gouvernement democratique.",
+    },
+    {
+        "section": "geography_economy",
+        "question_text_en": "Which province is known for having a large French-speaking population?",
+        "question_text_fr": "Quelle province est connue pour sa grande population francophone?",
+        "options_en": ["Quebec", "Alberta", "Manitoba", "British Columbia"],
+        "options_fr": ["Le Quebec", "L'Alberta", "Le Manitoba", "La Colombie-Britannique"],
+        "correct_option_index": 0,
+        "explanation_en": "Quebec has Canada's largest French-speaking population.",
+        "explanation_fr": "Le Quebec compte la plus grande population francophone du Canada.",
+    },
+    {
+        "section": "history_symbols",
+        "question_text_en": "What does Confederation refer to in Canadian history?",
+        "question_text_fr": "A quoi renvoie la Confederation dans l'histoire canadienne?",
+        "options_en": ["The union that formed Canada in 1867", "The first municipal election", "The creation of the Supreme Court only", "The start of the fur trade only"],
+        "options_fr": ["L'union qui a forme le Canada en 1867", "La premiere election municipale", "La creation de la Cour supreme seulement", "Le debut de la traite des fourrures seulement"],
+        "correct_option_index": 0,
+        "explanation_en": "Confederation refers to the political union that created Canada in 1867.",
+        "explanation_fr": "La Confederation designe l'union politique qui a cree le Canada en 1867.",
+    },
+    {
+        "section": "government",
+        "question_text_en": "Who is usually the leader of the federal government?",
+        "question_text_fr": "Qui dirige habituellement le gouvernement federal?",
+        "options_en": ["The Prime Minister", "A provincial mayor", "The Chief Electoral Officer", "A senator from each province"],
+        "options_fr": ["Le premier ministre", "Un maire provincial", "Le directeur general des elections", "Un senateur de chaque province"],
+        "correct_option_index": 0,
+        "explanation_en": "The Prime Minister is usually the leader of the party with the most seats in the House of Commons.",
+        "explanation_fr": "Le premier ministre est habituellement le chef du parti qui detient le plus de sieges a la Chambre des communes.",
+    },
+    {
+        "section": "geography_economy",
+        "question_text_en": "Which province is on Canada's Pacific coast?",
+        "question_text_fr": "Quelle province se trouve sur la cote pacifique du Canada?",
+        "options_en": ["Nova Scotia", "British Columbia", "Quebec", "New Brunswick"],
+        "options_fr": ["La Nouvelle-Ecosse", "La Colombie-Britannique", "Le Quebec", "Le Nouveau-Brunswick"],
+        "correct_option_index": 1,
+        "explanation_en": "British Columbia is Canada's Pacific coast province.",
+        "explanation_fr": "La Colombie-Britannique est la province canadienne de la cote pacifique.",
+    },
+    {
+        "section": "rights_responsibilities",
+        "question_text_en": "Which freedom allows Canadians to practise their religion peacefully?",
+        "question_text_fr": "Quelle liberte permet aux Canadiens de pratiquer leur religion paisiblement?",
+        "options_en": ["Freedom of religion", "Freedom from all rules", "Freedom to avoid elections", "Freedom to appoint officials"],
+        "options_fr": ["La liberte de religion", "La liberte de toutes les regles", "La liberte d'eviter les elections", "La liberte de nommer les responsables"],
+        "correct_option_index": 0,
+        "explanation_en": "Freedom of religion is one of Canada's fundamental freedoms.",
+        "explanation_fr": "La liberte de religion est l'une des libertes fondamentales du Canada.",
+    },
+]
+
+QUESTION_BANK = SAMPLE_QUESTIONS + ADDITIONAL_SAMPLE_QUESTIONS
+
 
 LANGUAGE_PROMPTS = {
     "en": [
@@ -191,6 +438,44 @@ FRENCH_TEXT_REPLACEMENTS = {
     "enregistree": "enregistr\u00e9e",
     "envoye": "envoy\u00e9",
     "ete": "\u00e9t\u00e9",
+    "protege": "prot\u00e8ge",
+    "libertes": "libert\u00e9s",
+    "sante": "sant\u00e9",
+    "batiment": "b\u00e2timent",
+    "role": "r\u00f4le",
+    "armees": "arm\u00e9es",
+    "Peres": "P\u00e8res",
+    "Confederation": "Conf\u00e9d\u00e9ration",
+    "associee": "associ\u00e9e",
+    "reglement": "r\u00e8glement",
+    "apres": "apr\u00e8s",
+    "electorale": "\u00e9lectorale",
+    "electorales": "\u00e9lectorales",
+    "peuplee": "peupl\u00e9e",
+    "Etat": "\u00c9tat",
+    "ceremonie": "c\u00e9r\u00e9monie",
+    "enonce": "\u00e9nonc\u00e9",
+    "egalite": "\u00e9galit\u00e9",
+    "elus": "\u00e9lus",
+    "benefice": "b\u00e9n\u00e9fice",
+    "regles": "r\u00e8gles",
+    "ministere": "minist\u00e8re",
+    "siege": "si\u00e8ge",
+    "frontieres": "fronti\u00e8res",
+    "ocean": "oc\u00e9an",
+    "cote": "c\u00f4te",
+    "generalement": "g\u00e9n\u00e9ralement",
+    "ecoles": "\u00e9coles",
+    "education": "\u00e9ducation",
+    "considere": "consid\u00e9r\u00e9",
+    "facon": "fa\u00e7on",
+    "Quebec": "Qu\u00e9bec",
+    "cree": "cr\u00e9\u00e9",
+    "forme": "form\u00e9",
+    "premiere": "premi\u00e8re",
+    "detient": "d\u00e9tient",
+    "sieges": "si\u00e8ges",
+    "Nouvelle-Ecosse": "Nouvelle-\u00c9cosse",
 }
 
 
@@ -207,7 +492,7 @@ def normalize_french_text(value):
 
 
 def ensure_seed_questions(db: Session) -> None:
-    for item in SAMPLE_QUESTIONS:
+    for item in QUESTION_BANK:
         existing = (
             db.query(CitizenshipQuestion)
             .filter(CitizenshipQuestion.question_text_en == item["question_text_en"])
@@ -238,12 +523,40 @@ def ensure_seed_questions(db: Session) -> None:
     db.commit()
 
 
-def serialize_question(question: CitizenshipQuestion, language: str) -> dict:
+def shuffled_option_order(question: CitizenshipQuestion) -> list[int]:
+    order = list(range(len(question.options_en or [])))
+    random.shuffle(order)
+    return order
+
+
+def normalize_option_order(question: CitizenshipQuestion, option_order: list[int] | None) -> list[int]:
+    option_count = len(question.options_en or [])
+    fallback = list(range(option_count))
+    if not option_order or len(option_order) != option_count:
+        return fallback
+
+    cleaned = []
+    for item in option_order:
+        try:
+            cleaned.append(int(item))
+        except (TypeError, ValueError):
+            return fallback
+    return cleaned if sorted(cleaned) == fallback else fallback
+
+
+def serialize_question(
+    question: CitizenshipQuestion,
+    language: str,
+    option_order: list[int] | None = None,
+) -> dict:
     lang = normalize_language(language)
+    options = normalize_french_text(question.options_fr) if lang == "fr" and question.options_fr else question.options_en
+    order = normalize_option_order(question, option_order)
     return {
         "id": question.id,
         "question_text": normalize_french_text(question.question_text_fr) if lang == "fr" and question.question_text_fr else question.question_text_en,
-        "options": normalize_french_text(question.options_fr) if lang == "fr" and question.options_fr else question.options_en,
+        "options": [options[index] for index in order],
+        "option_order": order,
         "section": question.section,
         "difficulty": question.difficulty,
         "source_note": (

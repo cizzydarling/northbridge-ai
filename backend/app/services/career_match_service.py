@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
+import re
+import time
 from typing import Any, Optional
 from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+import xml.etree.ElementTree as ET
 
 from app.models.profile_model import Profile
 from app.schemas.career_match_schema import CareerMatchRequest
@@ -120,6 +125,15 @@ OCCUPATION_SIGNALS = {
 }
 
 PROVINCE_NAME_BY_CODE = {item["code"]: item for item in PROVINCES}
+JOB_BANK_XML_FEED_URL = os.getenv("JOB_BANK_XML_FEED_URL", "").strip()
+JOB_BANK_XML_CACHE_SECONDS = int(os.getenv("JOB_BANK_XML_CACHE_SECONDS", "900") or "900")
+JOB_BANK_XML_TIMEOUT_SECONDS = int(os.getenv("JOB_BANK_XML_TIMEOUT_SECONDS", "8") or "8")
+_JOB_BANK_XML_CACHE: dict[str, Any] = {
+    "expires_at": 0.0,
+    "postings": [],
+    "status": "not_configured",
+    "error": "",
+}
 
 
 @dataclass
@@ -220,6 +234,171 @@ def _occupation_url(noc_code: str, occupation: str, language: str) -> str:
     base = "https://www.guichetemplois.gc.ca/rapportmarche" if language == "fr" else "https://www.jobbank.gc.ca/marketreport"
     params = {"occupation": noc_code or occupation}
     return f"{base}?{urlencode(params)}"
+
+
+def _xml_text(element: ET.Element | None) -> str:
+    if element is None:
+        return ""
+    return " ".join("".join(element.itertext()).split())
+
+
+def _local_name(tag: str) -> str:
+    return tag.split("}", 1)[-1].lower()
+
+
+def _find_first_text(parent: ET.Element, names: set[str]) -> str:
+    for child in parent.iter():
+        if _local_name(child.tag) in names:
+            text = _xml_text(child)
+            if text:
+                return text
+    return ""
+
+
+def _detect_province_code(*values: str) -> str:
+    text = " ".join(value or "" for value in values).lower()
+    for province in PROVINCES:
+        candidates = {
+            province["name"].lower(),
+            str(province["fr"]).lower(),
+        }
+        if any(candidate and re.search(rf"\b{re.escape(candidate)}\b", text) for candidate in candidates):
+            return province["code"]
+    return ""
+
+
+def _extract_noc(*values: str) -> str:
+    match = re.search(r"\b(\d{5})\b", " ".join(value or "" for value in values))
+    return match.group(1) if match else ""
+
+
+def _job_posting_items(root: ET.Element) -> list[ET.Element]:
+    items = [element for element in root.iter() if _local_name(element.tag) in {"item", "job", "posting", "jobposting"}]
+    return items or [root]
+
+
+def _parse_job_bank_xml(xml_bytes: bytes) -> list[dict[str, str]]:
+    root = ET.fromstring(xml_bytes)
+    postings = []
+    for item in _job_posting_items(root):
+        title = _find_first_text(item, {"title", "jobtitle", "position", "occupation"})
+        url = _find_first_text(item, {"link", "url", "joburl", "applyurl"})
+        description = _find_first_text(item, {"description", "summary", "jobdescription"})
+        location = _find_first_text(item, {"location", "city", "address", "region"})
+        province_code = _find_first_text(item, {"provincecode", "province_code", "provincestate"})
+        province_code = _normalize_province(province_code) if province_code else ""
+        province_code = province_code if province_code in PROVINCE_NAME_BY_CODE else _detect_province_code(title, description, location)
+        noc_code = _find_first_text(item, {"noc", "noccode", "noc_code"})
+        noc_code = noc_code if re.fullmatch(r"\d{5}", noc_code or "") else _extract_noc(title, description)
+        employer = _find_first_text(item, {"employer", "company", "organization"})
+        if not title and not url:
+            continue
+        province = PROVINCE_NAME_BY_CODE.get(province_code, {}).get("name", location or "Canada")
+        postings.append(
+            {
+                "title": title or "Job posting",
+                "url": url or "https://www.jobbank.gc.ca/jobsearch/jobsearch",
+                "description": description[:240] if description else "Live posting from a configured Job Bank XML feed.",
+                "province": province,
+                "province_code": province_code,
+                "noc_code": noc_code,
+                "employer": employer,
+            }
+        )
+    return postings
+
+
+def _load_job_bank_postings() -> tuple[list[dict[str, str]], str, str]:
+    if not JOB_BANK_XML_FEED_URL:
+        return [], "not_configured", ""
+
+    now = time.time()
+    if _JOB_BANK_XML_CACHE["expires_at"] > now:
+        return (
+            _JOB_BANK_XML_CACHE["postings"],
+            _JOB_BANK_XML_CACHE["status"],
+            _JOB_BANK_XML_CACHE["error"],
+        )
+
+    try:
+        request = Request(
+            JOB_BANK_XML_FEED_URL,
+            headers={"User-Agent": "NorthBridgeAI-CareerMatch/1.0"},
+        )
+        with urlopen(request, timeout=JOB_BANK_XML_TIMEOUT_SECONDS) as response:
+            postings = _parse_job_bank_xml(response.read())
+        status = "live" if postings else "empty"
+        error = ""
+    except Exception as exc:
+        postings = []
+        status = "failed"
+        error = str(exc)[:180]
+
+    _JOB_BANK_XML_CACHE.update(
+        {
+            "expires_at": now + JOB_BANK_XML_CACHE_SECONDS,
+            "postings": postings,
+            "status": status,
+            "error": error,
+        }
+    )
+    return postings, status, error
+
+
+def _occupation_terms(occupation: str, noc_title: str = "") -> set[str]:
+    stop_words = {"and", "or", "the", "for", "with", "de", "du", "des", "la", "le", "les"}
+    terms = set()
+    for word in re.findall(r"[a-zA-Z][a-zA-Z+-]{2,}", f"{occupation} {noc_title}".lower()):
+        if word not in stop_words:
+            terms.add(word)
+    return terms
+
+
+def _matching_live_jobs(
+    occupation: str,
+    noc_title: str,
+    noc_code: str,
+    province_code: str,
+    language: str,
+) -> tuple[list[dict[str, str]], str, str]:
+    postings, status, error = _load_job_bank_postings()
+    if not postings:
+        return [], status, error
+
+    terms = _occupation_terms(occupation, noc_title)
+    scored = []
+    for posting in postings:
+        if posting.get("province_code") and posting["province_code"] != province_code:
+            continue
+
+        haystack = f"{posting.get('title', '')} {posting.get('description', '')}".lower()
+        score = 0
+        if noc_code and posting.get("noc_code") == noc_code:
+            score += 8
+        score += sum(1 for term in terms if term in haystack)
+        if score <= 0:
+            continue
+        scored.append((score, posting))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    province = PROVINCE_NAME_BY_CODE.get(province_code, {}).get("fr" if language == "fr" else "name", province_code)
+    links = []
+    for _, posting in scored[:3]:
+        title = posting["title"]
+        if posting.get("employer"):
+            title = f"{title} - {posting['employer']}"
+        links.append(
+            {
+                "title": title,
+                "province": province,
+                "source": "Job Bank XML",
+                "url": posting["url"],
+                "description": posting["description"]
+                if language == "en"
+                else "Offre en direct provenant du flux XML configure.",
+            }
+        )
+    return links, status, error
 
 
 def _score_province(
@@ -323,11 +502,48 @@ def build_career_match(payload: CareerMatchRequest, profile: Optional[Profile]) 
     matches = []
     for province in provinces:
         score, why = _score_province(province, career_input, categories)
+        live_links, live_status, live_error = _matching_live_jobs(
+            career_input.occupation,
+            noc_title,
+            noc_code,
+            province["code"],
+            career_input.language,
+        )
+        if live_links:
+            score = min(score + min(len(live_links) * 2, 6), 98)
+            why = [
+                *why,
+                (
+                    f"Live Job Bank XML feed found {len(live_links)} matched posting(s)."
+                    if career_input.language == "en"
+                    else f"Le flux XML Job Bank configure a trouve {len(live_links)} offre(s) correspondante(s)."
+                ),
+            ][:4]
         low, high = province["wage"]
         wage_adjustment = min(career_input.years_of_experience, 8)
         wage_range = f"${low + wage_adjustment}-${high + wage_adjustment}/hr"
         province_name = province["fr"] if career_input.language == "fr" else province["name"]
         demand = _demand_level(score)
+        official_links = [
+            {
+                "title": "Job Bank search" if career_input.language == "en" else "Recherche Guichet-Emplois",
+                "province": province_name,
+                "source": "Job Bank",
+                "url": _job_bank_url(career_input.occupation, province["code"], career_input.language),
+                "description": "Official Canadian job search by occupation and province."
+                if career_input.language == "en"
+                else "Recherche officielle par profession et province.",
+            },
+            {
+                "title": "Explore occupation" if career_input.language == "en" else "Explorer la profession",
+                "province": province_name,
+                "source": "Job Bank",
+                "url": _occupation_url(noc_code, career_input.occupation, career_input.language),
+                "description": "Official labour-market information, wages, prospects, and requirements."
+                if career_input.language == "en"
+                else "Information officielle sur le marche du travail, salaires, perspectives et exigences.",
+            },
+        ]
         matches.append(
             {
                 "province": province_name,
@@ -365,6 +581,9 @@ def build_career_match(payload: CareerMatchRequest, profile: Optional[Profile]) 
                         else "Information officielle sur le marché du travail, salaires, perspectives et exigences.",
                     },
                 ],
+                "available_jobs_count": len(live_links),
+                "live_data_status": live_status if not live_error else f"{live_status}: {live_error}",
+                "job_links": [*live_links, *official_links],
             }
         )
 
@@ -393,6 +612,15 @@ def build_career_match(payload: CareerMatchRequest, profile: Optional[Profile]) 
                 "name": "Statistics Canada / Open Government",
                 "url": "https://open.canada.ca/data/dataset/f0f63701-d4bd-416b-8ed2-7a09f74abc6e",
                 "description": "Wage-by-occupation data source planned for the next data-ingestion layer.",
+            },
+            {
+                "name": "Configured Job Bank XML feed",
+                "url": JOB_BANK_XML_FEED_URL or "https://www.jobbank.gc.ca/network",
+                "description": (
+                    "Live XML feed enrichment is active when JOB_BANK_XML_FEED_URL is configured."
+                    if JOB_BANK_XML_FEED_URL
+                    else "Configure JOB_BANK_XML_FEED_URL to enable live Job Bank XML postings."
+                ),
             },
         ],
         "matches": matches,

@@ -5,10 +5,13 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 import app.services.ai_advisor as ai_advisor
-from app.core.access_control import has_individual_pro, has_premium_access
+from app.core.access_control import get_feature_access_map, has_individual_pro, has_premium_access
 from app.models.profile_model import Profile
 from app.models.self_application_model import SelfApplication
 from app.models.user_models import User
+from app.schemas.career_match_schema import CareerMatchRequest
+from app.services.career_match_service import build_career_match
+from app.services.citizenship_service import compute_progress, ensure_seed_questions
 from app.services.decision_engine import build_user_decision_context
 from app.services.strategy_service import build_strategy
 
@@ -101,6 +104,7 @@ def build_user_context(
     strategy: Optional[Dict[str, Any]] = None,
     application: Optional[SelfApplication] = None,
     decision: Optional[Dict[str, Any]] = None,
+    features: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     application_snapshot = _build_application_snapshot(application)
     forms_result = application_snapshot.get("forms_result") or {}
@@ -109,6 +113,7 @@ def build_user_context(
         "profile": _build_profile_snapshot(profile),
         "strategy": strategy or {},
         "decision": decision or {},
+        "features": features or {},
         "application": {
             "matter_type": application_snapshot.get("matter_type"),
             "checklist": application_snapshot.get("checklist_result", []),
@@ -414,12 +419,19 @@ def build_self_user_ai_context(
         checklist=(application.checklist_result if application else None),
         language=language,
     )
+    features = _build_feature_context(
+        db=db,
+        current_user=current_user,
+        profile=profile,
+        language=language,
+    )
 
     ai_context = build_user_context(
         profile=profile,
         strategy=strategy,
         application=application,
         decision=decision,
+        features=features,
     )
 
     return {
@@ -431,6 +443,7 @@ def build_self_user_ai_context(
         "application": application,
         "strategy": strategy,
         "decision": decision,
+        "features": features,
         "ai_context": ai_context,
         "profile_found": bool(profile),
         "application_found": bool(application),
@@ -747,6 +760,7 @@ def ask_self_user_copilot(
             chat_history=_serialize_chat_history(chat_history),
             application_context=ai_context.get("application", {}),
             decision_context=decision,
+            feature_context=ai_context.get("features", {}),
             plan=plan,
         )
 
@@ -975,4 +989,120 @@ def build_self_user_access_payload(
             "locked": bool(locked),
             "upgrade_reason": reason,
         }
+    }
+
+
+def _build_feature_context(
+    *,
+    db: Session,
+    current_user: User,
+    profile: Optional[Profile],
+    language: str,
+) -> Dict[str, Any]:
+    language = _normalize_language(language)
+    access = get_feature_access_map(current_user)
+
+    citizenship = {
+        "route": "/citizenship",
+        "study_guide": access["citizenship_study_guide"],
+        "practice_quiz": access["citizenship_practice_quiz"],
+        "progress_tracking": access["citizenship_progress"],
+        "mock_exam": access["citizenship_mock_exam"],
+        "language_practice": access["language_practice"],
+        "mock_exam_format": "20 questions, 45 minutes, pass with 15 correct answers",
+        "attempt_limit": "none for eligible premium users",
+        "analysis_use": (
+            "Use this when the user is a permanent resident or asks about citizenship readiness, language confidence, or post-PR planning."
+        ),
+    }
+
+    if access["citizenship_progress"]:
+        try:
+            ensure_seed_questions(db)
+            citizenship["progress"] = compute_progress(db, current_user.id)
+        except Exception:
+            citizenship["progress"] = {}
+
+    career_match = {
+        "route": "/career-match",
+        "preview": access["career_match_preview"],
+        "full_matching": access["career_match_full"],
+        "saved_jobs": access["career_saved_jobs"],
+        "advanced_intelligence": access["career_advanced_intelligence"],
+        "live_job_bank_xml": (
+            "premium-gated; available when JOB_BANK_XML_FEED_URL is configured"
+        ),
+        "analysis_use": (
+            "Use this when occupation, NOC, province choice, employability, job offer strategy, wages, or PNP targeting affect the recommendation."
+        ),
+    }
+
+    if profile:
+        try:
+            result = build_career_match(
+                CareerMatchRequest(
+                    occupation=profile.occupation,
+                    noc_code=profile.noc_code,
+                    education=profile.education,
+                    years_of_experience=profile.experience_years,
+                    language_level=profile.language_score,
+                    preferred_provinces=[profile.preferred_province] if profile.preferred_province else [],
+                    current_location=", ".join(
+                        item for item in [profile.current_city, profile.current_country] if item
+                    ),
+                    work_authorization_status=(
+                        "has job offer" if profile.has_job_offer else ""
+                    ),
+                    use_profile_defaults=False,
+                    language=language,
+                ),
+                profile,
+            )
+            matches = result.get("matches", [])[:3]
+            if not access["career_match_full"]:
+                matches = matches[:2]
+            if not access["career_advanced_intelligence"]:
+                for match in matches:
+                    match["available_jobs_count"] = 0
+                    match["live_data_status"] = "premium_locked"
+                    match["job_links"] = [
+                        link
+                        for link in match.get("job_links", [])
+                        if link.get("source") != "Job Bank XML"
+                    ]
+            career_match["profile_match_summary"] = {
+                "occupation": result.get("occupation"),
+                "noc_code": result.get("noc_code"),
+                "top_matches": [
+                    {
+                        "province": match.get("province"),
+                        "province_code": match.get("province_code"),
+                        "match_score": match.get("match_score"),
+                        "demand_level": match.get("demand_level"),
+                        "estimated_wage_range": match.get("estimated_wage_range"),
+                        "related_pathway": match.get("related_pathway"),
+                        "suggested_next_action": match.get("suggested_next_action"),
+                        "available_jobs_count": match.get("available_jobs_count", 0),
+                        "live_data_status": match.get("live_data_status", "not_configured"),
+                    }
+                    for match in matches
+                ],
+            }
+        except Exception:
+            career_match["profile_match_summary"] = {}
+
+    return {
+        "access": {
+            "plan": _resolve_ai_plan(current_user),
+            "career_match_preview": access["career_match_preview"],
+            "career_match_full": access["career_match_full"],
+            "career_saved_jobs": access["career_saved_jobs"],
+            "career_advanced_intelligence": access["career_advanced_intelligence"],
+            "citizenship_practice_quiz": access["citizenship_practice_quiz"],
+            "citizenship_progress": access["citizenship_progress"],
+            "citizenship_mock_exam": access["citizenship_mock_exam"],
+            "language_practice": access["language_practice"],
+        },
+        "career_match": career_match,
+        "citizenship_coach": citizenship,
     }

@@ -258,6 +258,20 @@ def _extract_decision_context(
     return json.dumps(decision_context, ensure_ascii=False, indent=2)
 
 
+def _extract_feature_context(
+    feature_context: Optional[Dict[str, Any]],
+    language: str,
+) -> str:
+    if not feature_context:
+        return (
+            "No product feature context available."
+            if language == "en"
+            else "Aucun contexte de fonctionnalites disponible."
+        )
+
+    return json.dumps(feature_context, ensure_ascii=False, indent=2)
+
+
 def _build_chat_system_prompt(language: str, plan: str = "free") -> str:
     ircc_reference = get_ircc_reference_context(language)
 
@@ -357,6 +371,12 @@ Contraintes:
   /documents/generator
   /documents/review
   /forms
+  /career-match
+  /career-match/saved
+  /citizenship
+  /citizenship/quiz
+  /citizenship/progress
+  /language-practice
   /legal/disclosure
   /pricing
 - tu peux utiliser des query params quand utile
@@ -402,6 +422,8 @@ Rules:
 - do not give definitive legal advice
 - do not claim guaranteed outcomes
 - base your answer on the supplied profile, strategy, application, and decision context
+- use NorthBridgeAI feature context when supplied: Career Match for jobs/provinces/NOC reasoning, Citizenship Coach for citizenship and language readiness
+- respect plan gates in the context; suggest /pricing only when the useful feature is locked
 - use immigration_intelligence when it is supplied; if live IRCC data is unavailable, point to the official source instead of inventing a number
 - if context is incomplete, clearly say what is missing
 - never mention internal limitations, configuration, or service availability
@@ -460,6 +482,12 @@ Constraints:
   /documents/generator
   /documents/review
   /forms
+  /career-match
+  /career-match/saved
+  /citizenship
+  /citizenship/quiz
+  /citizenship/progress
+  /language-practice
   /legal/disclosure
   /pricing
 - you may use query params when useful
@@ -534,12 +562,14 @@ def _build_user_context_block(
     strategy: Optional[Dict[str, Any]],
     application_context: Optional[Dict[str, Any]] = None,
     decision_context: Optional[Dict[str, Any]] = None,
+    feature_context: Optional[Dict[str, Any]] = None,
     plan: str = "free",
 ) -> str:
     profile_context = _extract_profile_context(profile, language)
     strategy_context = _extract_strategy_context(strategy, language)
     application_text = _extract_application_context(application_context, language)
     decision_text = _extract_decision_context(decision_context, language)
+    feature_text = _extract_feature_context(feature_context, language)
     ircc_reference = get_ircc_reference_context(language)
 
     if language == "fr":
@@ -558,6 +588,9 @@ Contexte demande:
 
 Contexte décisionnel:
 {decision_text}
+
+Contexte fonctionnalites NorthBridgeAI:
+{feature_text}
 
 Reference IRCC/StatCan:
 {ircc_reference}
@@ -578,6 +611,9 @@ Application context:
 
 Decision context:
 {decision_text}
+
+NorthBridgeAI feature context:
+{feature_text}
 
 IRCC/StatCan reference:
 {ircc_reference}
@@ -992,6 +1028,7 @@ def generate_ai_chat_reply(
     chat_history: Optional[List[Dict[str, Any]]] = None,
     application_context: Optional[Dict[str, Any]] = None,
     decision_context: Optional[Dict[str, Any]] = None,
+    feature_context: Optional[Dict[str, Any]] = None,
     plan: str = "free",
 ) -> Dict[str, Any]:
 
@@ -1013,6 +1050,7 @@ def generate_ai_chat_reply(
         strategy=strategy,
         application_context=application_context,
         decision_context=decision_context,
+        feature_context=feature_context,
         plan=plan,
     )
 
@@ -1045,6 +1083,7 @@ Instructions:
 - Do NOT start with a general strategy summary
 - Focus on the single most important conclusion first
 - Be specific to the user's actual profile and strategy
+- Use Career Match or Citizenship Coach only when it directly strengthens the analysis
 - If relevant, explain why this answer is stronger than alternatives
 - Avoid repeating previous answers
 - End with the best practical next move when useful

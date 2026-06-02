@@ -86,6 +86,7 @@ export default function CitizenshipQuizPage() {
         answers: questions.map((question) => ({
           question_id: question.id,
           selected_option_index: answers[question.id],
+          option_order: question.option_order || [],
         })),
       });
       setResult(language === "fr" ? normalizeFrenchText(res.data) : res.data);
@@ -102,6 +103,10 @@ export default function CitizenshipQuizPage() {
       ? {
           title: mode === "mock" ? "Examen blanc de citoyenneté" : "Quiz de citoyenneté",
           subtitle: "Choisissez la meilleure réponse, puis consultez les explications.",
+          format:
+            mode === "mock"
+              ? "Format IRCC: 20 questions, 45 minutes, 15 bonnes réponses pour réussir."
+              : "Quiz de pratique avec questions aléatoires.",
           submit: "Corriger le quiz",
           score: "Score",
           passed: "Réussi",
@@ -112,6 +117,10 @@ export default function CitizenshipQuizPage() {
       : {
           title: mode === "mock" ? "Citizenship mock exam" : "Citizenship quiz",
           subtitle: "Choose the best answer, then review explanations.",
+          format:
+            mode === "mock"
+              ? "IRCC format: 20 questions, 45 minutes, 15 correct answers to pass."
+              : "Practice quiz with randomized questions.",
           submit: "Grade quiz",
           score: "Score",
           passed: "Passed",
@@ -152,6 +161,7 @@ export default function CitizenshipQuizPage() {
           {text.title}
         </h1>
         <p className="mt-2 text-sm text-slate-600">{text.subtitle}</p>
+        <p className="mt-1 text-sm font-medium text-slate-700">{text.format}</p>
       </div>
 
       {message ? (

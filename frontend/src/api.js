@@ -223,6 +223,22 @@ function normalizeAccess(raw) {
       raw?.can_use_job_opportunity_matching ??
       features?.job_opportunity_matching ??
       isPremium,
+    can_preview_career_match:
+      raw?.can_preview_career_match ??
+      features?.career_match_preview ??
+      true,
+    can_use_full_career_match:
+      raw?.can_use_full_career_match ??
+      features?.career_match_full ??
+      isPro,
+    can_save_career_jobs:
+      raw?.can_save_career_jobs ??
+      features?.career_saved_jobs ??
+      isPro,
+    can_use_career_advanced_intelligence:
+      raw?.can_use_career_advanced_intelligence ??
+      features?.career_advanced_intelligence ??
+      isPremium,
     can_view_citizenship_study_guide:
       raw?.can_view_citizenship_study_guide ??
       features?.citizenship_study_guide ??

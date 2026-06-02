@@ -95,7 +95,7 @@ export default function CitizenshipPracticePage() {
             "Premium inclut les examens blancs complets et la pratique linguistique guidée.",
           attempts: "Essais",
           best: "Meilleur score",
-          answered: "Questions",
+          answered: "Questions répondues",
           sections: "Thèmes d'étude",
         }
       : {
@@ -115,7 +115,7 @@ export default function CitizenshipPracticePage() {
             "Premium includes full mock exams and guided language practice.",
           attempts: "Attempts",
           best: "Best score",
-          answered: "Questions",
+          answered: "Answered questions",
           sections: "Study themes",
         };
   const text = language === "fr" ? normalizeFrenchText(rawText) : rawText;

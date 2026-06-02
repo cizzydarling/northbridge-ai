@@ -1,3 +1,5 @@
+import random
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -31,8 +33,10 @@ from app.services.citizenship_service import (
     ensure_seed_questions,
     normalize_french_text,
     normalize_language,
+    normalize_option_order,
     question_explanation,
     serialize_question,
+    shuffled_option_order,
 )
 
 router = APIRouter(prefix="/citizenship", tags=["Citizenship Coach"])
@@ -95,13 +99,15 @@ def get_questions(
     if section:
         query = query.filter(CitizenshipQuestion.section == section)
 
-    if selected_mode == "mock":
-        limit = min(limit, 20)
-    else:
-        limit = min(limit, 10)
+    limit = 20 if selected_mode == "mock" else min(limit, 10)
 
-    questions = query.order_by(CitizenshipQuestion.id.asc()).limit(limit).all()
-    return [serialize_question(question, lang) for question in questions]
+    questions = query.all()
+    random.shuffle(questions)
+    questions = questions[:limit]
+    return [
+        serialize_question(question, lang, shuffled_option_order(question))
+        for question in questions
+    ]
 
 
 @router.post("/quiz-attempts", response_model=CitizenshipQuizResult)
@@ -153,7 +159,18 @@ def submit_quiz_attempt(
 
     for submitted in payload.answers:
         question = questions_by_id[submitted.question_id]
-        is_correct = submitted.selected_option_index == question.correct_option_index
+        option_order = normalize_option_order(question, submitted.option_order)
+        selected_original_index = (
+            option_order[submitted.selected_option_index]
+            if submitted.selected_option_index < len(option_order)
+            else submitted.selected_option_index
+        )
+        display_correct_index = (
+            option_order.index(question.correct_option_index)
+            if question.correct_option_index in option_order
+            else question.correct_option_index
+        )
+        is_correct = selected_original_index == question.correct_option_index
         if is_correct:
             correct += 1
 
@@ -162,17 +179,17 @@ def submit_quiz_attempt(
                 CitizenshipAnswer(
                     attempt_id=attempt.id,
                     question_id=question.id,
-                    selected_option_index=submitted.selected_option_index,
+                    selected_option_index=selected_original_index,
                     correct_option_index=question.correct_option_index,
                     is_correct=is_correct,
                 )
             )
         answer_results.append(
             {
-                **serialize_question(question, lang),
+                **serialize_question(question, lang, option_order),
                 "question_id": question.id,
                 "selected_option_index": submitted.selected_option_index,
-                "correct_option_index": question.correct_option_index,
+                "correct_option_index": display_correct_index,
                 "is_correct": is_correct,
                 "explanation": question_explanation(question, lang),
             }

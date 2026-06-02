@@ -36,6 +36,8 @@ class CareerMatchProvince(BaseModel):
     related_pathway: str
     why: list[str]
     suggested_next_action: str
+    available_jobs_count: int = 0
+    live_data_status: str = "not_configured"
     job_links: list[CareerMatchJobLink]
 
 
@@ -46,6 +48,7 @@ class CareerMatchResponse(BaseModel):
     profile_used: dict
     official_sources: list[dict]
     matches: list[CareerMatchProvince]
+    access: dict = {}
 
 
 class SavedCareerJobCreate(BaseModel):

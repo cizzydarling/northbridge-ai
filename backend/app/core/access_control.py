@@ -181,6 +181,12 @@ def get_feature_access_map(user: Optional[User]) -> Dict[str, bool]:
         "processing_time_tracker": is_premium,
         "job_opportunity_matching": is_premium,
 
+        # ---- CAREER MATCH ----
+        "career_match_preview": True,
+        "career_match_full": is_pro,
+        "career_saved_jobs": is_pro,
+        "career_advanced_intelligence": is_premium,
+
         # ---- CITIZENSHIP & LANGUAGE PRACTICE ----
         "citizenship_study_guide": True,
         "citizenship_practice_quiz": True,
@@ -223,6 +229,12 @@ def build_upgrade_payload(
         "live_ircc_draws": ("live IRCC draw monitoring", "la veille des rondes IRCC"),
         "processing_time_tracker": ("processing-time tracking", "le suivi des delais"),
         "job_opportunity_matching": ("job and province opportunity matching", "le jumelage emplois et provinces"),
+        "career_match_full": ("full Career Match", "la correspondance carrière complète"),
+        "career_saved_jobs": ("saved career jobs", "les emplois carrière sauvegardés"),
+        "career_advanced_intelligence": (
+            "advanced career intelligence",
+            "l'analyse carrière avancée",
+        ),
         "pdf_export": ("PDF export", "l’export PDF"),
         "client_workspace": ("the client workspace", "l’espace client"),
         "agent_workspace": ("the agent workspace", "l’espace agent"),
@@ -418,6 +430,39 @@ def ensure_language_practice(
     _raise_upgrade(feature=feature, language=language, minimum_plan=PREMIUM_PLAN)
 
 
+def ensure_career_match_full(
+    user: Optional[User],
+    *,
+    feature: str = "career_match_full",
+    language: str = "en",
+) -> None:
+    if get_feature_access_map(user)["career_match_full"]:
+        return
+    _raise_upgrade(feature=feature, language=language, minimum_plan=PRO_PLAN)
+
+
+def ensure_career_saved_jobs(
+    user: Optional[User],
+    *,
+    feature: str = "career_saved_jobs",
+    language: str = "en",
+) -> None:
+    if get_feature_access_map(user)["career_saved_jobs"]:
+        return
+    _raise_upgrade(feature=feature, language=language, minimum_plan=PRO_PLAN)
+
+
+def ensure_career_advanced_intelligence(
+    user: Optional[User],
+    *,
+    feature: str = "career_advanced_intelligence",
+    language: str = "en",
+) -> None:
+    if get_feature_access_map(user)["career_advanced_intelligence"]:
+        return
+    _raise_upgrade(feature=feature, language=language, minimum_plan=PREMIUM_PLAN)
+
+
 # ---- FastAPI dependency-safe guards ----
 
 def require_individual_pro(
@@ -539,6 +584,10 @@ def build_access_response(
         "can_use_live_ircc_draws": features["live_ircc_draws"],
         "can_view_processing_times": features["processing_time_tracker"],
         "can_use_job_opportunity_matching": features["job_opportunity_matching"],
+        "can_preview_career_match": features["career_match_preview"],
+        "can_use_full_career_match": features["career_match_full"],
+        "can_save_career_jobs": features["career_saved_jobs"],
+        "can_use_career_advanced_intelligence": features["career_advanced_intelligence"],
         "can_view_citizenship_study_guide": features["citizenship_study_guide"],
         "can_take_citizenship_practice_quiz": features["citizenship_practice_quiz"],
         "can_track_citizenship_progress": features["citizenship_progress"],

@@ -988,6 +988,9 @@ export default function PricingPage() {
         citizenshipPractice: "Pratique de la citoyenneté et des langues",
         citizenshipProgress: "Progression citoyenneté sauvegardée",
         citizenshipPremiumPractice: "Examens blancs et pratique linguistique",
+        careerPreview: "Aperçu Career Match",
+        careerFull: "Correspondance carrière complète et emplois sauvegardés",
+        careerAdvanced: "Intelligence carrière avancée",
         yes: "Oui",
         limited: "Limité",
         preview: "Aperçu",
@@ -1121,9 +1124,12 @@ export default function PricingPage() {
       review: "AI review",
       irccIntel: "IRCC intelligence and province targeting",
       exports: "PDF export",
-      citizenshipPractice: "Citizenship and language practice",
+      citizenshipPractice: "Unlimited citizenship quizzes",
       citizenshipProgress: "Saved citizenship progress",
-      citizenshipPremiumPractice: "Mock exams and language practice",
+      citizenshipPremiumPractice: "20-question mock exams and language practice",
+      careerPreview: "Career Match preview",
+      careerFull: "Full Career Match and saved jobs",
+      careerAdvanced: "Advanced career intelligence",
       yes: "Yes",
       limited: "Limited",
       preview: "Preview",
@@ -1220,6 +1226,8 @@ export default function PricingPage() {
           language === "fr" ? "Aperçu de stratégie" : "Strategy preview",
           language === "fr" ? "Choix du type de demande" : "Application type selection",
           text.citizenshipPractice,
+          language === "fr" ? "Quiz de pratique illimités" : "Unlimited practice quizzes",
+          text.careerPreview,
           language === "fr" ? "Prévisualisation des formulaires" : "Forms preview",
         ],
       },
@@ -1235,7 +1243,9 @@ export default function PricingPage() {
         fitNote: text.proFit,
         features: [
           text.strategy,
+          text.careerFull,
           text.citizenshipProgress,
+          language === "fr" ? "Scores et thèmes faibles sauvegardés" : "Saved scores and weak-theme tracking",
           text.formsDownload,
           text.documents,
           text.review,
@@ -1261,6 +1271,8 @@ export default function PricingPage() {
             ? "Signaux Job Bank et ciblage provincial"
             : "Job Bank signals and province targeting",
           text.citizenshipPremiumPractice,
+          language === "fr" ? "Examens blancs complets de 20 questions, sans limite d’essais" : "Full 20-question mock exams with no attempt cap",
+          text.careerAdvanced,
           text.exports,
         ],
       },
@@ -1280,13 +1292,25 @@ export default function PricingPage() {
       { label: text.formsDownload, free: text.no, pro: text.yes, premium: text.yes },
       { label: text.documents, free: text.limitedUsage, pro: text.yes, premium: text.yes },
       { label: text.review, free: text.limitedUsage, pro: text.yes, premium: text.yes },
+      { label: text.careerPreview, free: text.yes, pro: text.yes, premium: text.yes },
+      { label: text.careerFull, free: text.no, pro: text.yes, premium: text.yes },
+      { label: text.careerAdvanced, free: text.no, pro: text.no, premium: text.yes },
       { label: text.citizenshipPractice, free: text.yes, pro: text.yes, premium: text.yes },
       { label: text.citizenshipProgress, free: text.no, pro: text.yes, premium: text.yes },
       { label: text.citizenshipPremiumPractice, free: text.no, pro: text.no, premium: text.yes },
+      {
+        label:
+          language === "fr"
+            ? "Limite d’essais pour les examens blancs"
+            : "Mock exam attempt limit",
+        free: text.no,
+        pro: text.no,
+        premium: language === "fr" ? "Aucune" : "None",
+      },
       { label: text.irccIntel, free: text.no, pro: text.limited, premium: text.yes },
       { label: text.exports, free: text.no, pro: text.no, premium: text.yes },
     ],
-    [text]
+    [language, text]
   );
 
   const recommendedPlan = useMemo(() => {

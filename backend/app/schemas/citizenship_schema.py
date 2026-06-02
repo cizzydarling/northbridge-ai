@@ -8,6 +8,7 @@ class CitizenshipQuestionResponse(BaseModel):
     id: int
     question_text: str
     options: list[str]
+    option_order: list[int] = Field(default_factory=list)
     section: str
     difficulty: str
     source_note: Optional[str] = None
@@ -16,6 +17,7 @@ class CitizenshipQuestionResponse(BaseModel):
 class CitizenshipAnswerSubmit(BaseModel):
     question_id: int
     selected_option_index: int = Field(ge=0)
+    option_order: list[int] = Field(default_factory=list)
 
 
 class CitizenshipQuizSubmit(BaseModel):
@@ -33,6 +35,7 @@ class CitizenshipAnswerResult(BaseModel):
     explanation: str
     question_text: str
     options: list[str]
+    option_order: list[int] = Field(default_factory=list)
     section: str
 
 

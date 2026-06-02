@@ -1,4 +1,4 @@
-def build_user_context(profile=None, strategy=None, application=None):
+def build_user_context(profile=None, strategy=None, application=None, decision=None, features=None):
     return {
         "profile": {
             "age": getattr(profile, "age", None),
@@ -13,4 +13,6 @@ def build_user_context(profile=None, strategy=None, application=None):
             "checklist": application.get("checklist_result", []) if application else [],
             "missing_fields": application.get("forms_result", {}).get("missing_fields", []) if application else [],
         },
+        "decision": decision or {},
+        "features": features or {},
     }

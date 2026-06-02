@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.access_control import ensure_career_saved_jobs, get_feature_access_map
 from app.data.db import get_db
 from app.models.career_match_models import SavedCareerJob
 from app.models.profile_model import Profile
@@ -28,7 +29,34 @@ def match_career(
     current_user: User = Depends(get_current_user),
 ):
     profile = _get_profile(db, current_user.id)
-    return build_career_match(payload, profile)
+    result = build_career_match(payload, profile)
+    features = get_feature_access_map(current_user)
+    full_access = features["career_match_full"]
+    premium_access = features["career_advanced_intelligence"]
+
+    if not full_access:
+        result["matches"] = result.get("matches", [])[:2]
+
+    if not premium_access:
+        for match in result.get("matches", []):
+            match["job_links"] = [
+                link
+                for link in match.get("job_links", [])
+                if link.get("source") != "Job Bank XML"
+            ]
+            match["available_jobs_count"] = 0
+            match["live_data_status"] = "premium_locked"
+
+    result["access"] = {
+        "preview": features["career_match_preview"],
+        "full": full_access,
+        "saved_jobs": features["career_saved_jobs"],
+        "advanced_intelligence": premium_access,
+        "limited": not full_access,
+        "minimum_plan_for_full": "pro",
+        "minimum_plan_for_advanced": "premium",
+    }
+    return result
 
 
 @router.get("/saved-jobs", response_model=list[SavedCareerJobResponse])
@@ -36,6 +64,7 @@ def list_saved_jobs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ensure_career_saved_jobs(current_user)
     return (
         db.query(SavedCareerJob)
         .filter(SavedCareerJob.user_id == current_user.id)
@@ -50,6 +79,7 @@ def save_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ensure_career_saved_jobs(current_user)
     existing = (
         db.query(SavedCareerJob)
         .filter(
@@ -84,6 +114,7 @@ def delete_saved_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ensure_career_saved_jobs(current_user)
     saved = (
         db.query(SavedCareerJob)
         .filter(SavedCareerJob.id == job_id, SavedCareerJob.user_id == current_user.id)

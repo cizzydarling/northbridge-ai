@@ -2,9 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
+import UpgradePrompt from "../components/UpgradePrompt";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
-import { getMyProfile, runCareerMatch, saveCareerJob } from "../api";
+import {
+  buildPremiumPricingPath,
+  buildProPricingPath,
+  getMyAccess,
+  getMyProfile,
+  runCareerMatch,
+  saveCareerJob,
+} from "../api";
 
 const PROVINCES = [
   ["ON", "Ontario"],
@@ -85,7 +93,7 @@ function demandLabel(score, language) {
   return language === "fr" ? "Émergente" : "Emerging";
 }
 
-function buildLocalCareerMatch(form, language) {
+function buildLocalCareerMatch(form, language, access = {}) {
   const occupation = form.occupation || "Project Coordinator";
   const nocCode = form.noc_code || "";
   const experience = Number(form.years_of_experience || 0);
@@ -146,6 +154,8 @@ function buildLocalCareerMatch(form, language) {
           finalScore >= 82
             ? `Prioritize ${name}: tailor your resume and review ${details.pathways[0]}.`
             : `Compare active roles in ${name} and strengthen weaker profile signals.`,
+        available_jobs_count: 0,
+        live_data_status: "local_fallback",
         job_links: [
           {
             title: language === "fr" ? "Recherche Guichet-Emplois" : "Job Bank search",
@@ -171,7 +181,7 @@ function buildLocalCareerMatch(form, language) {
       };
     })
     .sort((left, right) => right.match_score - left.match_score)
-    .slice(0, 6);
+    .slice(0, access.can_use_full_career_match ? 6 : 2);
 
   return {
     occupation,
@@ -194,6 +204,15 @@ function buildLocalCareerMatch(form, language) {
       },
     ],
     matches,
+    access: {
+      preview: true,
+      full: Boolean(access.can_use_full_career_match),
+      saved_jobs: Boolean(access.can_save_career_jobs),
+      advanced_intelligence: Boolean(access.can_use_career_advanced_intelligence),
+      limited: !access.can_use_full_career_match,
+      minimum_plan_for_full: "pro",
+      minimum_plan_for_advanced: "premium",
+    },
   };
 }
 
@@ -245,6 +264,7 @@ export default function CareerMatchPage() {
     use_profile_defaults: true,
   });
   const [result, setResult] = useState(null);
+  const [access, setAccess] = useState(null);
   const [loading, setLoading] = useState(false);
   const [savingUrl, setSavingUrl] = useState("");
   const [message, setMessage] = useState("");
@@ -275,6 +295,8 @@ export default function CareerMatchPage() {
             wage: "Salaire estimé",
             demand: "Demande",
             jobs: "Offres et données",
+            liveJobs: "Emplois en direct",
+            liveStatus: "Données",
             save: "Sauvegarder",
             open: "Ouvrir",
             details: "Voir les emplois",
@@ -303,6 +325,8 @@ export default function CareerMatchPage() {
             wage: "Estimated wage",
             demand: "Demand",
             jobs: "Jobs and data",
+            liveJobs: "Live jobs",
+            liveStatus: "Data",
             save: "Save",
             open: "Open",
             details: "View jobs",
@@ -311,6 +335,21 @@ export default function CareerMatchPage() {
           },
     [language]
   );
+  const previewTitle = language === "fr" ? "Aperçu gratuit" : "Free preview";
+  const previewBody =
+    language === "fr"
+      ? "Passez à Pro pour voir toutes les provinces recommandées et sauvegarder vos recherches Job Bank."
+      : "Upgrade to Pro to see all recommended provinces and save Job Bank searches.";
+  const premiumTitle =
+    language === "fr"
+      ? "Intelligence carrière Premium"
+      : "Premium career intelligence";
+  const premiumBody =
+    language === "fr"
+      ? "Premium débloque l'enrichissement Job Bank XML en direct lorsqu'il est configuré, avec une analyse provinciale plus avancée."
+      : "Premium unlocks live Job Bank XML enrichment when configured, plus deeper provincial pathway analysis.";
+  const proPath = buildProPricingPath("career-match", "full");
+  const premiumPath = buildPremiumPricingPath("career-match", "advanced-intelligence");
 
   useEffect(() => {
     let mounted = true;
@@ -328,6 +367,20 @@ export default function CareerMatchPage() {
             noc_code: current.noc_code || "13100",
           }));
         }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    getMyAccess()
+      .then((res) => {
+        if (mounted) setAccess(res.data);
+      })
+      .catch(() => {
+        if (mounted) setAccess(null);
       });
     return () => {
       mounted = false;
@@ -379,7 +432,7 @@ export default function CareerMatchPage() {
       setResult(res.data);
     } catch (err) {
       console.error(err);
-      setResult(buildLocalCareerMatch(form, language));
+      setResult(buildLocalCareerMatch(form, language, access || {}));
       const detail = getApiErrorDetail(err);
       setMessage(
         language === "fr"
@@ -392,6 +445,11 @@ export default function CareerMatchPage() {
   }
 
   async function handleSave(match, link) {
+    if (!access?.can_save_career_jobs) {
+      navigate(buildProPricingPath("career-match", "saved-jobs"));
+      return;
+    }
+
     try {
       setSavingUrl(link.url);
       await saveCareerJob({
@@ -545,6 +603,28 @@ export default function CareerMatchPage() {
         </div>
       </Card>
 
+      {!access?.can_use_full_career_match || result?.access?.limited ? (
+        <UpgradePrompt
+          className="mt-5"
+          title={previewTitle}
+          body={previewBody}
+          buttonLabel={language === "fr" ? "Voir Pro" : "See Pro"}
+          pricingPath={proPath}
+          compact
+        />
+      ) : null}
+
+      {!access?.can_use_career_advanced_intelligence ? (
+        <UpgradePrompt
+          className="mt-5"
+          title={premiumTitle}
+          body={premiumBody}
+          buttonLabel={language === "fr" ? "Voir Premium" : "See Premium"}
+          pricingPath={premiumPath}
+          compact
+        />
+      ) : null}
+
       {result?.official_sources?.length ? (
         <div className="mt-5 flex flex-wrap gap-2">
           {result.official_sources.map((source) => (
@@ -602,6 +682,14 @@ export default function CareerMatchPage() {
               </div>
             </div>
 
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <span className="font-semibold text-slate-950">{text.liveJobs}: </span>
+              {match.available_jobs_count || 0}
+              <span className="mx-2 text-slate-300">|</span>
+              <span className="font-semibold text-slate-950">{text.liveStatus}: </span>
+              {match.live_data_status || "not_configured"}
+            </div>
+
             <div className="mt-5">
               <p className="text-sm font-semibold text-slate-950">{text.why}</p>
               <ul className="mt-2 space-y-2 text-sm leading-6 text-slate-600">
@@ -635,7 +723,11 @@ export default function CareerMatchPage() {
                         onClick={() => handleSave(match, link)}
                         loading={savingUrl === link.url}
                       >
-                        {text.save}
+                        {access?.can_save_career_jobs
+                          ? text.save
+                          : language === "fr"
+                          ? "Pro"
+                          : "Pro"}
                       </Button>
                       <Button
                         size="sm"
