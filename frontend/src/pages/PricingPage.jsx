@@ -12,6 +12,7 @@ import {
   getBillingPlans,
   getBillingStatus,
   getBillingTransactions,
+  redeemPromoCode,
   refreshCurrentUser,
   syncCheckoutSession,
 } from "../api";
@@ -619,6 +620,8 @@ export default function PricingPage() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [devSwitchLoading, setDevSwitchLoading] = useState("");
   const [successRefreshing, setSuccessRefreshing] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
 
   const successFlag = searchParams.get("success");
   const checkoutSessionId = searchParams.get("session_id");
@@ -867,6 +870,44 @@ export default function PricingPage() {
     }
   }
 
+  async function handleRedeemPromoCode(event) {
+    event.preventDefault();
+    const code = promoCode.trim().toUpperCase();
+    if (!code) return;
+
+    try {
+      setPromoLoading(true);
+      setMessage("");
+
+      const res = await redeemPromoCode(code);
+      setPromoCode("");
+      await refreshCurrentUser();
+      await loadBillingPage();
+
+      window.dispatchEvent(new Event("userUpdated"));
+      window.dispatchEvent(new Event("nbai-bootstrap-refresh"));
+      window.dispatchEvent(new Event("nbai-strategy-refresh"));
+      window.dispatchEvent(new Event("nbai-document-engine-updated"));
+
+      const accessUntil = formatBillingDate(res?.data?.granted_until, language);
+      setMessage(
+        language === "fr"
+          ? `Code appliqué. Votre accès est actif jusqu'au ${accessUntil}.`
+          : `Code applied. Your access is active until ${accessUntil}.`
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage(
+        err?.response?.data?.detail ||
+          (language === "fr"
+            ? "Impossible d'appliquer ce code."
+            : "Unable to apply this code.")
+      );
+    } finally {
+      setPromoLoading(false);
+    }
+  }
+
   async function handleDevPlanSwitch(plan) {
     try {
       setDevSwitchLoading(plan);
@@ -937,6 +978,11 @@ export default function PricingPage() {
         currentPlan: "Plan actuel",
         billingStatus: "Statut",
         manageBilling: "Gérer ma facturation",
+        promoTitle: "Vous avez un code d'accès ?",
+        promoBody:
+          "Entrez un code fondateur ou bêta pour débloquer temporairement Pro ou Premium sans paiement.",
+        promoPlaceholder: "NB-FOUNDER-2026",
+        promoApply: "Appliquer le code",
         cancelSubscription: "Annuler l'abonnement",
         cancelingSubscription: "Annulation...",
         cancelConfirm:
@@ -1076,6 +1122,11 @@ export default function PricingPage() {
       currentPlan: "Current plan",
       billingStatus: "Status",
       manageBilling: "Manage billing",
+      promoTitle: "Have an access code?",
+      promoBody:
+        "Enter a founder or beta code to temporarily unlock Pro or Premium without payment.",
+      promoPlaceholder: "NB-FOUNDER-2026",
+      promoApply: "Apply code",
       cancelSubscription: "Cancel subscription",
       cancelingSubscription: "Canceling...",
       cancelConfirm:
@@ -1421,6 +1472,37 @@ export default function PricingPage() {
         onDashboard={() => navigate("/dashboard")}
         onStrategy={() => navigate("/strategy")}
       />
+
+      <SurfaceCard className="mb-6 border-amber-200 bg-amber-50/70">
+        <div className="grid gap-4 lg:grid-cols-[1fr_0.8fr] lg:items-end">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
+              {text.promoTitle}
+            </p>
+            <p className="mt-2 text-sm leading-7 text-slate-700">
+              {text.promoBody}
+            </p>
+          </div>
+          <form
+            onSubmit={handleRedeemPromoCode}
+            className="flex flex-col gap-3 sm:flex-row"
+          >
+            <input
+              value={promoCode}
+              onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+              placeholder={text.promoPlaceholder}
+              className="h-11 min-w-0 flex-1 rounded-lg border border-amber-200 bg-white px-3 text-sm font-semibold uppercase tracking-wide text-slate-950 shadow-sm outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200"
+            />
+            <Button
+              type="submit"
+              loading={promoLoading}
+              disabled={promoLoading || !promoCode.trim()}
+            >
+              {text.promoApply}
+            </Button>
+          </form>
+        </div>
+      </SurfaceCard>
 
       {requestedPlan && targetedPlanMessage ? (
         <SurfaceCard className="mb-6 border-amber-200 bg-stone-50">

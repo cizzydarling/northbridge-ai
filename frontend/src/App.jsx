@@ -35,6 +35,7 @@ const CitizenshipPracticePage = lazy(() => import("./pages/CitizenshipPracticePa
 const CitizenshipQuizPage = lazy(() => import("./pages/CitizenshipQuizPage"));
 const CitizenshipProgressPage = lazy(() => import("./pages/CitizenshipProgressPage"));
 const LanguagePracticePage = lazy(() => import("./pages/LanguagePracticePage"));
+const AdminPromoCodesPage = lazy(() => import("./pages/AdminPromoCodesPage"));
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
 const ClientsPage = lazy(() => import("./pages/ClientsPage"));
 const ClientOverviewPage = lazy(() => import("./pages/ClientOverviewPage"));
@@ -413,6 +414,15 @@ export default function App() {
         element={
           <ProtectedAppRoute>
             <LanguagePracticePage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/admin/promo-codes"
+        element={
+          <ProtectedAppRoute>
+            <AdminPromoCodesPage />
           </ProtectedAppRoute>
         }
       />

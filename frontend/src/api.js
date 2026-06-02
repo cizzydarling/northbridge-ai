@@ -467,6 +467,18 @@ export const createBillingPortalSession = createPortalSession;
 export const cancelSubscription = () =>
   api.post("/billing/cancel-subscription");
 
+export const redeemPromoCode = (code) =>
+  api.post("/billing/redeem-code", { code });
+
+export const getAdminPromoCodes = () =>
+  api.get("/billing/admin/promo-codes");
+
+export const createAdminPromoCode = (payload) =>
+  api.post("/billing/admin/promo-codes", payload);
+
+export const updateAdminPromoCode = (promoCodeId, payload) =>
+  api.patch(`/billing/admin/promo-codes/${promoCodeId}`, payload);
+
 /* =========================
    PERSONAL PROFILE
 ========================= */

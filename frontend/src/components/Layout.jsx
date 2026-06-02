@@ -445,6 +445,7 @@ export default function Layout({ children }) {
 
   const isAgentWorkspace =
     currentUser?.role === "agent" || currentUser?.plan === "agent_pro";
+  const isAdmin = currentUser?.role === "admin";
   const emailConfirmed = Boolean(currentUser?.email_confirmed_at);
   const showEmailConfirmationBanner = Boolean(currentUser && !emailConfirmed);
 
@@ -524,6 +525,15 @@ export default function Layout({ children }) {
         { label: language === "fr" ? "Famille" : "Household", path: "/household", icon: "household" },
         { label: language === "fr" ? "Demandes" : "Applications", path: "/applications", icon: "application" },
         { label: t("nav.profile"), path: "/profile", icon: "profile" },
+        ...(isAdmin
+          ? [
+              {
+                label: language === "fr" ? "Codes promo" : "Promo Codes",
+                path: "/admin/promo-codes",
+                icon: "pricing",
+              },
+            ]
+          : []),
       ];
 
   function handleLogout() {

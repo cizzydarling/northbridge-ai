@@ -124,6 +124,40 @@ class PromoCodeCreateRequest(BaseModel):
         return value
 
 
+class PromoCodeUpdateRequest(BaseModel):
+    access_type: str | None = None
+    duration_days: int | None = None
+    expires_at: datetime | None = None
+    max_uses: int | None = None
+    active: bool | None = None
+    description: str | None = None
+
+    @field_validator("access_type")
+    @classmethod
+    def validate_access_type(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        normalized = str(value or "").strip().lower()
+        allowed = {"individual_pro", "individual_premium", "agent_pro"}
+        if normalized not in allowed:
+            raise ValueError("Access type must be individual_pro, individual_premium, or agent_pro")
+        return normalized
+
+    @field_validator("duration_days")
+    @classmethod
+    def validate_duration_days(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("Duration must be at least 1 day")
+        return value
+
+    @field_validator("max_uses")
+    @classmethod
+    def validate_max_uses(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("Max uses must be at least 1")
+        return value
+
+
 def _promo_code_payload(promo_code: PromoCode) -> dict:
     return {
         "id": promo_code.id,
@@ -136,6 +170,7 @@ def _promo_code_payload(promo_code: PromoCode) -> dict:
         "active": promo_code.active,
         "description": promo_code.description,
         "created_at": promo_code.created_at,
+        "updated_at": promo_code.updated_at,
     }
 
 
@@ -989,6 +1024,27 @@ def create_promo_code(
         description=payload.description,
     )
     db.add(promo_code)
+    db.commit()
+    db.refresh(promo_code)
+    return _promo_code_payload(promo_code)
+
+
+@router.patch("/admin/promo-codes/{promo_code_id}")
+def update_promo_code(
+    promo_code_id: int,
+    payload: PromoCodeUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    del current_user
+    promo_code = db.query(PromoCode).filter(PromoCode.id == promo_code_id).first()
+    if not promo_code:
+        raise HTTPException(status_code=404, detail="Access code not found.")
+
+    updates = payload.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(promo_code, field, value)
+
     db.commit()
     db.refresh(promo_code)
     return _promo_code_payload(promo_code)
