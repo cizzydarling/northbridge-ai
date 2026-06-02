@@ -37,7 +37,7 @@ class CitizenshipAnswerResult(BaseModel):
 
 
 class CitizenshipQuizResult(BaseModel):
-    attempt_id: int
+    attempt_id: Optional[int] = None
     mode: str
     language: str
     total_questions: int

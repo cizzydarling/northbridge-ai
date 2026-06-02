@@ -2,6 +2,7 @@ from . import ai_routes
 from . import app_routes
 from . import auth_routes
 from . import billing_routes
+from . import career_match_routes
 from . import client_document_routes
 from . import client_profile_routes
 from . import client_routes
@@ -33,6 +34,7 @@ __all__ = [
     "app_routes",
     "auth_routes",
     "billing_routes",
+    "career_match_routes",
     "client_document_routes",
     "client_profile_routes",
     "client_routes",

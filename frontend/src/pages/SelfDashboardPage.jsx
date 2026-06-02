@@ -526,6 +526,15 @@ export default function SelfDashboardPage() {
         language === "fr"
           ? "Préparez le test de citoyenneté et pratiquez l'anglais ou le français."
           : "Prepare for the citizenship test and practice English or French.",
+      path: "/career-match",
+      locked: false,
+    },
+    {
+      title: language === "fr" ? "Emplois par province" : "Find Jobs by Province",
+      body:
+        language === "fr"
+          ? "Comparez votre profil aux provinces, emplois, salaires et voies d'immigration."
+          : "Match your profile with provinces, job openings, wage data, and immigration pathways.",
       path: "/citizenship",
       locked: false,
     },

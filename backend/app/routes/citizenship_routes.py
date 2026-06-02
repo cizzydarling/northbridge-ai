@@ -2,6 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.data.db import get_db
+from app.core.access_control import (
+    ensure_citizenship_mock_exam,
+    ensure_citizenship_progress,
+    ensure_language_practice,
+    get_feature_access_map,
+)
 from app.models.citizenship_models import (
     CitizenshipAnswer,
     CitizenshipQuestion,
@@ -75,17 +81,27 @@ def get_questions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    lang = normalize_language(language)
+    selected_mode = (mode or "practice").strip().lower()
+    if selected_mode == "mock":
+        ensure_citizenship_mock_exam(
+            current_user,
+            language=lang,
+        )
+
     ensure_seed_questions(db)
     query = db.query(CitizenshipQuestion).filter(CitizenshipQuestion.active.is_(True))
 
     if section:
         query = query.filter(CitizenshipQuestion.section == section)
 
-    if mode == "mock":
+    if selected_mode == "mock":
         limit = min(limit, 20)
+    else:
+        limit = min(limit, 10)
 
     questions = query.order_by(CitizenshipQuestion.id.asc()).limit(limit).all()
-    return [serialize_question(question, language) for question in questions]
+    return [serialize_question(question, lang) for question in questions]
 
 
 @router.post("/quiz-attempts", response_model=CitizenshipQuizResult)
@@ -94,6 +110,14 @@ def submit_quiz_attempt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    lang = normalize_language(payload.language)
+    selected_mode = (payload.mode or "practice").strip().lower()
+    if selected_mode == "mock":
+        ensure_citizenship_mock_exam(
+            current_user,
+            language=lang,
+        )
+
     ensure_seed_questions(db)
     if not payload.answers:
         raise HTTPException(status_code=400, detail="At least one answer is required.")
@@ -112,18 +136,20 @@ def submit_quiz_attempt(
 
     total = len(payload.answers)
     correct = 0
-    lang = normalize_language(payload.language)
     answer_results = []
+    can_save_attempt = get_feature_access_map(current_user)["citizenship_progress"]
+    attempt = None
 
-    attempt = CitizenshipQuizAttempt(
-        user_id=current_user.id,
-        mode=payload.mode or "practice",
-        language=lang,
-        total_questions=total,
-        time_spent_seconds=payload.time_spent_seconds,
-    )
-    db.add(attempt)
-    db.flush()
+    if can_save_attempt:
+        attempt = CitizenshipQuizAttempt(
+            user_id=current_user.id,
+            mode=selected_mode,
+            language=lang,
+            total_questions=total,
+            time_spent_seconds=payload.time_spent_seconds,
+        )
+        db.add(attempt)
+        db.flush()
 
     for submitted in payload.answers:
         question = questions_by_id[submitted.question_id]
@@ -131,15 +157,16 @@ def submit_quiz_attempt(
         if is_correct:
             correct += 1
 
-        db.add(
-            CitizenshipAnswer(
-                attempt_id=attempt.id,
-                question_id=question.id,
-                selected_option_index=submitted.selected_option_index,
-                correct_option_index=question.correct_option_index,
-                is_correct=is_correct,
+        if attempt:
+            db.add(
+                CitizenshipAnswer(
+                    attempt_id=attempt.id,
+                    question_id=question.id,
+                    selected_option_index=submitted.selected_option_index,
+                    correct_option_index=question.correct_option_index,
+                    is_correct=is_correct,
+                )
             )
-        )
         answer_results.append(
             {
                 **serialize_question(question, lang),
@@ -152,14 +179,15 @@ def submit_quiz_attempt(
         )
 
     score = round((correct / total) * 100) if total else 0
-    attempt.correct_answers = correct
-    attempt.score_percent = score
-    db.commit()
-    db.refresh(attempt)
+    if attempt:
+        attempt.correct_answers = correct
+        attempt.score_percent = score
+        db.commit()
+        db.refresh(attempt)
 
     return {
-        "attempt_id": attempt.id,
-        "mode": attempt.mode,
+        "attempt_id": attempt.id if attempt else None,
+        "mode": selected_mode,
         "language": lang,
         "total_questions": total,
         "correct_answers": correct,
@@ -174,13 +202,18 @@ def get_progress(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ensure_citizenship_progress(current_user)
     ensure_seed_questions(db)
     return compute_progress(db, current_user.id)
 
 
 @router.get("/language-prompts")
-def get_language_prompts(language: str = Query(default="en")):
+def get_language_prompts(
+    language: str = Query(default="en"),
+    current_user: User = Depends(get_current_user),
+):
     lang = normalize_language(language)
+    ensure_language_practice(current_user, language=lang)
     prompts = normalize_french_text(LANGUAGE_PROMPTS[lang]) if lang == "fr" else LANGUAGE_PROMPTS[lang]
     return {"language": lang, "prompts": prompts}
 
@@ -190,6 +223,7 @@ def list_language_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ensure_language_practice(current_user)
     return (
         db.query(LanguagePracticeSession)
         .filter(LanguagePracticeSession.user_id == current_user.id)
@@ -205,6 +239,7 @@ def create_language_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    ensure_language_practice(current_user, language=payload.target_language)
     session = LanguagePracticeSession(
         user_id=current_user.id,
         target_language=normalize_language(payload.target_language),

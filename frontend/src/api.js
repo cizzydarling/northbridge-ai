@@ -223,6 +223,26 @@ function normalizeAccess(raw) {
       raw?.can_use_job_opportunity_matching ??
       features?.job_opportunity_matching ??
       isPremium,
+    can_view_citizenship_study_guide:
+      raw?.can_view_citizenship_study_guide ??
+      features?.citizenship_study_guide ??
+      true,
+    can_take_citizenship_practice_quiz:
+      raw?.can_take_citizenship_practice_quiz ??
+      features?.citizenship_practice_quiz ??
+      true,
+    can_track_citizenship_progress:
+      raw?.can_track_citizenship_progress ??
+      features?.citizenship_progress ??
+      isPro,
+    can_take_citizenship_mock_exam:
+      raw?.can_take_citizenship_mock_exam ??
+      features?.citizenship_mock_exam ??
+      isPremium,
+    can_use_language_practice:
+      raw?.can_use_language_practice ??
+      features?.language_practice ??
+      isPremium,
     can_access_self_workspace:
       raw?.can_access_self_workspace ??
       features?.self_workspace ??
@@ -301,6 +321,22 @@ export const getLanguagePracticeSessions = () =>
 
 export const createLanguagePracticeSession = (payload) =>
   api.post("/citizenship/language-sessions", payload);
+
+/* =========================
+   CAREER MATCH
+========================= */
+
+export const runCareerMatch = (payload) =>
+  api.post("/career-match/match", payload);
+
+export const getSavedCareerJobs = () =>
+  api.get("/career-match/saved-jobs");
+
+export const saveCareerJob = (payload) =>
+  api.post("/career-match/saved-jobs", payload);
+
+export const deleteSavedCareerJob = (jobId) =>
+  api.delete(`/career-match/saved-jobs/${jobId}`);
 
 /* =========================
    DISCLOSURE

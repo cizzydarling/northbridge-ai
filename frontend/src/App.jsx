@@ -28,6 +28,9 @@ const DisclosureAcceptancePage = lazy(() => import("./pages/DisclosureAcceptance
 const DocumentGeneratorPage = lazy(() => import("./pages/DocumentGeneratorPage"));
 const DocumentReviewPage = lazy(() => import("./pages/DocumentReviewPage"));
 const FormsPage = lazy(() => import("./pages/FormsPage"));
+const CareerMatchPage = lazy(() => import("./pages/CareerMatchPage"));
+const ProvinceJobMatchPage = lazy(() => import("./pages/ProvinceJobMatchPage"));
+const SavedJobsPage = lazy(() => import("./pages/SavedJobsPage"));
 const CitizenshipPracticePage = lazy(() => import("./pages/CitizenshipPracticePage"));
 const CitizenshipQuizPage = lazy(() => import("./pages/CitizenshipQuizPage"));
 const CitizenshipProgressPage = lazy(() => import("./pages/CitizenshipProgressPage"));
@@ -61,6 +64,7 @@ function prefetchAppRoutes(user) {
     import("./pages/ProfilePage");
     import("./pages/StrategyPage");
     import("./pages/SelfDocumentsPage");
+    import("./pages/CareerMatchPage");
     import("./pages/CitizenshipPracticePage");
     import("./pages/PricingPage");
   };
@@ -353,6 +357,30 @@ export default function App() {
         }
       />
 
+      <Route
+        path="/career-match"
+        element={
+          <ProtectedAppRoute>
+            <CareerMatchPage />
+          </ProtectedAppRoute>
+        }
+      />
+      <Route
+        path="/career-match/province"
+        element={
+          <ProtectedAppRoute>
+            <ProvinceJobMatchPage />
+          </ProtectedAppRoute>
+        }
+      />
+      <Route
+        path="/career-match/saved"
+        element={
+          <ProtectedAppRoute>
+            <SavedJobsPage />
+          </ProtectedAppRoute>
+        }
+      />
       <Route
         path="/citizenship"
         element={

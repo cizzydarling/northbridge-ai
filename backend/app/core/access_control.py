@@ -181,6 +181,13 @@ def get_feature_access_map(user: Optional[User]) -> Dict[str, bool]:
         "processing_time_tracker": is_premium,
         "job_opportunity_matching": is_premium,
 
+        # ---- CITIZENSHIP & LANGUAGE PRACTICE ----
+        "citizenship_study_guide": True,
+        "citizenship_practice_quiz": True,
+        "citizenship_progress": is_pro,
+        "citizenship_mock_exam": is_premium,
+        "language_practice": is_premium,
+
         # ---- WORKSPACES ----
         "self_workspace": is_pro,
         "client_workspace": is_agent,
@@ -220,6 +227,18 @@ def build_upgrade_payload(
         "client_workspace": ("the client workspace", "l’espace client"),
         "agent_workspace": ("the agent workspace", "l’espace agent"),
         "simulation_access": ("simulation tools", "les outils de simulation"),
+        "citizenship_progress": (
+            "citizenship progress tracking",
+            "le suivi de progression citoyenneté",
+        ),
+        "citizenship_mock_exam": (
+            "full citizenship mock exams",
+            "les examens blancs complets de citoyenneté",
+        ),
+        "language_practice": (
+            "language practice coaching",
+            "la pratique linguistique guidée",
+        ),
         "document_generator": ("the document generator", "le générateur de documents"),
         "document_generator_full": ("full document generation", "la génération complète de documents"),
         "document_docx_download": ("document downloads", "le téléchargement des documents"),
@@ -366,6 +385,39 @@ def ensure_pdf_export(
     _raise_upgrade(feature=feature, language=language, minimum_plan=PREMIUM_PLAN)
 
 
+def ensure_citizenship_progress(
+    user: Optional[User],
+    *,
+    feature: str = "citizenship_progress",
+    language: str = "en",
+) -> None:
+    if get_feature_access_map(user)["citizenship_progress"]:
+        return
+    _raise_upgrade(feature=feature, language=language, minimum_plan=PRO_PLAN)
+
+
+def ensure_citizenship_mock_exam(
+    user: Optional[User],
+    *,
+    feature: str = "citizenship_mock_exam",
+    language: str = "en",
+) -> None:
+    if get_feature_access_map(user)["citizenship_mock_exam"]:
+        return
+    _raise_upgrade(feature=feature, language=language, minimum_plan=PREMIUM_PLAN)
+
+
+def ensure_language_practice(
+    user: Optional[User],
+    *,
+    feature: str = "language_practice",
+    language: str = "en",
+) -> None:
+    if get_feature_access_map(user)["language_practice"]:
+        return
+    _raise_upgrade(feature=feature, language=language, minimum_plan=PREMIUM_PLAN)
+
+
 # ---- FastAPI dependency-safe guards ----
 
 def require_individual_pro(
@@ -424,6 +476,27 @@ def require_pdf_export(
     return current_user
 
 
+def require_citizenship_progress(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    ensure_citizenship_progress(current_user)
+    return current_user
+
+
+def require_citizenship_mock_exam(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    ensure_citizenship_mock_exam(current_user)
+    return current_user
+
+
+def require_language_practice(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    ensure_language_practice(current_user)
+    return current_user
+
+
 def build_access_response(
     *,
     user: Optional[User],
@@ -466,6 +539,11 @@ def build_access_response(
         "can_use_live_ircc_draws": features["live_ircc_draws"],
         "can_view_processing_times": features["processing_time_tracker"],
         "can_use_job_opportunity_matching": features["job_opportunity_matching"],
+        "can_view_citizenship_study_guide": features["citizenship_study_guide"],
+        "can_take_citizenship_practice_quiz": features["citizenship_practice_quiz"],
+        "can_track_citizenship_progress": features["citizenship_progress"],
+        "can_take_citizenship_mock_exam": features["citizenship_mock_exam"],
+        "can_use_language_practice": features["language_practice"],
         "can_access_self_workspace": features["self_workspace"],
         "can_access_simulations": features["simulation_access"],
 

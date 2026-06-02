@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
+import UpgradePrompt from "../components/UpgradePrompt";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import {
+  buildPremiumPricingPath,
   createLanguagePracticeSession,
   getLanguagePracticePrompts,
   getLanguagePracticeSessions,
+  getMyAccess,
 } from "../api";
 import { normalizeFrenchText } from "../utils/frenchText";
 
@@ -19,11 +22,18 @@ export default function LanguagePracticePage() {
   const [responseText, setResponseText] = useState("");
   const [selfScore, setSelfScore] = useState(70);
   const [sessions, setSessions] = useState([]);
+  const [access, setAccess] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     let mounted = true;
     async function load() {
+      setLoading(true);
+      const accessRes = await getMyAccess();
+      if (!mounted) return;
+      setAccess(accessRes.data);
+      if (!accessRes.data?.can_use_language_practice) return;
       const [promptRes, sessionRes] = await Promise.all([
         getLanguagePracticePrompts(targetLanguage),
         getLanguagePracticeSessions(),
@@ -42,6 +52,8 @@ export default function LanguagePracticePage() {
       if (mounted) {
         setMessage(uiLanguage === "fr" ? "Chargement impossible." : "Unable to load practice.");
       }
+    }).finally(() => {
+      if (mounted) setLoading(false);
     });
     return () => {
       mounted = false;
@@ -109,6 +121,22 @@ export default function LanguagePracticePage() {
           savedScore: "confidence",
         };
   const text = uiLanguage === "fr" ? normalizeFrenchText(rawText) : rawText;
+  const premiumPath = buildPremiumPricingPath("language-practice", "coaching");
+  const lockedTitle =
+    uiLanguage === "fr" ? "La pratique linguistique est Premium" : "Language practice is Premium";
+  const lockedBody =
+    uiLanguage === "fr"
+      ? "Débloquez les invites guidées, les sessions sauvegardées et la préparation linguistique liée à la citoyenneté."
+      : "Unlock guided prompts, saved sessions, and citizenship-focused language preparation.";
+  const lockedCta = uiLanguage === "fr" ? "Voir Premium" : "See Premium";
+
+  if (loading) {
+    return (
+      <Layout>
+        <p className="text-slate-600">{uiLanguage === "fr" ? "Chargement..." : "Loading..."}</p>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -128,6 +156,16 @@ export default function LanguagePracticePage() {
         </div>
       ) : null}
 
+      {!access?.can_use_language_practice ? (
+        <UpgradePrompt
+          title={lockedTitle}
+          body={lockedBody}
+          buttonLabel={lockedCta}
+          pricingPath={premiumPath}
+        />
+      ) : null}
+
+      {access?.can_use_language_practice ? (
       <section className="grid gap-5 lg:grid-cols-[1fr_0.75fr]">
         <Card>
           <div className="grid gap-4 md:grid-cols-2">
@@ -219,6 +257,7 @@ export default function LanguagePracticePage() {
           </div>
         </Card>
       </section>
+      ) : null}
     </Layout>
   );
 }

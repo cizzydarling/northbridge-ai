@@ -1,0 +1,105 @@
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import Layout from "../components/Layout";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import { deleteSavedCareerJob, getSavedCareerJobs } from "../api";
+
+export default function SavedJobsPage() {
+  const { i18n } = useTranslation();
+  const language = i18n.language === "fr" ? "fr" : "en";
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const text =
+    language === "fr"
+      ? {
+          title: "Emplois sauvegardés",
+          subtitle: "Retrouvez vos recherches et liens officiels Job Bank.",
+          empty: "Aucun emploi sauvegardé pour le moment.",
+          open: "Ouvrir",
+          remove: "Retirer",
+        }
+      : {
+          title: "Saved jobs",
+          subtitle: "Return to your saved Job Bank searches and official links.",
+          empty: "No saved jobs yet.",
+          open: "Open",
+          remove: "Remove",
+        };
+
+  async function load() {
+    try {
+      setLoading(true);
+      const res = await getSavedCareerJobs();
+      setJobs(res.data || []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function handleDelete(jobId) {
+    await deleteSavedCareerJob(jobId);
+    setJobs((current) => current.filter((job) => job.id !== jobId));
+  }
+
+  return (
+    <Layout>
+      <div className="mb-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+          NorthBridgeAI
+        </p>
+        <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
+          {text.title}
+        </h1>
+        <p className="mt-2 text-sm text-slate-600">{text.subtitle}</p>
+      </div>
+
+      {loading ? (
+        <p className="text-slate-600">{language === "fr" ? "Chargement..." : "Loading..."}</p>
+      ) : null}
+
+      {!loading && !jobs.length ? (
+        <Card>
+          <p className="text-sm text-slate-500">{text.empty}</p>
+        </Card>
+      ) : null}
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        {jobs.map((job) => (
+          <Card key={job.id}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  {job.source} {job.noc_code ? `- ${job.noc_code}` : ""}
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-slate-950">
+                  {job.title}
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">{job.province}</p>
+                {job.notes ? (
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{job.notes}</p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => window.open(job.job_url, "_blank", "noopener,noreferrer")}
+                >
+                  {text.open}
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => handleDelete(job.id)}>
+                  {text.remove}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </section>
+    </Layout>
+  );
+}

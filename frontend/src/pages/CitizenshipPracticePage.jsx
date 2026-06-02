@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
+import UpgradePrompt from "../components/UpgradePrompt";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import {
+  buildPremiumPricingPath,
+  buildProPricingPath,
   getCitizenshipProgress,
   getCitizenshipStudyGuide,
+  getMyAccess,
 } from "../api";
 import { normalizeFrenchText } from "../utils/frenchText";
 
@@ -27,6 +31,7 @@ export default function CitizenshipPracticePage() {
   const language = i18n.language === "fr" ? "fr" : "en";
   const [guide, setGuide] = useState(null);
   const [progress, setProgress] = useState(null);
+  const [access, setAccess] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -36,13 +41,21 @@ export default function CitizenshipPracticePage() {
     async function load() {
       try {
         setLoading(true);
-        const [guideRes, progressRes] = await Promise.all([
+        const [accessRes, guideRes] = await Promise.all([
+          getMyAccess(),
           getCitizenshipStudyGuide(language),
-          getCitizenshipProgress(),
         ]);
         if (!mounted) return;
+        const nextAccess = accessRes.data;
+        setAccess(nextAccess);
         setGuide(language === "fr" ? normalizeFrenchText(guideRes.data) : guideRes.data);
-        setProgress(progressRes.data);
+        if (nextAccess?.can_track_citizenship_progress) {
+          const progressRes = await getCitizenshipProgress();
+          if (!mounted) return;
+          setProgress(progressRes.data);
+        } else {
+          setProgress(null);
+        }
       } catch (err) {
         console.error(err);
         if (mounted) {
@@ -74,6 +87,12 @@ export default function CitizenshipPracticePage() {
           mock: "Examen blanc",
           language: "Pratique linguistique",
           progress: "Progression",
+          progressLockedTitle: "Suivez votre progression avec Pro",
+          progressLockedBody:
+            "Les scores sauvegardés, les thèmes faibles et l'historique de pratique sont inclus avec Pro.",
+          premiumLockedTitle: "Débloquez la préparation Premium",
+          premiumLockedBody:
+            "Premium inclut les examens blancs complets et la pratique linguistique guidée.",
           attempts: "Essais",
           best: "Meilleur score",
           answered: "Questions",
@@ -88,12 +107,24 @@ export default function CitizenshipPracticePage() {
           mock: "Mock exam",
           language: "Language practice",
           progress: "Progress",
+          progressLockedTitle: "Track your progress with Pro",
+          progressLockedBody:
+            "Saved scores, weak themes, and practice history are included with Pro.",
+          premiumLockedTitle: "Unlock Premium preparation",
+          premiumLockedBody:
+            "Premium includes full mock exams and guided language practice.",
           attempts: "Attempts",
           best: "Best score",
           answered: "Questions",
           sections: "Study themes",
         };
   const text = language === "fr" ? normalizeFrenchText(rawText) : rawText;
+  const canTrackProgress = Boolean(access?.can_track_citizenship_progress);
+  const canUsePremiumPractice = Boolean(
+    access?.can_take_citizenship_mock_exam && access?.can_use_language_practice
+  );
+  const proPath = buildProPricingPath("citizenship", "progress");
+  const premiumPath = buildPremiumPricingPath("citizenship", "mock");
 
   if (loading) {
     return (
@@ -121,13 +152,21 @@ export default function CitizenshipPracticePage() {
           </Button>
           <Button
             variant="outlineLight"
-            onClick={() => navigate("/citizenship/quiz?mode=mock")}
+            onClick={() =>
+              navigate(
+                access?.can_take_citizenship_mock_exam
+                  ? "/citizenship/quiz?mode=mock"
+                  : premiumPath
+              )
+            }
           >
             {text.mock}
           </Button>
           <Button
             variant="outlineLight"
-            onClick={() => navigate("/language-practice")}
+            onClick={() =>
+              navigate(access?.can_use_language_practice ? "/language-practice" : premiumPath)
+            }
           >
             {text.language}
           </Button>
@@ -157,7 +196,10 @@ export default function CitizenshipPracticePage() {
                 {guide?.title || text.title}
               </h2>
             </div>
-            <Button variant="secondary" onClick={() => navigate("/citizenship/progress")}>
+            <Button
+              variant="secondary"
+              onClick={() => navigate(canTrackProgress ? "/citizenship/progress" : proPath)}
+            >
               {text.progress}
             </Button>
           </div>
@@ -194,13 +236,37 @@ export default function CitizenshipPracticePage() {
             <Button
               className="w-full"
               variant="secondary"
-              onClick={() => navigate("/language-practice")}
+              onClick={() =>
+                navigate(access?.can_use_language_practice ? "/language-practice" : premiumPath)
+              }
             >
               {text.language}
             </Button>
           </div>
         </Card>
       </section>
+
+      {!canTrackProgress ? (
+        <UpgradePrompt
+          className="mt-5"
+          title={text.progressLockedTitle}
+          body={text.progressLockedBody}
+          buttonLabel={language === "fr" ? "Voir Pro" : "See Pro"}
+          pricingPath={proPath}
+          compact
+        />
+      ) : null}
+
+      {!canUsePremiumPractice ? (
+        <UpgradePrompt
+          className="mt-5"
+          title={text.premiumLockedTitle}
+          body={text.premiumLockedBody}
+          buttonLabel={language === "fr" ? "Voir Premium" : "See Premium"}
+          pricingPath={premiumPath}
+          compact
+        />
+      ) : null}
     </Layout>
   );
 }

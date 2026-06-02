@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
+import UpgradePrompt from "../components/UpgradePrompt";
 import Card from "../components/ui/Card";
-import { getCitizenshipProgress } from "../api";
+import { buildProPricingPath, getCitizenshipProgress, getMyAccess } from "../api";
+import { normalizeFrenchText } from "../utils/frenchText";
 
 function ProgressTile({ label, value }) {
   return (
@@ -34,14 +36,32 @@ export default function CitizenshipProgressPage() {
   const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
   const [progress, setProgress] = useState(null);
+  const [access, setAccess] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getCitizenshipProgress()
-      .then((res) => setProgress(res.data))
-      .catch((err) => console.error(err));
+    let mounted = true;
+    async function load() {
+      try {
+        const accessRes = await getMyAccess();
+        if (!mounted) return;
+        setAccess(accessRes.data);
+        if (!accessRes.data?.can_track_citizenship_progress) return;
+        const progressRes = await getCitizenshipProgress();
+        if (mounted) setProgress(progressRes.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const text =
+  const rawText =
     language === "fr"
       ? {
           title: "Progression citoyenneté",
@@ -65,6 +85,23 @@ export default function CitizenshipProgressPage() {
           weak: "Themes to strengthen",
           empty: "No weak themes yet.",
         };
+  const text = language === "fr" ? normalizeFrenchText(rawText) : rawText;
+  const lockedTitle =
+    language === "fr" ? "La progression est incluse avec Pro" : "Progress tracking is included with Pro";
+  const lockedBody =
+    language === "fr"
+      ? "Passez à Pro pour sauvegarder vos scores, consulter vos thèmes faibles et suivre votre préparation."
+      : "Upgrade to Pro to save scores, review weak themes, and track your preparation.";
+  const lockedCta = language === "fr" ? "Voir Pro" : "See Pro";
+  const proPath = buildProPricingPath("citizenship", "progress");
+
+  if (loading) {
+    return (
+      <Layout>
+        <p className="text-slate-600">{language === "fr" ? "Chargement..." : "Loading..."}</p>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -78,6 +115,17 @@ export default function CitizenshipProgressPage() {
         <p className="mt-2 text-sm text-slate-600">{text.subtitle}</p>
       </div>
 
+      {!access?.can_track_citizenship_progress ? (
+        <UpgradePrompt
+          title={lockedTitle}
+          body={lockedBody}
+          buttonLabel={lockedCta}
+          pricingPath={proPath}
+        />
+      ) : null}
+
+      {access?.can_track_citizenship_progress ? (
+      <>
       <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
         <ProgressTile label={text.attempts} value={progress?.attempts_count || 0} />
         <ProgressTile label={text.best} value={`${progress?.best_score_percent || 0}%`} />
@@ -105,6 +153,8 @@ export default function CitizenshipProgressPage() {
           )}
         </div>
       </Card>
+      </>
+      ) : null}
     </Layout>
   );
 }

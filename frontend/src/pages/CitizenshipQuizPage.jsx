@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
+import UpgradePrompt from "../components/UpgradePrompt";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import {
+  buildPremiumPricingPath,
   getCitizenshipQuestions,
+  getMyAccess,
   submitCitizenshipQuiz,
 } from "../api";
 import { normalizeFrenchText } from "../utils/frenchText";
 
 export default function CitizenshipQuizPage() {
+  const navigate = useNavigate();
   const { i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const language = i18n.language === "fr" ? "fr" : "en";
@@ -19,6 +23,7 @@ export default function CitizenshipQuizPage() {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
+  const [access, setAccess] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -30,6 +35,13 @@ export default function CitizenshipQuizPage() {
         setLoading(true);
         setResult(null);
         setAnswers({});
+        const accessRes = await getMyAccess();
+        if (!mounted) return;
+        setAccess(accessRes.data);
+        if (mode === "mock" && !accessRes.data?.can_take_citizenship_mock_exam) {
+          setQuestions([]);
+          return;
+        }
         const res = await getCitizenshipQuestions({
           language,
           mode,
@@ -108,6 +120,19 @@ export default function CitizenshipQuizPage() {
           answered: "correct answers",
         };
   const text = language === "fr" ? normalizeFrenchText(rawText) : rawText;
+  const premiumPath = buildPremiumPricingPath("citizenship", "mock");
+  const mockLocked = mode === "mock" && !access?.can_take_citizenship_mock_exam;
+  const notSavedText =
+    language === "fr"
+      ? "Passez à Pro pour sauvegarder vos scores et suivre vos thèmes faibles."
+      : "Upgrade to Pro to save scores and track weak themes.";
+  const mockLockedTitle =
+    language === "fr" ? "Examen blanc réservé à Premium" : "Mock exams are Premium";
+  const mockLockedBody =
+    language === "fr"
+      ? "Premium débloque les examens blancs complets de 20 questions et une préparation plus approfondie."
+      : "Premium unlocks full 20-question mock exams and deeper preparation.";
+  const premiumCta = language === "fr" ? "Voir Premium" : "See Premium";
 
   if (loading) {
     return (
@@ -135,6 +160,15 @@ export default function CitizenshipQuizPage() {
         </div>
       ) : null}
 
+      {mockLocked ? (
+        <UpgradePrompt
+          title={mockLockedTitle}
+          body={mockLockedBody}
+          buttonLabel={premiumCta}
+          pricingPath={premiumPath}
+        />
+      ) : null}
+
       {result ? (
         <Card className="mb-5">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
@@ -146,9 +180,25 @@ export default function CitizenshipQuizPage() {
           <p className="mt-2 text-sm text-slate-600">
             {result.correct_answers}/{result.total_questions} {text.answered} - {result.passed ? text.passed : text.keepPracticing}
           </p>
+          {!result.attempt_id && !access?.can_track_citizenship_progress ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p>{notSavedText}</p>
+              <Button
+                className="mt-3"
+                variant="secondary"
+                onClick={() =>
+                  navigate("/pricing?plan=pro&source=citizenship&intent=progress")
+                }
+              >
+                {language === "fr" ? "Voir Pro" : "See Pro"}
+              </Button>
+            </div>
+          ) : null}
         </Card>
       ) : null}
 
+      {!mockLocked ? (
+      <>
       <div className="space-y-4">
         {questions.map((question, index) => {
           const answerResult = result?.answers?.find((item) => item.question_id === question.id);
@@ -208,6 +258,8 @@ export default function CitizenshipQuizPage() {
             {submitting ? "..." : text.submit}
           </Button>
         </div>
+      ) : null}
+      </>
       ) : null}
     </Layout>
   );

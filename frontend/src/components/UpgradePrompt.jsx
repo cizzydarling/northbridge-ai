@@ -15,6 +15,7 @@ export default function UpgradePrompt({
   title,
   body,
   buttonLabel,
+  pricingPath = "/pricing",
   className = "",
   compact = false,
 }) {
@@ -80,7 +81,7 @@ export default function UpgradePrompt({
           <div className="flex shrink-0 items-center gap-3">
             <Button
               variant="premium"
-              onClick={() => navigate("/pricing")}
+              onClick={() => navigate(pricingPath)}
             >
               {defaultButtonLabel}
             </Button>
