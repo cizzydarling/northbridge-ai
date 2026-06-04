@@ -4,6 +4,7 @@ import os
 import smtplib
 import ssl
 from dataclasses import dataclass
+from email.utils import make_msgid
 from email.message import EmailMessage
 from typing import Optional
 from urllib.error import HTTPError, URLError
@@ -58,6 +59,18 @@ def _format_sender() -> str:
 
 def _sender_email() -> str:
     return (os.getenv("BILLING_EMAIL_FROM") or DEFAULT_BILLING_EMAIL).strip()
+
+
+def _sender_domain() -> str:
+    email = _sender_email()
+    return email.split("@", 1)[1] if "@" in email else "northbridgeia.com"
+
+
+def _message_headers() -> dict:
+    return {
+        "Message-ID": make_msgid(domain=_sender_domain()),
+        "X-Entity-Ref-ID": f"{BRAND_NAME.lower()}-transactional",
+    }
 
 
 def _frontend_url() -> str:
@@ -171,6 +184,8 @@ def send_email(
     message["To"] = to_email
     message["Subject"] = subject
     message["Reply-To"] = reply_to or os.getenv("BILLING_EMAIL_REPLY_TO") or DEFAULT_BILLING_EMAIL
+    for key, value in _message_headers().items():
+        message[key] = value
     message.set_content(text_body)
     message.add_alternative(html_body, subtype="html")
 
@@ -217,6 +232,7 @@ def _send_email_with_resend(
         "html": html_body,
         "text": text_body,
         "reply_to": reply_to or os.getenv("BILLING_EMAIL_REPLY_TO") or _sender_email(),
+        "headers": _message_headers(),
     }
 
     request = Request(

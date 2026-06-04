@@ -175,7 +175,9 @@ function ComparisonValue({ value, emphasized = false, language = "en" }) {
     return (
       <span
         className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold ${
-          emphasized ? "bg-slate-950 text-white" : "bg-emerald-50 text-emerald-700"
+          emphasized
+            ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+            : "border border-emerald-100 bg-emerald-50 text-emerald-700"
         }`}
       >
         {language === "fr" ? "Oui" : "Yes"}
@@ -185,7 +187,7 @@ function ComparisonValue({ value, emphasized = false, language = "en" }) {
 
   if (normalized === "no" || normalized === "non") {
     return (
-      <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+      <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500">
         {language === "fr" ? "Non" : "No"}
       </span>
     );
@@ -193,7 +195,7 @@ function ComparisonValue({ value, emphasized = false, language = "en" }) {
 
   if (normalized === "limited" || normalized === "limite" || normalized === "limité") {
     return (
-      <span className="inline-flex rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+      <span className="inline-flex rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
         {language === "fr" ? "Limité" : "Limited"}
       </span>
     );
@@ -202,7 +204,9 @@ function ComparisonValue({ value, emphasized = false, language = "en" }) {
   return (
     <span
       className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold ${
-        emphasized ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
+        emphasized
+          ? "border border-amber-200 bg-amber-50 text-amber-800"
+          : "border border-slate-200 bg-slate-50 text-slate-600"
       }`}
     >
       {value}
@@ -1627,23 +1631,23 @@ export default function PricingPage() {
         language={language}
       />
 
-      <SurfaceCard className="mt-6">
+      <SurfaceCard className="mt-6 border-slate-200 bg-slate-50">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           {text.comparisonTitle}
         </p>
-        <div className="mt-5 overflow-x-auto rounded-lg border border-slate-200">
+        <div className="mt-5 overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <div className="min-w-[720px]">
-            <div className="grid grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr] bg-slate-50">
-              <div className="px-4 py-4 text-sm font-semibold text-slate-600">
+            <div className="grid grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr] bg-[#172033]">
+              <div className="px-4 py-4 text-sm font-semibold text-white/75">
                 {text.includedFeatures}
               </div>
-              <div className="px-4 py-4 text-sm font-semibold text-slate-600">
+              <div className="px-4 py-4 text-sm font-semibold text-white/75">
                 {text.freeTitle}
               </div>
-              <div className="px-4 py-4 text-sm font-semibold text-slate-950">
+              <div className="bg-white/8 px-4 py-4 text-sm font-semibold text-white">
                 {text.proTitle}
               </div>
-              <div className="px-4 py-4 text-sm font-semibold text-slate-600">
+              <div className="px-4 py-4 text-sm font-semibold text-amber-200">
                 {text.premiumTitle}
               </div>
             </div>
@@ -1662,10 +1666,10 @@ export default function PricingPage() {
                 <div className="px-4 py-4 text-sm text-slate-700">
                   <ComparisonValue value={row.free} language={language} />
                 </div>
-                <div className="bg-stone-50 px-4 py-4 text-sm text-slate-700">
+                <div className="bg-emerald-50/55 px-4 py-4 text-sm text-slate-700">
                   <ComparisonValue value={row.pro} emphasized language={language} />
                 </div>
-                <div className="px-4 py-4 text-sm text-slate-700">
+                <div className="bg-amber-50/45 px-4 py-4 text-sm text-slate-700">
                   <ComparisonValue value={row.premium} emphasized language={language} />
                 </div>
               </div>

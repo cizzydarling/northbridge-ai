@@ -106,7 +106,7 @@ export default function CitizenshipQuizPage() {
           format:
             mode === "mock"
               ? "Format IRCC: 20 questions, 45 minutes, 15 bonnes réponses pour réussir."
-              : "Quiz de pratique avec questions aléatoires.",
+              : "Quiz de pratique court avec 10 questions aléatoires. Premium débloque l'examen blanc complet de 20 questions.",
           submit: "Corriger le quiz",
           score: "Score",
           passed: "Réussi",
@@ -120,7 +120,7 @@ export default function CitizenshipQuizPage() {
           format:
             mode === "mock"
               ? "IRCC format: 20 questions, 45 minutes, 15 correct answers to pass."
-              : "Practice quiz with randomized questions.",
+              : "Short 10-question practice quiz. Premium unlocks the full 20-question mock exam.",
           submit: "Grade quiz",
           score: "Score",
           passed: "Passed",

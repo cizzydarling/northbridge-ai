@@ -7,6 +7,7 @@ import Button from "../components/ui/Button";
 import {
   acceptDisclosure,
   getLatestDisclosureAcceptance,
+  refreshCurrentUser,
 } from "../api";
 import { REQUIRED_DISCLOSURES } from "../data/legalDisclosures";
 
@@ -159,7 +160,13 @@ export default function DisclosureAcceptancePage() {
         });
       }
 
+      try {
+        await refreshCurrentUser();
+      } catch (err) {
+        console.warn("Unable to refresh user after disclosure acceptance", err);
+      }
       window.dispatchEvent(new Event("nbai-disclosures-accepted"));
+      window.dispatchEvent(new Event("nbai-bootstrap-refresh"));
       navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error(err);

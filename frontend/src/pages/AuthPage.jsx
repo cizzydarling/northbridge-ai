@@ -83,7 +83,16 @@ export default function AuthPage() {
 
     setLoading(true);
     confirmEmail(confirmToken)
-      .then(() => {
+      .then(async () => {
+        if (localStorage.getItem("token")) {
+          try {
+            await refreshCurrentUser();
+            window.dispatchEvent(new Event("nbai-auth-state-refresh"));
+            window.dispatchEvent(new Event("nbai-bootstrap-refresh"));
+          } catch (err) {
+            console.warn("Unable to refresh user after email confirmation", err);
+          }
+        }
         setMessage(
           i18n.language === "fr"
             ? "Email confirme. Vous pouvez vous connecter."

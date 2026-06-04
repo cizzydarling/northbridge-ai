@@ -256,15 +256,15 @@ function CategoryNavButton({ active, label, count, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-lg border px-4 py-3.5 text-left text-sm transition ${
+      className={`grid w-full grid-cols-[1fr_auto] items-start gap-3 rounded-lg border px-4 py-3.5 text-left text-sm transition ${
         active
           ? "border-amber-200 bg-amber-50 font-semibold text-slate-950 shadow-sm"
           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
       }`}
     >
-      <span className="min-w-0 truncate">{label}</span>
+      <span className="min-w-0 whitespace-normal break-words leading-5">{label}</span>
       <span
-        className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+        className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold ${
           active ? "bg-white text-amber-800" : "bg-slate-100 text-slate-500"
         }`}
       >
@@ -1964,10 +1964,27 @@ export default function SelfDocumentsPage() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[310px_minmax(0,1fr)]">
         <div className="space-y-6">
-          <Card padding="lg" className="xl:sticky xl:top-24 xl:h-fit">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {text.navTitle}
-            </p>
+          <aside className="rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_14px_45px_rgba(15,23,42,0.06)] xl:sticky xl:top-24 xl:h-fit">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  {text.navTitle}
+                </p>
+                <h3 className="mt-2 text-lg font-semibold tracking-tight text-slate-950">
+                  {text.sectionLabel}
+                </h3>
+              </div>
+              <span className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                {overallProgress}%
+              </span>
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-emerald-600 transition-all"
+                style={{ width: `${Math.max(0, Math.min(100, overallProgress))}%` }}
+              />
+            </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:hidden">
               {groupedDocuments.map((group) => (
@@ -1982,8 +1999,10 @@ export default function SelfDocumentsPage() {
                   }`}
                 >
                   <span className="flex items-center justify-between gap-3">
-                    <span className="truncate">{group.label}</span>
-                    <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                    <span className="min-w-0 whitespace-normal break-words leading-5">
+                      {group.label}
+                    </span>
+                    <span className="shrink-0 rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
                       {group.documents.length}
                     </span>
                   </span>
@@ -2002,7 +2021,7 @@ export default function SelfDocumentsPage() {
                 />
               ))}
             </div>
-          </Card>
+          </aside>
         </div>
 
         <div className="space-y-6">

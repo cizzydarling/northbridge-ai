@@ -7,6 +7,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import LockBadge from "../components/ui/LockBadge";
 import UpgradePrompt from "../components/UpgradePrompt";
+import { translateStrategySummary } from "../utils/frenchLocalization";
 import {
   exportMyStrategyPdf,
   getBillingAccess,
@@ -2775,8 +2776,10 @@ const confidenceTone =
 const heroTimelinePreview = getTimelineLabel(timelineValue, language);
 
   const heroSummary =
-    strategy?.strategy_headline ||
-    strategy?.advisor_summary ||
+    translateStrategySummary(
+      strategy?.strategy_headline || strategy?.advisor_summary,
+      language
+    ) ||
     (language === "fr"
       ? "Votre stratégie est basée sur votre profil et vos opportunités actuelles."
       : "Your strategy is built from your profile and current opportunities.");

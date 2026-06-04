@@ -526,7 +526,7 @@ export default function SelfDashboardPage() {
         language === "fr"
           ? "Préparez le test de citoyenneté et pratiquez l'anglais ou le français."
           : "Prepare for the citizenship test and practice English or French.",
-      path: "/career-match",
+      path: "/citizenship",
       locked: false,
     },
     {
@@ -535,7 +535,7 @@ export default function SelfDashboardPage() {
         language === "fr"
           ? "Comparez votre profil aux provinces, emplois, salaires et voies d'immigration."
           : "Match your profile with provinces, job openings, wage data, and immigration pathways.",
-      path: "/citizenship",
+      path: "/career-match",
       locked: false,
     },
   ];
@@ -771,7 +771,7 @@ export default function SelfDashboardPage() {
                   key={`${program}-${index}`}
                   className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm"
                 >
-                  {program}
+                  {translateProgramLabel(program, language)}
                 </div>
               )
             )}

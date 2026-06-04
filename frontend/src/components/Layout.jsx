@@ -325,11 +325,15 @@ export default function Layout({ children }) {
     }
 
     window.addEventListener("focus", refreshUserOnReturn);
+    window.addEventListener("nbai-auth-state-refresh", refreshUserOnReturn);
+    window.addEventListener("nbai-bootstrap-refresh", refreshUserOnReturn);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       mounted = false;
       window.removeEventListener("focus", refreshUserOnReturn);
+      window.removeEventListener("nbai-auth-state-refresh", refreshUserOnReturn);
+      window.removeEventListener("nbai-bootstrap-refresh", refreshUserOnReturn);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
