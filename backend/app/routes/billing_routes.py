@@ -1029,15 +1029,24 @@ def create_promo_code(
     return _promo_code_payload(promo_code)
 
 
-@router.patch("/admin/promo-codes/{promo_code_id}")
+@router.patch("/admin/promo-codes/{promo_code_identifier}")
 def update_promo_code(
-    promo_code_id: int,
+    promo_code_identifier: str,
     payload: PromoCodeUpdateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     del current_user
-    promo_code = db.query(PromoCode).filter(PromoCode.id == promo_code_id).first()
+    identifier = str(promo_code_identifier or "").strip()
+    promo_code = None
+
+    if identifier.isdigit():
+        promo_code = db.query(PromoCode).filter(PromoCode.id == int(identifier)).first()
+
+    if not promo_code:
+        normalized_code = normalize_promo_code(identifier)
+        promo_code = db.query(PromoCode).filter(PromoCode.code == normalized_code).first()
+
     if not promo_code:
         raise HTTPException(status_code=404, detail="Access code not found.")
 

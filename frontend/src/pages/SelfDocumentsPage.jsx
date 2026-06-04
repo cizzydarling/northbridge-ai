@@ -222,16 +222,18 @@ function getCategoryLabel(category, language) {
 
 function PageHeader({ brand, title, subtitle }) {
   return (
-    <div className="mb-6 max-w-3xl">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
-        {brand}
-      </p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-        {title}
-      </h1>
-      <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
-        {subtitle}
-      </p>
+    <div className="mb-6 overflow-hidden rounded-lg border border-slate-900/10 bg-[#172033] px-5 py-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] sm:px-6">
+      <div className="max-w-3xl">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+          {brand}
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white md:text-4xl">
+          {title}
+        </h1>
+        <p className="mt-3 text-sm leading-7 text-white/72 md:text-base">
+          {subtitle}
+        </p>
+      </div>
     </div>
   );
 }

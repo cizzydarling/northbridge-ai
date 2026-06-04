@@ -1,5 +1,5 @@
 import StrategyProgressCard from "../components/StrategyProgressCard";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -17,6 +17,8 @@ import {
 } from "../api";
 
 const COMPLETION_STORAGE_KEY = "nbai_document_completion_engine_v1";
+const LIVE_INTELLIGENCE_REFRESH_MS = 15 * 60 * 1000;
+const LIVE_INTELLIGENCE_RETURN_REFRESH_MS = 5 * 60 * 1000;
 
 function readCompletionEngine() {
   try {
@@ -2127,6 +2129,7 @@ export default function StrategyPage() {
   const [drawerInput, setDrawerInput] = useState("");
   const [drawerError, setDrawerError] = useState("");
   const [aiMode, setAiMode] = useState("general");
+  const liveIntelligenceRefreshRef = useRef(0);
   
 
   useEffect(() => {
@@ -2675,6 +2678,68 @@ export default function StrategyPage() {
       access?.is_premium ||
       immigrationIntelligence?.locked === false
   );
+
+  useEffect(() => {
+    if (!hasPremiumIntelligence) return undefined;
+
+    let cancelled = false;
+
+    async function refreshLiveIntelligence({ force = false } = {}) {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+
+      const now = Date.now();
+      if (
+        !force &&
+        now - liveIntelligenceRefreshRef.current < LIVE_INTELLIGENCE_RETURN_REFRESH_MS
+      ) {
+        return;
+      }
+
+      liveIntelligenceRefreshRef.current = now;
+
+      try {
+        const res = await getImmigrationIntelligence(language);
+        if (cancelled || !res?.data) return;
+
+        setData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            immigration_intelligence: res.data,
+            access: {
+              ...(prev.access || {}),
+              ...(res.data.access || {}),
+            },
+          };
+        });
+      } catch (err) {
+        console.warn("Live immigration intelligence refresh failed", err);
+      }
+    }
+
+    const intervalId = window.setInterval(
+      () => refreshLiveIntelligence(),
+      LIVE_INTELLIGENCE_REFRESH_MS
+    );
+
+    function handleVisibleRefresh() {
+      if (document.visibilityState === "visible") {
+        refreshLiveIntelligence();
+      }
+    }
+
+    window.addEventListener("focus", refreshLiveIntelligence);
+    document.addEventListener("visibilitychange", handleVisibleRefresh);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshLiveIntelligence);
+      document.removeEventListener("visibilitychange", handleVisibleRefresh);
+    };
+  }, [hasPremiumIntelligence, language]);
 
   const bestPathwayName =
     strategy?.best_pathway?.name ||

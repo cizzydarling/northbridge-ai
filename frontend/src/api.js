@@ -476,8 +476,11 @@ export const getAdminPromoCodes = () =>
 export const createAdminPromoCode = (payload) =>
   api.post("/billing/admin/promo-codes", payload);
 
-export const updateAdminPromoCode = (promoCodeId, payload) =>
-  api.patch(`/billing/admin/promo-codes/${promoCodeId}`, payload);
+export const updateAdminPromoCode = (promoCodeIdentifier, payload) =>
+  api.patch(
+    `/billing/admin/promo-codes/${encodeURIComponent(promoCodeIdentifier)}`,
+    payload
+  );
 
 /* =========================
    PERSONAL PROFILE

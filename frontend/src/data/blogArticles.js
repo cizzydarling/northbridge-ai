@@ -867,6 +867,185 @@ export const blogArticles = [
     ctaBody:
       "Create your profile, generate a strategy, organize documents, and use AI guidance to move with more clarity.",
   },
+  {
+    slug: "express-entry-category-based-selection-2026",
+    title: "Express Entry Category-Based Selection: How Applicants Should Read the 2026 Categories",
+    description:
+      "A practical guide to Canada's Express Entry category-based selection and how applicants can connect category fit, CRS, documents, and timing.",
+    category: "Express Entry strategy",
+    readTime: "5 min read",
+    publishedAt: "2026-06-04",
+    displayDate: "June 4, 2026",
+    keywords: [
+      "Express Entry category-based selection 2026",
+      "Canada Express Entry categories",
+      "category based draws Canada",
+      "NorthBridgeAI Express Entry strategy",
+    ],
+    summaryBullets: [
+      "Category-based selection does not replace CRS; it adds targeted rounds for candidates who meet specific economic goals.",
+      "Applicants should connect category eligibility to NOC, language, work history, and document readiness.",
+      "A strong plan should monitor categories while still improving profile quality and application consistency.",
+    ],
+    sourceLinks: [
+      {
+        label: "IRCC - Express Entry category-based selection",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/rounds-invitations/category-based-selection.html",
+      },
+      {
+        label: "IRCC - rounds of invitations",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/rounds-invitations.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "Categories are a filter, not a guarantee",
+        paragraphs: [
+          "IRCC uses category-based rounds to invite candidates in the Express Entry pool who meet an economic goal, such as French-language ability, certain occupations, education, transport, healthcare, STEM, trades, or other listed categories.",
+          "That does not mean every person in a category will receive an invitation. Candidates still need to be eligible, remain in the pool, and compete within the round that applies to them.",
+        ],
+      },
+      {
+        heading: "Category fit depends on evidence",
+        paragraphs: [
+          "A category strategy should start with proof, not hope. Applicants should review their NOC, duties, language results, education, work dates, and supporting records before assuming they fit a targeted draw.",
+          "This is where a structured workspace helps. If your profile, documents, and strategy are connected, it is easier to identify which category signals are strong and which need review.",
+        ],
+      },
+      {
+        heading: "Keep improving while you monitor draws",
+        paragraphs: [
+          "Category-based selection can improve the realism of a pathway, but applicants should still strengthen CRS, prepare documents, and track official draw updates.",
+          "NorthBridgeAI is designed to help applicants connect those moving parts so they can see whether the next best move is profile improvement, document preparation, category monitoring, or provincial targeting.",
+        ],
+      },
+    ],
+    ctaTitle: "Map your category fit before the next draw",
+    ctaBody:
+      "Use NorthBridgeAI to connect your NOC, CRS, pathway signals, documents, and next steps in one strategy workspace.",
+  },
+  {
+    slug: "canada-immigration-processing-times-explained",
+    title: "Canada Immigration Processing Times: What Applicants Should and Should Not Assume",
+    description:
+      "IRCC processing times are useful planning signals, but they are not personal guarantees. Here is how to use them without overreading them.",
+    category: "Application planning",
+    readTime: "4 min read",
+    publishedAt: "2026-06-04",
+    displayDate: "June 4, 2026",
+    keywords: [
+      "Canada immigration processing times",
+      "IRCC processing times",
+      "Canadian visa processing time",
+      "NorthBridgeAI application planning",
+    ],
+    summaryBullets: [
+      "IRCC processing times can be historical or forward-looking, depending on the application type.",
+      "The posted time is a planning reference, not a promise for a specific file.",
+      "Applicants should keep documents, timelines, and response readiness organized while they wait.",
+    ],
+    sourceLinks: [
+      {
+        label: "IRCC - check processing times",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html",
+      },
+      {
+        label: "IRCC Help Centre - how processing times are calculated",
+        url: "https://ircc.canada.ca/english/helpcentre/answer.asp?qnum=68",
+      },
+      {
+        label: "IRCC Help Centre - processing times vs service standards",
+        url: "https://ircc.canada.ca/english/helpcentre/answer.asp?qnum=535",
+      },
+    ],
+    sections: [
+      {
+        heading: "Processing times are planning signals",
+        paragraphs: [
+          "IRCC explains that some processing times are based on how long most completed applications took in the past, while others estimate how long a new application may take based on current inventory and processing capacity.",
+          "That makes processing times useful, but not absolute. A specific file can move faster or slower depending on completeness, verification, program volume, requests for more information, and other case-specific factors.",
+        ],
+      },
+      {
+        heading: "The practical question is readiness",
+        paragraphs: [
+          "Applicants cannot control every timing factor, but they can control organization. A complete application, consistent forms, clear documents, and fast responses to requests can reduce avoidable delays.",
+          "A workspace approach helps because the waiting period is still active work. You may need to update addresses, track document expiry, prepare follow-up evidence, or plan the next pathway if circumstances change.",
+        ],
+      },
+      {
+        heading: "Use live timing with caution",
+        paragraphs: [
+          "The best practice is to check official processing times close to decision points and avoid relying on old screenshots or second-hand averages.",
+          "NorthBridgeAI can help users keep timing in context by connecting processing signals to the pathway, documents, and next actions instead of treating one posted number as the whole strategy.",
+        ],
+      },
+    ],
+    ctaTitle: "Turn timing uncertainty into a cleaner plan",
+    ctaBody:
+      "Use NorthBridgeAI to organize documents, next steps, and pathway timing in one immigration workspace.",
+  },
+  {
+    slug: "provincial-nominee-program-express-entry-readiness",
+    title: "Provincial Nominee Program and Express Entry: How to Prepare Before a Nomination",
+    description:
+      "A practical PNP readiness guide for applicants comparing provincial fit, Express Entry eligibility, documents, and timing.",
+    category: "Provincial pathways",
+    readTime: "5 min read",
+    publishedAt: "2026-06-04",
+    displayDate: "June 4, 2026",
+    keywords: [
+      "Provincial Nominee Program Express Entry",
+      "PNP Canada documents",
+      "Express Entry provincial nomination",
+      "NorthBridgeAI PNP strategy",
+    ],
+    summaryBullets: [
+      "PNP readiness starts with both provincial eligibility and Express Entry eligibility when using an Express Entry aligned stream.",
+      "Applicants should prepare proof for NOC, work history, settlement intent, identity, language, education, and funds where relevant.",
+      "A provincial strategy should compare fit before the applicant spends energy on the wrong stream.",
+    ],
+    sourceLinks: [
+      {
+        label: "IRCC - PNP Express Entry process",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/provincial-nominees/express-entry.html",
+      },
+      {
+        label: "IRCC - who can apply as a provincial nominee through Express Entry",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/provincial-nominees/express-entry/eligibility.html",
+      },
+      {
+        label: "IRCC - non-Express Entry PNP documents",
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/provincial-nominees/non-express-entry/documents.html",
+      },
+    ],
+    sections: [
+      {
+        heading: "PNP fit is more than choosing a province",
+        paragraphs: [
+          "A provincial nomination can be powerful, but the right stream depends on occupation, job offer, work history, education, language, settlement intent, and provincial criteria.",
+          "For Express Entry aligned PNP streams, applicants also need to remain eligible for an Express Entry program. The provincial and federal sides should be checked together.",
+        ],
+      },
+      {
+        heading: "Documents should be prepared before pressure arrives",
+        paragraphs: [
+          "PNP opportunities can move quickly. Applicants should keep identity documents, language results, education records, employment proof, settlement evidence, and province-specific documents organized before a nomination or invitation creates a deadline.",
+          "This does not mean every person needs the same package. It means the applicant should understand which documents support their province, NOC, job history, and pathway logic.",
+        ],
+      },
+      {
+        heading: "Compare realistic pathways",
+        paragraphs: [
+          "A good PNP strategy compares multiple provinces and streams, then prioritizes the ones that match the applicant's real profile. Chasing every province at once usually creates confusion.",
+          "NorthBridgeAI helps applicants think through provincial fit, Express Entry strategy, document readiness, and next actions in a single case workspace.",
+        ],
+      },
+    ],
+    ctaTitle: "Compare provincial fit before you commit",
+    ctaBody:
+      "Use NorthBridgeAI to review PNP signals, documents, and Express Entry readiness before you spend time on the wrong path.",
+  },
 ];
 
 const blogTranslationsFr = {

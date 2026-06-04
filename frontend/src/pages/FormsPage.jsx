@@ -44,21 +44,21 @@ function buildPremiumPricingPath(source = "forms", intent = "export") {
 
 function PageHeader({ brand, title, subtitle }) {
   return (
-    <div className="mb-6 border-b border-slate-200 pb-5">
+    <div className="mb-6 overflow-hidden rounded-lg border border-slate-900/10 bg-[#172033] px-5 py-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] sm:px-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200">
             {brand}
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white md:text-4xl">
             {title}
           </h1>
-          <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
+          <p className="mt-3 text-sm leading-7 text-white/72 md:text-base">
             {subtitle}
           </p>
         </div>
 
-        <div className="hidden h-px min-w-[180px] bg-slate-300 lg:block" />
+        <div className="hidden h-px min-w-[180px] bg-white/20 lg:block" />
       </div>
     </div>
   );

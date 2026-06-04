@@ -107,6 +107,22 @@ function SelectInput(props) {
   );
 }
 
+function formatErrorDetail(detail, fallback) {
+  if (!detail) return fallback;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => item?.msg || item?.message || JSON.stringify(item))
+      .filter(Boolean)
+      .join(" ");
+  }
+  return detail?.message || detail?.msg || fallback;
+}
+
+function getPromoCodeIdentifier(code) {
+  return code?.id || code?.promo_code_id || code?.promoCodeId || code?.code_id || null;
+}
+
 export default function AdminPromoCodesPage() {
   const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
@@ -155,6 +171,8 @@ export default function AdminPromoCodesPage() {
             starterSuccess: "Codes fondateurs créés ou déjà présents.",
             loadError: "Impossible de charger les codes.",
             saveError: "Impossible d'enregistrer le code.",
+            missingIdentifier:
+              "Ce code n'a pas d'identifiant administratif. Redeployez l'API ou recreez le code avant de le desactiver.",
           }
         : {
             title: "Promo codes",
@@ -188,6 +206,8 @@ export default function AdminPromoCodesPage() {
             starterSuccess: "Founder codes created or already present.",
             loadError: "Unable to load codes.",
             saveError: "Unable to save code.",
+            missingIdentifier:
+              "This code is missing an admin identifier. Deploy the API update or recreate the code before deactivating it.",
           },
     [language]
   );
@@ -241,7 +261,7 @@ export default function AdminPromoCodesPage() {
       await loadCodes();
     } catch (err) {
       console.error(err);
-      setError(err?.response?.data?.detail || text.saveError);
+      setError(formatErrorDetail(err?.response?.data?.detail, text.saveError));
     } finally {
       setSaving(false);
     }
@@ -271,7 +291,7 @@ export default function AdminPromoCodesPage() {
       await loadCodes();
     } catch (err) {
       console.error(err);
-      setError(err?.response?.data?.detail || text.saveError);
+      setError(formatErrorDetail(err?.response?.data?.detail, text.saveError));
     } finally {
       setStarterSaving(false);
     }
@@ -282,11 +302,16 @@ export default function AdminPromoCodesPage() {
     setError("");
 
     try {
-      await updateAdminPromoCode(code.id, { active: !code.active });
+      const identifier = getPromoCodeIdentifier(code);
+      if (!identifier) {
+        setError(text.missingIdentifier);
+        return;
+      }
+      await updateAdminPromoCode(identifier, { active: !code.active });
       await loadCodes();
     } catch (err) {
       console.error(err);
-      setError(err?.response?.data?.detail || text.saveError);
+      setError(formatErrorDetail(err?.response?.data?.detail, text.saveError));
     }
   }
 

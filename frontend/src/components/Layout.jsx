@@ -495,7 +495,12 @@ export default function Layout({ children }) {
     : [
         { label: t("nav.dashboard"), path: "/dashboard", icon: "dashboard" },
         { label: t("nav.strategy"), path: "/strategy", icon: "strategy" },
-        { label: language === "fr" ? "Documents" : "Documents", path: "/documents", icon: "documents" },
+        {
+          label: language === "fr" ? "Documents" : "Documents",
+          path: "/documents",
+          icon: "documents",
+          exact: true,
+        },
         { label: t("layout.myApplication"), path: "/self/application", icon: "application" },
       ];
 
@@ -571,9 +576,12 @@ export default function Layout({ children }) {
     }
   }
 
-  function isActive(path) {
+  function isActive(path, exact = false) {
     if (path === "/dashboard") {
       return location.pathname === "/dashboard" || location.pathname === "/";
+    }
+    if (exact) {
+      return location.pathname === path;
     }
     return location.pathname === path || location.pathname.startsWith(path + "/");
   }
@@ -665,7 +673,7 @@ export default function Layout({ children }) {
                     <SidebarLink
                       key={item.path}
                       item={item}
-                      active={isActive(item.path)}
+                      active={isActive(item.path, item.exact)}
                       onClick={() => goTo(item.path)}
                     />
                   ))}
@@ -681,7 +689,7 @@ export default function Layout({ children }) {
                     <SidebarLink
                       key={item.path}
                       item={item}
-                      active={isActive(item.path)}
+                      active={isActive(item.path, item.exact)}
                       onClick={() => goTo(item.path)}
                     />
                   ))}
@@ -959,7 +967,7 @@ export default function Layout({ children }) {
                   {primaryNavItems.map((item) => (
                     <MobileNavButton
                       key={item.path}
-                      active={isActive(item.path)}
+                      active={isActive(item.path, item.exact)}
                       onClick={() => goTo(item.path)}
                     >
                       {item.label}
@@ -974,7 +982,7 @@ export default function Layout({ children }) {
                   {toolsItems.map((item) => (
                     <MobileNavButton
                       key={item.path}
-                      active={isActive(item.path)}
+                      active={isActive(item.path, item.exact)}
                       onClick={() => goTo(item.path)}
                     >
                       {item.label}
