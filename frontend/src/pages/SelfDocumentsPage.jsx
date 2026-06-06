@@ -258,14 +258,14 @@ function CategoryNavButton({ active, label, count, onClick }) {
       onClick={onClick}
       className={`grid w-full grid-cols-[1fr_auto] items-start gap-3 rounded-lg border px-4 py-3.5 text-left text-sm transition ${
         active
-          ? "border-amber-200 bg-amber-50 font-semibold text-slate-950 shadow-sm"
-          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+          ? "border-amber-300 bg-amber-300/12 font-semibold text-white shadow-sm"
+          : "border-white/10 bg-white/[0.04] text-slate-300 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
       }`}
     >
       <span className="min-w-0 whitespace-normal break-words leading-5">{label}</span>
       <span
         className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold ${
-          active ? "bg-white text-amber-800" : "bg-slate-100 text-slate-500"
+          active ? "bg-amber-300 text-slate-950" : "bg-white/10 text-slate-300"
         }`}
       >
         {count}
@@ -430,7 +430,7 @@ function DocumentCard({
   return (
     <Card
       padding="lg"
-      className={`h-full transition hover:shadow-md ${
+      className={`h-full border-slate-200 bg-gradient-to-br from-white via-slate-50 to-amber-50/35 shadow-[0_18px_55px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(15,23,42,0.12)] ${
         isHighlighted
           ? "border-blue-300 bg-blue-50/80 ring-2 ring-blue-200 shadow-lg"
           : isCriticalFamilyRequirement && !state.completed
@@ -438,7 +438,7 @@ function DocumentCard({
           : ""
       }`}
     >
-      <div className="flex h-full flex-col justify-between">
+      <div className="grid h-full gap-6 md:grid-cols-[minmax(0,1fr)_240px] md:items-start">
         <div>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -484,7 +484,7 @@ function DocumentCard({
           )}
         </div>
 
-        <div className="mt-5 space-y-2.5">
+        <div className="space-y-2.5 rounded-xl border border-slate-200 bg-white/80 p-3 shadow-inner shadow-slate-200/60">
           <div className="grid gap-2 sm:grid-cols-2">
             <Button variant="primary" onClick={onGenerate} className="w-full justify-center">
               {text.generate}
@@ -563,8 +563,13 @@ function PathwayBanner({ pathway, strategy, activeCaseId, language }) {
   const pathwayName = getStrategyPathwayName(strategy, pathway);
   const crsScore = strategy?.crs_score;
   const nocLabel = getStrategyNocLabel(strategy);
+  const bannerItems = [
+    [language === "fr" ? "Score CRS" : "CRS Score", crsScore],
+    [language === "fr" ? "CNP" : "NOC", nocLabel],
+    [language === "fr" ? "Parcours" : "Pathway", pathwayName],
+  ].filter(([, value]) => value !== null && typeof value !== "undefined" && value !== "");
 
-  if (!pathwayName && !crsScore && !nocLabel && !activeCaseId) return null;
+  if (!bannerItems.length) return null;
 
   const text =
     language === "fr"
@@ -573,18 +578,12 @@ function PathwayBanner({ pathway, strategy, activeCaseId, language }) {
           title: "Votre dossier documentaire est aligné à votre stratégie",
           body:
             "Utilisez ces signaux pour prioriser les documents qui renforcent le parcours, le CNP et la préparation du dossier.",
-          score: "Score CRS",
-          noc: "CNP",
-          pathway: "Parcours",
         }
       : {
           eyebrow: activeCaseId ? "Active application" : "Document workspace",
           title: "Your document file is aligned to your strategy",
           body:
             "Use these signals to prioritize documents that support the pathway, NOC, and case readiness.",
-          score: "CRS Score",
-          noc: "NOC",
-          pathway: "Pathway",
         };
 
   return (
@@ -604,11 +603,7 @@ function PathwayBanner({ pathway, strategy, activeCaseId, language }) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[520px]">
-          {[
-            [text.score, crsScore],
-            [text.noc, nocLabel],
-            [text.pathway, pathwayName],
-          ].map(([label, value]) => (
+          {bannerItems.map(([label, value]) => (
             <div
               key={label}
               className="rounded-lg border border-white/10 bg-white/[0.07] px-4 py-3"
@@ -1647,24 +1642,28 @@ export default function SelfDocumentsPage() {
     <Layout>
       <PageHeader brand={text.brand} title={text.title} subtitle={text.subtitle} />
 
-      <PathwayBanner
-        pathway={pathway}
-        strategy={strategy}
-        activeCaseId={activeCaseId}
-        language={language}
-      />
+      {!isPremium && (
+        <PathwayBanner
+          pathway={pathway}
+          strategy={strategy}
+          activeCaseId={activeCaseId}
+          language={language}
+        />
+      )}
 
-      <FirstRunHero
-        isPro={isPro}
-        isPremium={isPremium}
-        text={text}
-        onPrimary={() =>
-          firstIncompleteDoc
-            ? handleOpenGenerator(firstIncompleteDoc.id)
-            : navigate("/documents/generator")
-        }
-        onSecondary={() => setAiDrawerOpen(true)}
-      />
+      {!isPremium && (
+        <FirstRunHero
+          isPro={isPro}
+          isPremium={isPremium}
+          text={text}
+          onPrimary={() =>
+            firstIncompleteDoc
+              ? handleOpenGenerator(firstIncompleteDoc.id)
+              : navigate("/documents/generator")
+          }
+          onSecondary={() => setAiDrawerOpen(true)}
+        />
+      )}
 
       {!isPro && (
         <UpgradePrompt
@@ -1675,6 +1674,7 @@ export default function SelfDocumentsPage() {
         />
       )}
 
+      {!isPremium && (
       <div className="mb-6 mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <SummaryStatCard label={text.total} value={stats.total} />
         <SummaryStatCard label={text.drafted} value={stats.drafted} />
@@ -1682,8 +1682,9 @@ export default function SelfDocumentsPage() {
         <SummaryStatCard label={text.completed} value={stats.completed} />
         <ProgressBadge value={overallProgress} text={text} />
       </div>
+      )}
 
-      {familyRequirements.filter((item) => {
+      {!isPremium && familyRequirements.filter((item) => {
         const state = getDocumentState(engine, item.id);
         return !state.completed;
       }).length > 0 && (
@@ -1712,6 +1713,7 @@ export default function SelfDocumentsPage() {
         </Card>
       )}
 
+      {!isPremium && (
       <Card
         padding="md"
         className={`mb-6 transition-all duration-300 hover:shadow-md ${
@@ -1755,8 +1757,9 @@ export default function SelfDocumentsPage() {
           </Button>
         </div>
       </Card>
+      )}
 
-      {criticalGaps.length > 0 && (
+      {!isPremium && criticalGaps.length > 0 && (
         <Card
           padding="md"
           className="mb-6 border-red-200 bg-red-50/60 transition-all duration-300 hover:shadow-md"
@@ -1789,6 +1792,7 @@ export default function SelfDocumentsPage() {
         </Card>
       )}
 
+      {!isPremium && (
       <Card
         padding="lg"
         className={`mb-6 ${
@@ -1905,8 +1909,9 @@ export default function SelfDocumentsPage() {
         </div>
       ) : null}
       </Card>
+      )}
 
-      {suggestedAction?.target && (
+      {!isPremium && suggestedAction?.target && (
         <Card
           padding="md"
           className="mb-6 border-blue-200 bg-gradient-to-r from-blue-50 to-white"
@@ -1946,6 +1951,7 @@ export default function SelfDocumentsPage() {
         </Card>
       )}
 
+      {!isPremium && (
       <NextStepCard
         text={text}
         firstIncompleteDoc={firstIncompleteDoc}
@@ -1961,27 +1967,28 @@ export default function SelfDocumentsPage() {
             : navigate("/documents/review")
         }
       />
+      )}
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[310px_minmax(0,1fr)]">
         <div className="space-y-6">
-          <aside className="rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_14px_45px_rgba(15,23,42,0.06)] xl:sticky xl:top-24 xl:h-fit">
+          <aside className="rounded-lg border border-slate-800 bg-[#172033] p-4 text-white shadow-[0_18px_60px_rgba(15,23,42,0.18)] xl:sticky xl:top-24 xl:h-fit">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-300">
                   {text.navTitle}
                 </p>
-                <h3 className="mt-2 text-lg font-semibold tracking-tight text-slate-950">
+                <h3 className="mt-2 text-lg font-semibold tracking-tight text-white">
                   {text.sectionLabel}
                 </h3>
               </div>
-              <span className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+              <span className="shrink-0 rounded-lg border border-emerald-300/40 bg-emerald-400/12 px-2.5 py-1 text-xs font-semibold text-emerald-200">
                 {overallProgress}%
               </span>
             </div>
 
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/12">
               <div
-                className="h-full rounded-full bg-emerald-600 transition-all"
+                className="h-full rounded-full bg-emerald-400 transition-all"
                 style={{ width: `${Math.max(0, Math.min(100, overallProgress))}%` }}
               />
             </div>
@@ -1994,15 +2001,15 @@ export default function SelfDocumentsPage() {
                   onClick={() => setActiveCategory(group.category)}
                   className={`rounded-lg border px-3 py-3 text-left text-sm transition ${
                     activeCategory === group.category
-                      ? "border-amber-200 bg-amber-50 font-semibold text-slate-950"
-                      : "border-slate-200 bg-white text-slate-600"
+                      ? "border-amber-300 bg-amber-300/12 font-semibold text-white"
+                      : "border-white/10 bg-white/[0.04] text-slate-300 hover:border-white/20 hover:bg-white/[0.08]"
                   }`}
                 >
                   <span className="flex items-center justify-between gap-3">
                     <span className="min-w-0 whitespace-normal break-words leading-5">
                       {group.label}
                     </span>
-                    <span className="shrink-0 rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                    <span className="shrink-0 rounded-lg bg-white/10 px-2 py-0.5 text-xs text-slate-300">
                       {group.documents.length}
                     </span>
                   </span>
@@ -2076,7 +2083,7 @@ export default function SelfDocumentsPage() {
           {activeGroup?.documents?.length ? (
             <div
               key={activeCategory}
-              className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-3 animate-[fadeIn_.18s_ease-out]"
+              className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,360px),1fr))] gap-5 animate-[fadeIn_.18s_ease-out]"
             >
               {[...activeGroup.documents]
                 .sort((a, b) => {
