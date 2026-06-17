@@ -4,7 +4,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
-import { getBillingAccess, getBillingStatus, refreshCurrentUser } from "../api";
+import {
+  getBillingAccess,
+  getBillingStatus,
+  getCachedBillingAccess,
+  refreshCurrentUser,
+} from "../api";
 
 function normalizeLanguage(language) {
   return String(language || "en").toLowerCase().startsWith("fr") ? "fr" : "en";
@@ -27,7 +32,7 @@ export default function BillingSuccessPage() {
 
   const [loading, setLoading] = useState(true);
   const [billingStatus, setBillingStatus] = useState(null);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [message, setMessage] = useState("");
 
   const sessionId = searchParams.get("session_id") || "";

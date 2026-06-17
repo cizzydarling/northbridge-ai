@@ -7,6 +7,7 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import {
   buildPremiumPricingPath,
+  getCachedBillingAccess,
   getCitizenshipQuestions,
   getMyAccess,
   submitCitizenshipQuiz,
@@ -23,7 +24,7 @@ export default function CitizenshipQuizPage() {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -54,6 +55,7 @@ export default function CitizenshipQuizPage() {
       } catch (err) {
         console.error(err);
         if (mounted) {
+          setAccess(getCachedBillingAccess());
           setMessage(language === "fr" ? "Impossible de charger le quiz." : "Unable to load quiz.");
         }
       } finally {

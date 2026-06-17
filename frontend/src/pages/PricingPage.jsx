@@ -9,6 +9,7 @@ import {
   createPortalSession,
   devSetPlan,
   getBillingAccess,
+  getCachedBillingAccess,
   getBillingPlans,
   getBillingStatus,
   getBillingTransactions,
@@ -614,7 +615,7 @@ export default function PricingPage() {
   const language = normalizeLanguage(i18n.language);
 
   const [billingStatus, setBillingStatus] = useState(null);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [availablePlans, setAvailablePlans] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [message, setMessage] = useState("");

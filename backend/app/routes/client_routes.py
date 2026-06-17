@@ -92,7 +92,15 @@ def get_client_overview(
     profile_completion_fields = [
         bool(profile.age) if profile else False,
         bool(profile.education) if profile else False,
-        bool(profile.language_score is not None) if profile else False,
+        bool(
+            (
+                getattr(profile, "english_language_score", None) is not None
+                or getattr(profile, "french_language_score", None) is not None
+                or profile.language_score is not None
+            )
+        )
+        if profile
+        else False,
         bool(profile.experience_years is not None) if profile else False,
         bool(profile.occupation) if profile else False,
         bool(profile.preferred_province) if profile else False,
@@ -140,6 +148,8 @@ def get_client_overview(
                 "age": profile.age,
                 "education": profile.education,
                 "language_score": profile.language_score,
+                "english_language_score": getattr(profile, "english_language_score", None),
+                "french_language_score": getattr(profile, "french_language_score", None),
                 "experience_years": profile.experience_years,
                 "has_job_offer": profile.has_job_offer,
                 "has_canadian_experience": profile.has_canadian_experience,

@@ -180,7 +180,22 @@ def _safe_bool(value: Any) -> bool:
 
 
 def _get_language_score(profile) -> int:
-    value = _safe_get(profile, "language_score", 0)
+    scores = [
+        _safe_int(_safe_get(profile, "english_language_score", 0), 0),
+        _safe_int(_safe_get(profile, "french_language_score", 0), 0),
+        _safe_int(_safe_get(profile, "language_score", 0), 0),
+    ]
+    return max(scores)
+
+
+def _get_english_language_score(profile) -> int:
+    value = _safe_get(profile, "english_language_score", None)
+    fallback = _safe_get(profile, "language_score", 0)
+    return _safe_int(value if value is not None else fallback, 0)
+
+
+def _get_french_language_score(profile) -> int:
+    value = _safe_get(profile, "french_language_score", None)
     return _safe_int(value, 0)
 
 
@@ -428,7 +443,8 @@ def prioritize_next_steps(
 def detect_french_advantage(profile, language: str = "en") -> Dict:
     language = _normalize_language(language)
 
-    language_score = _get_language_score(profile)
+    language_score = _get_french_language_score(profile)
+    english_language_score = _get_english_language_score(profile)
     preferred_province = _get_preferred_province(profile)
 
     french_signals = []
@@ -439,6 +455,15 @@ def detect_french_advantage(profile, language: str = "en") -> Dict:
     if language == "fr":
         french_signals.append("Le profil est actuellement évalué en français.")
         strategic_value = "medium"
+
+    if language_score <= 0 and english_language_score > 0:
+        recommendations.append(
+            _t(
+                "Add a French score separately if you have test results; English alone should not be treated as French ability.",
+                "Ajoutez un score de français séparé si vous avez des résultats; l'anglais seul ne doit pas être traité comme une capacité en français.",
+                language,
+            )
+        )
 
     if language_score >= 7:
         if language == "fr":
@@ -1638,6 +1663,8 @@ def _build_profile_snapshot(profile) -> Dict[str, Any]:
         "age": _get_age(profile),
         "education": _get_education(profile),
         "language_score": _get_language_score(profile),
+        "english_language_score": _get_english_language_score(profile),
+        "french_language_score": _get_french_language_score(profile),
         "experience_years": _get_experience_years(profile),
         "has_job_offer": _get_bool(profile, "has_job_offer"),
         "has_canadian_experience": _get_bool(profile, "has_canadian_experience"),

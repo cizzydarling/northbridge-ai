@@ -1,7 +1,8 @@
-from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class ClientDocumentBase(BaseModel):
@@ -19,6 +20,8 @@ class ClientDocumentCreate(ClientDocumentBase):
 
 
 class ClientDocumentUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     document_name: Optional[str] = None
     document_type: Optional[str] = None
     status: Optional[str] = None
@@ -26,12 +29,6 @@ class ClientDocumentUpdate(BaseModel):
     matter_id: Optional[int] = None
     required: Optional[bool] = None
     generated_from_matter: Optional[bool] = None
-    file_name: Optional[str] = None
-    file_path: Optional[str] = None
-    file_url: Optional[str] = None
-    uploaded_at: Optional[datetime] = None
-    verified_at: Optional[datetime] = None
-    verified_by: Optional[int] = None
 
 
 class ClientDocumentResponse(ClientDocumentBase):
@@ -40,7 +37,6 @@ class ClientDocumentResponse(ClientDocumentBase):
     owner_user_id: int
 
     file_name: Optional[str] = None
-    file_path: Optional[str] = None
     file_url: Optional[str] = None
     uploaded_at: Optional[datetime] = None
     verified_at: Optional[datetime] = None

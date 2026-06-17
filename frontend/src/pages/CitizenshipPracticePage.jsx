@@ -8,6 +8,7 @@ import Card from "../components/ui/Card";
 import {
   buildPremiumPricingPath,
   buildProPricingPath,
+  getCachedBillingAccess,
   getCitizenshipProgress,
   getCitizenshipStudyGuide,
   getMyAccess,
@@ -31,7 +32,7 @@ export default function CitizenshipPracticePage() {
   const language = i18n.language === "fr" ? "fr" : "en";
   const [guide, setGuide] = useState(null);
   const [progress, setProgress] = useState(null);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -59,6 +60,7 @@ export default function CitizenshipPracticePage() {
       } catch (err) {
         console.error(err);
         if (mounted) {
+          setAccess(getCachedBillingAccess());
           setMessage(
             language === "fr"
               ? "Impossible de charger le module de citoyenneté."

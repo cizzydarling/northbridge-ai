@@ -4,6 +4,7 @@ from typing import List
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.access_control import require_agent_plan
@@ -16,6 +17,14 @@ from app.schemas.client_document_schema import (
     ClientDocumentResponse,
     ClientDocumentUpdate,
     GenerateMatterDocumentsRequest,
+)
+from app.utils.upload_security import (
+    SAFE_DOWNLOAD_HEADERS,
+    delete_existing_upload_file,
+    get_safe_upload_extension,
+    resolve_existing_upload_path,
+    safe_stored_path,
+    validate_upload_content,
 )
 
 router = APIRouter(prefix="/client-documents", tags=["Client Documents"])
@@ -94,6 +103,17 @@ def get_owned_document_or_404(
         raise HTTPException(status_code=404, detail="Document not found.")
 
     return document
+
+
+def get_document_file_response(document: ClientDocument) -> FileResponse:
+    file_path = resolve_existing_upload_path(UPLOAD_DIR, document.file_path)
+
+    return FileResponse(
+        path=str(file_path),
+        filename=document.file_name or file_path.name,
+        media_type="application/octet-stream",
+        headers=SAFE_DOWNLOAD_HEADERS,
+    )
 
 
 @router.get("/{client_id}", response_model=List[ClientDocumentResponse])
@@ -193,18 +213,6 @@ def update_client_document(
     if payload.generated_from_matter is not None:
         document.generated_from_matter = payload.generated_from_matter
 
-    if payload.file_name is not None:
-        document.file_name = payload.file_name
-
-    if payload.file_path is not None:
-        document.file_path = payload.file_path
-
-    if payload.file_url is not None:
-        document.file_url = payload.file_url
-
-    if payload.uploaded_at is not None:
-        document.uploaded_at = payload.uploaded_at
-
     if next_status == "Verified":
         if document.verified_at is None:
             document.verified_at = datetime.now(timezone.utc)
@@ -227,10 +235,7 @@ def delete_client_document(
 ):
     document = get_owned_document_or_404(db, client_id, document_id, current_user)
 
-    if document.file_path:
-        old_path = Path(document.file_path)
-        if old_path.exists():
-            old_path.unlink()
+    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
 
     db.delete(document)
     db.commit()
@@ -251,22 +256,19 @@ async def upload_client_document_file(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file selected.")
 
-    safe_name = file.filename.replace(" ", "_")
-    extension = Path(safe_name).suffix
+    extension = get_safe_upload_extension(file.filename)
     stored_name = f"{client_id}_{document_id}_{uuid4().hex}{extension}"
-    stored_path = UPLOAD_DIR / stored_name
+    stored_path = safe_stored_path(UPLOAD_DIR, stored_name)
 
     content = await file.read()
+    validate_upload_content(file, content, extension)
     stored_path.write_bytes(content)
 
-    if document.file_path:
-        old_path = Path(document.file_path)
-        if old_path.exists():
-            old_path.unlink()
+    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
 
     document.file_name = file.filename
     document.file_path = str(stored_path)
-    document.file_url = f"/uploads/client_documents/{stored_name}"
+    document.file_url = f"/client-documents/{client_id}/{document_id}/file"
     document.uploaded_at = datetime.now(timezone.utc)
 
     if document.status != "Verified":
@@ -275,6 +277,17 @@ async def upload_client_document_file(
     db.commit()
     db.refresh(document)
     return document
+
+
+@router.get("/{client_id}/{document_id}/file")
+def download_client_document_file(
+    client_id: int,
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_agent_plan),
+):
+    document = get_owned_document_or_404(db, client_id, document_id, current_user)
+    return get_document_file_response(document)
 
 
 @router.delete("/{client_id}/{document_id}/file", response_model=ClientDocumentResponse)
@@ -286,10 +299,7 @@ def remove_client_document_file(
 ):
     document = get_owned_document_or_404(db, client_id, document_id, current_user)
 
-    if document.file_path:
-        old_path = Path(document.file_path)
-        if old_path.exists():
-            old_path.unlink()
+    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
 
     document.file_name = None
     document.file_path = None

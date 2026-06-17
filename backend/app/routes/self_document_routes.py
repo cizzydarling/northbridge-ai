@@ -4,6 +4,7 @@ from typing import List
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.data.db import get_db
@@ -13,6 +14,14 @@ from app.schemas.self_document_schema import (
     SelfDocumentCreate,
     SelfDocumentResponse,
     SelfDocumentUpdate,
+)
+from app.utils.upload_security import (
+    SAFE_DOWNLOAD_HEADERS,
+    delete_existing_upload_file,
+    get_safe_upload_extension,
+    resolve_existing_upload_path,
+    safe_stored_path,
+    validate_upload_content,
 )
 
 router = APIRouter(prefix="/self-documents", tags=["Self Documents"])
@@ -129,18 +138,6 @@ def update_self_document(
     if payload.completed is not None:
         document.completed = payload.completed
 
-    if payload.file_name is not None:
-        document.file_name = payload.file_name
-
-    if payload.file_path is not None:
-        document.file_path = payload.file_path
-
-    if payload.file_url is not None:
-        document.file_url = payload.file_url
-
-    if payload.uploaded_at is not None:
-        document.uploaded_at = payload.uploaded_at
-
     db.commit()
     db.refresh(document)
     return document
@@ -154,10 +151,7 @@ def delete_self_document(
 ):
     document = get_owned_self_document_or_404(db, document_id, current_user.id)
 
-    if document.file_path:
-        old_path = Path(document.file_path)
-        if old_path.exists() and old_path.is_file():
-            old_path.unlink()
+    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
 
     db.delete(document)
     db.commit()
@@ -177,28 +171,35 @@ async def upload_self_document_file(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file selected.")
 
-    safe_name = file.filename.replace(" ", "_")
-    extension = Path(safe_name).suffix
+    extension = get_safe_upload_extension(file.filename)
     stored_name = f"{current_user.id}_{document_id}_{uuid4().hex}{extension}"
-    stored_path = UPLOAD_DIR / stored_name
+    stored_path = safe_stored_path(UPLOAD_DIR, stored_name)
 
     content = await file.read()
+    validate_upload_content(file, content, extension)
     stored_path.write_bytes(content)
 
-    if document.file_path:
-        old_path = Path(document.file_path)
-        if old_path.exists() and old_path.is_file():
-            old_path.unlink()
+    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
 
     document.file_name = file.filename
     document.file_path = str(stored_path)
-    document.file_url = f"/uploads/self_documents/{stored_name}"
+    document.file_url = f"/self-documents/{document_id}/file"
     document.uploaded_at = datetime.now(timezone.utc)
     document.completed = True
 
     db.commit()
     db.refresh(document)
     return document
+
+
+@router.get("/{document_id}/file")
+def download_self_document_file(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_self_user),
+):
+    document = get_owned_self_document_or_404(db, document_id, current_user.id)
+    return get_document_file_response(document)
 
 
 @router.delete("/{document_id}/file", response_model=SelfDocumentResponse)
@@ -209,10 +210,7 @@ def remove_self_document_file(
 ):
     document = get_owned_self_document_or_404(db, document_id, current_user.id)
 
-    if document.file_path:
-        old_path = Path(document.file_path)
-        if old_path.exists() and old_path.is_file():
-            old_path.unlink()
+    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
 
     document.file_name = None
     document.file_path = None
@@ -223,3 +221,14 @@ def remove_self_document_file(
     db.commit()
     db.refresh(document)
     return document
+
+
+def get_document_file_response(document: SelfDocument) -> FileResponse:
+    file_path = resolve_existing_upload_path(UPLOAD_DIR, document.file_path)
+
+    return FileResponse(
+        path=str(file_path),
+        filename=document.file_name or file_path.name,
+        media_type="application/octet-stream",
+        headers=SAFE_DOWNLOAD_HEADERS,
+    )

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { getBillingAccess } from "../api";
+import { getBillingAccess, getCachedBillingAccess } from "../api";
 
 function normalizePlan(plan) {
   const value = String(plan || "").trim().toLowerCase();
@@ -18,16 +18,22 @@ export default function CurrentPlanBadge({ className = "" }) {
   const language = String(i18n.language || "en").toLowerCase().startsWith("fr")
     ? "fr"
     : "en";
+  const cachedAccess = getCachedBillingAccess();
 
-  const [plan, setPlan] = useState("free");
-  const [loading, setLoading] = useState(true);
+  const [plan, setPlan] = useState(normalizePlan(cachedAccess?.plan));
+  const [loading, setLoading] = useState(!cachedAccess);
 
   useEffect(() => {
     let mounted = true;
 
     async function loadAccess() {
       try {
-        setLoading(true);
+        const cached = getCachedBillingAccess();
+        if (cached) {
+          setPlan(normalizePlan(cached.plan));
+        } else {
+          setLoading(true);
+        }
         const res = await getBillingAccess();
         if (!mounted) return;
         setPlan(normalizePlan(res?.data?.plan));

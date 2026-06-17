@@ -31,6 +31,8 @@ const defaultForm = {
   age: "",
   education: "",
   language_score: "",
+  english_language_score: "",
+  french_language_score: "",
   experience_years: "",
   has_job_offer: false,
   has_canadian_experience: false,
@@ -82,6 +84,10 @@ function hydrateProfileForm(data) {
       merged[key] = fallback;
     }
   });
+
+  if (!merged.english_language_score && merged.language_score) {
+    merged.english_language_score = merged.language_score;
+  }
 
   return merged;
 }
@@ -195,6 +201,8 @@ export default function ProfilePage() {
         age: "Âge",
         education: "Études",
         languageScore: "Score linguistique",
+        englishLanguageScore: "Score anglais CLB",
+        frenchLanguageScore: "Score francais NCLC",
         experienceYears: "Années d’expérience",
         occupation: "Profession",
         nocCode: "Code CNP",
@@ -293,6 +301,8 @@ export default function ProfilePage() {
       age: "Age",
       education: "Education",
       languageScore: "Language Score",
+      englishLanguageScore: "English CLB Score",
+      frenchLanguageScore: "French NCLC Score",
       experienceYears: "Experience Years",
       occupation: "Occupation",
       nocCode: "NOC Code",
@@ -369,7 +379,8 @@ export default function ProfilePage() {
           label: "Profil Entrée express fort",
           values: {
             education: "master",
-            language_score: 9,
+            english_language_score: 9,
+            french_language_score: 7,
             experience_years: 5,
             has_job_offer: false,
             has_canadian_experience: true,
@@ -380,7 +391,8 @@ export default function ProfilePage() {
           label: "Profil international standard",
           values: {
             education: "bachelor",
-            language_score: 7,
+            english_language_score: 7,
+            french_language_score: "",
             experience_years: 3,
             has_job_offer: false,
             has_canadian_experience: false,
@@ -391,7 +403,8 @@ export default function ProfilePage() {
           label: "Profil avec offre d’emploi",
           values: {
             education: "bachelor",
-            language_score: 8,
+            english_language_score: 8,
+            french_language_score: "",
             experience_years: 4,
             has_job_offer: true,
             has_canadian_experience: false,
@@ -406,7 +419,8 @@ export default function ProfilePage() {
         label: "Strong Express Entry profile",
         values: {
           education: "master",
-          language_score: 9,
+          english_language_score: 9,
+          french_language_score: 7,
           experience_years: 5,
           has_job_offer: false,
           has_canadian_experience: true,
@@ -417,7 +431,8 @@ export default function ProfilePage() {
         label: "Standard international profile",
         values: {
           education: "bachelor",
-          language_score: 7,
+          english_language_score: 7,
+          french_language_score: "",
           experience_years: 3,
           has_job_offer: false,
           has_canadian_experience: false,
@@ -428,7 +443,8 @@ export default function ProfilePage() {
         label: "Job-offer profile",
         values: {
           education: "bachelor",
-          language_score: 8,
+          english_language_score: 8,
+          french_language_score: "",
           experience_years: 4,
           has_job_offer: true,
           has_canadian_experience: false,
@@ -552,7 +568,12 @@ export default function ProfilePage() {
       const payload = {
         ...form,
         age: normalizeNumber(form.age),
-        language_score: normalizeNumber(form.language_score),
+        english_language_score: normalizeNumber(form.english_language_score),
+        french_language_score: normalizeNumber(form.french_language_score),
+        language_score: Math.max(
+          normalizeNumber(form.english_language_score) || 0,
+          normalizeNumber(form.french_language_score) || 0
+        ) || null,
         experience_years: normalizeNumber(form.experience_years),
         first_name: form.first_name?.trim() || null,
         last_name: form.last_name?.trim() || null,
@@ -925,10 +946,18 @@ Return:
                     </div>
 
                     <Input
-                      name="language_score"
+                      name="english_language_score"
                       type="number"
-                      label={pageText.languageScore}
-                      value={form.language_score}
+                      label={pageText.englishLanguageScore}
+                      value={form.english_language_score}
+                      onChange={handleChange}
+                    />
+
+                    <Input
+                      name="french_language_score"
+                      type="number"
+                      label={pageText.frenchLanguageScore}
+                      value={form.french_language_score}
                       onChange={handleChange}
                     />
 

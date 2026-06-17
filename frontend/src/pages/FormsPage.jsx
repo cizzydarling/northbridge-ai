@@ -10,6 +10,7 @@ import { getActiveCaseId } from "../utils/activeCase";
 import { getApplicationCase } from "../api";
 import api, {
   getBillingAccess,
+  getCachedBillingAccess,
   getFormsApplicationTypes,
   getMyProfile,
   getSavedSelfApplication,
@@ -594,7 +595,7 @@ export default function FormsPage() {
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [savingInline, setSavingInline] = useState(false);
   const [accessLoading, setAccessLoading] = useState(true);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [activeCaseId, setActiveCaseId] = useState(getActiveCaseId());
   const [activeCase, setActiveCase] = useState(null);
   const [activeStudioTab, setActiveStudioTab] = useState("setup");
@@ -697,7 +698,7 @@ export default function FormsPage() {
       setAccess(res?.data || null);
     } catch (err) {
       console.error(err);
-      setAccess(null);
+      setAccess(getCachedBillingAccess());
     } finally {
       setAccessLoading(false);
     }

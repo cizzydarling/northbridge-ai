@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getBillingAccess,
+  getCachedBillingAccess,
   getCurrentUserLocal,
   getMyProfile,
   getUserDisplayName,
@@ -12,6 +13,7 @@ import {
 } from "../api";
 import Button from "../components/ui/Button";
 import OnboardingModal from "../components/OnboardingModal";
+import SOPGuideModal from "../components/SOPGuideModal";
 import DevPlanSwitcher from "../components/DevPlanSwitcher";
 import { translateRoleLabel } from "../utils/frenchLocalization";
 
@@ -266,13 +268,14 @@ export default function Layout({ children }) {
   const [currentUser, setCurrentUser] = useState(getCurrentUserLocal());
   const [profileIdentity, setProfileIdentity] = useState(null);
   const [effectivePlan, setEffectivePlan] = useState(
-    normalizePlan(currentUser?.plan)
+    normalizePlan(getCachedBillingAccess()?.plan || currentUser?.plan)
   );
-  const [loadingPlan, setLoadingPlan] = useState(true);
+  const [loadingPlan, setLoadingPlan] = useState(!getCachedBillingAccess());
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [confirmationSending, setConfirmationSending] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const accountRef = useRef(null);
   const mobileMenuPanelRef = useRef(null);
@@ -286,8 +289,9 @@ export default function Layout({ children }) {
   useEffect(() => {
     const handleUserUpdate = () => {
       const nextUser = getCurrentUserLocal();
+      const cachedAccess = getCachedBillingAccess();
       setCurrentUser(nextUser);
-      setEffectivePlan(normalizePlan(nextUser?.plan));
+      setEffectivePlan(normalizePlan(cachedAccess?.plan || nextUser?.plan));
     };
 
     window.addEventListener("storage", handleUserUpdate);
@@ -308,8 +312,9 @@ export default function Layout({ children }) {
         const res = await refreshCurrentUser();
         if (mounted) {
           const nextUser = res?.data || getCurrentUserLocal();
+          const cachedAccess = getCachedBillingAccess();
           setCurrentUser(nextUser);
-          setEffectivePlan(normalizePlan(nextUser?.plan));
+          setEffectivePlan(normalizePlan(cachedAccess?.plan || nextUser?.plan));
         }
       } catch {
         if (mounted) {
@@ -376,7 +381,12 @@ export default function Layout({ children }) {
 
     async function loadPlan() {
       try {
-        setLoadingPlan(true);
+        const cachedAccess = getCachedBillingAccess();
+        if (cachedAccess) {
+          setEffectivePlan(normalizePlan(cachedAccess.plan || currentUser?.plan));
+        } else {
+          setLoadingPlan(true);
+        }
         const res = await getBillingAccess();
         if (mounted) {
           setEffectivePlan(normalizePlan(res?.data?.plan || currentUser?.plan));
@@ -766,6 +776,15 @@ export default function Layout({ children }) {
                   {upgradeLabel}
                 </Button>
 
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="hidden rounded-2xl md:inline-flex"
+                  onClick={() => setGuideOpen(true)}
+                >
+                  {language === "fr" ? "Guide" : "Guide"}
+                </Button>
+
                 <div className="relative hidden md:block" ref={accountRef}>
                   <button
                     type="button"
@@ -868,6 +887,10 @@ export default function Layout({ children }) {
           </header>
 
           <OnboardingModal />
+          <SOPGuideModal
+            forceOpen={guideOpen}
+            onClose={() => setGuideOpen(false)}
+          />
 
           <main className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:py-8">
             {showEmailConfirmationBanner && (

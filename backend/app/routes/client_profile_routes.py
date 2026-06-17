@@ -65,6 +65,8 @@ def create_client_profile(
         age=payload.age,
         education=payload.education,
         language_score=payload.language_score,
+        english_language_score=payload.english_language_score,
+        french_language_score=payload.french_language_score,
         experience_years=payload.experience_years,
         has_job_offer=payload.has_job_offer,
         has_canadian_experience=payload.has_canadian_experience,

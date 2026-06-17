@@ -25,6 +25,8 @@ class Profile(Base):
     age = Column(Integer, nullable=True)
     education = Column(String, nullable=True)
     language_score = Column(Integer, nullable=True)
+    english_language_score = Column(Integer, nullable=True)
+    french_language_score = Column(Integer, nullable=True)
     experience_years = Column(Integer, nullable=True)
     has_job_offer = Column(Boolean, default=False)
     has_canadian_experience = Column(Boolean, default=False)

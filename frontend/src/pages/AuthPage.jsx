@@ -168,7 +168,7 @@ export default function AuthPage() {
         await registerUser({
           email: form.email,
           password: form.password,
-          role: form.role,
+          role: "individual",
         });
 
         setMessage(t("auth.registrationSuccess"));
@@ -453,23 +453,6 @@ export default function AuthPage() {
                     onChange={handleChange}
                     required
                   />
-                )}
-
-                {!isLogin && !forgotMode && !resetToken && (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">
-                      {t("auth.role", { defaultValue: "Role" })}
-                    </label>
-                    <select
-                      name="role"
-                      value={form.role}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-100"
-                    >
-                      <option value="individual">{t("auth.individual")}</option>
-                      <option value="agent">{t("auth.agent")}</option>
-                    </select>
-                  </div>
                 )}
 
                 <Button

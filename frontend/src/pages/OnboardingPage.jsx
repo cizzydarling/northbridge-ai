@@ -26,6 +26,8 @@ const defaultForm = {
   age: "",
   education: "",
   language_score: "",
+  english_language_score: "",
+  french_language_score: "",
   experience_years: "",
   has_job_offer: false,
   has_canadian_experience: false,
@@ -89,6 +91,10 @@ function hydrateProfileForm(data) {
     }
   });
 
+  if (!merged.english_language_score && merged.language_score) {
+    merged.english_language_score = merged.language_score;
+  }
+
   return merged;
 }
 
@@ -136,7 +142,6 @@ function getStepTwoRequiredKeys() {
   return [
     "age",
     "education",
-    "language_score",
     "experience_years",
     "occupation",
     "noc_code",
@@ -155,7 +160,8 @@ function getProfileReadinessScore(form) {
     form.preferred_language,
     form.age,
     form.education,
-    form.language_score,
+    form.english_language_score || form.language_score,
+    form.french_language_score,
     form.experience_years,
     form.occupation,
     form.noc_code,
@@ -381,6 +387,8 @@ export default function OnboardingPage() {
         master: "Maîtrise",
         phd: "Doctorat",
         languageScore: "Score linguistique",
+        englishLanguageScore: "Score anglais CLB",
+        frenchLanguageScore: "Score francais NCLC",
         experienceYears: "Années d’expérience",
         occupation: "Profession",
         nocCode: "Code CNP",
@@ -427,6 +435,8 @@ export default function OnboardingPage() {
         requiredField: "Ce champ est requis.",
         invalidAge: "Veuillez entrer un âge valide.",
         invalidLanguageScore: "Veuillez entrer un score linguistique valide.",
+        missingLanguageScore:
+          "Entrez au moins un score linguistique: anglais ou francais.",
         invalidExperience: "Veuillez entrer un nombre d’années valide.",
         completeMore:
           "Complétez davantage votre profil avant de terminer.",
@@ -482,6 +492,8 @@ export default function OnboardingPage() {
       master: "Master",
       phd: "PhD",
       languageScore: "Language Score",
+      englishLanguageScore: "English CLB Score",
+      frenchLanguageScore: "French NCLC Score",
       experienceYears: "Experience Years",
       occupation: "Occupation",
       nocCode: "NOC Code",
@@ -526,6 +538,8 @@ export default function OnboardingPage() {
       requiredField: "This field is required.",
       invalidAge: "Please enter a valid age.",
       invalidLanguageScore: "Please enter a valid language score.",
+      missingLanguageScore:
+        "Enter at least one language score: English or French.",
       invalidExperience: "Please enter a valid number of years.",
       completeMore: "Complete more of your profile before finishing.",
     };
@@ -538,7 +552,8 @@ export default function OnboardingPage() {
           label: "Profil Entrée express fort",
           values: {
             education: "master",
-            language_score: 9,
+            english_language_score: 9,
+            french_language_score: 7,
             experience_years: 5,
             has_job_offer: false,
             has_canadian_experience: true,
@@ -549,7 +564,8 @@ export default function OnboardingPage() {
           label: "Profil international standard",
           values: {
             education: "bachelor",
-            language_score: 7,
+            english_language_score: 7,
+            french_language_score: "",
             experience_years: 3,
             has_job_offer: false,
             has_canadian_experience: false,
@@ -560,7 +576,8 @@ export default function OnboardingPage() {
           label: "Profil avec offre d’emploi",
           values: {
             education: "bachelor",
-            language_score: 8,
+            english_language_score: 8,
+            french_language_score: "",
             experience_years: 4,
             has_job_offer: true,
             has_canadian_experience: false,
@@ -575,7 +592,8 @@ export default function OnboardingPage() {
         label: "Strong Express Entry profile",
         values: {
           education: "master",
-          language_score: 9,
+          english_language_score: 9,
+          french_language_score: 7,
           experience_years: 5,
           has_job_offer: false,
           has_canadian_experience: true,
@@ -586,7 +604,8 @@ export default function OnboardingPage() {
         label: "Standard international profile",
         values: {
           education: "bachelor",
-          language_score: 7,
+          english_language_score: 7,
+          french_language_score: "",
           experience_years: 3,
           has_job_offer: false,
           has_canadian_experience: false,
@@ -597,7 +616,8 @@ export default function OnboardingPage() {
         label: "Job-offer profile",
         values: {
           education: "bachelor",
-          language_score: 8,
+          english_language_score: 8,
+          french_language_score: "",
           experience_years: 4,
           has_job_offer: true,
           has_canadian_experience: false,
@@ -746,15 +766,25 @@ export default function OnboardingPage() {
     }
 
     const age = Number(form.age);
-    const languageScore = Number(form.language_score);
+    const englishLanguageScore = Number(form.english_language_score || 0);
+    const frenchLanguageScore = Number(form.french_language_score || 0);
     const experienceYears = Number(form.experience_years);
 
     if (!Number.isFinite(age) || age <= 0) {
       errors.age = pageText.invalidAge;
     }
 
-    if (!Number.isFinite(languageScore) || languageScore < 0) {
-      errors.language_score = pageText.invalidLanguageScore;
+    if (!isFilled(form.english_language_score) && !isFilled(form.french_language_score)) {
+      errors.english_language_score = pageText.missingLanguageScore;
+      errors.french_language_score = pageText.missingLanguageScore;
+    }
+
+    if (!Number.isFinite(englishLanguageScore) || englishLanguageScore < 0) {
+      errors.english_language_score = pageText.invalidLanguageScore;
+    }
+
+    if (!Number.isFinite(frenchLanguageScore) || frenchLanguageScore < 0) {
+      errors.french_language_score = pageText.invalidLanguageScore;
     }
 
     if (!Number.isFinite(experienceYears) || experienceYears < 0) {
@@ -884,7 +914,20 @@ export default function OnboardingPage() {
       const payload = {
         ...form,
         age: Number(form.age),
-        language_score: Number(form.language_score),
+        english_language_score: isFilled(form.english_language_score)
+          ? Number(form.english_language_score)
+          : null,
+        french_language_score: isFilled(form.french_language_score)
+          ? Number(form.french_language_score)
+          : null,
+        language_score: Math.max(
+          isFilled(form.english_language_score)
+            ? Number(form.english_language_score)
+            : 0,
+          isFilled(form.french_language_score)
+            ? Number(form.french_language_score)
+            : 0
+        ) || null,
         experience_years: Number(form.experience_years),
         occupation: normalizeText(form.occupation) || null,
         noc_code: normalizeText(form.noc_code) || null,
@@ -1362,14 +1405,27 @@ Explain:
 
                   <div>
                     <Input
-                      label={<RequiredLabel>{pageText.languageScore}</RequiredLabel>}
-                      name="language_score"
+                      label={pageText.englishLanguageScore}
+                      name="english_language_score"
                       type="number"
-                      value={form.language_score}
+                      value={form.english_language_score}
                       onChange={handleChange}
                     />
-                    <FieldHint error={Boolean(fieldErrors.language_score)}>
-                      {fieldErrors.language_score}
+                    <FieldHint error={Boolean(fieldErrors.english_language_score)}>
+                      {fieldErrors.english_language_score}
+                    </FieldHint>
+                  </div>
+
+                  <div>
+                    <Input
+                      label={pageText.frenchLanguageScore}
+                      name="french_language_score"
+                      type="number"
+                      value={form.french_language_score}
+                      onChange={handleChange}
+                    />
+                    <FieldHint error={Boolean(fieldErrors.french_language_score)}>
+                      {fieldErrors.french_language_score}
                     </FieldHint>
                   </div>
 

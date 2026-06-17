@@ -666,6 +666,7 @@ export default function ClientDocumentsPage() {
                               : "Upload File"}
                             <input
                               type="file"
+                              accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                               className="hidden"
                               onChange={(e) =>
                                 handleUploadFile(document.id, e.target.files?.[0])

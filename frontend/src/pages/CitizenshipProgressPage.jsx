@@ -3,7 +3,12 @@ import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import UpgradePrompt from "../components/UpgradePrompt";
 import Card from "../components/ui/Card";
-import { buildProPricingPath, getCitizenshipProgress, getMyAccess } from "../api";
+import {
+  buildProPricingPath,
+  getCachedBillingAccess,
+  getCitizenshipProgress,
+  getMyAccess,
+} from "../api";
 import { normalizeFrenchText } from "../utils/frenchText";
 
 function ProgressTile({ label, value }) {
@@ -36,7 +41,7 @@ export default function CitizenshipProgressPage() {
   const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
   const [progress, setProgress] = useState(null);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,6 +56,7 @@ export default function CitizenshipProgressPage() {
         if (mounted) setProgress(progressRes.data);
       } catch (err) {
         console.error(err);
+        if (mounted) setAccess(getCachedBillingAccess());
       } finally {
         if (mounted) setLoading(false);
       }

@@ -13,6 +13,7 @@ const api = axios.create({
 ========================= */
 
 export const getToken = () => localStorage.getItem("token");
+const ACCESS_CACHE_KEY = "nbai_billing_access";
 
 export const saveToken = (token) => {
   localStorage.setItem("token", token);
@@ -30,6 +31,39 @@ export const getCurrentUserLocal = () => {
   const raw =
     localStorage.getItem("current_user") || localStorage.getItem("user");
   return raw ? JSON.parse(raw) : null;
+};
+
+function readLocalJson(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildAccessFromUser(user) {
+  if (!user) return null;
+  return normalizeAccess({
+    plan: user.plan || "free",
+    subscription_status: user.subscription_status,
+    role: user.role,
+    features: user.features || {},
+  });
+}
+
+export const getCachedBillingAccess = () => {
+  const cached = readLocalJson(ACCESS_CACHE_KEY);
+  if (cached) return normalizeAccess(cached);
+
+  return buildAccessFromUser(getCurrentUserLocal());
+};
+
+export const saveBillingAccess = (access) => {
+  if (!access) return null;
+  const normalized = normalizeAccess(access);
+  localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify(normalized));
+  return normalized;
 };
 
 function humanizeEmailName(email) {
@@ -82,6 +116,7 @@ export const getUserDisplayName = (user, fallback = "User") => {
 export const saveCurrentUser = (user) => {
   localStorage.setItem("current_user", JSON.stringify(user));
   localStorage.setItem("user", JSON.stringify(user));
+  saveBillingAccess(buildAccessFromUser(user));
   window.dispatchEvent(new Event("userUpdated"));
 };
 
@@ -92,6 +127,7 @@ export const setCurrentUserLocal = (user) => {
 export const removeCurrentUserLocal = () => {
   localStorage.removeItem("current_user");
   localStorage.removeItem("user");
+  localStorage.removeItem(ACCESS_CACHE_KEY);
 };
 
 export const logoutUser = () => {
@@ -273,9 +309,13 @@ function normalizeAccess(raw) {
 export const getBillingAccess = async () => {
   try {
     const res = await api.get("/billing/access");
-    return { data: normalizeAccess(res.data) };
+    return { data: saveBillingAccess(res.data) };
   } catch (err) {
     console.warn("Billing access fallback triggered", err);
+    const cached = getCachedBillingAccess();
+    if (cached) {
+      return { data: cached };
+    }
 
     return {
       data: normalizeAccess({
@@ -293,10 +333,16 @@ export const getMyAccess = getBillingAccess;
 
 export const getAppBootstrap = async () => {
   const res = await api.get("/app/bootstrap");
+  const access = res.data?.access
+    ? saveBillingAccess(res.data.access)
+    : getCachedBillingAccess() || normalizeAccess();
+  if (res.data?.user) {
+    saveCurrentUser(res.data.user);
+  }
   return {
     data: {
       ...res.data,
-      access: normalizeAccess(res.data?.access),
+      access,
     },
   };
 };
@@ -514,6 +560,20 @@ export const normalizeProfilePayload = (payload = {}) => {
         ? null
         : Number(payload.language_score),
 
+    english_language_score:
+      payload.english_language_score === "" ||
+      payload.english_language_score === null ||
+      payload.english_language_score === undefined
+        ? null
+        : Number(payload.english_language_score),
+
+    french_language_score:
+      payload.french_language_score === "" ||
+      payload.french_language_score === null ||
+      payload.french_language_score === undefined
+        ? null
+        : Number(payload.french_language_score),
+
     experience_years:
       payload.experience_years === "" ||
       payload.experience_years === null ||
@@ -638,6 +698,11 @@ export const uploadSelfDocumentFile = (documentId, file) => {
     },
   });
 };
+
+export const downloadSelfDocumentFile = (documentId) =>
+  api.get(`/self-documents/${documentId}/file`, {
+    responseType: "blob",
+  });
 
 export const removeSelfDocumentFile = (documentId) =>
   api.delete(`/self-documents/${documentId}/file`);
@@ -966,6 +1031,11 @@ export const uploadClientDocumentFile = (clientId, documentId, file) => {
     },
   });
 };
+
+export const downloadClientDocumentFile = (clientId, documentId) =>
+  api.get(`/client-documents/${clientId}/${documentId}/file`, {
+    responseType: "blob",
+  });
 
 export const removeClientDocumentFile = (clientId, documentId) =>
   api.delete(`/client-documents/${clientId}/${documentId}/file`);

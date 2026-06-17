@@ -6,7 +6,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import AICopilotCard from "../components/AICopilotCard";
 import UpgradePrompt from "../components/UpgradePrompt";
-import { getBillingAccess, reviewAIDocument } from "../api";
+import { getBillingAccess, getCachedBillingAccess, reviewAIDocument } from "../api";
 
 const DOCUMENT_TYPES = [
   {
@@ -429,7 +429,7 @@ export default function DocumentReviewPage() {
   const [searchParams] = useSearchParams();
   const language = i18n.language === "fr" ? "fr" : "en";
 
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [documentType, setDocumentType] = useState("letter_of_explanation");
   const [reviewDepth, setReviewDepth] = useState("standard");
   const [content, setContent] = useState("");
@@ -523,6 +523,7 @@ export default function DocumentReviewPage() {
       setAccess(res.data);
     } catch (err) {
       console.error(err);
+      setAccess(getCachedBillingAccess());
     }
   }
 

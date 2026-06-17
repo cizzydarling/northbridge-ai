@@ -1,6 +1,22 @@
 from app.models.profile_model import Profile
 
 
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return default
+
+
+def get_effective_language_score(profile: Profile) -> int:
+    scores = [
+        _safe_int(getattr(profile, "english_language_score", None)),
+        _safe_int(getattr(profile, "french_language_score", None)),
+        _safe_int(getattr(profile, "language_score", None)),
+    ]
+    return max(scores)
+
+
 def calculate_crs_breakdown(profile: Profile) -> dict:
     age_points = 0
     education_points = 0
@@ -10,14 +26,17 @@ def calculate_crs_breakdown(profile: Profile) -> dict:
     canadian_experience_points = 0
     canadian_study_points = 0
 
-    if 20 <= profile.age <= 29:
+    age = _safe_int(profile.age)
+    experience_years = _safe_int(profile.experience_years)
+    language_score = get_effective_language_score(profile)
+    education = (profile.education or "").lower()
+
+    if 20 <= age <= 29:
         age_points = 110
-    elif 30 <= profile.age <= 35:
+    elif 30 <= age <= 35:
         age_points = 95
     else:
         age_points = 70
-
-    education = profile.education.lower()
 
     if education in ["bachelor", "bachelors", "undergraduate"]:
         education_points = 120
@@ -28,8 +47,8 @@ def calculate_crs_breakdown(profile: Profile) -> dict:
     else:
         education_points = 90
 
-    language_points = min(profile.language_score * 8, 136)
-    experience_points = min(profile.experience_years * 10, 50)
+    language_points = min(language_score * 8, 136)
+    experience_points = min(experience_years * 10, 50)
 
     if profile.has_job_offer:
         job_offer_points = 50
@@ -104,13 +123,16 @@ def build_recommendation_result(profile: Profile, crs_score: int) -> dict:
         })
         weaknesses.append("No preferred province selected for targeted PNP strategy")
 
-    if profile.language_score >= 9:
+    language_score = get_effective_language_score(profile)
+    experience_years = _safe_int(profile.experience_years)
+
+    if language_score >= 9:
         strengths.append("Strong language score")
     else:
         weaknesses.append("Language score could be improved for a stronger CRS boost")
         next_steps.append("Retake language test and target CLB 9 or higher")
 
-    if profile.experience_years >= 5:
+    if experience_years >= 5:
         strengths.append("Solid work experience")
     else:
         weaknesses.append("More work experience would improve competitiveness")
@@ -133,8 +155,8 @@ def build_recommendation_result(profile: Profile, crs_score: int) -> dict:
         next_steps.append("Consider study-based pathways if aligned with your goals")
 
     strategy = {
-        "improve_language": profile.language_score < 9,
-        "gain_experience": profile.experience_years < 5,
+        "improve_language": language_score < 9,
+        "gain_experience": experience_years < 5,
         "seek_job_offer": not profile.has_job_offer,
         "target_pnp": crs_score < 470 or bool(profile.preferred_province),
     }

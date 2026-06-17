@@ -6,6 +6,7 @@ import Button from "../components/ui/Button";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
   getBillingAccess,
+  getCachedBillingAccess,
   getMyProfile,
   getToken,
 } from "../api";
@@ -155,7 +156,7 @@ export default function StrategySimulatorPage() {
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(defaultProfile);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [selectedScenarioId, setSelectedScenarioId] = useState(null);
@@ -192,7 +193,7 @@ export default function StrategySimulatorPage() {
         if (accessRes.status === "fulfilled") {
           setAccess(accessRes.value?.data || null);
         } else {
-          setAccess(null);
+          setAccess(getCachedBillingAccess());
         }
       } catch (err) {
         console.error(err);

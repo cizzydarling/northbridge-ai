@@ -24,7 +24,12 @@ from app.services.promo_code_service import redeem_promo_code
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret_key_change_me")
+ENVIRONMENT = os.getenv("ENVIRONMENT", os.getenv("APP_ENV", "development")).lower()
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if ENVIRONMENT in {"prod", "production"}:
+        raise RuntimeError("SECRET_KEY must be configured in production.")
+    SECRET_KEY = "dev_secret_key_change_me"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 PASSWORD_RESET_EXPIRE_MINUTES = 45
@@ -147,6 +152,8 @@ def create_default_profile_for_user(db: Session, user: User) -> Profile:
         age=None,
         education=None,
         language_score=None,
+        english_language_score=None,
+        french_language_score=None,
         experience_years=None,
         has_job_offer=False,
         has_canadian_experience=False,

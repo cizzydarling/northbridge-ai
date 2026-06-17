@@ -12,6 +12,7 @@ import {
   updateClientDocument,
   generateMatterDocuments,
   uploadClientDocumentFile,
+  downloadClientDocumentFile,
 } from "../api";
 
 const MATTER_TYPE_OPTIONS = [
@@ -391,7 +392,6 @@ export default function ClientMatterDetailPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const { clientId, matterId } = useParams();
-  const apiBaseUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const [client, setClient] = useState(null);
@@ -663,6 +663,23 @@ export default function ClientMatterDetailPage() {
       setError(err.response?.data?.detail || "Upload failed.");
     } finally {
       setUploadingDocId(null);
+    }
+  }
+
+  async function handleDownloadDocument(doc) {
+    try {
+      const response = await downloadClientDocumentFile(clientId, doc.id);
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = doc.file_name || "document";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Download document failed:", err);
+      setMessage("Unable to download file.");
     }
   }
 
@@ -1243,14 +1260,13 @@ export default function ClientMatterDetailPage() {
                                   : ""}
                               </p>
                               {doc.file_url ? (
-                                <a
-                                  href={`${apiBaseUrl}${doc.file_url}`}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadDocument(doc)}
                                   className="inline-block text-sm font-medium text-blue-700 hover:underline"
                                 >
-                                  Open File
-                                </a>
+                                  Download file
+                                </button>
                               ) : null}
                             </div>
                           ) : (
@@ -1278,6 +1294,7 @@ export default function ClientMatterDetailPage() {
                         <div className="flex min-w-[240px] flex-col gap-2">
                           <input
                             type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                             onChange={(e) =>
                               handleUploadDocument(doc.id, e.target.files?.[0])
                             }

@@ -18,6 +18,8 @@ const initialForm = {
   age: "",
   education: "",
   language_score: "",
+  english_language_score: "",
+  french_language_score: "",
   experience_years: "",
   has_job_offer: false,
   has_canadian_experience: false,
@@ -56,6 +58,8 @@ export default function ClientProfilePage() {
             age: p.age ?? "",
             education: p.education ?? "",
             language_score: p.language_score ?? "",
+            english_language_score: p.english_language_score ?? p.language_score ?? "",
+            french_language_score: p.french_language_score ?? "",
             experience_years: p.experience_years ?? "",
             has_job_offer: Boolean(p.has_job_offer),
             has_canadian_experience: Boolean(p.has_canadian_experience),
@@ -99,7 +103,7 @@ export default function ClientProfilePage() {
     return (
       form.age &&
       form.education &&
-      form.language_score &&
+      (form.english_language_score || form.french_language_score) &&
       form.experience_years
     );
   }, [form]);
@@ -113,7 +117,16 @@ export default function ClientProfilePage() {
       const payload = {
         age: Number(form.age),
         education: form.education,
-        language_score: Number(form.language_score),
+        english_language_score: form.english_language_score
+          ? Number(form.english_language_score)
+          : null,
+        french_language_score: form.french_language_score
+          ? Number(form.french_language_score)
+          : null,
+        language_score: Math.max(
+          form.english_language_score ? Number(form.english_language_score) : 0,
+          form.french_language_score ? Number(form.french_language_score) : 0
+        ) || null,
         experience_years: Number(form.experience_years),
         has_job_offer: form.has_job_offer,
         has_canadian_experience: form.has_canadian_experience,
@@ -184,7 +197,8 @@ export default function ClientProfilePage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input name="age" placeholder="Age" value={form.age} onChange={handleChange} />
           <Input name="education" placeholder="Education" value={form.education} onChange={handleChange} />
-          <Input name="language_score" placeholder="Language Score" value={form.language_score} onChange={handleChange} />
+          <Input name="english_language_score" placeholder="English CLB Score" value={form.english_language_score} onChange={handleChange} />
+          <Input name="french_language_score" placeholder="French NCLC Score" value={form.french_language_score} onChange={handleChange} />
           <Input name="experience_years" placeholder="Experience Years" value={form.experience_years} onChange={handleChange} />
 
           <Input name="occupation" placeholder="Occupation" value={form.occupation} onChange={handleChange} />

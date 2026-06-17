@@ -1,7 +1,8 @@
-from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class SelfDocumentBase(BaseModel):
@@ -18,22 +19,19 @@ class SelfDocumentCreate(SelfDocumentBase):
 
 
 class SelfDocumentUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     document_name: Optional[str] = None
     priority: Optional[str] = None
     required: Optional[bool] = None
     notes: Optional[str] = None
     completed: Optional[bool] = None
-    file_name: Optional[str] = None
-    file_path: Optional[str] = None
-    file_url: Optional[str] = None
-    uploaded_at: Optional[datetime] = None
 
 
 class SelfDocumentResponse(SelfDocumentBase):
     id: int
     user_id: int
     file_name: Optional[str] = None
-    file_path: Optional[str] = None
     file_url: Optional[str] = None
     completed: bool
     uploaded_at: Optional[datetime] = None

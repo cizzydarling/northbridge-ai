@@ -8,6 +8,7 @@ import Card from "../components/ui/Card";
 import {
   buildPremiumPricingPath,
   buildProPricingPath,
+  getCachedBillingAccess,
   getMyAccess,
   getMyProfile,
   runCareerMatch,
@@ -264,7 +265,7 @@ export default function CareerMatchPage() {
     use_profile_defaults: true,
   });
   const [result, setResult] = useState(null);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [loading, setLoading] = useState(false);
   const [savingUrl, setSavingUrl] = useState("");
   const [message, setMessage] = useState("");
@@ -380,7 +381,7 @@ export default function CareerMatchPage() {
         if (mounted) setAccess(res.data);
       })
       .catch(() => {
-        if (mounted) setAccess(null);
+        if (mounted) setAccess(getCachedBillingAccess());
       });
     return () => {
       mounted = false;

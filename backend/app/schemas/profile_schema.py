@@ -19,6 +19,8 @@ class ProfileBase(BaseModel):
     age: Optional[int] = None
     education: Optional[str] = None
     language_score: Optional[int] = None
+    english_language_score: Optional[int] = None
+    french_language_score: Optional[int] = None
     experience_years: Optional[int] = None
     has_job_offer: Optional[bool] = False
     has_canadian_experience: Optional[bool] = False

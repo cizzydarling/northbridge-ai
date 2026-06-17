@@ -11,6 +11,7 @@ import { translateStrategySummary } from "../utils/frenchLocalization";
 import {
   exportMyStrategyPdf,
   getBillingAccess,
+  getCachedBillingAccess,
   getImmigrationIntelligence,
   getMyStrategy,
   getMyStrategyLite,
@@ -2117,7 +2118,7 @@ export default function StrategyPage() {
   const intent = searchParams.get("intent") || "";
 
   const [data, setData] = useState(null);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [message, setMessage] = useState("");
   const [engineVersion, setEngineVersion] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -2239,6 +2240,7 @@ export default function StrategyPage() {
       if (accessRes.status === "fulfilled") {
         accessData = accessRes.value?.data || null;
       } else {
+        accessData = getCachedBillingAccess();
         const status = accessRes.reason?.response?.status;
         if (status !== 404) {
           console.error(accessRes.reason);

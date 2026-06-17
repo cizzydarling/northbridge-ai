@@ -14,6 +14,7 @@ import {
   fixAIDocumentIssues,
   generateAIDocument,
   getBillingAccess,
+  getCachedBillingAccess,
   getDocument,
   getSavedDocuments,
   improveAIDocumentBody,
@@ -853,7 +854,7 @@ export default function DocumentGeneratorPage() {
   const pathway = searchParams.get("pathway") || "";
   const language = i18n.language === "fr" ? "fr" : "en";
 
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [documentType, setDocumentType] = useState("letter_of_explanation");
   const [tone, setTone] = useState("professional");
   const [additionalInstructions, setAdditionalInstructions] = useState("");
@@ -901,6 +902,7 @@ export default function DocumentGeneratorPage() {
       setDrafts(res.data || []);
     } catch (err) {
       console.error(err);
+      setAccess(getCachedBillingAccess());
     }
   }, []);
 

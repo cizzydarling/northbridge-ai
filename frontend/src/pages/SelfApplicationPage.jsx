@@ -7,6 +7,7 @@ import Button from "../components/ui/Button";
 import AICopilotCard from "../components/AICopilotCard";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
+  getCachedBillingAccess,
   getMyAccess,
   getMyProfile,
   getSavedSelfApplication,
@@ -87,7 +88,7 @@ export default function SelfApplicationPage() {
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const [workspace, setWorkspace] = useState(null);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("priority");
@@ -108,6 +109,8 @@ export default function SelfApplicationPage() {
 
       if (accessRes.status === "fulfilled") {
         setAccess(accessRes.value.data);
+      } else {
+        setAccess(getCachedBillingAccess());
       }
 
       const savedApplication =

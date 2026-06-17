@@ -28,6 +28,8 @@ const DEFAULT_FORM = {
   age: "",
   education: "",
   language_score: "",
+  english_language_score: "",
+  french_language_score: "",
   experience_years: "",
   occupation: "",
   noc_code: "",
@@ -106,7 +108,8 @@ function computeProfileCompletion(profile) {
     profile.preferred_language,
     profile.age,
     profile.education,
-    profile.language_score,
+    profile.english_language_score || profile.language_score,
+    profile.french_language_score,
     profile.experience_years,
     profile.occupation,
     profile.noc_code,
@@ -320,6 +323,19 @@ export default function OnboardingModal() {
             typeof profile.language_score === "undefined"
               ? ""
               : String(profile.language_score),
+          english_language_score:
+            profile.english_language_score === null ||
+            typeof profile.english_language_score === "undefined"
+              ? profile.language_score === null ||
+                typeof profile.language_score === "undefined"
+                ? ""
+                : String(profile.language_score)
+              : String(profile.english_language_score),
+          french_language_score:
+            profile.french_language_score === null ||
+            typeof profile.french_language_score === "undefined"
+              ? ""
+              : String(profile.french_language_score),
           experience_years:
             profile.experience_years === null ||
             typeof profile.experience_years === "undefined"
@@ -484,7 +500,7 @@ export default function OnboardingModal() {
       form.preferred_language &&
         form.age !== "" &&
         form.education &&
-        form.language_score !== "" &&
+        (form.english_language_score !== "" || form.french_language_score !== "") &&
         form.experience_years !== ""
     );
   }
@@ -513,7 +529,12 @@ export default function OnboardingModal() {
         preferred_language: form.preferred_language || language,
         age: normalizeNumber(form.age),
         education: form.education || null,
-        language_score: normalizeNumber(form.language_score),
+        english_language_score: normalizeNumber(form.english_language_score),
+        french_language_score: normalizeNumber(form.french_language_score),
+        language_score: Math.max(
+          normalizeNumber(form.english_language_score) || 0,
+          normalizeNumber(form.french_language_score) || 0
+        ) || null,
         experience_years: normalizeNumber(form.experience_years),
         occupation: form.occupation.trim() || null,
         noc_code: form.noc_code.trim() || null,
@@ -686,12 +707,18 @@ export default function OnboardingModal() {
                   placeholder={language === "fr" ? "Choisissez" : "Choose"}
                 />
                 <Input
-                  name="language_score"
+                  name="english_language_score"
                   type="number"
-                  label={language === "fr" ? "Score linguistique" : "Language score"}
-                  value={form.language_score}
+                  label={language === "fr" ? "Score anglais CLB" : "English CLB score"}
+                  value={form.english_language_score}
                   onChange={handleChange}
-                  required
+                />
+                <Input
+                  name="french_language_score"
+                  type="number"
+                  label={language === "fr" ? "Score francais NCLC" : "French NCLC score"}
+                  value={form.french_language_score}
+                  onChange={handleChange}
                 />
                 <Input
                   name="experience_years"

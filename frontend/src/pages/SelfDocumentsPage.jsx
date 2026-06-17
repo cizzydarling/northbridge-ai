@@ -8,8 +8,14 @@ import LockBadge from "../components/ui/LockBadge";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
   getBillingAccess,
+  getCachedBillingAccess,
   getMyStrategyLite,
   getMyStrategy,
+  getSelfDocuments,
+  createSelfDocument,
+  uploadSelfDocumentFile,
+  downloadSelfDocumentFile,
+  removeSelfDocumentFile,
   sendAIMessage,
 } from "../api";
 import { getActiveCaseId } from "../utils/activeCase";
@@ -419,6 +425,11 @@ function DocumentCard({
   onMarkReviewed,
   onMarkCompleted,
   onReset,
+  uploadRecord,
+  uploading,
+  onUpload,
+  onDownload,
+  onRemoveUpload,
   language,
 }) {
   const progressCount = [
@@ -512,6 +523,39 @@ function DocumentCard({
           <Button variant="ghost" onClick={onReset} className="w-full justify-center">
             {text.reset}
           </Button>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+              {text.uploadEvidence}
+            </p>
+
+            {uploadRecord?.file_name ? (
+              <div className="mt-2 space-y-2">
+                <p className="break-words text-xs font-medium text-slate-700">
+                  {uploadRecord.file_name}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" onClick={onDownload}>
+                    {text.download}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={onRemoveUpload}>
+                    {text.removeUpload}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <label className="mt-2 inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-amber-300 hover:bg-amber-50">
+                {uploading ? text.uploading : text.uploadFile}
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(event) => onUpload(event.target.files?.[0])}
+                />
+              </label>
+            )}
+          </div>
         </div>
       </div>
     </Card>
@@ -1142,9 +1186,12 @@ export default function SelfDocumentsPage() {
   }, [location.search]);
 
   const [engineVersion, setEngineVersion] = useState(0);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [activeCategory, setActiveCategory] = useState(getCategoryOrder()[0]);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const [uploadedDocuments, setUploadedDocuments] = useState({});
+  const [uploadingDocumentId, setUploadingDocumentId] = useState(null);
+  const [uploadMessage, setUploadMessage] = useState("");
 
   const loadAccess = useCallback(async () => {
     try {
@@ -1156,7 +1203,7 @@ export default function SelfDocumentsPage() {
       if (accessRes.status === "fulfilled") {
         setAccess(accessRes.value.data);
       } else {
-        setAccess(null);
+        setAccess(getCachedBillingAccess());
       }
 
       if (strategyLiteRes.status === "fulfilled") {
@@ -1171,7 +1218,7 @@ export default function SelfDocumentsPage() {
       }
     } catch (err) {
       console.error(err);
-      setAccess(null);
+      setAccess(getCachedBillingAccess());
       setStrategy(null);
     }
   }, [language]);
@@ -1192,6 +1239,27 @@ export default function SelfDocumentsPage() {
       );
     };
   }, [language, activeCaseId, loadAccess]);
+
+  const loadUploadedDocuments = useCallback(async () => {
+    try {
+      const response = await getSelfDocuments();
+      const byKey = {};
+
+      for (const item of response.data || []) {
+        if (item?.document_key) {
+          byKey[item.document_key] = item;
+        }
+      }
+
+      setUploadedDocuments(byKey);
+    } catch (err) {
+      console.error("Self documents load failed:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUploadedDocuments();
+  }, [loadUploadedDocuments]);
 
   useEffect(() => {
   function handleActiveCaseUpdate() {
@@ -1420,6 +1488,109 @@ export default function SelfDocumentsPage() {
     });
   }
 
+  async function ensureSelfDocument(doc) {
+    if (uploadedDocuments[doc.id]) {
+      return uploadedDocuments[doc.id];
+    }
+
+    const response = await createSelfDocument({
+      matter_type: activeCaseId ? `case_${activeCaseId}` : "personal_workspace",
+      document_key: doc.id,
+      document_name: doc.title[language] || doc.title.en,
+      priority: "Required",
+      required: true,
+      notes: doc.description[language] || doc.description.en,
+    });
+
+    const saved = response.data;
+    setUploadedDocuments((prev) => ({
+      ...prev,
+      [doc.id]: saved,
+    }));
+    return saved;
+  }
+
+  async function handleUploadEvidence(doc, file) {
+    if (!file) return;
+
+    try {
+      setUploadingDocumentId(doc.id);
+      setUploadMessage("");
+      const savedDoc = await ensureSelfDocument(doc);
+      const response = await uploadSelfDocumentFile(savedDoc.id, file);
+      const uploaded = response.data;
+      setUploadedDocuments((prev) => ({
+        ...prev,
+        [doc.id]: uploaded,
+      }));
+      handleMarkCompleted(doc.id);
+      setUploadMessage(
+        language === "fr"
+          ? "Document televerse avec succes."
+          : "Document uploaded successfully."
+      );
+    } catch (err) {
+      console.error("Self document upload failed:", err);
+      setUploadMessage(
+        err?.response?.data?.detail ||
+          (language === "fr"
+            ? "Impossible de televerser ce document."
+            : "Unable to upload this document.")
+      );
+    } finally {
+      setUploadingDocumentId(null);
+    }
+  }
+
+  async function handleDownloadEvidence(doc) {
+    const savedDoc = uploadedDocuments[doc.id];
+    if (!savedDoc?.id) return;
+
+    try {
+      const response = await downloadSelfDocumentFile(savedDoc.id);
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = savedDoc.file_name || "document";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Self document download failed:", err);
+      setUploadMessage(
+        language === "fr"
+          ? "Impossible de telecharger ce document."
+          : "Unable to download this document."
+      );
+    }
+  }
+
+  async function handleRemoveEvidence(doc) {
+    const savedDoc = uploadedDocuments[doc.id];
+    if (!savedDoc?.id) return;
+
+    try {
+      const response = await removeSelfDocumentFile(savedDoc.id);
+      setUploadedDocuments((prev) => ({
+        ...prev,
+        [doc.id]: response.data,
+      }));
+      setUploadMessage(
+        language === "fr"
+          ? "Fichier retire du document."
+          : "File removed from document."
+      );
+    } catch (err) {
+      console.error("Self document remove failed:", err);
+      setUploadMessage(
+        language === "fr"
+          ? "Impossible de retirer ce fichier."
+          : "Unable to remove this file."
+      );
+    }
+  }
+
   async function handleFixMyCase() {
     try {
       setFixingCase(true);
@@ -1547,6 +1718,11 @@ export default function SelfDocumentsPage() {
         markReviewed: "Révisé",
         markCompleted: "Complété",
         reset: "Réinitialiser",
+        uploadEvidence: "Preuve televersee",
+        uploadFile: "Televerser",
+        uploading: "Televersement...",
+        download: "Telecharger",
+        removeUpload: "Retirer",
         drafted: "Brouillons",
         reviewed: "Révisés",
         completed: "Complétés",
@@ -1601,6 +1777,11 @@ export default function SelfDocumentsPage() {
       markReviewed: "Reviewed",
       markCompleted: "Completed",
       reset: "Reset",
+      uploadEvidence: "Uploaded evidence",
+      uploadFile: "Upload",
+      uploading: "Uploading...",
+      download: "Download",
+      removeUpload: "Remove",
       drafted: "Drafted",
       reviewed: "Reviewed",
       completed: "Completed",
@@ -1673,6 +1854,12 @@ export default function SelfDocumentsPage() {
           buttonLabel={language === "fr" ? "Voir les tarifs" : "View pricing"}
         />
       )}
+
+      {uploadMessage ? (
+        <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+          {uploadMessage}
+        </div>
+      ) : null}
 
       {!isPremium && (
       <div className="mb-6 mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -2116,6 +2303,11 @@ export default function SelfDocumentsPage() {
                     onMarkReviewed={() => handleMarkReviewed(doc.id)}
                     onMarkCompleted={() => handleMarkCompleted(doc.id)}
                     onReset={() => resetDocument(doc.id)}
+                    uploadRecord={uploadedDocuments[doc.id]}
+                    uploading={uploadingDocumentId === doc.id}
+                    onUpload={(file) => handleUploadEvidence(doc, file)}
+                    onDownload={() => handleDownloadEvidence(doc)}
+                    onRemoveUpload={() => handleRemoveEvidence(doc)}
                   />
                 );
               })}

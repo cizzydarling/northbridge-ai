@@ -7,6 +7,7 @@ import Card from "../components/ui/Card";
 import {
   buildPremiumPricingPath,
   createLanguagePracticeSession,
+  getCachedBillingAccess,
   getLanguagePracticePrompts,
   getLanguagePracticeSessions,
   getMyAccess,
@@ -22,7 +23,7 @@ export default function LanguagePracticePage() {
   const [responseText, setResponseText] = useState("");
   const [selfScore, setSelfScore] = useState(70);
   const [sessions, setSessions] = useState([]);
-  const [access, setAccess] = useState(null);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -50,6 +51,7 @@ export default function LanguagePracticePage() {
     load().catch((err) => {
       console.error(err);
       if (mounted) {
+        setAccess(getCachedBillingAccess());
         setMessage(uiLanguage === "fr" ? "Chargement impossible." : "Unable to load practice.");
       }
     }).finally(() => {

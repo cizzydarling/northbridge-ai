@@ -35,6 +35,8 @@ def _build_profile_from_payload(current_user: User, payload: ProfileCreate) -> P
         age=payload.age,
         education=payload.education,
         language_score=payload.language_score,
+        english_language_score=payload.english_language_score,
+        french_language_score=payload.french_language_score,
         experience_years=payload.experience_years,
         has_job_offer=payload.has_job_offer,
         has_canadian_experience=payload.has_canadian_experience,
@@ -123,6 +125,8 @@ def update_my_profile(
     profile.age = payload.age
     profile.education = payload.education
     profile.language_score = payload.language_score
+    profile.english_language_score = payload.english_language_score
+    profile.french_language_score = payload.french_language_score
     profile.experience_years = payload.experience_years
     profile.has_job_offer = payload.has_job_offer
     profile.has_canadian_experience = payload.has_canadian_experience
