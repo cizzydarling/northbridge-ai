@@ -23,6 +23,19 @@ function getErrorMessage(err, fallback = "Something went wrong.") {
 
   const detail = err.response?.data?.detail;
   const message = err.response?.data?.message;
+  const status = err.response?.status;
+  const rawServerMessage =
+    typeof detail === "string"
+      ? detail
+      : typeof message === "string"
+      ? message
+      : "";
+  const containsInternalDetails =
+    /sqlalchemy|psycopg|undefinedcolumn|select\s+profiles|background on this error/i.test(
+      rawServerMessage
+    );
+
+  if (status >= 500 || containsInternalDetails) return fallback;
 
   if (typeof detail === "string" && detail.trim()) return detail;
 
@@ -128,6 +141,9 @@ export default function AuthPage() {
         );
         setResetToken("");
         setForm((prev) => ({ ...prev, password: "" }));
+        const next = new URL(window.location.href);
+        next.searchParams.delete("reset_token");
+        window.history.replaceState({}, "", next.toString());
       } else if (forgotMode) {
         const resetRes = await requestPasswordReset(form.email);
         const resetMessage = resetRes?.data?.message;
@@ -183,7 +199,17 @@ export default function AuthPage() {
       setMessage(
         getErrorMessage(
           err,
-          isLogin ? t("auth.loginFailed") : t("auth.registrationFailed")
+          resetToken
+            ? i18n.language === "fr"
+              ? "Impossible de reinitialiser le mot de passe. Veuillez demander un nouveau lien."
+              : "Unable to reset your password. Please request a new link."
+            : forgotMode
+            ? i18n.language === "fr"
+              ? "Impossible d'envoyer le lien de reinitialisation pour le moment."
+              : "Unable to send a reset link right now."
+            : isLogin
+            ? t("auth.loginFailed")
+            : t("auth.registrationFailed")
         )
       );
     } finally {

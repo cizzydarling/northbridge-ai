@@ -1,6 +1,7 @@
 import hashlib
 import os
 import secrets
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -23,6 +24,7 @@ from app.services.email_service import (
 from app.services.promo_code_service import redeem_promo_code
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+logger = logging.getLogger(__name__)
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", os.getenv("APP_ENV", "development")).lower()
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -248,7 +250,11 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+        logger.exception("Registration failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to create the account right now. Please try again.",
+        ) from e
 
 
 @router.post("/login")
@@ -284,7 +290,11 @@ def login(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+        logger.exception("Login failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to sign in right now. Please try again shortly.",
+        ) from e
 
 
 def get_current_user(
