@@ -416,12 +416,8 @@ function DocumentCard({
   doc,
   state,
   text,
-  isPro,
   isCriticalFamilyRequirement = false,
   isHighlighted = false,
-  onGenerate,
-  onReview,
-  onMarkDraft,
   onMarkReviewed,
   onMarkCompleted,
   onReset,
@@ -484,46 +480,9 @@ function DocumentCard({
             <StatPill active={state.completed}>{text.markCompleted}</StatPill>
           </div>
 
-          {!isPro && (
-            <div className="mt-4">
-              <UpgradePrompt
-                compact
-                title={text.featureLocked}
-                body={text.featureLockedBody}
-              />
-            </div>
-          )}
         </div>
 
         <div className="space-y-2.5 rounded-xl border border-slate-200 bg-white/80 p-3 shadow-inner shadow-slate-200/60">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Button variant="primary" onClick={onGenerate} className="w-full justify-center">
-              {text.generate}
-            </Button>
-
-            <Button variant="secondary" onClick={onReview} className="w-full justify-center">
-              {text.review}
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button variant="subtle" onClick={onMarkDraft}>
-              {text.markDraft}
-            </Button>
-
-            <Button variant="subtle" onClick={onMarkReviewed}>
-              {text.markReviewed}
-            </Button>
-
-            <Button variant="premium" onClick={onMarkCompleted}>
-              {text.markCompleted}
-            </Button>
-          </div>
-
-          <Button variant="ghost" onClick={onReset} className="w-full justify-center">
-            {text.reset}
-          </Button>
-
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
               {text.uploadEvidence}
@@ -556,6 +515,28 @@ function DocumentCard({
               </label>
             )}
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="subtle"
+              onClick={onMarkReviewed}
+              disabled={!uploadRecord?.file_name}
+            >
+              {text.markReviewed}
+            </Button>
+
+            <Button
+              variant="premium"
+              onClick={onMarkCompleted}
+              disabled={!uploadRecord?.file_name}
+            >
+              {text.markCompleted}
+            </Button>
+          </div>
+
+          <Button variant="ghost" onClick={onReset} className="w-full justify-center">
+            {text.reset}
+          </Button>
         </div>
       </div>
     </Card>
@@ -675,6 +656,7 @@ function DocumentsAIDrawer({
   firstIncompleteDoc,
   isPro,
   onNavigate,
+  onSelectDocument,
 }) {
   const text =
     language === "fr"
@@ -690,7 +672,7 @@ function DocumentsAIDrawer({
             "Tous vos documents semblent complétés. Passez à la révision finale ou à l’export.",
           locked:
             "La génération et la révision IA complètes nécessitent le forfait Pro.",
-          generate: "Générer ce document",
+          generate: "Téléverser ce document",
           review: "Réviser ce document",
           pricing: "Voir les tarifs",
         }
@@ -706,7 +688,7 @@ function DocumentsAIDrawer({
             "Your documents look completed. Move to final review or export.",
           locked:
             "Full AI generation and review require the Pro plan.",
-          generate: "Generate this document",
+          generate: "Upload this document",
           review: "Review this document",
           pricing: "View pricing",
         };
@@ -802,7 +784,7 @@ function DocumentsAIDrawer({
                 <Button
                   onClick={() =>
                     firstIncompleteDoc
-                      ? onNavigate(`/documents/generator?checklist_id=${firstIncompleteDoc.id}`)
+                      ? onSelectDocument(firstIncompleteDoc.id)
                       : onNavigate("/documents/review")
                   }
                   className="w-full justify-center"
@@ -882,7 +864,7 @@ function DocumentsAIDrawer({
               variant="premium"
               onClick={() =>
                 firstIncompleteDoc
-                  ? onNavigate(`/documents/generator?checklist_id=${firstIncompleteDoc.id}&source=documents&intent=execute`)
+                  ? onSelectDocument(firstIncompleteDoc.id)
                   : onNavigate("/documents/generator")
               }
             >
@@ -890,11 +872,7 @@ function DocumentsAIDrawer({
             </Button>
             <Button
               variant="secondary"
-              onClick={() =>
-                firstIncompleteDoc
-                  ? onNavigate(`/documents/review?checklist_id=${firstIncompleteDoc.id}&source=documents&intent=improve`)
-                  : onNavigate("/documents/review")
-              }
+              onClick={() => onNavigate("/documents/review")}
             >
               {text.review}
             </Button>
@@ -1419,32 +1397,6 @@ export default function SelfDocumentsPage() {
     });
   }, [stats, overallProgress, firstIncompleteDoc, language]);
 
-  function handleOpenGenerator(id) {
-    if (!isPro) {
-      navigate(buildProPricingPath("documents", "execute"));
-      return;
-    }
-
-    navigate(
-      `/documents/generator?checklist_id=${id}&source=documents&intent=execute${
-        pathway ? `&pathway=${encodeURIComponent(pathway)}` : ""
-      }`
-    );
-  }
-
-  function handleOpenReview(id) {
-    if (!isPro) {
-      navigate(buildProPricingPath("documents", "improve"));
-      return;
-    }
-
-    navigate(
-      `/documents/review?checklist_id=${id}&source=documents&intent=improve${
-        pathway ? `&pathway=${encodeURIComponent(pathway)}` : ""
-      }`
-    );
-  }
-
   function updateDocument(id, patch) {
     const current = readCompletionEngine();
     const existing = current[id] || {
@@ -1472,10 +1424,6 @@ export default function SelfDocumentsPage() {
     writeCompletionEngine(next);
   }
 
-  function handleMarkDraft(id) {
-    updateDocument(id, { drafted: true });
-  }
-
   function handleMarkReviewed(id) {
     updateDocument(id, { drafted: true, reviewed: true });
   }
@@ -1486,6 +1434,21 @@ export default function SelfDocumentsPage() {
       reviewed: true,
       completed: true,
     });
+  }
+
+  function focusEvidenceDocument(id) {
+    const target = DOCUMENT_LIBRARY.find((doc) => doc.id === id);
+    if (!target) return;
+
+    setActiveCategory(target.category);
+    setHighlightedDocId(id);
+    setAiDrawerOpen(false);
+
+    window.setTimeout(() => {
+      document
+        .getElementById(`evidence-${id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
   }
 
   async function ensureSelfDocument(doc) {
@@ -1523,7 +1486,11 @@ export default function SelfDocumentsPage() {
         ...prev,
         [doc.id]: uploaded,
       }));
-      handleMarkCompleted(doc.id);
+      updateDocument(doc.id, {
+        drafted: true,
+        reviewed: false,
+        completed: false,
+      });
       setUploadMessage(
         language === "fr"
           ? "Document televerse avec succes."
@@ -1576,6 +1543,11 @@ export default function SelfDocumentsPage() {
         ...prev,
         [doc.id]: response.data,
       }));
+      updateDocument(doc.id, {
+        drafted: false,
+        reviewed: false,
+        completed: false,
+      });
       setUploadMessage(
         language === "fr"
           ? "Fichier retire du document."
@@ -1706,15 +1678,15 @@ export default function SelfDocumentsPage() {
         brand: "NorthBridgeAI",
         title: "Mes documents",
         subtitle:
-          "Passez à l’exécution. Préparez, révisez et finalisez vos documents étape par étape.",
-        upgradeTitle: "Débloquez la génération de documents",
+          "Téléversez, organisez et suivez les pièces justificatives requises pour votre dossier.",
+        upgradeTitle: "Débloquez les outils de rédaction IA",
         upgradeBody:
-          "Passez à Pro pour générer et réviser vos documents avec l’IA.",
+          "Passez à Pro pour rédiger et réviser des lettres, plans d’études et explications avec l’IA.",
         featureLocked: "Accès Pro requis",
         featureLockedBody: "Passez à Pro pour générer et réviser ce document.",
         generate: "Générer",
         review: "Réviser",
-        markDraft: "Brouillon",
+        markDraft: "Téléversé",
         markReviewed: "Révisé",
         markCompleted: "Complété",
         reset: "Réinitialiser",
@@ -1723,7 +1695,7 @@ export default function SelfDocumentsPage() {
         uploading: "Televersement...",
         download: "Telecharger",
         removeUpload: "Retirer",
-        drafted: "Brouillons",
+        drafted: "Téléversés",
         reviewed: "Révisés",
         completed: "Complétés",
         total: "Total",
@@ -1736,19 +1708,19 @@ export default function SelfDocumentsPage() {
         navTitle: "Navigation",
         progressTitle: "Progression",
         progressBody:
-          "Suivez l’avancement global de vos brouillons, révisions et documents finalisés.",
+          "Suivez les preuves téléversées, révisées et complétées dans votre espace documentaire.",
         guidedTitle: "Flux guidé",
         unlockedTitle: "Accès débloqué",
         guidedHeadline: "Commencez par votre document prioritaire",
         unlockedHeadline: "Vos outils documents sont disponibles",
         guidedBody:
-          "Ouvrez le générateur, révisez vos documents et marquez votre progression au fur et à mesure.",
+          "Téléversez chaque pièce justificative demandée et suivez sa validation jusqu’à la finalisation.",
         unlockedBody:
-          "Générez, révisez et organisez vos documents plus rapidement avec un workflow orienté exécution.",
+          "Téléversez et organisez vos preuves ici. Utilisez les outils IA séparés pour les lettres et explications.",
         lockedBadge: "Pro requis",
         unlockedBadge: "Exécution débloquée",
         premiumBadge: "Premium actif",
-        primaryAction: "Ouvrir le générateur",
+        primaryAction: "Téléverser le prochain document",
         secondaryAction: "Assistant IA Documents",
         nextStepTitle: "Étape recommandée",
         nextStepHeadline: "Voici votre meilleure prochaine action",
@@ -1765,15 +1737,15 @@ export default function SelfDocumentsPage() {
       brand: "NorthBridgeAI",
       title: "My Documents",
       subtitle:
-        "Move into execution. Prepare, review, and finalize your documents step by step.",
-      upgradeTitle: "Unlock document generation",
+        "Upload, organize, and track the supporting evidence required for your application.",
+      upgradeTitle: "Unlock AI drafting tools",
       upgradeBody:
-        "Upgrade to Pro to generate and review your documents with AI.",
+        "Upgrade to Pro to draft and review letters, study plans, and explanations with AI.",
       featureLocked: "Pro access required",
       featureLockedBody: "Upgrade to Pro to generate and review this document.",
       generate: "Generate",
       review: "Review",
-      markDraft: "Draft",
+      markDraft: "Uploaded",
       markReviewed: "Reviewed",
       markCompleted: "Completed",
       reset: "Reset",
@@ -1782,7 +1754,7 @@ export default function SelfDocumentsPage() {
       uploading: "Uploading...",
       download: "Download",
       removeUpload: "Remove",
-      drafted: "Drafted",
+      drafted: "Uploaded",
       reviewed: "Reviewed",
       completed: "Completed",
       total: "Total",
@@ -1795,19 +1767,19 @@ export default function SelfDocumentsPage() {
       navTitle: "Navigation",
       progressTitle: "Progress",
       progressBody:
-        "Track your overall draft, review, and completion progress across the document workspace.",
+        "Track uploaded, reviewed, and completed evidence across your document workspace.",
       guidedTitle: "Guided workflow",
       unlockedTitle: "Access unlocked",
       guidedHeadline: "Start with your highest-priority document",
       unlockedHeadline: "Your document tools are available",
       guidedBody:
-        "Open the generator, review your documents, and mark progress as your case moves forward.",
+        "Upload each required piece of evidence and track it through review and completion.",
       unlockedBody:
-        "Generate, review, and organize your documents faster with an execution-focused workflow.",
+        "Upload and organize evidence here. Use the separate AI tools for letters and explanations.",
       lockedBadge: "Pro required",
       unlockedBadge: "Execution unlocked",
       premiumBadge: "Premium active",
-      primaryAction: "Open generator",
+      primaryAction: "Upload next document",
       secondaryAction: "Documents AI Assistant",
       nextStepTitle: "Recommended next step",
       nextStepHeadline: "Here is your best next action",
@@ -1839,8 +1811,8 @@ export default function SelfDocumentsPage() {
           text={text}
           onPrimary={() =>
             firstIncompleteDoc
-              ? handleOpenGenerator(firstIncompleteDoc.id)
-              : navigate("/documents/generator")
+              ? focusEvidenceDocument(firstIncompleteDoc.id)
+              : null
           }
           onSecondary={() => setAiDrawerOpen(true)}
         />
@@ -1930,7 +1902,7 @@ export default function SelfDocumentsPage() {
           {firstIncompleteDoc && (
             <Button
               variant="primary"
-              onClick={() => handleOpenGenerator(firstIncompleteDoc.id)}
+              onClick={() => focusEvidenceDocument(firstIncompleteDoc.id)}
             >
               {language === "fr" ? "Continuer" : "Continue"}
             </Button>
@@ -1969,8 +1941,8 @@ export default function SelfDocumentsPage() {
                 </p>
 
                 <div className="mt-3">
-                  <Button size="sm" onClick={() => handleOpenGenerator(gap.id)}>
-                    {language === "fr" ? "Préparer maintenant" : "Prepare now"}
+                  <Button size="sm" onClick={() => focusEvidenceDocument(gap.id)}>
+                    {language === "fr" ? "Téléverser maintenant" : "Upload now"}
                   </Button>
                 </div>
               </div>
@@ -2073,9 +2045,7 @@ export default function SelfDocumentsPage() {
                 variant="premium"
                 onClick={() => {
                   if (fixCaseAction.target === "document") {
-                    navigate(
-                      `/documents/generator?checklist_id=${fixCaseAction.targetId}&auto_focus=true&source=fix_case`
-                    );
+                    focusEvidenceDocument(fixCaseAction.targetId);
                     return;
                   }
 
@@ -2120,7 +2090,7 @@ export default function SelfDocumentsPage() {
               variant="primary"
               onClick={() => {
                 if (suggestedAction.target === "document") {
-                  handleOpenGenerator(suggestedAction.targetId);
+                  focusEvidenceDocument(suggestedAction.targetId);
                 }
 
                 if (suggestedAction.target === "form") {
@@ -2144,15 +2114,11 @@ export default function SelfDocumentsPage() {
         firstIncompleteDoc={firstIncompleteDoc}
         onStart={() =>
           firstIncompleteDoc
-            ? handleOpenGenerator(firstIncompleteDoc.id)
-            : navigate("/documents/generator")
+            ? focusEvidenceDocument(firstIncompleteDoc.id)
+            : null
         }
         onForms={() => navigate("/forms")}
-        onReview={() =>
-          firstIncompleteDoc
-            ? handleOpenReview(firstIncompleteDoc.id)
-            : navigate("/documents/review")
-        }
+        onReview={() => navigate("/documents/review")}
       />
       )}
 
@@ -2285,30 +2251,27 @@ export default function SelfDocumentsPage() {
                 const state = getDocumentState(engine, doc.id);
 
                 return (
-                  <DocumentCard
-                    key={doc.id}
-                    doc={doc}
-                    isHighlighted={highlightedDocId === doc.id}
-                    state={state}
-                    text={text}
-                    isPro={isPro}
-                    isCriticalFamilyRequirement={
-                      familyRequirementIds.has(doc.id) ||
-                      criticalGaps.some((gap) => gap.id === doc.id)
-                    }
-                    language={language}
-                    onGenerate={() => handleOpenGenerator(doc.id)}
-                    onReview={() => handleOpenReview(doc.id)}
-                    onMarkDraft={() => handleMarkDraft(doc.id)}
-                    onMarkReviewed={() => handleMarkReviewed(doc.id)}
-                    onMarkCompleted={() => handleMarkCompleted(doc.id)}
-                    onReset={() => resetDocument(doc.id)}
-                    uploadRecord={uploadedDocuments[doc.id]}
-                    uploading={uploadingDocumentId === doc.id}
-                    onUpload={(file) => handleUploadEvidence(doc, file)}
-                    onDownload={() => handleDownloadEvidence(doc)}
-                    onRemoveUpload={() => handleRemoveEvidence(doc)}
-                  />
+                  <div id={`evidence-${doc.id}`} key={doc.id}>
+                    <DocumentCard
+                      doc={doc}
+                      isHighlighted={highlightedDocId === doc.id}
+                      state={state}
+                      text={text}
+                      isCriticalFamilyRequirement={
+                        familyRequirementIds.has(doc.id) ||
+                        criticalGaps.some((gap) => gap.id === doc.id)
+                      }
+                      language={language}
+                      onMarkReviewed={() => handleMarkReviewed(doc.id)}
+                      onMarkCompleted={() => handleMarkCompleted(doc.id)}
+                      onReset={() => resetDocument(doc.id)}
+                      uploadRecord={uploadedDocuments[doc.id]}
+                      uploading={uploadingDocumentId === doc.id}
+                      onUpload={(file) => handleUploadEvidence(doc, file)}
+                      onDownload={() => handleDownloadEvidence(doc)}
+                      onRemoveUpload={() => handleRemoveEvidence(doc)}
+                    />
+                  </div>
                 );
               })}
             </div>
@@ -2357,6 +2320,7 @@ export default function SelfDocumentsPage() {
         overallProgress={overallProgress}
         firstIncompleteDoc={firstIncompleteDoc}
         isPro={isPro}
+        onSelectDocument={focusEvidenceDocument}
         onNavigate={(path) => {
           setAiDrawerOpen(false);
           navigate(path);

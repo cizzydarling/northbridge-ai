@@ -213,6 +213,14 @@ function NavIcon({ name }) {
         <path d="M12 12.5v2" />
       </svg>
     ),
+    finder: (
+      <svg {...commonProps}>
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m15.5 15.5 5 5" />
+        <path d="M10.5 7.5v6" />
+        <path d="M7.5 10.5h6" />
+      </svg>
+    ),
   };
 
   return icons[name] || icons.dashboard;
@@ -540,6 +548,14 @@ export default function Layout({ children }) {
         },
         { label: language === "fr" ? "Studio formulaires" : "Forms Studio", path: "/forms", icon: "forms" },
         { label: language === "fr" ? "Carrière" : "Career Match", path: "/career-match", icon: "career" },
+        {
+          label:
+            language === "fr"
+              ? "Centres et écoles"
+              : "Centres & schools",
+          path: "/official-finders",
+          icon: "finder",
+        },
         { label: language === "fr" ? "Citoyenneté" : "Citizenship", path: "/citizenship", icon: "citizenship" },
         { label: language === "fr" ? "Famille" : "Household", path: "/household", icon: "household" },
         { label: language === "fr" ? "Demandes" : "Applications", path: "/applications", icon: "application" },

@@ -35,6 +35,7 @@ const CitizenshipPracticePage = lazy(() => import("./pages/CitizenshipPracticePa
 const CitizenshipQuizPage = lazy(() => import("./pages/CitizenshipQuizPage"));
 const CitizenshipProgressPage = lazy(() => import("./pages/CitizenshipProgressPage"));
 const LanguagePracticePage = lazy(() => import("./pages/LanguagePracticePage"));
+const OfficialFindersPage = lazy(() => import("./pages/OfficialFindersPage"));
 const AdminPromoCodesPage = lazy(() => import("./pages/AdminPromoCodesPage"));
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
 const ClientsPage = lazy(() => import("./pages/ClientsPage"));
@@ -67,6 +68,7 @@ function prefetchAppRoutes(user) {
     import("./pages/SelfDocumentsPage");
     import("./pages/CareerMatchPage");
     import("./pages/CitizenshipPracticePage");
+    import("./pages/OfficialFindersPage");
     import("./pages/PricingPage");
   };
 
@@ -414,6 +416,15 @@ export default function App() {
         element={
           <ProtectedAppRoute>
             <LanguagePracticePage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/official-finders"
+        element={
+          <ProtectedAppRoute>
+            <OfficialFindersPage />
           </ProtectedAppRoute>
         }
       />
