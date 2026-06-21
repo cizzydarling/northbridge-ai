@@ -4,14 +4,31 @@ import Layout from "../components/Layout";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
-import { getMyProfile } from "../api";
+import UpgradePrompt from "../components/UpgradePrompt";
+import {
+  getBillingAccess,
+  getCachedBillingAccess,
+  getMyProfile,
+} from "../api";
 
-const IRCC_LANGUAGE_URL =
-  "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/documents/language-test.html";
-const IRCC_DLI_URL =
-  "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit/prepare/designated-learning-institutions-list.html";
-const IRCC_PGWP_URL =
-  "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/eligibility.html";
+const OFFICIAL_URLS = {
+  en: {
+    language:
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/documents/language-test.html",
+    dli:
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit/prepare/designated-learning-institutions-list.html",
+    pgwp:
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/eligibility.html",
+  },
+  fr: {
+    language:
+      "https://www.canada.ca/fr/immigration-refugies-citoyennete/services/immigrer-canada/entree-express/documents/examen-langue.html",
+    dli:
+      "https://www.canada.ca/fr/immigration-refugies-citoyennete/services/etudier-canada/permis-etudes/preparer/liste-etablissements-enseignement-designes.html",
+    pgwp:
+      "https://www.canada.ca/fr/immigration-refugies-citoyennete/services/etudier-canada/travail/apres-obtention-diplome/admissibilite.html",
+  },
+};
 
 const TESTS = [
   {
@@ -21,19 +38,34 @@ const TESTS = [
     organization: "Paragon Testing Enterprises",
     directoryUrl: "https://www.celpip.ca/take-celpip/where-do-we-test/",
     acceptedVersion: "CELPIP-General",
-    delivery: "Computer-based at an official test centre",
+    delivery: {
+      en: "Computer-based at an official test centre",
+      fr: "Sur ordinateur dans un centre d’examen officiel",
+    },
     remoteAccepted: false,
   },
   {
     id: "ielts",
     language: "english",
-    name: "IELTS General Training",
+    name: {
+      en: "IELTS General Training",
+      fr: "IELTS – formation générale",
+    },
     organization: "IELTS",
     directoryUrl: "https://ielts.org/test-centres",
-    acceptedVersion: "General Training",
-    delivery: "Paper or computer at an official test centre",
+    acceptedVersion: {
+      en: "General Training",
+      fr: "Formation générale",
+    },
+    delivery: {
+      en: "On paper or computer at an official test centre",
+      fr: "Sur papier ou ordinateur dans un centre d’examen officiel",
+    },
     remoteAccepted: false,
-    note: "IELTS Academic and IELTS Online are not the Express Entry test version.",
+    note: {
+      en: "IELTS Academic and IELTS Online are not the Express Entry test version.",
+      fr: "IELTS Academic et IELTS Online ne sont pas les versions acceptées pour Entrée express.",
+    },
   },
   {
     id: "pte",
@@ -42,9 +74,15 @@ const TESTS = [
     organization: "Pearson",
     directoryUrl: "https://www.pearsonpte.com/pte-core",
     acceptedVersion: "PTE Core",
-    delivery: "Computer-based at an authorized PTE test centre",
+    delivery: {
+      en: "Computer-based at an authorized PTE test centre",
+      fr: "Sur ordinateur dans un centre PTE autorisé",
+    },
     remoteAccepted: false,
-    note: "Pearson states that PTE Core cannot be taken at home.",
+    note: {
+      en: "Pearson states that PTE Core cannot be taken at home.",
+      fr: "Pearson précise que le PTE Core ne peut pas être passé à domicile.",
+    },
   },
   {
     id: "tef",
@@ -54,7 +92,10 @@ const TESTS = [
     directoryUrl:
       "https://www.lefrancaisdesaffaires.fr/candidat/trouver-un-centre-agree/",
     acceptedVersion: "TEF Canada",
-    delivery: "At an approved examination centre",
+    delivery: {
+      en: "At an approved examination centre",
+      fr: "Dans un centre d’examen agréé",
+    },
     remoteAccepted: false,
   },
   {
@@ -65,25 +106,28 @@ const TESTS = [
     directoryUrl:
       "https://www.france-education-international.fr/centres-d-examen/carte",
     acceptedVersion: "TCF Canada",
-    delivery: "At an approved examination centre",
+    delivery: {
+      en: "At an approved examination centre",
+      fr: "Dans un centre d’examen agréé",
+    },
     remoteAccepted: false,
   },
 ];
 
 const PROVINCES = [
-  ["AB", "Alberta"],
-  ["BC", "British Columbia"],
-  ["MB", "Manitoba"],
-  ["NB", "New Brunswick"],
-  ["NL", "Newfoundland and Labrador"],
-  ["NT", "Northwest Territories"],
-  ["NS", "Nova Scotia"],
-  ["NU", "Nunavut"],
-  ["ON", "Ontario"],
-  ["PE", "Prince Edward Island"],
-  ["QC", "Quebec"],
-  ["SK", "Saskatchewan"],
-  ["YT", "Yukon"],
+  ["AB", { en: "Alberta", fr: "Alberta" }],
+  ["BC", { en: "British Columbia", fr: "Colombie-Britannique" }],
+  ["MB", { en: "Manitoba", fr: "Manitoba" }],
+  ["NB", { en: "New Brunswick", fr: "Nouveau-Brunswick" }],
+  ["NL", { en: "Newfoundland and Labrador", fr: "Terre-Neuve-et-Labrador" }],
+  ["NT", { en: "Northwest Territories", fr: "Territoires du Nord-Ouest" }],
+  ["NS", { en: "Nova Scotia", fr: "Nouvelle-Écosse" }],
+  ["NU", { en: "Nunavut", fr: "Nunavut" }],
+  ["ON", { en: "Ontario", fr: "Ontario" }],
+  ["PE", { en: "Prince Edward Island", fr: "Île-du-Prince-Édouard" }],
+  ["QC", { en: "Quebec", fr: "Québec" }],
+  ["SK", { en: "Saskatchewan", fr: "Saskatchewan" }],
+  ["YT", { en: "Yukon", fr: "Yukon" }],
 ];
 
 function normalizeScore(value) {
@@ -96,8 +140,10 @@ function normalizeProvince(value) {
   if (!normalized) return "";
 
   const match = PROVINCES.find(
-    ([code, name]) =>
-      code.toLowerCase() === normalized || name.toLowerCase() === normalized
+    ([code, names]) =>
+      code.toLowerCase() === normalized ||
+      names.en.toLowerCase() === normalized ||
+      names.fr.toLowerCase() === normalized
   );
   return match?.[0] || "";
 }
@@ -157,6 +203,7 @@ export default function OfficialFindersPage() {
   const [activeTab, setActiveTab] = useState("tests");
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [access, setAccess] = useState(() => getCachedBillingAccess());
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
   const [testLanguage, setTestLanguage] = useState("all");
@@ -168,17 +215,23 @@ export default function OfficialFindersPage() {
   useEffect(() => {
     let mounted = true;
 
-    getMyProfile()
-      .then((response) => {
+    Promise.allSettled([getMyProfile(), getBillingAccess()])
+      .then(([profileResult, accessResult]) => {
         if (!mounted) return;
-        const nextProfile = response?.data || null;
-        setProfile(nextProfile);
-        setCountry(nextProfile?.current_country || "");
-        setCity(nextProfile?.current_city || "");
-        setProvince(normalizeProvince(nextProfile?.preferred_province));
+        if (profileResult.status === "fulfilled") {
+          const nextProfile = profileResult.value?.data || null;
+          setProfile(nextProfile);
+          setCountry(nextProfile?.current_country || "");
+          setCity(nextProfile?.current_city || "");
+          setProvince(normalizeProvince(nextProfile?.preferred_province));
+        }
+        if (accessResult.status === "fulfilled") {
+          setAccess(accessResult.value?.data || getCachedBillingAccess());
+        }
       })
       .catch((error) => {
-        console.error("Unable to load profile for official finders", error);
+        console.error("Unable to load official finders", error);
+        if (mounted) setAccess(getCachedBillingAccess());
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -197,7 +250,7 @@ export default function OfficialFindersPage() {
           subtitle:
             "Trouvez les bons répertoires officiels selon votre lieu, votre profil linguistique et votre projet d’études.",
           tests: "Tests de langue",
-          schools: "Établissements DLI",
+          schools: "Établissements d’enseignement désignés",
           location: "Lieu actuel",
           country: "Pays",
           city: "Ville",
@@ -224,20 +277,31 @@ export default function OfficialFindersPage() {
             "Les disponibilités et tarifs changent. Confirmez toujours la ville, la date et la version du test sur le site du fournisseur.",
           officialIrcc: "Consulter les tests acceptés par IRCC",
           dliIntro:
-            "Une DLI est un établissement autorisé par une province ou un territoire à accueillir des étudiants internationaux.",
+            "Un établissement d’enseignement désigné (EED) est autorisé par une province ou un territoire à accueillir des étudiants internationaux.",
           province: "Province ou territoire",
           keyword: "Ville ou nom de l’établissement",
-          pgwp: "Prioriser les programmes admissibles au permis de travail postdiplôme",
+          pgwp: "Prioriser les programmes admissibles au permis de travail postdiplôme (PTPD)",
           searchPlan: "Votre recherche recommandée",
-          searchOfficial: "Ouvrir la liste officielle des DLI",
-          pgwpRules: "Vérifier les règles du PGWP",
+          searchOfficial: "Ouvrir la liste officielle des EED",
+          pgwpRules: "Vérifier les règles du PTPD",
           dliWarning:
-            "Le statut DLI ne garantit pas qu’un programme précis est admissible au PGWP. Vérifiez l’établissement et le programme avant de payer des frais.",
+            "Le statut d’EED ne garantit pas qu’un programme précis est admissible au PTPD. Vérifiez l’établissement et le programme avant de payer des frais.",
           profileProvince: "Province préférée du profil",
           noProvince: "Aucune province sélectionnée",
           queryLabel: "Terme à rechercher",
           allInstitutions: "Tous les établissements postsecondaires",
           verified: "Sources vérifiées le 18 juin 2026",
+          englishScore: "Anglais",
+          frenchScore: "Français",
+          pgwpPriorityActive: "PTPD prioritaire",
+          pgwpOptional: "PTPD facultatif",
+          loadingProfile: "Chargement du profil...",
+          premiumOnly: "Fonctionnalité Premium",
+          premiumGateTitle:
+            "Débloquez les centres de tests et les établissements désignés",
+          premiumGateBody:
+            "Premium inclut les recherches personnalisées selon votre profil, les répertoires officiels de centres de tests et le guide des EED et du PTPD.",
+          premiumGateCta: "Passer à Premium",
         }
       : {
           eyebrow: "Official resources",
@@ -286,7 +350,48 @@ export default function OfficialFindersPage() {
           queryLabel: "Search term",
           allInstitutions: "All post-secondary institutions",
           verified: "Sources verified June 18, 2026",
+          englishScore: "English",
+          frenchScore: "French",
+          pgwpPriorityActive: "PGWP priority",
+          pgwpOptional: "PGWP optional",
+          loadingProfile: "Loading profile...",
+          premiumOnly: "Premium feature",
+          premiumGateTitle: "Unlock test centres and designated schools",
+          premiumGateBody:
+            "Premium includes profile-based test-centre guidance, official provider directories, and the DLI and PGWP study-school finder.",
+          premiumGateCta: "Upgrade to Premium",
         };
+
+  const hasFinderAccess = Boolean(
+    access?.can_use_official_finders || access?.is_premium
+  );
+
+  if (loading) {
+    return (
+      <Layout>
+        <p className="text-sm text-slate-600">{copy.loadingProfile}</p>
+      </Layout>
+    );
+  }
+
+  if (!hasFinderAccess) {
+    return (
+      <Layout>
+        <div className="max-w-3xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+            {copy.premiumOnly}
+          </p>
+          <UpgradePrompt
+            className="mt-4"
+            title={copy.premiumGateTitle}
+            body={copy.premiumGateBody}
+            buttonLabel={copy.premiumGateCta}
+            pricingPath="/pricing?plan=premium&source=official_finders&intent=unlock"
+          />
+        </div>
+      </Layout>
+    );
+  }
 
   const englishScore = normalizeScore(
     profile?.english_language_score ?? profile?.language_score
@@ -310,9 +415,13 @@ export default function OfficialFindersPage() {
   });
 
   const provinceName =
-    PROVINCES.find(([code, name]) => code === province || name === province)?.[1] ||
+    PROVINCES.find(([code]) => code === province)?.[1]?.[language] ||
     province ||
     copy.noProvince;
+
+  const officialUrls = OFFICIAL_URLS[language];
+  const localized = (value) =>
+    typeof value === "object" && value !== null ? value[language] : value;
 
   return (
     <Layout>
@@ -394,12 +503,17 @@ export default function OfficialFindersPage() {
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <StatusPill tone="success">
-                  English: {englishScore ?? "--"}
+                  {copy.englishScore}: {englishScore ?? "--"}
                 </StatusPill>
                 <StatusPill tone="success">
-                  Français: {frenchScore ?? "--"}
+                  {copy.frenchScore}: {frenchScore ?? "--"}
                 </StatusPill>
               </div>
+              {loading ? (
+                <p className="mt-3 text-xs text-slate-500">
+                  {copy.loadingProfile}
+                </p>
+              ) : null}
             </Card>
           </section>
 
@@ -414,7 +528,7 @@ export default function OfficialFindersPage() {
               <Button
                 variant="secondary"
                 className="mt-4"
-                onClick={() => openOfficial(IRCC_LANGUAGE_URL)}
+                onClick={() => openOfficial(officialUrls.language)}
               >
                 {copy.officialIrcc}
               </Button>
@@ -430,7 +544,7 @@ export default function OfficialFindersPage() {
                           {test.organization}
                         </p>
                         <h2 className="mt-2 text-xl font-semibold text-slate-950">
-                          {test.name}
+                          {localized(test.name)}
                         </h2>
                       </div>
                       <StatusPill tone={test.remoteAccepted ? "success" : "warning"}>
@@ -440,16 +554,20 @@ export default function OfficialFindersPage() {
                     <dl className="mt-5 space-y-3 text-sm">
                       <div>
                         <dt className="font-medium text-slate-500">{copy.accepted}</dt>
-                        <dd className="mt-1 text-slate-900">{test.acceptedVersion}</dd>
+                        <dd className="mt-1 text-slate-900">
+                          {localized(test.acceptedVersion)}
+                        </dd>
                       </div>
                       <div>
                         <dt className="font-medium text-slate-500">{copy.deliveryFilter}</dt>
-                        <dd className="mt-1 text-slate-900">{test.delivery}</dd>
+                        <dd className="mt-1 text-slate-900">
+                          {localized(test.delivery)}
+                        </dd>
                       </div>
                     </dl>
                     {test.note ? (
                       <p className="mt-4 text-sm leading-6 text-amber-800">
-                        {test.note}
+                        {localized(test.note)}
                       </p>
                     ) : null}
                     <Button
@@ -492,9 +610,9 @@ export default function OfficialFindersPage() {
                     className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
                   >
                     <option value="">{copy.all}</option>
-                    {PROVINCES.map(([code, name]) => (
+                    {PROVINCES.map(([code, names]) => (
                       <option key={code} value={code}>
-                        {name}
+                        {names[language]}
                       </option>
                     ))}
                   </select>
@@ -538,7 +656,9 @@ export default function OfficialFindersPage() {
               </dl>
               <div className="mt-4 flex flex-wrap gap-2">
                 <StatusPill tone={pgwpPriority ? "success" : "neutral"}>
-                  PGWP {pgwpPriority ? "priority" : "optional"}
+                  {pgwpPriority
+                    ? copy.pgwpPriorityActive
+                    : copy.pgwpOptional}
                 </StatusPill>
                 <StatusPill>{provinceName}</StatusPill>
               </div>
@@ -552,12 +672,12 @@ export default function OfficialFindersPage() {
           </section>
 
           <div className="flex flex-wrap gap-3">
-            <Button onClick={() => openOfficial(IRCC_DLI_URL)}>
+            <Button onClick={() => openOfficial(officialUrls.dli)}>
               {copy.searchOfficial}
             </Button>
             <Button
               variant="secondary"
-              onClick={() => openOfficial(IRCC_PGWP_URL)}
+              onClick={() => openOfficial(officialUrls.pgwp)}
             >
               {copy.pgwpRules}
             </Button>

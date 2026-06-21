@@ -180,6 +180,7 @@ def get_feature_access_map(user: Optional[User]) -> Dict[str, bool]:
         "live_ircc_draws": is_premium,
         "processing_time_tracker": is_premium,
         "job_opportunity_matching": is_premium,
+        "official_finders": is_premium,
 
         # ---- CAREER MATCH ----
         "career_match_preview": True,
@@ -584,6 +585,7 @@ def build_access_response(
         "can_use_live_ircc_draws": features["live_ircc_draws"],
         "can_view_processing_times": features["processing_time_tracker"],
         "can_use_job_opportunity_matching": features["job_opportunity_matching"],
+        "can_use_official_finders": features["official_finders"],
         "can_preview_career_match": features["career_match_preview"],
         "can_use_full_career_match": features["career_match_full"],
         "can_save_career_jobs": features["career_saved_jobs"],

@@ -259,6 +259,10 @@ function normalizeAccess(raw) {
       raw?.can_use_job_opportunity_matching ??
       features?.job_opportunity_matching ??
       isPremium,
+    can_use_official_finders:
+      raw?.can_use_official_finders ??
+      features?.official_finders ??
+      isPremium,
     can_preview_career_match:
       raw?.can_preview_career_match ??
       features?.career_match_preview ??

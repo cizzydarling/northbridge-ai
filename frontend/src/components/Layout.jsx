@@ -553,7 +553,10 @@ export default function Layout({ children }) {
             language === "fr"
               ? "Centres et écoles"
               : "Centres & schools",
-          path: "/official-finders",
+          path:
+            effectivePlan === "premium"
+              ? "/official-finders"
+              : "/pricing?plan=premium&source=official_finders&intent=unlock",
           icon: "finder",
         },
         { label: language === "fr" ? "Citoyenneté" : "Citizenship", path: "/citizenship", icon: "citizenship" },

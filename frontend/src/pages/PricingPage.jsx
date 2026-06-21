@@ -1042,6 +1042,8 @@ export default function PricingPage() {
         careerPreview: "Aperçu Career Match",
         careerFull: "Correspondance carrière complète et emplois sauvegardés",
         careerAdvanced: "Intelligence carrière avancée",
+        officialFinders:
+          "Centres de tests officiels et recherche d’établissements désignés",
         yes: "Oui",
         limited: "Limité",
         preview: "Aperçu",
@@ -1186,6 +1188,7 @@ export default function PricingPage() {
       careerPreview: "Career Match preview",
       careerFull: "Full Career Match and saved jobs",
       careerAdvanced: "Advanced career intelligence",
+      officialFinders: "Official test-centre and DLI school finder",
       yes: "Yes",
       limited: "Limited",
       preview: "Preview",
@@ -1329,6 +1332,7 @@ export default function PricingPage() {
           text.citizenshipPremiumPractice,
           language === "fr" ? "Examens blancs complets de 20 questions, sans limite d’essais" : "Full 20-question mock exams with no attempt cap",
           text.careerAdvanced,
+          text.officialFinders,
           text.exports,
         ],
       },
@@ -1354,6 +1358,7 @@ export default function PricingPage() {
       { label: text.citizenshipPractice, free: text.yes, pro: text.yes, premium: text.yes },
       { label: text.citizenshipProgress, free: text.no, pro: text.yes, premium: text.yes },
       { label: text.citizenshipPremiumPractice, free: text.no, pro: text.no, premium: text.yes },
+      { label: text.officialFinders, free: text.no, pro: text.no, premium: text.yes },
       {
         label:
           language === "fr"
