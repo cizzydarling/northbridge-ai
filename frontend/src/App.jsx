@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 
 import "./i18n";
 import {
@@ -233,6 +234,7 @@ function AppLoading() {
 export default function App() {
   return (
     <Suspense fallback={<AppLoading />}>
+      <Analytics />
       <Routes>
       {/* PUBLIC */}
       <Route
