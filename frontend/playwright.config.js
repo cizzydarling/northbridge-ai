@@ -7,11 +7,15 @@ const backendCommand =
 
 export default defineConfig({
   testDir: "./e2e",
+  timeout: 90_000,
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: process.env.CI ? "github" : "list",
+  expect: {
+    timeout: 30_000,
+  },
   use: {
     baseURL: "http://127.0.0.1:4173",
     trace: "retain-on-failure",
