@@ -206,12 +206,8 @@ function BootstrapGate({ children }) {
   const isAgent = bootstrapUser?.role === "agent" || bootstrapUser?.plan === "agent_pro";
 
   if (!isAgent) {
-    if (!bootstrap.profile_exists && location.pathname !== "/onboarding" && !isDisclosurePage) {
+    if (!bootstrap.profile_complete && location.pathname !== "/onboarding" && !isDisclosurePage) {
       return <Navigate to="/onboarding" replace />;
-    }
-
-    if (bootstrap.profile_exists && location.pathname === "/onboarding") {
-      return <Navigate to="/dashboard" replace />;
     }
   }
 

@@ -4,6 +4,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+
+from app.data.db import engine
+from app.services.document_storage import document_storage_healthcheck
+from app.services.observability import configure_error_monitoring, observe_request
+from app.services.security_controls import rate_limiter_healthcheck
 
 from app.routes import (
     ai_routes,
@@ -54,6 +61,40 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
+
+
+def validate_runtime_configuration() -> None:
+    environment = os.getenv("APP_ENV", os.getenv("ENVIRONMENT", "")).strip().lower()
+    if environment not in {"prod", "production"}:
+        return
+
+    required = [
+        "SECRET_KEY",
+        "DATABASE_URL",
+        "FRONTEND_URL",
+        "OPENAI_API_KEY",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "DOCUMENT_STORAGE_BUCKET",
+        "DOCUMENT_STORAGE_REGION",
+        "REDIS_URL",
+        "SENTRY_DSN",
+    ]
+    missing = [name for name in required if not os.getenv(name, "").strip()]
+    if missing:
+        raise RuntimeError(
+            "Missing required production settings: " + ", ".join(sorted(missing))
+        )
+
+    frontend_url = os.getenv("FRONTEND_URL", "").strip().lower()
+    if not frontend_url.startswith("https://"):
+        raise RuntimeError("FRONTEND_URL must use HTTPS in production.")
+
+    if os.getenv("DOCUMENT_STORAGE_BACKEND", "").strip().lower() != "s3":
+        raise RuntimeError(
+            "DOCUMENT_STORAGE_BACKEND must be 's3' in production; local document "
+            "storage is not durable enough for customer files."
+        )
 
 
 def get_allowed_origins() -> list[str]:
@@ -123,6 +164,8 @@ def register_routers(app: FastAPI) -> None:
 
 
 def create_app() -> FastAPI:
+    validate_runtime_configuration()
+    configure_error_monitoring()
     app = FastAPI(title="NorthBridgeAI API")
 
     allowed_origins = get_allowed_origins()
@@ -137,6 +180,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    app.middleware("http")(observe_request)
 
     @app.middleware("http")
     async def add_security_headers(request, call_next):
@@ -166,6 +211,42 @@ def create_app() -> FastAPI:
     @app.get("/health")
     def health():
         return {"status": "ok"}
+
+    @app.get("/health/live", include_in_schema=False)
+    def liveness():
+        return {"status": "ok"}
+
+    @app.get("/health/ready", include_in_schema=False)
+    def readiness():
+        components: dict[str, str] = {}
+
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            components["database"] = "ok"
+        except Exception:
+            components["database"] = "unavailable"
+
+        try:
+            rate_limiter_healthcheck()
+            components["rate_limiter"] = "ok"
+        except Exception:
+            components["rate_limiter"] = "unavailable"
+
+        try:
+            document_storage_healthcheck()
+            components["document_storage"] = "ok"
+        except Exception:
+            components["document_storage"] = "unavailable"
+
+        ready = all(value == "ok" for value in components.values())
+        payload = {
+            "status": "ready" if ready else "not_ready",
+            "components": components,
+        }
+        if not ready:
+            return JSONResponse(status_code=503, content=payload)
+        return payload
 
     return app
 

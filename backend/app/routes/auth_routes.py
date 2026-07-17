@@ -4,11 +4,11 @@ import secrets
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from sqlalchemy.orm import Session
 
 from app.data.db import get_db
@@ -22,6 +22,11 @@ from app.services.email_service import (
     send_email,
 )
 from app.services.promo_code_service import redeem_promo_code
+from app.services.security_controls import (
+    enforce_rate_limit,
+    log_security_event,
+    request_ip,
+)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 logger = logging.getLogger(__name__)
@@ -35,6 +40,8 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 PASSWORD_RESET_EXPIRE_MINUTES = 45
+EMAIL_CONFIRMATION_EXPIRE_HOURS = 24
+MIN_PASSWORD_LENGTH = 10
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -42,24 +49,21 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 class RegisterRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     email: EmailStr
     password: str
-    role: str = "individual"
     access_code: str | None = None
 
     @field_validator("password")
     @classmethod
     def validate_password_length(cls, value: str) -> str:
+        if len(value) < MIN_PASSWORD_LENGTH:
+            raise ValueError(
+                f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+            )
         if len(value.encode("utf-8")) > 72:
             raise ValueError("Password must be 72 bytes or fewer")
-        return value
-
-    @field_validator("role")
-    @classmethod
-    def validate_role(cls, value: str) -> str:
-        allowed_roles = {"individual", "agent", "admin"}
-        if value not in allowed_roles:
-            raise ValueError("Role must be one of: individual, agent, admin")
         return value
 
 
@@ -82,6 +86,10 @@ class PasswordResetRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password_length(cls, value: str) -> str:
+        if len(value) < MIN_PASSWORD_LENGTH:
+            raise ValueError(
+                f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+            )
         if len(value.encode("utf-8")) > 72:
             raise ValueError("Password must be 72 bytes or fewer")
         return value
@@ -215,17 +223,41 @@ def _send_email_confirmation(db: Session, user: User) -> None:
 
 
 @router.post("/register")
-def register(data: RegisterRequest, db: Session = Depends(get_db)):
+def register(
+    data: RegisterRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(
+        "register_ip",
+        identifiers=[request_ip(request)],
+        limit=5,
+        window_seconds=60 * 60,
+    )
+    enforce_rate_limit(
+        "register_account",
+        identifiers=[data.email],
+        limit=3,
+        window_seconds=60 * 60,
+    )
     existing_user = get_user_by_email(db, data.email)
 
     if existing_user:
+        log_security_event(
+            "registration",
+            request=request,
+            outcome="existing_account",
+            account_identifier=data.email,
+        )
         raise HTTPException(status_code=400, detail="Email already registered")
 
     try:
         new_user = User(
             email=data.email,
             password=hash_password(data.password),
-            role=data.role,
+            # Elevated roles are provisioned only through an authenticated,
+            # administrative workflow. Public registration is always individual.
+            role="individual",
         )
 
         db.add(new_user)
@@ -239,6 +271,13 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
         db.commit()
         db.refresh(new_user)
+
+        log_security_event(
+            "registration",
+            request=request,
+            outcome="success",
+            account_identifier=data.email,
+        )
 
         return serialize_user(new_user)
 
@@ -259,13 +298,32 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
+    enforce_rate_limit(
+        "login_ip",
+        identifiers=[request_ip(request)],
+        limit=20,
+        window_seconds=15 * 60,
+    )
+    enforce_rate_limit(
+        "login_account",
+        identifiers=[form_data.username],
+        limit=10,
+        window_seconds=15 * 60,
+    )
     try:
         user = get_user_by_email(db, form_data.username)
 
         if not user or not verify_password(form_data.password, user.password):
+            log_security_event(
+                "login",
+                request=request,
+                outcome="invalid_credentials",
+                account_identifier=form_data.username,
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password",
@@ -279,6 +337,13 @@ def login(
                 "sub": user.email,
                 "role": user.role,
             }
+        )
+
+        log_security_event(
+            "login",
+            request=request,
+            outcome="success",
+            account_identifier=form_data.username,
         )
 
         return {
@@ -329,8 +394,21 @@ def get_me(current_user: User = Depends(get_current_user)):
 @router.post("/request-email-confirmation")
 def request_email_confirmation(
     data: EmailRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
+    enforce_rate_limit(
+        "email_confirmation_ip",
+        identifiers=[request_ip(request)],
+        limit=10,
+        window_seconds=60 * 60,
+    )
+    enforce_rate_limit(
+        "email_confirmation_account",
+        identifiers=[data.email],
+        limit=5,
+        window_seconds=60 * 60,
+    )
     user = get_user_by_email(db, data.email)
     email_status = "not_found"
     if user:
@@ -355,7 +433,17 @@ def request_email_confirmation(
 
 
 @router.post("/confirm-email")
-def confirm_email(data: TokenRequest, db: Session = Depends(get_db)):
+def confirm_email(
+    data: TokenRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(
+        "confirm_email",
+        identifiers=[request_ip(request), data.token],
+        limit=10,
+        window_seconds=15 * 60,
+    )
     token_hash = _hash_token(data.token)
     user = (
         db.query(User)
@@ -363,7 +451,18 @@ def confirm_email(data: TokenRequest, db: Session = Depends(get_db)):
         .first()
     )
 
-    if not user:
+    if not user or not user.email_confirmation_sent_at:
+        raise HTTPException(status_code=400, detail="Invalid or expired confirmation link.")
+
+    sent_at = user.email_confirmation_sent_at
+    if sent_at.tzinfo is None:
+        sent_at = sent_at.replace(tzinfo=timezone.utc)
+    if sent_at + timedelta(hours=EMAIL_CONFIRMATION_EXPIRE_HOURS) < datetime.now(
+        timezone.utc
+    ):
+        user.email_confirmation_token_hash = None
+        user.email_confirmation_status = "expired"
+        db.commit()
         raise HTTPException(status_code=400, detail="Invalid or expired confirmation link.")
 
     user.email_confirmed_at = datetime.now(timezone.utc)
@@ -376,12 +475,32 @@ def confirm_email(data: TokenRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/confirm-email")
-def confirm_email_get(token: str, db: Session = Depends(get_db)):
-    return confirm_email(TokenRequest(token=token), db)
+def confirm_email_get(
+    token: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return confirm_email(TokenRequest(token=token), request, db)
 
 
 @router.post("/request-password-reset")
-def request_password_reset(data: EmailRequest, db: Session = Depends(get_db)):
+def request_password_reset(
+    data: EmailRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(
+        "password_reset_request_ip",
+        identifiers=[request_ip(request)],
+        limit=10,
+        window_seconds=60 * 60,
+    )
+    enforce_rate_limit(
+        "password_reset_request_account",
+        identifiers=[data.email],
+        limit=5,
+        window_seconds=60 * 60,
+    )
     user = get_user_by_email(db, data.email)
     email_status = "not_found"
     if user:
@@ -421,7 +540,17 @@ def request_password_reset(data: EmailRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/reset-password")
-def reset_password(data: PasswordResetRequest, db: Session = Depends(get_db)):
+def reset_password(
+    data: PasswordResetRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(
+        "password_reset",
+        identifiers=[request_ip(request), data.token],
+        limit=10,
+        window_seconds=15 * 60,
+    )
     token_hash = _hash_token(data.token)
     user = db.query(User).filter(User.password_reset_token_hash == token_hash).first()
 

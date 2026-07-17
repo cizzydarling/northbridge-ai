@@ -905,11 +905,15 @@ export default function Layout({ children }) {
             </div>
           </header>
 
-          <OnboardingModal />
-          <SOPGuideModal
-            forceOpen={guideOpen}
-            onClose={() => setGuideOpen(false)}
-          />
+          {!['/legal/disclosure', '/onboarding'].includes(location.pathname) && (
+            <>
+              <OnboardingModal />
+              <SOPGuideModal
+                forceOpen={guideOpen}
+                onClose={() => setGuideOpen(false)}
+              />
+            </>
+          )}
 
           <main className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:py-8">
             {showEmailConfirmationBanner && (

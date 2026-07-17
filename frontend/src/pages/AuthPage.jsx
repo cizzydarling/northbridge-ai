@@ -65,7 +65,6 @@ export default function AuthPage() {
   const [form, setForm] = useState({
     email: "",
     password: "",
-    role: "individual",
   });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -184,7 +183,6 @@ export default function AuthPage() {
         await registerUser({
           email: form.email,
           password: form.password,
-          role: "individual",
         });
 
         setMessage(t("auth.registrationSuccess"));
@@ -477,6 +475,15 @@ export default function AuthPage() {
                     name="password"
                     value={form.password}
                     onChange={handleChange}
+                    minLength={!isLogin || resetToken ? 10 : undefined}
+                    maxLength={72}
+                    hint={
+                      !isLogin || resetToken
+                        ? i18n.language === "fr"
+                          ? "Utilisez au moins 10 caractères."
+                          : "Use at least 10 characters."
+                        : ""
+                    }
                     required
                   />
                 )}

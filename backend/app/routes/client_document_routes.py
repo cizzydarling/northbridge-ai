@@ -1,10 +1,9 @@
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.access_control import require_agent_plan
@@ -12,6 +11,11 @@ from app.data.db import get_db
 from app.models.client_document_model import ClientDocument
 from app.models.client_model import Client
 from app.models.matter_model import Matter
+from app.services.document_storage import (
+    delete_document,
+    document_download_response,
+    store_document,
+)
 from app.schemas.client_document_schema import (
     ClientDocumentCreate,
     ClientDocumentResponse,
@@ -19,11 +23,7 @@ from app.schemas.client_document_schema import (
     GenerateMatterDocumentsRequest,
 )
 from app.utils.upload_security import (
-    SAFE_DOWNLOAD_HEADERS,
-    delete_existing_upload_file,
     get_safe_upload_extension,
-    resolve_existing_upload_path,
-    safe_stored_path,
     validate_upload_content,
 )
 
@@ -105,14 +105,11 @@ def get_owned_document_or_404(
     return document
 
 
-def get_document_file_response(document: ClientDocument) -> FileResponse:
-    file_path = resolve_existing_upload_path(UPLOAD_DIR, document.file_path)
-
-    return FileResponse(
-        path=str(file_path),
-        filename=document.file_name or file_path.name,
-        media_type="application/octet-stream",
-        headers=SAFE_DOWNLOAD_HEADERS,
+def get_document_file_response(document: ClientDocument) -> Response:
+    return document_download_response(
+        document.file_path,
+        filename=document.file_name,
+        legacy_upload_dir=UPLOAD_DIR,
     )
 
 
@@ -235,7 +232,7 @@ def delete_client_document(
 ):
     document = get_owned_document_or_404(db, client_id, document_id, current_user)
 
-    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
+    delete_document(document.file_path, legacy_upload_dir=UPLOAD_DIR)
 
     db.delete(document)
     db.commit()
@@ -257,17 +254,20 @@ async def upload_client_document_file(
         raise HTTPException(status_code=400, detail="No file selected.")
 
     extension = get_safe_upload_extension(file.filename)
-    stored_name = f"{client_id}_{document_id}_{uuid4().hex}{extension}"
-    stored_path = safe_stored_path(UPLOAD_DIR, stored_name)
 
     content = await file.read()
     validate_upload_content(file, content, extension)
-    stored_path.write_bytes(content)
+    stored_locator = store_document(
+        content,
+        namespace=f"client_documents/{current_user.id}/{client_id}/{document_id}",
+        filename_extension=extension,
+        content_type=file.content_type,
+    )
 
-    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
+    delete_document(document.file_path, legacy_upload_dir=UPLOAD_DIR)
 
     document.file_name = file.filename
-    document.file_path = str(stored_path)
+    document.file_path = stored_locator
     document.file_url = f"/client-documents/{client_id}/{document_id}/file"
     document.uploaded_at = datetime.now(timezone.utc)
 
@@ -299,7 +299,7 @@ def remove_client_document_file(
 ):
     document = get_owned_document_or_404(db, client_id, document_id, current_user)
 
-    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
+    delete_document(document.file_path, legacy_upload_dir=UPLOAD_DIR)
 
     document.file_name = None
     document.file_path = None

@@ -1,26 +1,26 @@
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.data.db import get_db
 from app.models.self_document_model import SelfDocument
 from app.routes.auth_routes import get_current_user
+from app.services.document_storage import (
+    delete_document,
+    document_download_response,
+    store_document,
+)
 from app.schemas.self_document_schema import (
     SelfDocumentCreate,
     SelfDocumentResponse,
     SelfDocumentUpdate,
 )
 from app.utils.upload_security import (
-    SAFE_DOWNLOAD_HEADERS,
-    delete_existing_upload_file,
     get_safe_upload_extension,
-    resolve_existing_upload_path,
-    safe_stored_path,
     validate_upload_content,
 )
 
@@ -151,7 +151,7 @@ def delete_self_document(
 ):
     document = get_owned_self_document_or_404(db, document_id, current_user.id)
 
-    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
+    delete_document(document.file_path, legacy_upload_dir=UPLOAD_DIR)
 
     db.delete(document)
     db.commit()
@@ -172,17 +172,20 @@ async def upload_self_document_file(
         raise HTTPException(status_code=400, detail="No file selected.")
 
     extension = get_safe_upload_extension(file.filename)
-    stored_name = f"{current_user.id}_{document_id}_{uuid4().hex}{extension}"
-    stored_path = safe_stored_path(UPLOAD_DIR, stored_name)
 
     content = await file.read()
     validate_upload_content(file, content, extension)
-    stored_path.write_bytes(content)
+    stored_locator = store_document(
+        content,
+        namespace=f"self_documents/{current_user.id}/{document_id}",
+        filename_extension=extension,
+        content_type=file.content_type,
+    )
 
-    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
+    delete_document(document.file_path, legacy_upload_dir=UPLOAD_DIR)
 
     document.file_name = file.filename
-    document.file_path = str(stored_path)
+    document.file_path = stored_locator
     document.file_url = f"/self-documents/{document_id}/file"
     document.uploaded_at = datetime.now(timezone.utc)
     document.completed = True
@@ -210,7 +213,7 @@ def remove_self_document_file(
 ):
     document = get_owned_self_document_or_404(db, document_id, current_user.id)
 
-    delete_existing_upload_file(UPLOAD_DIR, document.file_path)
+    delete_document(document.file_path, legacy_upload_dir=UPLOAD_DIR)
 
     document.file_name = None
     document.file_path = None
@@ -223,12 +226,9 @@ def remove_self_document_file(
     return document
 
 
-def get_document_file_response(document: SelfDocument) -> FileResponse:
-    file_path = resolve_existing_upload_path(UPLOAD_DIR, document.file_path)
-
-    return FileResponse(
-        path=str(file_path),
-        filename=document.file_name or file_path.name,
-        media_type="application/octet-stream",
-        headers=SAFE_DOWNLOAD_HEADERS,
+def get_document_file_response(document: SelfDocument) -> Response:
+    return document_download_response(
+        document.file_path,
+        filename=document.file_name,
+        legacy_upload_dir=UPLOAD_DIR,
     )

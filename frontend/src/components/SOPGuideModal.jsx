@@ -27,10 +27,7 @@ export default function SOPGuideModal({ forceOpen = false, onClose }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (forceOpen) {
-      setOpen(true);
-      return;
-    }
+    if (forceOpen) return;
 
     const timer = window.setTimeout(() => {
       if (!getGuideSeen()) setOpen(true);
@@ -38,6 +35,8 @@ export default function SOPGuideModal({ forceOpen = false, onClose }) {
 
     return () => window.clearTimeout(timer);
   }, [forceOpen]);
+
+  const isOpen = forceOpen || open;
 
   const text = useMemo(() => {
     if (language === "fr") {
@@ -111,7 +110,7 @@ export default function SOPGuideModal({ forceOpen = false, onClose }) {
     onClose?.();
   }
 
-  if (!open) return null;
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4">

@@ -1,3 +1,6 @@
+import { useId } from "react";
+
+
 export default function Input({
   label,
   value,
@@ -7,19 +10,28 @@ export default function Input({
   className = "",
   error = "",
   hint = "",
+  id,
+  name,
   ...props
 }) {
   const hasError = Boolean(error);
+  const generatedId = useId();
+  const inputId = id || name || generatedId;
 
   return (
     <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-slate-700">
+        <label
+          htmlFor={inputId}
+          className="block text-sm font-medium text-slate-700"
+        >
           {label}
         </label>
       )}
 
       <input
+        id={inputId}
+        name={name}
         type={type}
         value={value}
         onChange={onChange}

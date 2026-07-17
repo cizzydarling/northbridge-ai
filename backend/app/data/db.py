@@ -22,7 +22,20 @@ engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
-    connect_args={"sslmode": "require"},
+    connect_args=(
+        {"check_same_thread": False}
+        if DATABASE_URL.startswith("sqlite")
+        else {
+            "sslmode": os.getenv(
+                "DB_SSL_MODE",
+                "require"
+                if os.getenv("APP_ENV", "development").lower() == "production"
+                else "prefer",
+            )
+        }
+        if DATABASE_URL.startswith("postgresql")
+        else {}
+    ),
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

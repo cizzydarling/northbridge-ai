@@ -74,18 +74,21 @@ export default function DisclosureAcceptancePage() {
         setFinalCertificationChecked(everythingAccepted);
       } catch (err) {
         console.error(err);
-        setError(
-          t("legal.custom.loadError", {
-            defaultValue: "Failed to load disclosure acceptance status.",
-          })
-        );
+        setError("disclosure_load_error");
       } finally {
         setLoading(false);
       }
     }
 
     loadAcceptanceStatus();
-  }, [clientId, matterId, t]);
+  }, [clientId, matterId]);
+
+  const renderedError =
+    error === "disclosure_load_error"
+      ? t("legal.custom.loadError", {
+          defaultValue: "Failed to load disclosure acceptance status.",
+        })
+      : error;
 
   const allChecked = useMemo(() => {
     return REQUIRED_DISCLOSURES.every((item) => checked[item.type] === true);
@@ -111,10 +114,10 @@ export default function DisclosureAcceptancePage() {
     !submitting &&
     !allAlreadyAccepted;
 
-  const toggleChecked = (type) => {
+  const setDisclosureChecked = (type, value) => {
     setChecked((prev) => ({
       ...prev,
-      [type]: !prev[type],
+      [type]: value,
     }));
   };
 
@@ -284,9 +287,9 @@ export default function DisclosureAcceptancePage() {
           </div>
         ) : null}
 
-        {error ? (
+        {renderedError ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-            {error}
+            {renderedError}
           </div>
         ) : null}
 
@@ -323,7 +326,9 @@ export default function DisclosureAcceptancePage() {
                     <input
                       type="checkbox"
                       checked={checked[item.type] === true}
-                      onChange={() => toggleChecked(item.type)}
+                      onChange={(event) =>
+                        setDisclosureChecked(item.type, event.target.checked)
+                      }
                       disabled={alreadyAccepted}
                       className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-amber-300"
                     />
@@ -366,8 +371,8 @@ export default function DisclosureAcceptancePage() {
                 <input
                   type="checkbox"
                   checked={finalCertificationChecked}
-                  onChange={() =>
-                    setFinalCertificationChecked((prev) => !prev)
+                  onChange={(event) =>
+                    setFinalCertificationChecked(event.target.checked)
                   }
                   disabled={allAlreadyAccepted}
                   className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-amber-300"

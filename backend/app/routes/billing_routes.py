@@ -73,7 +73,7 @@ STRIPE_PLAN_CONFIG = {
     },
 }
 
-APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+APP_ENV = os.getenv("APP_ENV", os.getenv("ENVIRONMENT", "")).strip().lower()
 DEV_ENVS = {"development", "dev", "local", "test"}
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
@@ -189,6 +189,8 @@ def ensure_webhook_configured() -> None:
 
 
 def ensure_dev_mode() -> None:
+    # Development-only mutation endpoints must be explicitly enabled. An
+    # omitted environment value is never treated as development.
     if APP_ENV not in DEV_ENVS:
         raise HTTPException(status_code=404, detail="Not found")
 

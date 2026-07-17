@@ -5,8 +5,10 @@ def estimate_pr_timeline(profile, crs_score: int) -> Dict:
     steps: List[Dict] = []
     total_min_months = 0
     total_max_months = 0
+    language_score = profile.language_score or 0
+    experience_years = profile.experience_years or 0
 
-    if profile.language_score < 9:
+    if language_score < 9:
         steps.append({
             "title": "Improve language score to CLB 9 or higher",
             "estimated_time_min_months": 2,
@@ -16,7 +18,7 @@ def estimate_pr_timeline(profile, crs_score: int) -> Dict:
         total_min_months += 2
         total_max_months += 4
 
-    if profile.experience_years < 5:
+    if experience_years < 5:
         steps.append({
             "title": "Gain more skilled work experience",
             "estimated_time_min_months": 6,

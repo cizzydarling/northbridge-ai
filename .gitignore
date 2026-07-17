@@ -9,11 +9,16 @@ __pycache__/
 *.db
 .env
 backend/.env
+uploads/
+backend/uploads/
 
 # Node
 node_modules/
 dist/
 build/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
 
 # OS / editor
 .DS_Store
