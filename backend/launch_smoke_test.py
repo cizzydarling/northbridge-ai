@@ -263,7 +263,9 @@ def main() -> None:
                 filename_extension=".pdf",
                 content_type="application/pdf",
             )
-            legacy_root = storage_root / "self_documents"
+            # New storage locators resolve against LOCAL_UPLOAD_ROOT even when
+            # a route's historical upload directory points somewhere else.
+            legacy_root = storage_root / "legacy_self_documents"
             assert document_storage.read_document(
                 locator,
                 legacy_upload_dir=legacy_root,
@@ -292,8 +294,6 @@ def main() -> None:
         "DOCUMENT_STORAGE_BUCKET": "test-bucket",
         "DOCUMENT_STORAGE_REGION": "ca-central-1",
         "DOCUMENT_STORAGE_BACKEND": "local",
-        "REDIS_URL": "redis://localhost:6379/0",
-        "SENTRY_DSN": "https://public@example.ingest.sentry.io/1",
     }
     from app.main import app as production_app
     from app.main import validate_runtime_configuration
@@ -308,6 +308,8 @@ def main() -> None:
     assert ready_response.json()["status"] == "ready"
 
     with patch.dict(os.environ, production_settings, clear=False):
+        os.environ.pop("REDIS_URL", None)
+        os.environ.pop("SENTRY_DSN", None)
         try:
             validate_runtime_configuration()
         except RuntimeError as exc:

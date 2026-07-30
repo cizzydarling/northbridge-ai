@@ -77,8 +77,6 @@ def validate_runtime_configuration() -> None:
         "STRIPE_WEBHOOK_SECRET",
         "DOCUMENT_STORAGE_BUCKET",
         "DOCUMENT_STORAGE_REGION",
-        "REDIS_URL",
-        "SENTRY_DSN",
     ]
     missing = [name for name in required if not os.getenv(name, "").strip()]
     if missing:

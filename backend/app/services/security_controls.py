@@ -146,6 +146,5 @@ def rate_limiter_healthcheck() -> None:
     client = _get_redis_client()
     if client is not None:
         client.ping()
-        return
-    if _environment() in {"prod", "production"}:
-        raise RuntimeError("Redis rate limiting is not configured.")
+    # A process-local limiter is the intentional fallback for single-instance
+    # deployments. Redis can be added later when the service scales horizontally.

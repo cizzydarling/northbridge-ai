@@ -113,7 +113,7 @@ def read_document(locator: str | None, *, legacy_upload_dir: Path) -> bytes:
                 raise HTTPException(status_code=404, detail="Uploaded file not found.") from exc
             raise
 
-    path = resolve_existing_upload_path(legacy_upload_dir, locator)
+    path = _resolve_local_or_legacy_path(locator, legacy_upload_dir)
     return path.read_bytes()
 
 
@@ -127,12 +127,22 @@ def delete_document(locator: str | None, *, legacy_upload_dir: Path) -> None:
         return
 
     try:
-        path = resolve_existing_upload_path(legacy_upload_dir, locator)
+        path = _resolve_local_or_legacy_path(locator, legacy_upload_dir)
     except HTTPException as exc:
         if exc.status_code == 404:
             return
         raise
     path.unlink()
+
+
+def _resolve_local_or_legacy_path(locator: str, legacy_upload_dir: Path) -> Path:
+    try:
+        return resolve_existing_upload_path(LOCAL_UPLOAD_ROOT, locator)
+    except HTTPException as exc:
+        if exc.status_code != 403:
+            raise
+
+    return resolve_existing_upload_path(legacy_upload_dir, locator)
 
 
 def document_download_response(
