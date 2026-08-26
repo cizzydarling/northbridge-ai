@@ -1,5 +1,77 @@
 export const blogArticles = [
   {
+    slug: "study-permit-documents-paltal-2026",
+    title: "Canada Study Permit Documents in 2026: A Practical Planning Checklist",
+    description:
+      "A clear guide to organizing a Canadian study permit application around your letter of acceptance, PAL/TAL where required, identity documents, proof of funds, and study plan.",
+    category: "Study permit planning",
+    readTime: "6 min read",
+    publishedAt: "2026-08-26",
+    displayDate: "August 26, 2026",
+    keywords: ["Canada study permit documents 2026", "PAL TAL Canada study permit", "letter of acceptance Canada", "study permit proof of funds", "NorthBridgeAI study permit checklist"],
+    summaryBullets: [
+      "Most applicants need a letter of acceptance from a designated learning institution and should confirm that the school can validate it with IRCC.",
+      "A provincial or territorial attestation letter is required in most cases, but exceptions apply and must be supported with evidence.",
+      "A strong application is organized around the documents that apply to the applicant's specific program, province, finances, and circumstances.",
+    ],
+    sourceLinks: [
+      { label: "IRCC - Study permit: get the right documents", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit/get-documents.html" },
+      { label: "IRCC - Provincial or territorial attestation letters", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit/get-documents/provincial-attestation-letter.html" },
+    ],
+    sections: [
+      { heading: "Start with the school documents, not the application form", paragraphs: [
+        "For a study permit, the letter of acceptance is a core document. IRCC says post-secondary schools must validate the letter of acceptance, and an application may be returned if the school does not validate it by the deadline.",
+        "Before you build the rest of your file, confirm the institution is a designated learning institution, the program details are accurate, and the school has explained its process for issuing any required provincial or territorial attestation letter.",
+      ] },
+      { heading: "Know whether a PAL or TAL applies to your case", paragraphs: [
+        "A provincial attestation letter or territorial attestation letter is needed in most cases. It confirms that the applicant has been assigned a study-permit application space by the province or territory.",
+        "There are exceptions. For example, IRCC lists certain elementary and secondary students, and from January 1, 2026, students entering degree-granting master's or doctoral programs at public institutions. An exception is not automatic: applicants should submit evidence that it applies to them and verify the current rules before filing.",
+      ] },
+      { heading: "Build one evidence folder before you apply", paragraphs: [
+        "Organize your identity documents, letter of acceptance, PAL or TAL if required, financial evidence, and documents specific to your situation before beginning the online application. This makes it easier to spot missing dates, inconsistent names, or documents that need translation.",
+        "Your study plan should also make practical sense alongside the program, your education and work history, and your future goals. It should be truthful, specific, and supported by the documents in the application rather than written as a generic template.",
+      ] },
+    ],
+    ctaTitle: "Turn your study permit documents into a clear checklist",
+    ctaBody: "Use NorthBridgeAI to organize program details, documents, deadlines, and next steps in one study permit workspace.",
+  },
+  {
+    slug: "expiring-work-permit-pr-planning-2026",
+    title: "Your Work Permit Is Expiring: How to Plan a PR Strategy Without Guessing",
+    description: "A practical starting point for workers in Canada who are exploring permanent residence while their work authorization has an end date.",
+    category: "Work permit and PR planning",
+    readTime: "5 min read",
+    publishedAt: "2026-08-26",
+    displayDate: "August 26, 2026",
+    keywords: ["expiring work permit Canada permanent residence", "bridging open work permit Canada", "Canada PR work permit planning", "PNP Express Entry eligibility", "NorthBridgeAI PR checklist"],
+    summaryBullets: [
+      "A permanent residence goal and a work permit extension are connected but separate questions; the right option depends on the applicant's actual pathway and stage.",
+      "IRCC offers different work-permit options for certain permanent residence applicants, including some Express Entry and provincial nominee applicants.",
+      "Workers should map eligibility, document deadlines, and immigration status well before their current authorization expires.",
+    ],
+    sourceLinks: [
+      { label: "IRCC - Work permits for permanent residence applicants", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/work-canada/pr-work-permits.html" },
+      { label: "IRCC - Express Entry: who can apply", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/who-can-apply.html" },
+      { label: "IRCC - Provincial Nominee Program", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/provincial-nominees.html" },
+    ],
+    sections: [
+      { heading: "Separate your status question from your PR question", paragraphs: [
+        "A person can be a strong permanent residence candidate and still need a separate plan for maintaining the right to work. Start by recording the work permit expiry date, the employer or location conditions on the permit, and the actual stage of any PR application or profile.",
+        "Do not assume that opening an Express Entry profile, considering a provincial program, or waiting for an invitation creates a new work authorization. IRCC work-permit options have specific eligibility requirements, so use the official instructions for the pathway you are actually pursuing.",
+      ] },
+      { heading: "Map the pathways that fit your real history", paragraphs: [
+        "Express Entry manages the Canadian Experience Class, Federal Skilled Worker Program, and Federal Skilled Trades Program. A provincial nomination may also be a route, but provinces have their own eligibility rules and applicants must show a genuine plan to live in the nominating province.",
+        "Build your strategy from verifiable facts: NOC duties, work experience dates, language results, education, province, job offer details, and family situation. A pathway is useful only if the evidence can support it when an application is submitted.",
+      ] },
+      { heading: "Use the time before expiry to get organized", paragraphs: [
+        "Collect employment letters, pay evidence where relevant, language results, education documents, identity records, and proof needed for the pathways you are considering. Check expiry dates across the file, not only the work permit.",
+        "If your timeline is tight or your situation is complex, seek advice from an authorized Canadian immigration professional. NorthBridgeAI can help structure the facts, documents, and next actions, but it does not replace legal or regulated immigration advice.",
+      ] },
+    ],
+    ctaTitle: "Put your work permit and PR timeline in one place",
+    ctaBody: "Use NorthBridgeAI to connect your work history, documents, pathway options, and next deadlines before your status becomes urgent.",
+  },
+  {
     slug: "in-canada-workers-initiative-33000-pr-2026",
     title: "Canada's In-Canada Workers Initiative: What 33,000 PR Transitions Could Mean",
     description:
@@ -1049,6 +1121,73 @@ export const blogArticles = [
 ];
 
 const blogTranslationsFr = {
+  "study-permit-documents-paltal-2026": {
+    title: "Permis d'etudes au Canada en 2026 : checklist pratique des documents",
+    description: "Un guide clair pour organiser une demande de permis d'etudes autour de la lettre d'acceptation, de la PAL/TAL lorsque requise, des pieces d'identite, des preuves financieres et du projet d'etudes.",
+    category: "Preparation permis d'etudes",
+    readTime: "6 min de lecture",
+    displayDate: "26 aout 2026",
+    keywords: ["documents permis d'etudes Canada 2026", "PAL TAL permis d'etudes Canada", "lettre d'acceptation Canada", "preuve financiere permis d'etudes", "checklist NorthBridgeAI permis d'etudes"],
+    summaryBullets: [
+      "La plupart des candidats ont besoin d'une lettre d'acceptation d'un etablissement designe et devraient confirmer que l'ecole peut la valider aupres d'IRCC.",
+      "Une lettre d'attestation provinciale ou territoriale est requise dans la plupart des cas, mais des exceptions existent et doivent etre appuyees par des preuves.",
+      "Un dossier solide est organise autour des documents applicables au programme, a la province, aux finances et a la situation du candidat.",
+    ],
+    sourceLinks: [
+      { label: "IRCC - Permis d'etudes : obtenir les bons documents", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit/get-documents.html" },
+      { label: "IRCC - Lettre d'attestation provinciale ou territoriale", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit/get-documents/provincial-attestation-letter.html" },
+    ],
+    sections: [
+      { heading: "Commencez par les documents de l'ecole", paragraphs: [
+        "La lettre d'acceptation est un document central. IRCC indique que les etablissements postsecondaires doivent la valider et qu'une demande peut etre retournee si l'ecole ne la valide pas dans le delai prevu.",
+        "Avant de preparer le reste du dossier, confirmez que l'etablissement est designe, que les details du programme sont exacts et que l'ecole explique comment obtenir toute lettre d'attestation requise.",
+      ] },
+      { heading: "Verifiez si une PAL ou TAL s'applique", paragraphs: [
+        "Une lettre d'attestation provinciale ou territoriale est necessaire dans la plupart des cas. Elle confirme que le candidat a recu une place dans le contingent de demandes de la province ou du territoire.",
+        "Il existe des exceptions. IRCC indique notamment certaines exceptions pour les eleves du primaire et du secondaire et, depuis le 1er janvier 2026, les etudiants de maitrise ou de doctorat dans certains etablissements publics. Verifiez toujours les regles et les preuves necessaires avant de deposer une demande.",
+      ] },
+      { heading: "Preparez un dossier de preuves unique", paragraphs: [
+        "Organisez vos pieces d'identite, lettre d'acceptation, PAL ou TAL lorsqu'elle est requise, preuves financieres et documents propres a votre situation avant de commencer la demande en ligne.",
+        "Le projet d'etudes devrait etre veridique, precis et coherent avec le programme, les etudes, l'experience et les objectifs du candidat. Il doit etre appuye par le dossier, et non etre un texte generique.",
+      ] },
+    ],
+    ctaTitle: "Transformez vos documents de permis d'etudes en checklist claire",
+    ctaBody: "NorthBridgeAI aide a organiser les details du programme, les documents, les delais et les prochaines etapes dans un seul espace de travail.",
+  },
+  "expiring-work-permit-pr-planning-2026": {
+    title: "Votre permis de travail expire : planifier la residence permanente sans faire de suppositions",
+    description: "Un point de depart pratique pour les travailleurs au Canada qui explorent la residence permanente alors que leur autorisation de travail a une date de fin.",
+    category: "Permis de travail et residence permanente",
+    readTime: "5 min de lecture",
+    displayDate: "26 aout 2026",
+    keywords: ["permis de travail expire Canada residence permanente", "permis de travail ouvert transitoire Canada", "strategie residence permanente Canada", "admissibilite PCP Entree express", "checklist NorthBridgeAI RP"],
+    summaryBullets: [
+      "Un objectif de residence permanente et une prolongation de permis de travail sont des questions liees, mais distinctes.",
+      "IRCC offre differentes options de permis de travail a certains demandeurs de residence permanente, dont des candidats d'Entree express et des candidats des provinces.",
+      "Il faut organiser l'admissibilite, les documents et les dates importantes bien avant l'expiration de l'autorisation actuelle.",
+    ],
+    sourceLinks: [
+      { label: "IRCC - Permis de travail pour les demandeurs de residence permanente", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/work-canada/pr-work-permits.html" },
+      { label: "IRCC - Entree express : qui peut presenter une demande", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/who-can-apply.html" },
+      { label: "IRCC - Programme des candidats des provinces", url: "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/provincial-nominees.html" },
+    ],
+    sections: [
+      { heading: "Separez la question du statut de celle de la residence permanente", paragraphs: [
+        "Un candidat peut etre bien positionne pour la residence permanente et avoir quand meme besoin d'un plan distinct pour conserver le droit de travailler. Commencez par la date d'expiration, les conditions du permis et l'etape reelle de toute demande ou profil de residence permanente.",
+        "Ne presumez pas qu'un profil Entree express, l'exploration d'un programme provincial ou l'attente d'une invitation cree une nouvelle autorisation de travail. Les options de permis ont des criteres precis; utilisez les instructions officielles du parcours vise.",
+      ] },
+      { heading: "Evaluez les parcours qui correspondent a votre historique", paragraphs: [
+        "Entree express gere la categorie de l'experience canadienne, le Programme des travailleurs qualifies et le Programme des metiers specialises. Une nomination provinciale peut aussi etre une voie, mais chaque province a ses propres criteres et le candidat doit avoir l'intention de s'y etablir.",
+        "Construisez votre strategie sur des faits verifiables : taches CNP, dates d'emploi, resultats linguistiques, etudes, province, offre d'emploi et situation familiale.",
+      ] },
+      { heading: "Profitez du temps avant l'expiration pour vous organiser", paragraphs: [
+        "Rassemblez lettres d'emploi, preuves salariales au besoin, resultats linguistiques, documents d'etudes, pieces d'identite et preuves requises pour les parcours envisages. Verifiez toutes les dates d'expiration du dossier, et pas seulement celle du permis.",
+        "Si l'echeancier est serre ou la situation complexe, obtenez l'avis d'un professionnel canadien autorise en immigration. NorthBridgeAI aide a structurer les faits, documents et prochaines actions, mais ne remplace pas un avis juridique ou reglemente.",
+      ] },
+    ],
+    ctaTitle: "Mettez votre permis de travail et votre calendrier RP au meme endroit",
+    ctaBody: "NorthBridgeAI relie votre experience de travail, vos documents, vos options et vos prochaines echeances avant que votre statut devienne urgent.",
+  },
   "in-canada-workers-initiative-33000-pr-2026": {
     title:
       "Initiative pour les travailleurs deja au Canada : ce que 33 000 transitions vers la RP peuvent changer",

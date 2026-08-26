@@ -16,6 +16,7 @@ function getGuideSeen() {
 function setGuideSeen() {
   try {
     localStorage.setItem(GUIDE_KEY, "true");
+    window.dispatchEvent(new Event("nbai-starter-guide-completed"));
   } catch {
     // localStorage can be unavailable in private browsing.
   }

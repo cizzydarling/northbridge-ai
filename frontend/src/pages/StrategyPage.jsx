@@ -797,8 +797,8 @@ function ImmigrationIntelligencePanel({ intelligence, text, language }) {
                   key={`${item.application_type || item.key || "time"}-${index}`}
                   className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-[9rem] flex-1">
                       <p className="text-sm font-semibold text-slate-900">
                         {item.application_label || item.label || "--"}
                       </p>
@@ -807,7 +807,7 @@ function ImmigrationIntelligencePanel({ intelligence, text, language }) {
                       </p>
                     </div>
                     {item.processing_time ? (
-                      <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                      <span className="max-w-full break-words rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold leading-5 text-emerald-800">
                         {item.processing_time}
                       </span>
                     ) : null}

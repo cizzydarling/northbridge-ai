@@ -14,6 +14,7 @@ import {
 import Button from "../components/ui/Button";
 import OnboardingModal from "../components/OnboardingModal";
 import SOPGuideModal from "../components/SOPGuideModal";
+import FeatureGuidePopover from "../components/FeatureGuidePopover";
 import DevPlanSwitcher from "../components/DevPlanSwitcher";
 import { translateRoleLabel } from "../utils/frenchLocalization";
 
@@ -912,6 +913,7 @@ export default function Layout({ children }) {
                 forceOpen={guideOpen}
                 onClose={() => setGuideOpen(false)}
               />
+              <FeatureGuidePopover />
             </>
           )}
 

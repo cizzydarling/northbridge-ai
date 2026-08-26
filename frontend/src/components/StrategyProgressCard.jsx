@@ -3,8 +3,8 @@ import Button from "./ui/Button";
 
 function MiniStat({ label, value }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-      <p className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-center">
+      <p className="break-words text-[10px] uppercase leading-4 tracking-[0.1em] text-slate-500">
         {label}
       </p>
       <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
@@ -105,7 +105,7 @@ export default function StrategyProgressCard({
         <ReadinessRing progress={progress} language={language} />
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-2">
+      <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))] gap-2">
         <MiniStat label={text.completed} value={documentStats.completed} />
         <MiniStat label={text.reviewed} value={documentStats.reviewed} />
         <MiniStat label={text.total} value={documentStats.total} />
