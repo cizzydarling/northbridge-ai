@@ -1,6 +1,8 @@
-IRCC_REFERENCE_LAST_REVIEWED = "2026-05-08"
+IRCC_REFERENCE_LAST_REVIEWED = "2026-09-29"
 
 IRCC_REFERENCE_SOURCES = {
+    "provincial_nominees": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/provincial-nominees.html",
+    "crs_criteria": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/check-score/crs-criteria.html",
     "express_entry_category_selection": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/rounds-invitations/category-based-selection.html",
     "noc_2021": "https://www.statcan.gc.ca/en/subjects/standard/noc/2021/indexV1",
 }
@@ -31,7 +33,9 @@ def get_ircc_reference_context(language: str = "en") -> str:
             "Pour la categorie de competence en francais, IRCC exige des resultats de test en francais "
             "d'au moins NCLC 7 dans les 4 competences, en plus des instructions de la ronde. "
             "Le systeme CNP utilise la CNP 2021 version 1.0 de Statistique Canada avec des codes a 5 chiffres "
-            "et des categories TEER. Ne jamais garantir une invitation, une approbation ou un delai. "
+            "et des categories TEER. Les offres d'emploi ne donnent plus de points CRS depuis le 25 mars 2025. "
+            "Ne jamais garantir une invitation, une approbation ou un delai. "
+            "Le Quebec a ses propres programmes de selection et ne participe pas au PCP. "
             "Si une question depend de rondes, seuils, instructions ou formulaires recents, recommander de verifier "
             f"la source officielle IRCC: {IRCC_REFERENCE_SOURCES['express_entry_category_selection']}."
         )
@@ -43,6 +47,8 @@ def get_ircc_reference_context(language: str = "en") -> str:
         "For the French-language proficiency category, IRCC requires French test results showing at least NCLC 7 "
         "in all 4 language abilities, plus the instructions for that round. "
         "The NOC system uses Statistics Canada's NOC 2021 Version 1.0 with 5-digit codes and TEER categories. "
+        "Job offers no longer add CRS points as of March 25, 2025. "
+        "Quebec has its own selection programs and does not participate in the PNP. "
         "Never guarantee an invitation, approval, or timeline. If a question depends on recent rounds, cutoffs, "
         "instructions, or forms, advise the user to verify the official IRCC source: "
         f"{IRCC_REFERENCE_SOURCES['express_entry_category_selection']}."

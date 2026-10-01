@@ -2,6 +2,9 @@
 
 Use this checklist for every production deployment during the soft-release period.
 
+Release and first-week support owner: **Amadou** (assigned September 29, 2026).
+Track the current rehearsal in `soft-launch-assessment-2026-09-29.md`.
+
 ## Before deployment
 
 - [ ] Review the release diff and confirm no unrelated user changes are included.

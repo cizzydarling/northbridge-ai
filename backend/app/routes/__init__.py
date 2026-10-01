@@ -26,7 +26,6 @@ from . import recommendation_routes
 from . import self_document_routes
 from . import self_routes
 from . import simulation_routes
-from . import simulation_scenarios_routes
 from . import strategy_routes
 
 __all__ = [
@@ -58,6 +57,5 @@ __all__ = [
     "self_document_routes",
     "self_routes",
     "simulation_routes",
-    "simulation_scenarios_routes",
     "strategy_routes",
 ]

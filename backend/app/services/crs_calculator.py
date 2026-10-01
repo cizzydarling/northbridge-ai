@@ -50,8 +50,8 @@ def calculate_crs_breakdown(profile: Profile) -> dict:
     language_points = min(language_score * 8, 136)
     experience_points = min(experience_years * 10, 50)
 
-    if profile.has_job_offer:
-        job_offer_points = 50
+    # IRCC removed arranged-employment CRS points on March 25, 2025.
+    # Retain the zero-valued breakdown field for existing API consumers.
 
     if profile.has_canadian_experience:
         canadian_experience_points = 40
@@ -88,6 +88,22 @@ def calculate_crs(profile: Profile) -> int:
 
 
 def build_recommendation_result(profile: Profile, crs_score: int) -> dict:
+    if str(profile.preferred_province or "").strip().casefold() in {"quebec", "québec"}:
+        reason = (
+            "Quebec selects immigrants through its own programs and does not participate "
+            "in the Provincial Nominee Program. Check Quebec's current requirements."
+        )
+        return {
+            "crs_score": crs_score,
+            "eligible_pathways": [],
+            "borderline_pathways": [{"name": "Quebec immigration pathways — eligibility review", "reason": reason}],
+            "strengths": [],
+            "weaknesses": ["Quebec program eligibility has not been assessed."],
+            "next_steps": ["Review current Quebec selection requirements on quebec.ca."],
+            "strategy": {"improve_language": False, "gain_experience": False, "seek_job_offer": False, "target_pnp": False},
+            "advisor_summary": reason,
+        }
+
     eligible_pathways = []
     borderline_pathways = []
     strengths = []

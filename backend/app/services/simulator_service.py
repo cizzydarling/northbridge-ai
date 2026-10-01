@@ -65,7 +65,6 @@ def estimate_crs(profile_data):
     education = profile_data.get("education")
     language_score = profile_data.get("language_score", 0) or 0
     experience_years = profile_data.get("experience_years", 0) or 0
-    has_job_offer = profile_data.get("has_job_offer", False)
     has_canadian_experience = profile_data.get("has_canadian_experience", False)
     studied_in_canada = profile_data.get("studied_in_canada", False)
 
@@ -91,8 +90,7 @@ def estimate_crs(profile_data):
     score += min(language_score * 12, 136)
     score += min(experience_years * 15, 80)
 
-    if has_job_offer:
-        score += 50
+    # Job offers may affect pathway eligibility, but no longer add CRS points.
 
     if has_canadian_experience:
         score += 40

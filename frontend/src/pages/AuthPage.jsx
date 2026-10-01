@@ -149,12 +149,10 @@ export default function AuthPage() {
         setMessage(
           resetMessage ||
             (i18n.language === "fr"
-            ? "Si ce compte existe, un email de reinitialisation a ete envoye."
-            : "If that account exists, a password reset email has been sent.")
+            ? "Si ce compte est admissible, vous recevrez un email avec les instructions de reinitialisation."
+            : "If that account is eligible, you will receive an email with password reset instructions.")
         );
-        if (!resetRes?.data?.delivery_failed) {
-          setForgotMode(false);
-        }
+        setForgotMode(false);
       } else if (isLogin) {
         const res = await loginUser({
           email: form.email,
@@ -233,6 +231,8 @@ export default function AuthPage() {
       message.toLowerCase().includes("successfully") ||
       message.toLowerCase().includes("confirmed") ||
       message.toLowerCase().includes("sent") ||
+      message.toLowerCase().includes("you will receive") ||
+      message.toLowerCase().includes("vous recevrez") ||
       message.toLowerCase().includes("confirme") ||
       message.toLowerCase().includes("envoye") ||
       message.toLowerCase().includes("succès"));

@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.core.access_control import require_simulation_access
+from app.core.access_control import require_agent_plan
+from app.routes.auth_routes import require_agent
 from app.data.db import get_db
 from app.models.client_model import Client
 from app.models.profile_model import Profile
@@ -21,7 +22,7 @@ from app.services.simulation_comparison_report_service import (
 )
 from app.services.simulation_report_service import build_simulation_report_pdf
 
-router = APIRouter(tags=["Client Simulations"])
+router = APIRouter(tags=["Client Simulations"], dependencies=[Depends(require_agent)])
 
 
 def get_owned_client_or_404(db: Session, client_id: int, current_user) -> Client:
@@ -244,7 +245,7 @@ def run_client_simulation(
     client_id: int,
     payload: Dict[str, Any],
     db: Session = Depends(get_db),
-    current_user=Depends(require_simulation_access),
+    current_user=Depends(require_agent_plan),
 ):
     client = get_owned_client_or_404(db, client_id, current_user)
     profile = get_client_profile_or_404(db, client.id)
@@ -272,7 +273,7 @@ def run_client_simulation(
 def list_client_simulations(
     client_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(require_simulation_access),
+    current_user=Depends(require_agent_plan),
 ):
     get_owned_client_or_404(db, client_id, current_user)
 
@@ -292,7 +293,7 @@ def get_client_simulation(
     client_id: int,
     simulation_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(require_simulation_access),
+    current_user=Depends(require_agent_plan),
 ):
     return get_owned_simulation_or_404(db, client_id, simulation_id, current_user)
 
@@ -305,7 +306,7 @@ def create_client_simulation(
     client_id: int,
     payload: SavedScenarioCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(require_simulation_access),
+    current_user=Depends(require_agent_plan),
 ):
     get_owned_client_or_404(db, client_id, current_user)
 
@@ -339,7 +340,7 @@ def update_client_simulation(
     simulation_id: int,
     payload: SavedScenarioUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(require_simulation_access),
+    current_user=Depends(require_agent_plan),
 ):
     simulation = get_owned_simulation_or_404(
         db, client_id, simulation_id, current_user
@@ -361,7 +362,7 @@ def delete_client_simulation(
     client_id: int,
     simulation_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(require_simulation_access),
+    current_user=Depends(require_agent_plan),
 ):
     simulation = get_owned_simulation_or_404(
         db, client_id, simulation_id, current_user
@@ -380,7 +381,7 @@ def compare_client_simulations(
     client_id: int,
     payload: SimulationCompareRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(require_simulation_access),
+    current_user=Depends(require_agent_plan),
 ):
     first = get_owned_simulation_or_404(
         db, client_id, payload.first_simulation_id, current_user
@@ -403,7 +404,7 @@ def export_client_simulation_report(
     client_id: int,
     simulation_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(require_simulation_access),
+    current_user=Depends(require_agent_plan),
 ):
     client = get_owned_client_or_404(db, client_id, current_user)
     simulation = get_owned_simulation_or_404(
@@ -436,7 +437,7 @@ def export_simulation_comparison_report(
     client_id: int,
     payload: SimulationCompareRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(require_simulation_access),
+    current_user=Depends(require_agent_plan),
 ):
     client = get_owned_client_or_404(db, client_id, current_user)
     first = get_owned_simulation_or_404(

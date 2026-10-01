@@ -36,7 +36,6 @@ from app.routes import (
     program_routes,
     recommendation_routes,
     self_document_routes,
-    simulation_scenarios_routes,
     strategy_routes,
     forms_routes,
     household_routes,
@@ -148,7 +147,6 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(career_match_routes.router)
     app.include_router(citizenship_routes.router)
 
-    app.include_router(simulation_scenarios_routes.router)
     app.include_router(disclosure_routes.router)
     app.include_router(billing_routes.router)
     app.include_router(matter_routes.router)

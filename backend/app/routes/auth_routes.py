@@ -4,14 +4,14 @@ import secrets
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from sqlalchemy.orm import Session
 
-from app.data.db import get_db
+from app.data.db import SessionLocal, get_db
 from app.models.profile_model import Profile
 from app.models.user_models import User
 from app.services.email_service import (
@@ -308,14 +308,19 @@ def login(
         limit=20,
         window_seconds=15 * 60,
     )
+    # Scope targeted guessing protection to its source. A shared account-only
+    # bucket lets an unauthenticated caller lock the owner out from every IP.
     enforce_rate_limit(
-        "login_account",
-        identifiers=[form_data.username],
+        "login_account_ip",
+        identifiers=[request_ip(request), form_data.username],
         limit=10,
         window_seconds=15 * 60,
     )
     try:
         user = get_user_by_email(db, form_data.username)
+        # Capture the version paired with the password being verified. A reset
+        # during login must not grant the old password a new session version.
+        token_version = user.token_version if user else None
 
         if not user or not verify_password(form_data.password, user.password):
             log_security_event(
@@ -336,6 +341,7 @@ def login(
             {
                 "sub": user.email,
                 "role": user.role,
+                "token_version": token_version,
             }
         )
 
@@ -383,6 +389,11 @@ def get_current_user(
     if user is None:
         raise credentials_exception
 
+    # Pre-migration tokens belong to version zero and stop working on reset.
+    token_version = payload.get("token_version", 0)
+    if type(token_version) is not int or token_version != user.token_version:
+        raise credentials_exception
+
     return user
 
 
@@ -391,11 +402,43 @@ def get_me(current_user: User = Depends(get_current_user)):
     return serialize_user(current_user)
 
 
+def _process_recovery_email(email: str, *, confirmation: bool) -> None:
+    # Run lookup and delivery after the public response, with a fresh session.
+    # Neither account existence nor provider failures should affect that response.
+    try:
+        with SessionLocal() as db:
+            user = get_user_by_email(db, email)
+            if user is None:
+                return
+            if confirmation:
+                _send_email_confirmation(db, user)
+            else:
+                token = _new_token()
+                user.password_reset_token_hash = _hash_token(token)
+                user.password_reset_expires_at = datetime.now(timezone.utc) + timedelta(
+                    minutes=PASSWORD_RESET_EXPIRE_MINUTES
+                )
+                user.password_reset_sent_at = datetime.now(timezone.utc)
+                reset_url = f"{FRONTEND_URL}/auth?reset_token={token}"
+                subject, text_body, html_body = build_password_reset_email(reset_url=reset_url)
+                result = send_email(
+                    to_email=user.email,
+                    subject=subject,
+                    text_body=text_body,
+                    html_body=html_body,
+                )
+                user.password_reset_status = result.status
+                user.password_reset_error = result.error
+            db.commit()
+    except Exception:
+        logger.exception("Recovery email processing failed")
+
+
 @router.post("/request-email-confirmation")
 def request_email_confirmation(
     data: EmailRequest,
     request: Request,
-    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks,
 ):
     enforce_rate_limit(
         "email_confirmation_ip",
@@ -409,26 +452,9 @@ def request_email_confirmation(
         limit=5,
         window_seconds=60 * 60,
     )
-    user = get_user_by_email(db, data.email)
-    email_status = "not_found"
-    if user:
-        _send_email_confirmation(db, user)
-        db.commit()
-        email_status = user.email_confirmation_status or "failed"
-
-    if email_status in {"failed", "not_configured"}:
-        return {
-            "message": "Confirmation email could not be sent. Please contact support.",
-            "email_status": email_status,
-            "email_sent": False,
-            "delivery_failed": True,
-        }
-
+    background_tasks.add_task(_process_recovery_email, data.email, confirmation=True)
     return {
-        "message": "If that account exists, a confirmation email has been sent.",
-        "email_status": "sent_or_not_found",
-        "email_sent": email_status == "sent",
-        "delivery_failed": False,
+        "message": "If that account is eligible, you will receive an email with confirmation instructions.",
     }
 
 
@@ -439,8 +465,8 @@ def confirm_email(
     db: Session = Depends(get_db),
 ):
     enforce_rate_limit(
-        "confirm_email",
-        identifiers=[request_ip(request), data.token],
+        "confirm_email_ip",
+        identifiers=[request_ip(request)],
         limit=10,
         window_seconds=15 * 60,
     )
@@ -487,7 +513,7 @@ def confirm_email_get(
 def request_password_reset(
     data: EmailRequest,
     request: Request,
-    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks,
 ):
     enforce_rate_limit(
         "password_reset_request_ip",
@@ -501,41 +527,9 @@ def request_password_reset(
         limit=5,
         window_seconds=60 * 60,
     )
-    user = get_user_by_email(db, data.email)
-    email_status = "not_found"
-    if user:
-        token = _new_token()
-        user.password_reset_token_hash = _hash_token(token)
-        user.password_reset_expires_at = datetime.now(timezone.utc) + timedelta(
-            minutes=PASSWORD_RESET_EXPIRE_MINUTES
-        )
-        user.password_reset_sent_at = datetime.now(timezone.utc)
-        reset_url = f"{FRONTEND_URL}/auth?reset_token={token}"
-        subject, text_body, html_body = build_password_reset_email(reset_url=reset_url)
-        result = send_email(
-            to_email=user.email,
-            subject=subject,
-            text_body=text_body,
-            html_body=html_body,
-        )
-        user.password_reset_status = result.status
-        user.password_reset_error = result.error
-        db.commit()
-        email_status = result.status
-
-    if email_status in {"failed", "not_configured"}:
-        return {
-            "message": "Password reset email could not be sent. Please contact support.",
-            "email_status": email_status,
-            "email_sent": False,
-            "delivery_failed": True,
-        }
-
+    background_tasks.add_task(_process_recovery_email, data.email, confirmation=False)
     return {
-        "message": "If that account exists, a password reset email has been sent.",
-        "email_status": "sent_or_not_found",
-        "email_sent": email_status == "sent",
-        "delivery_failed": False,
+        "message": "If that account is eligible, you will receive an email with password reset instructions.",
     }
 
 
@@ -546,13 +540,18 @@ def reset_password(
     db: Session = Depends(get_db),
 ):
     enforce_rate_limit(
-        "password_reset",
-        identifiers=[request_ip(request), data.token],
+        "password_reset_ip",
+        identifiers=[request_ip(request)],
         limit=10,
         window_seconds=15 * 60,
     )
     token_hash = _hash_token(data.token)
-    user = db.query(User).filter(User.password_reset_token_hash == token_hash).first()
+    user = (
+        db.query(User)
+        .filter(User.password_reset_token_hash == token_hash)
+        .with_for_update()
+        .first()
+    )
 
     if not user or not user.password_reset_expires_at:
         raise HTTPException(status_code=400, detail="Invalid or expired password reset link.")
@@ -565,6 +564,7 @@ def reset_password(
         raise HTTPException(status_code=400, detail="Invalid or expired password reset link.")
 
     user.password = hash_password(data.password)
+    user.token_version = User.token_version + 1
     user.password_reset_token_hash = None
     user.password_reset_expires_at = None
     user.password_reset_status = "used"

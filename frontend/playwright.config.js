@@ -40,10 +40,12 @@ export default defineConfig({
         CORS_ORIGINS: "http://127.0.0.1:4173",
         RESEND_API_KEY: "",
         SMTP_HOST: "",
+        OPENAI_API_KEY: "",
       },
     },
     {
       command:
+        process.env.E2E_FRONTEND_COMMAND ||
         "npm run dev -- --host 127.0.0.1 --port 4173",
       url: "http://127.0.0.1:4173",
       reuseExistingServer: !process.env.CI,

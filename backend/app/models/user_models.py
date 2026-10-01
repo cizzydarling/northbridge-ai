@@ -10,6 +10,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
     role = Column(String, nullable=False, default="individual")
 
     plan = Column(String, nullable=False, default="free")

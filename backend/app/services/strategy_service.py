@@ -710,6 +710,8 @@ def _translate_province_matches(matches: List[Dict], language: str = "en") -> Li
 
 def rank_provinces_for_profile(profile, crs_score: int = 0, language: str = "en") -> List[Dict]:
     language = _normalize_language(language)
+    if _get_preferred_province(profile).casefold() in {"quebec", "québec"}:
+        return []
     noc_profile = _resolve_noc_profile(profile)
 
     normalized_profile = {
@@ -740,6 +742,12 @@ def rank_provinces_for_profile(profile, crs_score: int = 0, language: str = "en"
 
 def recommend_programs(profile, crs_score: int, language: str = "en") -> List[str]:
     language = _normalize_language(language)
+    if _get_preferred_province(profile).casefold() in {"quebec", "québec"}:
+        return [_t(
+            "Quebec immigration pathways — eligibility review",
+            "Voies d’immigration du Québec — admissibilité à vérifier",
+            language,
+        )]
 
     programs: List[str] = []
     language_score = _get_language_score(profile)
@@ -845,6 +853,18 @@ def recommend_programs(profile, crs_score: int, language: str = "en") -> List[st
 
 
 def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> List[Dict]:
+    if _get_preferred_province(profile).casefold() in {"quebec", "québec"}:
+        return [{
+            "title": _t("Review Quebec selection requirements", "Vérifier les critères de sélection du Québec", language),
+            "estimated_crs_gain": 0,
+            "priority": 1,
+            "difficulty": _t("Eligibility review", "Admissibilité à vérifier", language),
+            "reason": _t(
+                "Quebec has its own selection programs and does not participate in the PNP. Verify current requirements on quebec.ca; eligibility has not been assessed.",
+                "Le Québec a ses propres programmes de sélection et ne participe pas au PCP. Vérifiez les critères actuels sur quebec.ca; l’admissibilité n’a pas été évaluée.",
+                language,
+            ),
+        }]
     language = _normalize_language(language)
     steps = []
 
@@ -908,10 +928,10 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
             steps.append(
                 {
                     "title": "Obtenir une offre d’emploi valide au Canada",
-                    "estimated_crs_gain": 50,
+                    "estimated_crs_gain": 0,
                     "priority": 5,
                     "difficulty": "Difficile",
-                    "reason": "Une offre d’emploi admissible peut ajouter des points CRS et améliorer les options d’immigration.",
+                    "reason": "Une offre d’emploi peut soutenir certains parcours, mais ne donne plus de points CRS depuis le 25 mars 2025.",
                 }
             )
 
@@ -1033,10 +1053,10 @@ def generate_strategy_roadmap(profile, crs_score: int, language: str = "en") -> 
         steps.append(
             {
                 "title": "Secure a valid Canadian job offer",
-                "estimated_crs_gain": 50,
+                "estimated_crs_gain": 0,
                 "priority": 5,
                 "difficulty": "Hard",
-                "reason": "A qualifying job offer can add meaningful CRS points and improve pathway options.",
+                "reason": "A qualifying job offer may support some pathways, but no longer adds CRS points as of March 25, 2025.",
             }
         )
 
@@ -1227,6 +1247,16 @@ def _build_strategy_headline(
         language,
     )
 
+    if top_program in {
+        "Quebec immigration pathways — eligibility review",
+        "Voies d’immigration du Québec — admissibilité à vérifier",
+    }:
+        return _t(
+            "Review Quebec's current selection requirements; this profile has not been assessed for a Quebec program.",
+            "Vérifiez les critères de sélection actuels du Québec; l’admissibilité de ce profil à un programme québécois n’a pas été évaluée.",
+            language,
+        )
+
     if crs_score >= 470:
         return _t(
             f"Your profile is currently strongest for {top_program}, with a CRS score that may already be competitive.",
@@ -1257,6 +1287,16 @@ def _build_strategy_headline(
 
 def score_pathways(profile, crs_score: int, programs: List[str], language: str = "en") -> List[Dict[str, Any]]:
     language = _normalize_language(language)
+    if _get_preferred_province(profile).casefold() in {"quebec", "québec"}:
+        return [{
+            "program": program,
+            "score": 0,
+            "reasons": [_t(
+                "Quebec eligibility requires a separate assessment against current selection requirements.",
+                "L’admissibilité au Québec nécessite une évaluation distincte selon les critères de sélection actuels.",
+                language,
+            )],
+        } for program in programs]
 
     language_score = _get_language_score(profile)
     experience_years = _get_experience_years(profile)

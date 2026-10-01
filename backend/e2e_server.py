@@ -18,6 +18,7 @@ os.environ.setdefault("CORS_ORIGINS", "http://127.0.0.1:4173")
 os.environ.setdefault("DOCUMENT_STORAGE_BACKEND", "local")
 os.environ["RESEND_API_KEY"] = ""
 os.environ["SMTP_HOST"] = ""
+os.environ["OPENAI_API_KEY"] = ""
 
 import uvicorn  # noqa: E402
 from sqlalchemy.dialects.postgresql import JSONB  # noqa: E402

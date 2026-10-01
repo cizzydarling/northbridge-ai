@@ -4,14 +4,18 @@ import logging
 import os
 import threading
 import time
-from collections import defaultdict, deque
+from collections import deque
 from typing import Iterable
 
 from fastapi import HTTPException, Request
 
 
 logger = logging.getLogger("northbridge.security")
-_local_attempts: dict[str, deque[float]] = defaultdict(deque)
+LOCAL_RATE_LIMIT_MAX_KEYS = 10_000
+LOCAL_RATE_LIMIT_CLEANUP_SECONDS = 60
+_local_attempts: dict[str, deque[float]] = {}
+_local_expirations: dict[str, float] = {}
+_local_next_cleanup = 0.0
 _local_lock = threading.Lock()
 _redis_client = None
 
@@ -63,15 +67,32 @@ def _rate_limit_key(scope: str, identifiers: Iterable[str]) -> str:
 
 
 def _enforce_local(key: str, *, limit: int, window_seconds: int) -> int:
+    global _local_next_cleanup
     now = time.monotonic()
     cutoff = now - window_seconds
     with _local_lock:
-        attempts = _local_attempts[key]
+        # Sweep periodically, including keys that are never requested again.
+        # Keep cleanup work bounded instead of scanning on every new key.
+        if now >= _local_next_cleanup:
+            expired = [key for key, expiry in _local_expirations.items() if expiry <= now]
+            for expired_key in expired:
+                del _local_attempts[expired_key]
+                del _local_expirations[expired_key]
+            _local_next_cleanup = now + LOCAL_RATE_LIMIT_CLEANUP_SECONDS
+
+        attempts = _local_attempts.get(key)
+        if attempts is None:
+            if len(_local_attempts) >= LOCAL_RATE_LIMIT_MAX_KEYS:
+                # Refuse new buckets rather than evicting live limits, which
+                # would let key churn reset an attacker's attempt allowance.
+                return max(1, int(_local_next_cleanup - now))
+            attempts = _local_attempts[key] = deque()
         while attempts and attempts[0] <= cutoff:
             attempts.popleft()
         if len(attempts) >= limit:
             return max(1, int(window_seconds - (now - attempts[0])))
         attempts.append(now)
+        _local_expirations[key] = now + window_seconds
     return 0
 
 
@@ -138,8 +159,11 @@ def log_security_event(
 
 def reset_local_rate_limits() -> None:
     """Test helper for the process-local development limiter."""
+    global _local_next_cleanup
     with _local_lock:
         _local_attempts.clear()
+        _local_expirations.clear()
+        _local_next_cleanup = 0.0
 
 
 def rate_limiter_healthcheck() -> None:
