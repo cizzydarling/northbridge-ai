@@ -56,23 +56,21 @@ def upgrade() -> None:
         "profiles",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column("age", sa.Integer(), nullable=False),
-        sa.Column("education", sa.String(), nullable=False),
-        sa.Column("language_score", sa.Integer(), nullable=False),
-        sa.Column("experience_years", sa.Integer(), nullable=False),
+        sa.Column("age", sa.Integer(), nullable=True),
+        sa.Column("education", sa.String(), nullable=True),
+        sa.Column("language_score", sa.Integer(), nullable=True),
+        sa.Column("experience_years", sa.Integer(), nullable=True),
         sa.Column("has_job_offer", sa.Boolean(), nullable=True, server_default=sa.text("false")),
         sa.Column("has_canadian_experience", sa.Boolean(), nullable=True, server_default=sa.text("false")),
         sa.Column("studied_in_canada", sa.Boolean(), nullable=True, server_default=sa.text("false")),
         sa.Column("occupation", sa.String(), nullable=True),
         sa.Column("noc_code", sa.String(), nullable=True),
         sa.Column("preferred_province", sa.String(), nullable=True),
-        sa.Column("client_id", sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(["client_id"], ["clients.id"]),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("user_id", name="profiles_user_id_key"),
     )
     op.create_index("ix_profiles_id", "profiles", ["id"], unique=False)
-    op.create_index("ix_profiles_client_id", "profiles", ["client_id"], unique=False)
 
     op.create_table(
         "client_documents",
@@ -119,7 +117,6 @@ def downgrade() -> None:
     op.drop_index("ix_client_documents_id", table_name="client_documents")
     op.drop_table("client_documents")
 
-    op.drop_index("ix_profiles_client_id", table_name="profiles")
     op.drop_index("ix_profiles_id", table_name="profiles")
     op.drop_table("profiles")
 

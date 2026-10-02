@@ -71,6 +71,10 @@ STRIPE_PLAN_CONFIG = {
         "interval_count": 90,
         "name": "NorthBridgeAI Premium",
     },
+    "agent_pro": {
+        "price_id": os.getenv("STRIPE_PRICE_AGENT_PRO"),
+        "name": "NorthBridgeAI Agent Pro",
+    },
 }
 
 APP_ENV = os.getenv("APP_ENV", os.getenv("ENVIRONMENT", "")).strip().lower()
@@ -104,9 +108,9 @@ class PromoCodeCreateRequest(BaseModel):
     @classmethod
     def validate_access_type(cls, value: str) -> str:
         normalized = str(value or "").strip().lower()
-        allowed = {"individual_pro", "individual_premium", "agent_pro"}
+        allowed = {"individual_pro", "individual_premium"}
         if normalized not in allowed:
-            raise ValueError("Access type must be individual_pro, individual_premium, or agent_pro")
+            raise ValueError("Access type must be individual_pro or individual_premium")
         return normalized
 
     @field_validator("duration_days")
@@ -138,9 +142,9 @@ class PromoCodeUpdateRequest(BaseModel):
         if value is None:
             return value
         normalized = str(value or "").strip().lower()
-        allowed = {"individual_pro", "individual_premium", "agent_pro"}
+        allowed = {"individual_pro", "individual_premium"}
         if normalized not in allowed:
-            raise ValueError("Access type must be individual_pro, individual_premium, or agent_pro")
+            raise ValueError("Access type must be individual_pro or individual_premium")
         return normalized
 
     @field_validator("duration_days")
@@ -208,7 +212,7 @@ def _stripe_datetime(value: Any) -> datetime | None:
         return None
     try:
         return datetime.fromtimestamp(int(value), tz=timezone.utc)
-    except (TypeError, ValueError, OSError):
+    except (TypeError, ValueError, OSError, OverflowError):
         return None
 
 
@@ -623,6 +627,8 @@ def _normalize_plan(plan: str | None) -> str:
         return "individual_pro"
     if value in {"premium", "individual_premium"}:
         return "individual_premium"
+    if value == "agent_pro":
+        return "agent_pro"
     return "free"
 
 
@@ -704,19 +710,30 @@ def map_price_to_plan(
     product_id: str | None = None,
     price: Any = None,
 ) -> str | None:
-    price_product_id = product_id or _stripe_get(price, "product")
+    price_product_id = _stripe_id(product_id or _stripe_get(price, "product"))
 
     for plan, config in STRIPE_PLAN_CONFIG.items():
         if price_id and config.get("price_id") and price_id == config.get("price_id"):
             return plan
-        if price_product_id and config.get("product_id") and price_product_id == config.get("product_id"):
+        recurring = _stripe_get(price, "recurring", {}) or {}
+        if (price_product_id and config.get("product_id")
+                and price_product_id == config.get("product_id")
+                and _stripe_get(price, "unit_amount") == config.get("unit_amount")
+                and _stripe_get(price, "currency") == config.get("currency")
+                and _stripe_get(recurring, "interval") == config.get("interval")
+                and _stripe_get(recurring, "interval_count") == config.get("interval_count")):
             return plan
 
     return None
 
 
-def _subscription_price(subscription: Any) -> Any | None:
+def _subscription_items(subscription: Any) -> list:
     items = _stripe_get(_stripe_get(subscription, "items"), "data", []) or []
+    return items if isinstance(items, list) else []
+
+
+def _subscription_price(subscription: Any) -> Any | None:
+    items = _subscription_items(subscription)
     if not items:
         return None
 
@@ -745,170 +762,157 @@ def _find_user_for_customer(
     return None
 
 
-def _apply_subscription_to_user(
-    db: Session,
-    user: User,
-    *,
-    customer_id: str | None = None,
-    subscription_id: str | None = None,
-    status: str | None = None,
-    price_id: str | None = None,
-    product_id: str | None = None,
-    price: Any = None,
-    plan: str | None = None,
-    cancel_at_period_end: bool | None = None,
-    current_period_end: datetime | None = None,
+def _stripe_id(value: Any) -> str | None:
+    identifier = value if isinstance(value, str) else _stripe_get(value, "id")
+    return identifier if isinstance(identifier, str) and identifier else None
+
+
+def _invoice_subscription_id(invoice: Any) -> str | None:
+    # Stripe Basil moved this field under parent.subscription_details.
+    details = _stripe_get(_stripe_get(invoice, "parent"), "subscription_details")
+    return _stripe_id(_stripe_get(invoice, "subscription") or _stripe_get(details, "subscription"))
+
+
+def _subscription_period_end(subscription: Any) -> datetime | None:
+    items = _subscription_items(subscription)
+    item_end = _stripe_get(items[0], "current_period_end") if len(items) == 1 else None
+    return _stripe_datetime(item_end or _stripe_get(subscription, "current_period_end"))
+
+
+def _deny_subscription(db: Session, user: User, status: str = "unverified") -> User:
+    user.plan = "free"
+    user.subscription_status = status
+    user.subscription_current_period_end = None
+    user.subscription_cancel_at_period_end = False
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def _sync_subscription(
+    db: Session, user: User, subscription_id: str, *, expected_plan: str | None = None,
 ) -> User:
-    resolved_plan = map_price_to_plan(
-        price_id,
-        product_id=product_id,
-        price=price,
-    ) or _normalize_plan(plan)
+    user = db.query(User).filter(User.id == user.id).populate_existing().with_for_update().one()
+    # Never let an old Checkout Session replace a current subscription. A new
+    # checkout can replace a terminal subscription only after verifying Stripe.
+    if user.stripe_subscription_id and user.stripe_subscription_id != subscription_id:
+        try:
+            previous = stripe.Subscription.retrieve(user.stripe_subscription_id)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Unable to verify billing state.") from exc
+        if (_stripe_id(previous) != user.stripe_subscription_id
+                or _stripe_id(_stripe_get(previous, "customer")) != user.stripe_customer_id
+                or _stripe_get(previous, "status") not in {"canceled", "incomplete_expired"}):
+            raise HTTPException(status_code=409, detail="Subscription does not match this account.")
+    try:
+        subscription = stripe.Subscription.retrieve(subscription_id, expand=["latest_invoice"])
+    except Exception as exc:
+        if user.stripe_subscription_id == subscription_id:
+            _deny_subscription(db, user)
+        raise HTTPException(status_code=503, detail="Unable to verify billing state.") from exc
 
-    if customer_id and not user.stripe_customer_id:
-        user.stripe_customer_id = customer_id
+    metadata = _stripe_get(subscription, "metadata", {}) or {}
+    if (_stripe_id(subscription) != subscription_id
+            or not user.stripe_customer_id
+            or _stripe_id(_stripe_get(subscription, "customer")) != user.stripe_customer_id
+            or str(_stripe_get(metadata, "user_id") or "") != str(user.id)):
+        if user.stripe_subscription_id == subscription_id:
+            _deny_subscription(db, user)
+        raise HTTPException(status_code=403, detail="Subscription does not belong to this user.")
 
-    if subscription_id:
-        user.stripe_subscription_id = subscription_id
+    items = _subscription_items(subscription)
+    price = _subscription_price(subscription)
+    plan = map_price_to_plan(_stripe_get(price, "id"), price=price)
+    metadata_plan = _normalize_plan(_stripe_get(metadata, "plan"))
+    status = _stripe_get(subscription, "status")
+    if not isinstance(status, str):
+        status = None
+    period_end = _subscription_period_end(subscription)
+    valid_plan = (len(items) == 1 and _stripe_get(items[0], "quantity") == 1
+                  and plan is not None and metadata_plan == plan
+                  and (plan != "agent_pro" or user.role in {"agent", "admin"})
+                  and (expected_plan is None or expected_plan == plan))
 
-    if cancel_at_period_end and status in {"active", "trialing"}:
-        user.subscription_status = "canceling"
-    elif status:
-        user.subscription_status = status
-    elif subscription_id:
-        user.subscription_status = "active"
+    # Bind even an incomplete subscription so later events cannot substitute an
+    # unrelated one. Metadata alone never sets a paid plan or active status.
+    user.stripe_subscription_id = subscription_id
+    if (not valid_plan or status != "active" or not period_end
+            or period_end <= datetime.now(timezone.utc)
+            or _stripe_get(subscription, "pause_collection")):
+        denied_status = status if status in {
+            "incomplete", "incomplete_expired", "past_due", "unpaid", "canceled", "paused"
+        } else "unverified"
+        return _deny_subscription(db, user, denied_status)
 
-    if cancel_at_period_end is not None:
-        user.subscription_cancel_at_period_end = bool(cancel_at_period_end)
+    invoice = _stripe_get(subscription, "latest_invoice")
+    invoice_id = _stripe_id(invoice)
+    if isinstance(invoice, str):
+        try:
+            invoice = stripe.Invoice.retrieve(invoice)
+        except Exception as exc:
+            _deny_subscription(db, user)
+            raise HTTPException(status_code=503, detail="Unable to verify billing state.") from exc
+    if (not invoice_id or _stripe_id(invoice) != invoice_id
+            or _stripe_get(invoice, "status") != "paid"
+            or _stripe_id(_stripe_get(invoice, "customer")) != user.stripe_customer_id
+            or _invoice_subscription_id(invoice) != subscription_id):
+        return _deny_subscription(db, user)
 
-    if current_period_end is not None:
-        user.subscription_current_period_end = current_period_end
-
-    if not cancel_at_period_end and user.subscription_status in {"active", "trialing"}:
+    cancel_at_period_end = _stripe_get(subscription, "cancel_at_period_end")
+    if not isinstance(cancel_at_period_end, bool):
+        return _deny_subscription(db, user)
+    user.plan = plan
+    user.subscription_status = "canceling" if cancel_at_period_end else "active"
+    user.subscription_cancel_at_period_end = cancel_at_period_end
+    user.subscription_current_period_end = period_end
+    if not cancel_at_period_end:
         user.cancellation_email_sent_at = None
         user.cancellation_email_status = None
         user.cancellation_email_error = None
-
-    if resolved_plan != "free":
-        user.plan = resolved_plan
-
     db.commit()
     db.refresh(user)
     return user
 
 
 def _apply_subscription_event(db: Session, subscription: Any) -> User | None:
-    customer_id = _stripe_get(subscription, "customer")
-    subscription_id = _stripe_get(subscription, "id")
-    status = _stripe_get(subscription, "status")
-    price = _subscription_price(subscription)
-    price_id = _stripe_get(price, "id")
-    product_id = _stripe_get(price, "product")
-    metadata = _stripe_get(subscription, "metadata", {}) or {}
-    cancel_at_period_end = bool(_stripe_get(subscription, "cancel_at_period_end"))
-    current_period_end = _stripe_datetime(_stripe_get(subscription, "current_period_end"))
-
-    user = _find_user_for_customer(
-        db,
-        customer_id=customer_id,
-        user_id=metadata.get("user_id"),
-    )
-
-    if not user:
+    customer_id = _stripe_id(_stripe_get(subscription, "customer"))
+    user = _find_user_for_customer(db, customer_id=customer_id)
+    subscription_id = _stripe_id(subscription)
+    if not user or not subscription_id:
         return None
-
-    if status == "canceled":
-        user.plan = "free"
-        user.subscription_status = "canceled"
-        user.stripe_subscription_id = None
-        user.subscription_cancel_at_period_end = False
-        user.subscription_current_period_end = None
-        db.commit()
-        db.refresh(user)
-        return user
-
-    updated_user = _apply_subscription_to_user(
-        db,
-        user,
-        customer_id=customer_id,
-        subscription_id=subscription_id,
-        status=status,
-        price_id=price_id,
-        product_id=product_id,
-        price=price,
-        plan=metadata.get("plan"),
-        cancel_at_period_end=cancel_at_period_end,
-        current_period_end=current_period_end,
-    )
-
-    if cancel_at_period_end:
+    if user.stripe_subscription_id and user.stripe_subscription_id != subscription_id:
+        return None
+    # Event delivery is unordered: retrieve current state, not the event snapshot.
+    updated_user = _sync_subscription(db, user, subscription_id)
+    if updated_user.subscription_cancel_at_period_end:
         _safe_send_cancellation_confirmation_email(db, user=updated_user)
-
     return updated_user
 
 
-def _apply_checkout_session(db: Session, session: Any) -> User | None:
-    customer_id = _stripe_get(session, "customer")
-    subscription_id = _stripe_get(session, "subscription")
+def _apply_checkout_session(
+    db: Session, session: Any, *, current_user: User | None = None,
+) -> User | None:
+    customer_id = _stripe_id(_stripe_get(session, "customer"))
+    user = current_user or _find_user_for_customer(db, customer_id=customer_id)
     metadata = _stripe_get(session, "metadata", {}) or {}
-    client_reference_id = _stripe_get(session, "client_reference_id")
-    payment_status = _stripe_get(session, "payment_status")
+    if (not user or not customer_id or customer_id != user.stripe_customer_id
+            or str(_stripe_get(metadata, "user_id") or "") != str(user.id)
+            or str(_stripe_get(session, "client_reference_id") or "") != str(user.id)):
+        raise HTTPException(status_code=403, detail="Checkout session does not belong to this user.")
 
-    user = _find_user_for_customer(
-        db,
-        customer_id=customer_id,
-        user_id=metadata.get("user_id") or client_reference_id,
-    )
+    plan = _normalize_plan(_stripe_get(metadata, "plan"))
+    subscription_id = _stripe_id(_stripe_get(session, "subscription"))
+    if (not _stripe_id(session) or _stripe_get(session, "mode") != "subscription"
+            or _stripe_get(session, "status") != "complete"
+            or _stripe_get(session, "payment_status") not in {"paid", "no_payment_required"}
+            or not subscription_id or plan not in STRIPE_PLAN_CONFIG):
+        raise HTTPException(status_code=409, detail="Checkout payment is not verified.")
 
-    if not user:
-        return None
-
-    status = "active" if payment_status in {"paid", "no_payment_required"} else None
-    price_id = None
-    product_id = None
-    price = None
-    cancel_at_period_end = None
-    current_period_end = None
-
-    if subscription_id:
-        try:
-            subscription = stripe.Subscription.retrieve(subscription_id)
-            status = _stripe_get(subscription, "status") or status
-            price = _subscription_price(subscription)
-            price_id = _stripe_get(price, "id")
-            product_id = _stripe_get(price, "product")
-            cancel_at_period_end = bool(_stripe_get(subscription, "cancel_at_period_end"))
-            current_period_end = _stripe_datetime(_stripe_get(subscription, "current_period_end"))
-        except Exception:
-            pass
-
-    updated_user = _apply_subscription_to_user(
-        db,
-        user,
-        customer_id=customer_id,
-        subscription_id=subscription_id,
-        status=status,
-        price_id=price_id,
-        product_id=product_id,
-        price=price,
-        plan=metadata.get("plan"),
-        cancel_at_period_end=cancel_at_period_end,
-        current_period_end=current_period_end,
-    )
-
-    transaction = _safe_record_checkout_transaction(
-        db,
-        user=updated_user,
-        session=session,
-        plan=map_price_to_plan(price_id, product_id=product_id, price=price)
-        or _normalize_plan(metadata.get("plan")),
-    )
-    _safe_send_payment_confirmation_email(
-        db,
-        user=updated_user,
-        transaction=transaction,
-    )
-
+    updated_user = _sync_subscription(db, user, subscription_id, expected_plan=plan)
+    if updated_user.plan == "free":
+        raise HTTPException(status_code=409, detail="Subscription payment is not verified.")
+    transaction = _safe_record_checkout_transaction(db, user=updated_user, session=session, plan=updated_user.plan)
+    _safe_send_payment_confirmation_email(db, user=updated_user, transaction=transaction)
     return updated_user
 
 
@@ -1081,11 +1085,12 @@ def create_checkout_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    selected_plan = _normalize_plan(payload.get("plan"))
+    if selected_plan == "agent_pro":
+        raise HTTPException(status_code=403, detail="Agent checkout is not available during the individual soft launch.")
     ensure_stripe_configured()
     ensure_confirmed_email(current_user)
     require_global_disclosures_accepted(db, current_user)
-
-    selected_plan = _normalize_plan(payload.get("plan"))
 
     if selected_plan == "free":
         raise HTTPException(status_code=400, detail="Free plan does not require checkout.")
@@ -1132,18 +1137,9 @@ def sync_checkout_session(
 
     session = stripe.checkout.Session.retrieve(session_id)
 
-    session_user_id = str(
-        _stripe_get(_stripe_get(session, "metadata", {}) or {}, "user_id")
-        or _stripe_get(session, "client_reference_id")
-        or ""
-    )
-
-    if session_user_id and session_user_id != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Checkout session does not belong to this user.")
-
-    user = _apply_checkout_session(db, session)
-    if not user or user.id != current_user.id:
-        raise HTTPException(status_code=404, detail="Unable to sync checkout session.")
+    if _stripe_id(session) != session_id:
+        raise HTTPException(status_code=409, detail="Checkout session identity mismatch.")
+    user = _apply_checkout_session(db, session, current_user=current_user)
 
     return {
         "user": _user_payload(user),
@@ -1215,23 +1211,7 @@ def cancel_subscription(
                 detail=f"Unable to schedule subscription cancellation: {str(exc)}",
             )
 
-    price = _subscription_price(subscription)
-    price_id = _stripe_get(price, "id")
-    product_id = _stripe_get(price, "product")
-
-    updated_user = _apply_subscription_to_user(
-        db,
-        current_user,
-        customer_id=_stripe_get(subscription, "customer"),
-        subscription_id=_stripe_get(subscription, "id"),
-        status=_stripe_get(subscription, "status") or "active",
-        price_id=price_id,
-        product_id=product_id,
-        price=price,
-        plan=get_raw_user_plan(current_user),
-        cancel_at_period_end=True,
-        current_period_end=_stripe_datetime(_stripe_get(subscription, "current_period_end")),
-    )
+    updated_user = _sync_subscription(db, current_user, current_user.stripe_subscription_id)
 
     email_status = _safe_send_cancellation_confirmation_email(db, user=updated_user)
 
@@ -1264,65 +1244,46 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     event_type = event["type"]
     data = event["data"]["object"]
 
-    if event_type == "checkout.session.completed":
-        _apply_checkout_session(db, data)
+    if event_type in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
+        # Retrieve the current session too, so a replay cannot reuse stale payment state.
+        session_id = _stripe_id(data)
+        if not session_id:
+            raise HTTPException(status_code=400, detail="Missing checkout identity.")
+        session = stripe.checkout.Session.retrieve(session_id)
+        if _stripe_id(session) != session_id:
+            raise HTTPException(status_code=400, detail="Checkout identity mismatch.")
+        try:
+            _apply_checkout_session(db, session)
+        except HTTPException as exc:
+            if exc.status_code != 409:
+                raise
+            # Pending/invalid checkouts grant nothing; later payment events can retry.
 
     elif event_type in {
-        "customer.subscription.created",
-        "customer.subscription.updated",
-        "customer.subscription.resumed",
+        "customer.subscription.created", "customer.subscription.updated",
+        "customer.subscription.resumed", "customer.subscription.deleted",
+        "customer.subscription.paused",
     }:
         _apply_subscription_event(db, data)
 
-    elif event_type == "customer.subscription.deleted":
-        customer_id = _stripe_get(data, "customer")
+    elif event_type in {"invoice.payment_succeeded", "invoice.paid", "invoice.payment_failed"}:
+        customer_id = _stripe_id(_stripe_get(data, "customer"))
+        subscription_id = _invoice_subscription_id(data)
         user = _find_user_for_customer(db, customer_id=customer_id)
-        if user:
-            user.plan = "free"
-            user.subscription_status = "canceled"
-            user.stripe_subscription_id = None
-            user.subscription_cancel_at_period_end = False
-            user.subscription_current_period_end = None
-            db.commit()
-
-    elif event_type == "customer.subscription.paused":
-        user = _apply_subscription_event(db, data)
-        if user:
-            user.subscription_status = "paused"
-            db.commit()
-
-    elif event_type == "invoice.payment_succeeded":
-        customer_id = _stripe_get(data, "customer")
-        user = _find_user_for_customer(db, customer_id=customer_id)
-        if user:
-            price = _invoice_price(data)
-            resolved_plan = map_price_to_plan(
-                _stripe_get(price, "id"),
-                product_id=_stripe_get(price, "product"),
-                price=price,
-            )
-            if resolved_plan:
-                user.plan = resolved_plan
-            user.subscription_status = "active"
-            user.billing_issue_email_status = None
-            user.billing_issue_email_error = None
-            user.billing_issue_email_sent_at = None
-            db.commit()
-            db.refresh(user)
-            transaction = _safe_record_invoice_transaction(db, user=user, invoice=data)
-            _safe_send_payment_confirmation_email(
-                db,
-                user=user,
-                transaction=transaction,
-            )
-
-    elif event_type == "invoice.payment_failed":
-        customer_id = _stripe_get(data, "customer")
-        user = _find_user_for_customer(db, customer_id=customer_id)
-        if user:
-            user.subscription_status = "past_due"
-            db.commit()
-            _safe_send_billing_issue_email(db, user=user, invoice=data)
+        if user and subscription_id and (
+            not user.stripe_subscription_id or user.stripe_subscription_id == subscription_id
+        ):
+            user = _sync_subscription(db, user, subscription_id)
+            if event_type == "invoice.payment_failed":
+                if user.subscription_status in {"past_due", "unpaid", "incomplete"}:
+                    _safe_send_billing_issue_email(db, user=user, invoice=data)
+            elif user.plan != "free":
+                user.billing_issue_email_status = None
+                user.billing_issue_email_error = None
+                user.billing_issue_email_sent_at = None
+                db.commit()
+                transaction = _safe_record_invoice_transaction(db, user=user, invoice=data)
+                _safe_send_payment_confirmation_email(db, user=user, transaction=transaction)
 
     return JSONResponse({"received": True})
 

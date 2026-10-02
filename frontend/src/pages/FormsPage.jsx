@@ -1,3 +1,4 @@
+import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -6,10 +7,10 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import LockBadge from "../components/ui/LockBadge";
 import UpgradePrompt from "../components/UpgradePrompt";
-import { getActiveCaseId } from "../utils/activeCase";
-import { getApplicationCase } from "../api";
 import api, {
   getBillingAccess,
+  getApplicationContext,
+  getCurrentUserLocal,
   getCachedBillingAccess,
   getFormsApplicationTypes,
   getMyProfile,
@@ -115,16 +116,11 @@ function ProgressBadge({ score }) {
   );
 }
 
-function readLocalDraft() {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_FORMS_DRAFT_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
+function draftKey(caseId) { return `${LOCAL_FORMS_DRAFT_KEY}:${getCurrentUserLocal()?.id}:${caseId}`; }
+function readLocalDraft(caseId) { try { return caseId ? JSON.parse(localStorage.getItem(draftKey(caseId)) || "{}") : {}; } catch { return {}; } }
 
-function writeLocalDraft(value) {
-  localStorage.setItem(LOCAL_FORMS_DRAFT_KEY, JSON.stringify(value || {}));
+function writeLocalDraft(value, caseId) {
+  if (caseId) localStorage.setItem(draftKey(caseId), JSON.stringify(value || {}));
 }
 
 function getProfileApplicationData(profile) {
@@ -596,7 +592,6 @@ export default function FormsPage() {
   const [savingInline, setSavingInline] = useState(false);
   const [accessLoading, setAccessLoading] = useState(true);
   const [access, setAccess] = useState(() => getCachedBillingAccess());
-  const [activeCaseId, setActiveCaseId] = useState(getActiveCaseId());
   const [activeCase, setActiveCase] = useState(null);
   const [activeStudioTab, setActiveStudioTab] = useState("setup");
   const [activeResultTab, setActiveResultTab] = useState("summary");
@@ -650,46 +645,6 @@ export default function FormsPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inlineApplicationData, representativeUsed, selectedApplicationType]);
-
-  useEffect(() => {
-    async function loadActiveCase() {
-      if (!activeCaseId) return;
-
-      try {
-        const res = await getApplicationCase(activeCaseId);
-        const caseData = res?.data || null;
-        setActiveCase(caseData);
-
-        const mappedType =
-          caseData?.application_type === "permanent_residence"
-            ? caseData?.pathway?.toLowerCase().includes("express")
-              ? "express_entry"
-              : "pr_pathway"
-            : caseData?.application_type;
-
-        if (mappedType) {
-          setSelectedApplicationType(mappedType);
-        }
-      } catch (err) {
-        console.error(err);
-        setActiveCase(null);
-      }
-    }
-
-    loadActiveCase();
-  }, [activeCaseId]);
-
-  useEffect(() => {
-    function handleActiveCaseUpdate() {
-      setActiveCaseId(getActiveCaseId());
-    }
-
-    window.addEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
-
-    return () => {
-      window.removeEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
-    };
-  }, []);
 
   async function loadAccess() {
     try {
@@ -747,7 +702,10 @@ export default function FormsPage() {
     try {
       setLoadingSavedApp(true);
 
-      const localDraft = readLocalDraft();
+      const context = (await getApplicationContext()).data;
+      setActiveCase(context.case);
+      setSelectedApplicationType(context.case.application_type === "permanent_residence" ? "pr_pathway" : context.case.application_type);
+      const localDraft = readLocalDraft(context.case_id);
       let profileApplicationData = {};
 
       try {
@@ -758,7 +716,7 @@ export default function FormsPage() {
       }
 
       try {
-        const res = await getSavedSelfApplication();
+        const res = await getSavedSelfApplication(context.case_id);
         const savedApplication = res?.data || {};
         const intake = savedApplication?.intake_payload || {};
         const mergedDraft = {
@@ -777,7 +735,7 @@ export default function FormsPage() {
         const inferredApplicationType =
           mergedDraft.application_type || mapMatterTypeToApplicationType(savedApplication);
         if (inferredApplicationType) {
-          setSelectedApplicationType(inferredApplicationType);
+          setSelectedApplicationType(context.case.application_type === "permanent_residence" ? "pr_pathway" : context.case.application_type);
         }
 
         setRepresentativeUsed(
@@ -815,6 +773,7 @@ export default function FormsPage() {
   }
 
   async function handleAutoSave() {
+    if (!activeCase || loadingSavedApp) return;
     try {
       setSavingInline(true);
 
@@ -825,11 +784,12 @@ export default function FormsPage() {
         representative_used: representativeUsed,
       };
 
-      writeLocalDraft(intakePayload);
+      writeLocalDraft(intakePayload, activeCase?.id);
 
       try {
         await runSelfWorkspace(
           {
+            case_id: activeCase.id,
             matter_type: mapApplicationTypeToMatterType(selectedApplicationType),
             intake: intakePayload,
           },
@@ -861,6 +821,7 @@ export default function FormsPage() {
       setPreview(null);
 
       const res = await api.post("/forms/package/preview", {
+        case_id: activeCase?.id,
         application_type: selectedApplicationType,
         language,
         representative_used: representativeUsed,
@@ -870,7 +831,7 @@ export default function FormsPage() {
       setPreview(res.data);
 
       localStorage.setItem(
-        "nbai_forms_preview_v1",
+        `nbai_forms_preview_v1:${getCurrentUserLocal()?.id}:${activeCase?.id}`,
         JSON.stringify(res.data || null)
       );
     } catch (err) {
@@ -896,6 +857,7 @@ export default function FormsPage() {
       const res = await api.post(
         "/forms/package/download",
         {
+          case_id: activeCase?.id,
           application_type: selectedApplicationType,
           language,
           representative_used: representativeUsed,
@@ -1221,6 +1183,7 @@ export default function FormsPage() {
 
   return (
     <Layout>
+      <ApplicationContextBanner />
       {message && (
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
           {message}
@@ -1289,7 +1252,7 @@ export default function FormsPage() {
                       active={selectedApplicationType === item.value}
                       disabled={loadingTypes}
                       statusLabel={pageText.generatorReady}
-                      onClick={() => setSelectedApplicationType(item.value)}
+                      onClick={() => navigate("/applications")}
                     />
                   ))}
                 </div>

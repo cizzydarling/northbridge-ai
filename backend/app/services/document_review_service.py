@@ -101,6 +101,7 @@ def build_strategy_context(strategy: Optional[dict], decision: Optional[dict], l
     if language == "fr":
         return f"""
 Contexte stratégique:
+- Faits familiaux (ne pas déduire les faits inconnus): {strategy.get("family_context") or {"status": "unknown"}}
 - Programmes recommandés: {recommended_programs}
 - Prochaines étapes: {next_steps}
 - Avantage francophone: {french_advantage}
@@ -110,6 +111,7 @@ Contexte stratégique:
 
     return f"""
 Strategy context:
+- Family facts (unknown facts must not be inferred): {strategy.get("family_context") or {"status": "unknown"}}
 - Recommended programs: {recommended_programs}
 - Next steps: {next_steps}
 - French advantage: {french_advantage}

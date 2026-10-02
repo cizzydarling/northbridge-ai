@@ -152,6 +152,7 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
             province_labels.append(str(item).strip())
 
     parts = [
+        "Family context (do not infer missing facts): " + json.dumps(strategy.get("family_context") or {"status": "unknown"}, ensure_ascii=False),
         f"crs_score: {crs_score}",
         f"recommended_programs: {_safe_join(recommended_programs, empty_word)}",
         f"strengths: {_safe_join(strengths[:5], empty_word)}",
@@ -212,7 +213,8 @@ def _extract_application_context(
     checklist = _ensure_list(application_context.get("checklist"))
     missing_fields = _ensure_list(application_context.get("missing_fields"))
     recommended_forms = _ensure_list(application_context.get("recommended_forms"))
-    intake_payload = application_context.get("intake_payload") or {}
+    intake_payload = dict(application_context.get("intake_payload") or {})
+    intake_payload["family_context"] = application_context.get("family_context") or {"status": "unknown", "instruction": "Do not infer missing family facts"}
 
     checklist_items = []
     for item in checklist[:8]:

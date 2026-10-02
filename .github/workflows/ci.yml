@@ -33,6 +33,7 @@ jobs:
     env:
       APP_ENV: test
       DATABASE_URL: postgresql://northbridgeai:northbridgeai_test@localhost:5432/northbridgeai_test
+      TEST_POSTGRES_ADMIN_URL: postgresql://northbridgeai:northbridgeai_test@localhost:5432/postgres
       SECRET_KEY: ci-only-secret-key
       FRONTEND_URL: http://localhost:5173
       OPENAI_API_KEY: ci-placeholder

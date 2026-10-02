@@ -466,8 +466,6 @@ export default function Layout({ children }) {
     };
   }, [mobileMenuOpen]);
 
-  const isAgentWorkspace =
-    currentUser?.role === "agent" || currentUser?.plan === "agent_pro";
   const isAdmin = currentUser?.role === "admin";
   const emailConfirmed = Boolean(currentUser?.email_confirmed_at);
   const showEmailConfirmationBanner = Boolean(currentUser && !emailConfirmed);
@@ -508,14 +506,7 @@ export default function Layout({ children }) {
 
   const roleLabel = translateRoleLabel(currentUser?.role, language);
 
-  const primaryNavItems = isAgentWorkspace
-    ? [
-        { label: t("nav.dashboard"), path: "/dashboard", icon: "dashboard" },
-        { label: t("nav.clients"), path: "/clients", icon: "clients" },
-        { label: t("nav.matters"), path: "/matters", icon: "matters" },
-        { label: t("nav.strategy"), path: "/strategy", icon: "strategy" },
-      ]
-    : [
+  const primaryNavItems = [
         { label: t("nav.dashboard"), path: "/dashboard", icon: "dashboard" },
         { label: t("nav.strategy"), path: "/strategy", icon: "strategy" },
         {
@@ -524,19 +515,12 @@ export default function Layout({ children }) {
           icon: "documents",
           exact: true,
         },
+        { label: language === "fr" ? "Ménage" : "Household", path: "/household", icon: "household" },
+        { label: language === "fr" ? "Demandes" : "Applications", path: "/applications", icon: "application" },
         { label: t("layout.myApplication"), path: "/self/application", icon: "application" },
       ];
 
-  const toolsItems = isAgentWorkspace
-    ? [
-        { label: t("nav.profile"), path: "/profile", icon: "profile" },
-        {
-          label: language === "fr" ? "Tarifs" : "Pricing",
-          path: "/pricing",
-          icon: "pricing",
-        },
-      ]
-    : [
+  const toolsItems = [
         {
           label: language === "fr" ? "Générateur" : "Generator",
           path: "/documents/generator",
@@ -561,8 +545,6 @@ export default function Layout({ children }) {
           icon: "finder",
         },
         { label: language === "fr" ? "Citoyenneté" : "Citizenship", path: "/citizenship", icon: "citizenship" },
-        { label: language === "fr" ? "Famille" : "Household", path: "/household", icon: "household" },
-        { label: language === "fr" ? "Demandes" : "Applications", path: "/applications", icon: "application" },
         { label: t("nav.profile"), path: "/profile", icon: "profile" },
         ...(isAdmin
           ? [
@@ -670,9 +652,7 @@ export default function Layout({ children }) {
                     NorthBridgeAI
                   </p>
                   <p className="truncate text-xs text-white/55">
-                    {isAgentWorkspace
-                      ? t("layout.agentWorkspace")
-                      : t("layout.personalWorkspace")}
+                    {t("layout.personalWorkspace")}
                   </p>
                 </div>
               </div>
@@ -832,9 +812,7 @@ export default function Layout({ children }) {
                           {displayName}
                         </p>
                         <p className="mt-1 truncate text-xs text-slate-500">
-                          {isAgentWorkspace
-                            ? t("layout.agentWorkspace")
-                            : t("layout.personalWorkspace")}
+                          {t("layout.personalWorkspace")}
                         </p>
                         <div className="mt-3 flex items-center gap-2">
                           {!loadingPlan && (
@@ -979,9 +957,7 @@ export default function Layout({ children }) {
                   {displayName}
                 </p>
                 <p className="truncate text-xs text-slate-500">
-                  {isAgentWorkspace
-                    ? t("layout.agentWorkspace")
-                    : t("layout.personalWorkspace")}
+                  {t("layout.personalWorkspace")}
                 </p>
               </div>
               <button

@@ -1,175 +1,76 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
 from app.data.db import get_db
-from app.models.household_model import Household
+from app.routes.self_document_routes import require_self_user
 from app.models.household_member_model import HouseholdMember
-from app.models.profile_model import Profile
-from app.models.user_models import User
-from app.routes.auth_routes import get_current_user
-from app.schemas.household_schema import HouseholdCreate, HouseholdResponse
-from app.schemas.household_member_schema import (
-    HouseholdMemberCreate,
-    HouseholdMemberResponse,
-    HouseholdMemberUpdate,
-)
+from app.schemas.household_member_schema import HouseholdMemberCreate, HouseholdMemberUpdate, HouseholdMemberResponse
+from app.services.household_service import initialize_household, invalidate_family_results, refresh_case_sizes
 
 router = APIRouter(prefix="/households", tags=["Households"])
 
-
-def get_or_create_household(db: Session, current_user: User) -> Household:
-    household = (
-        db.query(Household)
-        .filter(Household.owner_user_id == current_user.id)
-        .first()
-    )
-
-    if household:
-        return household
-
-    household = Household(
-        owner_user_id=current_user.id,
-        name="My household",
-    )
-    db.add(household)
+@router.get("/me")
+@router.post("")
+def household(db: Session = Depends(get_db), user=Depends(require_self_user)):
+    item, _, _ = initialize_household(db, user)
     db.commit()
-    db.refresh(household)
-
-    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-
-    primary_member = HouseholdMember(
-        household_id=household.id,
-        first_name=getattr(profile, "first_name", None) or getattr(current_user, "first_name", None),
-        last_name=getattr(profile, "last_name", None) or getattr(current_user, "last_name", None),
-        nationality=getattr(profile, "nationality", None),
-        current_country=getattr(profile, "current_country", None),
-        email=getattr(current_user, "email", None),
-        relationship_to_primary="self",
-        is_primary_applicant=True,
-    )
-
-    db.add(primary_member)
-    db.commit()
-    db.refresh(household)
-
-    return household
-
-
-@router.get("/me", response_model=HouseholdResponse)
-def read_my_household(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return get_or_create_household(db, current_user)
-
-
-@router.post("", response_model=HouseholdResponse)
-def create_household(
-    payload: HouseholdCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    existing = (
-        db.query(Household)
-        .filter(Household.owner_user_id == current_user.id)
-        .first()
-    )
-
-    if existing:
-        return existing
-
-    household = Household(
-        owner_user_id=current_user.id,
-        name=payload.name or "My household",
-    )
-
-    db.add(household)
-    db.commit()
-    db.refresh(household)
-
-    return household
-
+    return {"id": item.id, "owner_user_id": item.owner_user_id, "name": item.name}
 
 @router.get("/members", response_model=list[HouseholdMemberResponse])
-def list_household_members(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    household = get_or_create_household(db, current_user)
+def members(db: Session = Depends(get_db), user=Depends(require_self_user)):
+    item, _, _ = initialize_household(db, user)
+    result = db.query(HouseholdMember).filter_by(household_id=item.id, archived_at=None).order_by(HouseholdMember.id).all()
+    db.commit()
+    return result
 
-    return (
-        db.query(HouseholdMember)
-        .filter(HouseholdMember.household_id == household.id)
-        .order_by(HouseholdMember.is_primary_applicant.desc(), HouseholdMember.id.asc())
-        .all()
-    )
 
+def check_partner(db, household_id, relationship, member_id=None):
+    if relationship in {"spouse", "common_law_partner"}:
+        query = db.query(HouseholdMember).filter(HouseholdMember.household_id == household_id,
+            HouseholdMember.archived_at.is_(None), HouseholdMember.relationship_to_primary.in_(["spouse", "common_law_partner"]))
+        if member_id is not None:
+            query = query.filter(HouseholdMember.id != member_id)
+        if query.first():
+            raise HTTPException(409, "Only one active spouse or partner is supported. Edit or remove the existing record first.")
 
 @router.post("/members", response_model=HouseholdMemberResponse)
-def add_household_member(
-    payload: HouseholdMemberCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    household = get_or_create_household(db, current_user)
-
-    member = HouseholdMember(
-        household_id=household.id,
-        first_name=payload.first_name,
-        last_name=payload.last_name,
-        relationship_to_primary=payload.relationship_to_primary or "other",
-        date_of_birth=payload.date_of_birth,
-        nationality=payload.nationality,
-        current_country=payload.current_country,
-        email=payload.email,
-        is_primary_applicant=payload.is_primary_applicant,
-    )
-
-    if member.is_primary_applicant:
-        db.query(HouseholdMember).filter(
-            HouseholdMember.household_id == household.id
-        ).update({"is_primary_applicant": False})
-
+def add_member(payload: HouseholdMemberCreate, db: Session = Depends(get_db), user=Depends(require_self_user)):
+    household, _, _ = initialize_household(db, user)
+    check_partner(db, household.id, payload.relationship_to_primary)
+    member = HouseholdMember(household_id=household.id, **payload.model_dump())
     db.add(member)
+    invalidate_family_results(db, user.id)
     db.commit()
     db.refresh(member)
-
     return member
 
+
+def owned_member(db, user, member_id):
+    household, _, _ = initialize_household(db, user)
+    member = db.query(HouseholdMember).filter_by(id=member_id, household_id=household.id, archived_at=None).first()
+    if not member:
+        raise HTTPException(404, "Household member not found")
+    if member.relationship_to_primary == "self":
+        raise HTTPException(409, "SELF is protected. Update your individual profile instead.")
+    return member
 
 @router.put("/members/{member_id}", response_model=HouseholdMemberResponse)
-def update_household_member(
-    member_id: int,
-    payload: HouseholdMemberUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    household = get_or_create_household(db, current_user)
-
-    member = (
-        db.query(HouseholdMember)
-        .filter(
-            HouseholdMember.id == member_id,
-            HouseholdMember.household_id == household.id,
-        )
-        .first()
-    )
-
-    if not member:
-        raise HTTPException(status_code=404, detail="Household member not found.")
-
-    update_data = payload.model_dump(exclude_unset=True)
-
-    if update_data.get("is_primary_applicant") is True:
-        db.query(HouseholdMember).filter(
-            HouseholdMember.household_id == household.id,
-            HouseholdMember.id != member.id,
-        ).update({"is_primary_applicant": False})
-
-    for key, value in update_data.items():
+def update_member(member_id: int, payload: HouseholdMemberUpdate, db: Session = Depends(get_db), user=Depends(require_self_user)):
+    member = owned_member(db, user, member_id)
+    values = payload.model_dump(exclude_unset=True)
+    check_partner(db, member.household_id, values.get("relationship_to_primary", member.relationship_to_primary), member.id)
+    for key, value in values.items():
         setattr(member, key, value)
-
+    invalidate_family_results(db, user.id)
     db.commit()
     db.refresh(member)
-
     return member
+
+@router.delete("/members/{member_id}")
+def archive_member(member_id: int, db: Session = Depends(get_db), user=Depends(require_self_user)):
+    member = owned_member(db, user, member_id)
+    member.archived_at = datetime.now(timezone.utc)
+    refresh_case_sizes(db, user.id)
+    invalidate_family_results(db, user.id)
+    db.commit()
+    return {"archived": True}

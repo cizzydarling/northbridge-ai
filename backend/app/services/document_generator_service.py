@@ -137,7 +137,8 @@ def build_application_context(application: Optional[dict], language: str) -> str
     application = application or {}
 
     matter_type = application.get("matter_type", "Not provided")
-    intake = application.get("intake_payload", {}) or {}
+    intake = dict(application.get("intake_payload", {}) or {})
+    intake["family_context"] = application.get("family_context") or {"status": "unknown", "instruction": "Do not infer missing family facts"}
 
     if language == "fr":
         return f"""

@@ -20,6 +20,11 @@ import app.models.recommendation  # noqa: E402
 import app.models.matter_model
 import app.models.self_application_model
 import app.models.self_document_model
+import app.models.disclosure_acceptance_model
+import app.models.generated_document_model
+import app.models.citizenship_models
+import app.models.career_match_models
+import app.models.promo_code_model
 import app.models.billing_transaction_model
 
 
@@ -36,12 +41,21 @@ config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 target_metadata = Base.metadata
 
+# Household V1 models are imported through app.models and included in the schema contract.
+DEFERRED_TABLES = set()
+
+
+def include_object(obj, name, type_, reflected, compare_to):
+    return not (type_ == "table" and name in DEFERRED_TABLES)
+
+
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_object=include_object,
         literal_binds=True,
         compare_type=True,
         compare_server_default=True,
@@ -62,6 +76,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            include_object=include_object,
             compare_type=True,
             compare_server_default=True,
         )

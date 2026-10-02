@@ -469,7 +469,7 @@ export default function SelfDashboardPage() {
   const primaryPath = !profile
     ? "/profile"
     : isAgent && hasAgentPlan
-    ? "/clients"
+    ? "/pricing"
     : "/strategy";
 
   const primaryLabel = !profile
@@ -728,7 +728,7 @@ export default function SelfDashboardPage() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => navigate(hasAgentPlan ? "/clients" : "/pricing")}
+                onClick={() => navigate(hasAgentPlan ? "/pricing" : "/pricing")}
               >
                 {language === "fr" ? "Clients" : "Clients"}
               </Button>

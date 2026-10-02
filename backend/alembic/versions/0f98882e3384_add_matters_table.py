@@ -42,22 +42,18 @@ def upgrade() -> None:
                existing_type=sa.VARCHAR(),
                server_default=None,
                existing_nullable=False)
-    op.alter_column('profiles', 'user_id',
-               existing_type=sa.INTEGER(),
-               nullable=True)
     op.alter_column('profiles', 'has_job_offer',
                existing_type=sa.BOOLEAN(),
                server_default=None,
-               nullable=False)
+               existing_nullable=True)
     op.alter_column('profiles', 'has_canadian_experience',
                existing_type=sa.BOOLEAN(),
                server_default=None,
-               nullable=False)
+               existing_nullable=True)
     op.alter_column('profiles', 'studied_in_canada',
                existing_type=sa.BOOLEAN(),
                server_default=None,
-               nullable=False)
-    op.create_index(op.f('ix_profiles_user_id'), 'profiles', ['user_id'], unique=False)
+               existing_nullable=True)
     op.alter_column('users', 'role',
                existing_type=sa.VARCHAR(),
                server_default=None,
@@ -82,7 +78,6 @@ def downgrade() -> None:
                existing_type=sa.VARCHAR(),
                server_default=sa.text("'individual'::character varying"),
                existing_nullable=False)
-    op.drop_index(op.f('ix_profiles_user_id'), table_name='profiles')
     op.alter_column('profiles', 'studied_in_canada',
                existing_type=sa.BOOLEAN(),
                server_default=sa.text('false'),
@@ -95,9 +90,6 @@ def downgrade() -> None:
                existing_type=sa.BOOLEAN(),
                server_default=sa.text('false'),
                nullable=True)
-    op.alter_column('profiles', 'user_id',
-               existing_type=sa.INTEGER(),
-               nullable=False)
     op.alter_column('clients', 'status',
                existing_type=sa.VARCHAR(),
                server_default=sa.text("'Active'::character varying"),

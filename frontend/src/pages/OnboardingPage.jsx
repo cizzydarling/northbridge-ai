@@ -1001,7 +1001,7 @@ export default function OnboardingPage() {
             <Button
               variant="secondary"
               onClick={() =>
-                navigate("/legal/disclosure?redirect=/dashboard")
+                navigate("/dashboard")
               }
               className="w-full rounded-2xl"
             >

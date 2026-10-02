@@ -13,7 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy.orm import Session
 
-from app.core.access_control import ensure_confirmed_email
+from app.core.access_control import ensure_confirmed_email, has_agent_plan, has_individual_pro, has_premium_access
 from app.data.db import get_db
 from app.models.profile_model import Profile
 from app.models.self_application_model import SelfApplication
@@ -22,12 +22,14 @@ from app.routes.auth_routes import get_current_user
 from app.services.forms_catalog_service import get_supported_application_types
 from app.services.forms_catalog_service import normalize_application_type
 from app.services.forms_package_service import build_forms_package
+from app.services.household_service import resolve_application_context, context_snapshot
 
 router = APIRouter(prefix="/forms", tags=["Forms"])
 
 
 class FormsPackagePreviewRequest(BaseModel):
     application_type: str = Field(..., min_length=1)
+    case_id: int | None = Field(default=None, gt=0)
     language: str = "en"
     representative_used: Optional[bool] = False
     application_data: Optional[Dict[str, Any]] = None
@@ -39,29 +41,21 @@ def _normalize_language(language: str) -> str:
 
 
 def _can_download_forms(user: User) -> bool:
-    plan = str(getattr(user, "plan", "") or "").strip().lower()
     role = str(getattr(user, "role", "") or "").strip().lower()
 
     if role == "admin":
         return True
 
-    return plan in {
-        "individual_pro",
-        "individual_premium",
-        "agent_pro",
-        "pro",
-        "premium",
-    }
+    return has_individual_pro(user) or has_agent_plan(user)
 
 
 def _can_export_forms_pdf(user: User) -> bool:
-    plan = str(getattr(user, "plan", "") or "").strip().lower()
     role = str(getattr(user, "role", "") or "").strip().lower()
 
     if role == "admin":
         return True
 
-    return plan in {"individual_premium", "premium"}
+    return has_premium_access(user)
 
 
 def _pdf_text(value: Any) -> str:
@@ -238,21 +232,6 @@ def _clean_application_data(application_data: Optional[Dict[str, Any]]) -> Dict[
     return application_data
 
 
-def _get_saved_intake_payload(db: Session, user_id: int) -> Dict[str, Any]:
-    application = (
-        db.query(SelfApplication)
-        .filter(SelfApplication.user_id == user_id)
-        .order_by(SelfApplication.updated_at.desc())
-        .first()
-    )
-
-    if not application:
-        return {}
-
-    intake = application.intake_payload or {}
-    return intake if isinstance(intake, dict) else {}
-
-
 def _fallback_application_types(lang: str) -> list[dict]:
     if lang == "fr":
         return [
@@ -363,9 +342,12 @@ def preview_forms_package(
             ),
         )
 
+    context = resolve_application_context(db, current_user, payload.case_id)
+    if normalize_application_type(payload.application_type) != normalize_application_type(context.case.application_type) and not (context.case.application_type == "permanent_residence" and normalize_application_type(payload.application_type) in {"express_entry", "pr_pathway"}):
+        raise HTTPException(409, "Forms must use the selected application case type")
     application_data = _clean_application_data(payload.application_data)
     if not application_data:
-        application_data = _get_saved_intake_payload(db, current_user.id)
+        application_data = (context.application.intake_payload or {}) if context.application else {}
 
     package = build_forms_package(
         application_type=payload.application_type,
@@ -377,6 +359,8 @@ def preview_forms_package(
         application_data=application_data,
     )
 
+    package["family_context"] = context_snapshot(context)
+    package["family_mapping_status"] = "REQUIRES RULE VERIFICATION"
     package["download_enabled"] = _can_download_forms(current_user)
     package["plan"] = getattr(current_user, "plan", "free")
     package["representative_used"] = bool(payload.representative_used)
@@ -414,9 +398,12 @@ def download_forms_package(
             ),
         )
 
+    context = resolve_application_context(db, current_user, payload.case_id)
+    if normalize_application_type(payload.application_type) != normalize_application_type(context.case.application_type) and not (context.case.application_type == "permanent_residence" and normalize_application_type(payload.application_type) in {"express_entry", "pr_pathway"}):
+        raise HTTPException(409, "Forms must use the selected application case type")
     application_data = _clean_application_data(payload.application_data)
     if not application_data:
-        application_data = _get_saved_intake_payload(db, current_user.id)
+        application_data = (context.application.intake_payload or {}) if context.application else {}
 
     package = build_forms_package(
         application_type=payload.application_type,
@@ -428,6 +415,8 @@ def download_forms_package(
         application_data=application_data,
     )
 
+    package["family_context"] = context_snapshot(context)
+    package["family_mapping_status"] = "REQUIRES RULE VERIFICATION"
     normalized_type = normalize_application_type(payload.application_type)
     requested_format = str(payload.download_format or "json").strip().lower()
 

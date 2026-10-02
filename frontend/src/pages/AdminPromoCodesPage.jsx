@@ -12,7 +12,6 @@ import {
 const ACCESS_OPTIONS = [
   { value: "individual_pro", label: "Individual Pro" },
   { value: "individual_premium", label: "Individual Premium" },
-  { value: "agent_pro", label: "Agent Pro" },
 ];
 
 const STARTER_CODES = [

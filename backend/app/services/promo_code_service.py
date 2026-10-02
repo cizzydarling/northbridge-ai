@@ -10,7 +10,6 @@ from app.models.user_models import User
 VALID_ACCESS_TYPES = {
     "individual_pro",
     "individual_premium",
-    "agent_pro",
 }
 
 

@@ -13,7 +13,7 @@ PRO_PLAN = "pro"
 PREMIUM_PLAN = "premium"
 AGENT_PLAN = "agent"
 
-ACTIVE_STATUSES = {"active", "trialing", "paid", "complete", "completed", "canceling"}
+ACTIVE_STATUSES = {"active", "canceling"}
 
 PLAN_MAPPING = {
     "free": FREE_PLAN,
@@ -73,8 +73,8 @@ def has_current_access_period(user: Optional[User]) -> bool:
         return False
 
     period_end = getattr(user, "subscription_current_period_end", None)
-    if not period_end:
-        return True
+    if not isinstance(period_end, datetime):
+        return False
 
     if period_end.tzinfo is None:
         period_end = period_end.replace(tzinfo=timezone.utc)
@@ -84,17 +84,13 @@ def has_current_access_period(user: Optional[User]) -> bool:
 
 def has_active_paid_access(user: Optional[User]) -> bool:
     plan = get_user_plan(user)
-    raw_plan = get_raw_user_plan(user)
     status = get_subscription_status(user)
 
-    if plan == FREE_PLAN and raw_plan == "free":
+    if plan not in {PRO_PLAN, PREMIUM_PLAN, AGENT_PLAN}:
         return False
 
     if not has_current_access_period(user):
         return False
-
-    if not status:
-        return True
 
     return status in ACTIVE_STATUSES
 
@@ -114,16 +110,7 @@ def has_agent_plan(user: Optional[User]) -> bool:
     Backward-compatible helper for old agent routes.
     Keeps agent access separate from self-user premium.
     """
-    raw_plan = get_raw_user_plan(user)
-    status = get_subscription_status(user)
-
-    if raw_plan != "agent_pro":
-        return False
-
-    if not status:
-        return True
-
-    return status in ACTIVE_STATUSES
+    return get_raw_user_plan(user) == "agent_pro" and has_active_paid_access(user)
 
 
 def has_simulation_access(user: Optional[User]) -> bool:

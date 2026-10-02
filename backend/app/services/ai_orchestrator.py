@@ -14,6 +14,7 @@ from app.services.career_match_service import build_career_match
 from app.services.citizenship_service import compute_progress, ensure_seed_questions
 from app.services.decision_engine import build_user_decision_context
 from app.services.strategy_service import build_strategy
+from app.services.household_service import resolve_application_context, context_snapshot, contextual_intake
 
 
 def _normalize_language(language: str | None) -> str:
@@ -52,9 +53,7 @@ def _serialize_chat_history(chat_history: Optional[List[Any]]) -> List[Dict[str,
 
 
 def _resolve_ai_plan(current_user: User) -> str:
-    plan_value = (getattr(current_user, "plan", None) or "").strip().lower()
-
-    if plan_value in {"premium", "individual_premium"} or has_premium_access(current_user):
+    if has_premium_access(current_user):
         return "premium"
 
     if has_individual_pro(current_user):
@@ -377,12 +376,8 @@ def format_ai_response(
 
 
 def get_latest_self_application(db: Session, user_id: int) -> Optional[SelfApplication]:
-    return (
-        db.query(SelfApplication)
-        .filter(SelfApplication.user_id == user_id)
-        .order_by(SelfApplication.updated_at.desc())
-        .first()
-    )
+    user = db.query(User).filter_by(id=user_id).one()
+    return resolve_application_context(db, user).application
 
 
 def get_self_profile(db: Session, user_id: int) -> Optional[Profile]:
@@ -397,8 +392,9 @@ def build_self_user_ai_context(
 ) -> Dict[str, Any]:
     language = _normalize_language(language)
 
-    profile = get_self_profile(db, current_user.id)
-    application = get_latest_self_application(db, current_user.id)
+    family_context = resolve_application_context(db, current_user)
+    profile = family_context.profile
+    application = family_context.application
     ai_plan = _resolve_ai_plan(current_user)
     is_premium = ai_plan == "premium"
 
@@ -407,6 +403,8 @@ def build_self_user_ai_context(
             profile,
             language=language,
             include_immigration_intelligence=is_premium,
+            household_members=family_context.members,
+            application_case=family_context.case,
         )
         if profile
         else None
@@ -434,6 +432,8 @@ def build_self_user_ai_context(
         features=features,
     )
 
+    ai_context["application"]["family_context"] = context_snapshot(family_context)
+    ai_context["application"]["intake_payload"] = contextual_intake(family_context, ai_context["application"]["intake_payload"])
     return {
         "user": current_user,
         "language": language,

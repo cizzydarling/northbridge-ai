@@ -172,11 +172,7 @@ export default function AuthPage() {
 
         if (!user) throw new Error("User resolution failed");
 
-        if (user.role === "agent" || user.plan === "agent_pro") {
-          navigate("/clients");
-        } else {
-          navigate("/dashboard");
-        }
+        navigate("/dashboard");
       } else {
         await registerUser({
           email: form.email,

@@ -18,59 +18,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "disclosure_acceptances",
-        sa.Column("accepted_by_email_snapshot", sa.String(length=255), nullable=True),
-    )
-    op.add_column(
-        "disclosure_acceptances",
-        sa.Column(
-            "acceptance_scope",
-            sa.String(length=50),
-            nullable=False,
-            server_default="global",
-        ),
-    )
-    op.add_column(
-        "disclosure_acceptances",
-        sa.Column("ip_address", sa.String(length=64), nullable=True),
-    )
-    op.add_column(
-        "disclosure_acceptances",
-        sa.Column("user_agent", sa.Text(), nullable=True),
-    )
+    from migration_contract import create_table, disclosure_table, validate_table
 
-    op.create_index(
-        op.f("ix_disclosure_acceptances_disclosure_version"),
-        "disclosure_acceptances",
-        ["disclosure_version"],
-        unique=False,
-    )
-    op.create_index(
-        op.f("ix_disclosure_acceptances_accepted_at"),
-        "disclosure_acceptances",
-        ["accepted_at"],
-        unique=False,
-    )
-
-    op.alter_column(
-        "disclosure_acceptances",
-        "acceptance_scope",
-        server_default=None,
-    )
+    bind = op.get_bind()
+    table = disclosure_table()
+    if not sa.inspect(bind).has_table(table.name):
+        create_table(op, table)
+    # Existing production-compatible tables are adopted without touching records.
+    # Other historical shapes require explicit review, never blind IF NOT EXISTS.
+    validate_table(bind, table)
 
 
 def downgrade() -> None:
-    op.drop_index(
-        op.f("ix_disclosure_acceptances_accepted_at"),
-        table_name="disclosure_acceptances",
-    )
-    op.drop_index(
-        op.f("ix_disclosure_acceptances_disclosure_version"),
-        table_name="disclosure_acceptances",
-    )
-
-    op.drop_column("disclosure_acceptances", "user_agent")
-    op.drop_column("disclosure_acceptances", "ip_address")
-    op.drop_column("disclosure_acceptances", "acceptance_scope")
-    op.drop_column("disclosure_acceptances", "accepted_by_email_snapshot")
+    # The table may have predated this revision. Its provenance cannot safely be
+    # inferred from the version marker, so never discard disclosure audit records.
+    raise RuntimeError("Disclosure reconciliation is irreversible; restore a verified backup or repair forward.")

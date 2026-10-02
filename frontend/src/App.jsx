@@ -12,12 +12,12 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const BillingSuccessPage = lazy(() => import("./pages/BillingSuccessPage"));
-const HouseholdPage = lazy(() => import("./pages/HouseholdPage"));
-const ApplicationCasesPage = lazy(() => import("./pages/ApplicationCasesPage"));
 const BlogPage = lazy(() => import("./pages/BlogPage"));
 const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 const LegalPage = lazy(() => import("./pages/LegalPage"));
 const SelfDashboardPage = lazy(() => import("./pages/SelfDashboardPage"));
+const HouseholdPage = lazy(() => import("./pages/HouseholdPage"));
+const ApplicationCasesPage = lazy(() => import("./pages/ApplicationCasesPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const StrategyPage = lazy(() => import("./pages/StrategyPage"));
 const StrategySimulatorPage = lazy(() => import("./pages/StrategySimulatorPage"));
@@ -38,30 +38,14 @@ const LanguagePracticePage = lazy(() => import("./pages/LanguagePracticePage"));
 const OfficialFindersPage = lazy(() => import("./pages/OfficialFindersPage"));
 const AdminPromoCodesPage = lazy(() => import("./pages/AdminPromoCodesPage"));
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
-const ClientsPage = lazy(() => import("./pages/ClientsPage"));
-const ClientOverviewPage = lazy(() => import("./pages/ClientOverviewPage"));
-const ClientProfilePage = lazy(() => import("./pages/ClientProfilePage"));
-const ClientStrategyPage = lazy(() => import("./pages/ClientStrategyPage"));
-const ClientSimulationPage = lazy(() => import("./pages/ClientSimulationPage"));
-const ClientDocumentsPage = lazy(() => import("./pages/ClientDocumentsPage"));
-const ClientMattersPage = lazy(() => import("./pages/ClientMattersPage"));
 
 let appRoutePrefetchStarted = false;
 
-function prefetchAppRoutes(user) {
+function prefetchAppRoutes() {
   if (appRoutePrefetchStarted || typeof window === "undefined") return;
   appRoutePrefetchStarted = true;
 
   const run = () => {
-    if (user?.role === "agent" || user?.plan === "agent_pro") {
-      import("./pages/ClientsPage");
-      import("./pages/ClientOverviewPage");
-      import("./pages/ClientProfilePage");
-      import("./pages/ClientStrategyPage");
-      import("./pages/ClientDocumentsPage");
-      return;
-    }
-
     import("./pages/SelfDashboardPage");
     import("./pages/ProfilePage");
     import("./pages/StrategyPage");
@@ -113,9 +97,6 @@ function PublicOnlyRoute({ children }) {
   const user = getCurrentUserLocal();
 
   if (user) {
-    if (user.role === "agent" || user.plan === "agent_pro") {
-      return <Navigate to="/clients" replace />;
-    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -138,6 +119,8 @@ function BootstrapGate({ children }) {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [bootstrap, setBootstrap] = useState(null);
+  const [verifiedBootstrapKey, setVerifiedBootstrapKey] = useState(null);
+  const bootstrapKey = `${user?.email || ""}:${location.pathname}`;
   const bootstrapLoadedRef = useRef(false);
 
   useEffect(() => {
@@ -159,8 +142,9 @@ function BootstrapGate({ children }) {
 
         syncLocalUser(res.data?.user);
         setBootstrap(res.data);
+        setVerifiedBootstrapKey(`${getCurrentUserLocal()?.email || ""}:${location.pathname}`);
         bootstrapLoadedRef.current = true;
-        prefetchAppRoutes(res.data?.user);
+        prefetchAppRoutes();
       } catch (err) {
         if (err?.response?.status === 401) {
           logoutUser();
@@ -182,9 +166,9 @@ function BootstrapGate({ children }) {
       window.removeEventListener("nbai-bootstrap-refresh", loadBootstrap);
       window.removeEventListener("nbai-disclosures-accepted", loadBootstrap);
     };
-  }, [user?.email]);
+  }, [user?.email, location.pathname]);
 
-  if (loading) {
+  if (loading || (bootstrap && verifiedBootstrapKey !== bootstrapKey)) {
     return <LoadingScreen />;
   }
 
@@ -205,10 +189,16 @@ function BootstrapGate({ children }) {
   const bootstrapUser = bootstrap.user || user;
   const isAgent = bootstrapUser?.role === "agent" || bootstrapUser?.plan === "agent_pro";
 
-  if (!isAgent) {
-    if (!bootstrap.profile_complete && location.pathname !== "/onboarding" && !isDisclosurePage) {
-      return <Navigate to="/onboarding" replace />;
-    }
+  if (isAgent) {
+    return <main className="p-8"><p>{getCurrentLanguage() === "fr"
+      ? "Le lancement est réservé aux utilisateurs individuels."
+      : "This launch is available to individual users only."}</p>
+      <button onClick={() => { logoutUser(); window.location.assign("/auth"); }}>
+        {getCurrentLanguage() === "fr" ? "Déconnexion" : "Sign out"}
+      </button></main>;
+  }
+  if (!bootstrap.profile_complete && location.pathname !== "/onboarding" && !isDisclosurePage) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return children;
@@ -294,15 +284,6 @@ export default function App() {
       />
 
       <Route
-        path="/profile"
-        element={
-          <ProtectedAppRoute>
-            <ProfilePage />
-          </ProtectedAppRoute>
-        }
-      />
-
-      <Route
         path="/household"
         element={
           <ProtectedAppRoute>
@@ -316,6 +297,15 @@ export default function App() {
         element={
           <ProtectedAppRoute>
             <ApplicationCasesPage />
+          </ProtectedAppRoute>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <ProtectedAppRoute>
+            <ProfilePage />
           </ProtectedAppRoute>
         }
       />
@@ -480,70 +470,6 @@ export default function App() {
         element={
           <ProtectedAppRoute>
             <DisclosureAcceptancePage />
-          </ProtectedAppRoute>
-        }
-      />
-
-      {/* CLIENT FLOW */}
-      <Route
-        path="/clients"
-        element={
-          <ProtectedAppRoute>
-            <ClientsPage />
-          </ProtectedAppRoute>
-        }
-      />
-
-      <Route
-        path="/clients/:clientId"
-        element={
-          <ProtectedAppRoute>
-            <ClientOverviewPage />
-          </ProtectedAppRoute>
-        }
-      />
-
-      <Route
-        path="/clients/:clientId/profile"
-        element={
-          <ProtectedAppRoute>
-            <ClientProfilePage />
-          </ProtectedAppRoute>
-        }
-      />
-
-      <Route
-        path="/clients/:clientId/strategy"
-        element={
-          <ProtectedAppRoute>
-            <ClientStrategyPage />
-          </ProtectedAppRoute>
-        }
-      />
-
-      <Route
-        path="/clients/:clientId/simulations"
-        element={
-          <ProtectedAppRoute>
-            <ClientSimulationPage />
-          </ProtectedAppRoute>
-        }
-      />
-
-      <Route
-        path="/clients/:clientId/documents"
-        element={
-          <ProtectedAppRoute>
-            <ClientDocumentsPage />
-          </ProtectedAppRoute>
-        }
-      />
-
-      <Route
-        path="/clients/:clientId/matters"
-        element={
-          <ProtectedAppRoute>
-            <ClientMattersPage />
           </ProtectedAppRoute>
         }
       />

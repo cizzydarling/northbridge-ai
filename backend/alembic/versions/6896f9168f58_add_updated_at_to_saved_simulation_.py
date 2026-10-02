@@ -19,16 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
-    op.add_column(
-        "saved_simulation_scenarios",
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=True,
-        ),
-    )
+    # Retained revision marker: this unreleased field is not in the launch contract.
+    pass
 
 
 def downgrade():
-    op.drop_column("saved_simulation_scenarios", "updated_at")
+    pass

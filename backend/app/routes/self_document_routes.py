@@ -65,6 +65,20 @@ def get_owned_self_document_or_404(
     return document
 
 
+@router.get("/family-context")
+def family_documents(db: Session = Depends(get_db), current_user=Depends(require_self_user)):
+    from app.services.household_service import resolve_application_context, context_snapshot
+    from app.services.strategy_service import build_household_strategy_context
+    context = resolve_application_context(db, current_user)
+    family = build_household_strategy_context(context.members, application_case=context.case)
+    documents = db.query(SelfDocument).filter_by(user_id=current_user.id, matter_type=f"case_{context.case.id}").all()
+    saved = {d.document_key: d for d in documents}
+    names = {m.id: " ".join(filter(None, [m.first_name, m.last_name])) for m in context.members}
+    return {"context": context_snapshot(context), "requirements": [
+        {**item, "display_name": names.get(item["member_id"]), "document": SelfDocumentResponse.model_validate(saved[item["id"]]).model_dump() if item["id"] in saved else None}
+        for item in family["required_family_documents"]]}
+
+
 @router.get("/", response_model=List[SelfDocumentResponse])
 def list_self_documents(
     matter_type: str | None = Query(default=None),
@@ -85,6 +99,27 @@ def create_self_document(
     db: Session = Depends(get_db),
     current_user=Depends(require_self_user),
 ):
+    if payload.matter_type.startswith("case_"):
+        from app.services.household_service import owned_case
+        suffix = payload.matter_type.removeprefix("case_")
+        if not suffix.isdigit():
+            raise HTTPException(422, "Invalid application case category")
+        owned_case(db, current_user, int(suffix))
+    if payload.document_key.startswith("family:"):
+        from app.services.household_service import resolve_application_context
+        from app.services.strategy_service import build_household_strategy_context
+        parts = payload.document_key.split(":")
+        if len(parts) != 4 or not parts[1].isdigit():
+            raise HTTPException(422, "Invalid family document key")
+        context = resolve_application_context(db, current_user, int(parts[1]), commit=False)
+        allowed = build_household_strategy_context(context.members, application_case=context.case)["required_family_documents"]
+        if payload.document_key not in {item["id"] for item in allowed} or payload.matter_type != f"case_{context.case.id}":
+            raise HTTPException(404, "Family document context not found")
+        # Current family entries are review suggestions, never universal requirements.
+        from app.services.household_service import lock_owner
+        lock_owner(db, current_user)
+        payload.required = False
+        payload.priority = "Review"
     existing = (
         db.query(SelfDocument)
         .filter(

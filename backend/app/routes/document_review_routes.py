@@ -14,6 +14,7 @@ from app.schemas.document_review_schema import (
 from app.services.decision_engine import build_user_decision_context
 from app.services.document_review_service import review_document_with_ai
 from app.services.strategy_service import build_strategy
+from app.services.household_service import resolve_application_context, context_snapshot
 
 router = APIRouter(prefix="/documents", tags=["Document Review"])
 
@@ -56,14 +57,10 @@ def review_document(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found.")
 
-    application = (
-        db.query(SelfApplication)
-        .filter(SelfApplication.user_id == current_user.id)
-        .order_by(SelfApplication.updated_at.desc())
-        .first()
-    )
+    context = resolve_application_context(db, current_user)
+    application = context.application
 
-    strategy = build_strategy(profile, language=language)
+    strategy = build_strategy(profile, language=language, household_members=context.members, application_case=context.case)
 
     decision = build_user_decision_context(
         strategy=strategy,

@@ -18,10 +18,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # users table
-    op.add_column("users", sa.Column("first_name", sa.String(), nullable=True))
-    op.add_column("users", sa.Column("last_name", sa.String(), nullable=True))
-
+    # Individual identity belongs to profiles.
     # profiles table
     op.add_column("profiles", sa.Column("first_name", sa.String(), nullable=True))
     op.add_column("profiles", sa.Column("last_name", sa.String(), nullable=True))
@@ -54,6 +51,3 @@ def downgrade() -> None:
     op.drop_column("profiles", "nationality")
     op.drop_column("profiles", "last_name")
     op.drop_column("profiles", "first_name")
-
-    op.drop_column("users", "last_name")
-    op.drop_column("users", "first_name")

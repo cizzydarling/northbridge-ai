@@ -67,7 +67,7 @@ export default function SOPGuideModal({ forceOpen = false, onClose }) {
           {
             title: "Recherche",
             body:
-              "Utilisez le menu de gauche pour revenir aux modules: demandes, formulaires, carriere, citoyennete et famille.",
+              "Utilisez le menu de gauche pour revenir à votre demande, aux formulaires, à la carrière et à la citoyenneté.",
           },
         ],
       };
@@ -99,7 +99,7 @@ export default function SOPGuideModal({ forceOpen = false, onClose }) {
         {
           title: "Navigation",
           body:
-            "Use the left menu to return to applications, forms, career, citizenship, and household tools.",
+            "Use the left menu to return to your application, forms, career, and citizenship tools.",
         },
       ],
     };

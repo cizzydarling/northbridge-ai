@@ -144,20 +144,8 @@ def get_owned_matter_or_404(db: Session, matter_id: int, current_user: User):
 
 
 def validate_scope_or_400(db, current_user, client_id, matter_id):
-    client = None
-    matter = None
-
-    if client_id:
-        client = get_owned_client_or_404(db, client_id, current_user)
-
-    if matter_id:
-        matter = get_owned_matter_or_404(db, matter_id, current_user)
-
-    if matter and client and matter.client_id != client.id:
-        raise HTTPException(
-            status_code=400,
-            detail="Matter does not belong to the provided client.",
-        )
+    if client_id is not None or matter_id is not None:
+        raise HTTPException(status_code=400, detail="Client/matter disclosures are not available during the individual soft launch.")
 
 
 def get_latest_acceptance_record(

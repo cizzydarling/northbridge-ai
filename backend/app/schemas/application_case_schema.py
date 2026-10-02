@@ -1,40 +1,28 @@
-from datetime import datetime
-from typing import Optional
+from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from pydantic import BaseModel
+ApplicationType = Literal["permanent_residence", "study_permit", "work_permit", "visitor_visa", "spousal_sponsorship"]
+class CaseParticipation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    household_member_id: int = Field(gt=0)
+    participation: Literal["accompanying", "non_accompanying", "unknown"] = "unknown"
 
+class ApplicationCaseCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    application_type: ApplicationType = "permanent_residence"
+    case_title: str | None = Field(default=None, max_length=120)
+    target_province: str | None = Field(default=None, max_length=80)
+    pathway: str | None = Field(default=None, max_length=120)
+    members: list[CaseParticipation] = Field(default_factory=list, max_length=50)
 
-class ApplicationCaseBase(BaseModel):
-    application_type: str
-    case_title: Optional[str] = None
-    status: str = "draft"
-    primary_applicant_member_id: Optional[int] = None
-    target_country: str = "Canada"
-    target_province: Optional[str] = None
-    pathway: Optional[str] = None
-    family_size: int = 1
+class ApplicationCaseUpdate(ApplicationCaseCreate):
+    application_type: ApplicationType | None = None
+    status: Literal["draft", "in_progress"] | None = None
+    members: list[CaseParticipation] | None = Field(default=None, max_length=50)
 
-
-class ApplicationCaseCreate(ApplicationCaseBase):
-    household_id: Optional[int] = None
-
-
-class ApplicationCaseUpdate(BaseModel):
-    application_type: Optional[str] = None
-    case_title: Optional[str] = None
-    status: Optional[str] = None
-    primary_applicant_member_id: Optional[int] = None
-    target_country: Optional[str] = None
-    target_province: Optional[str] = None
-    pathway: Optional[str] = None
-    family_size: Optional[int] = None
-
-
-class ApplicationCaseResponse(ApplicationCaseBase):
-    id: int
-    household_id: int
-    owner_user_id: int
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = {"from_attributes": True}
+    @model_validator(mode="after")
+    def nonnull(self):
+        for field in ("application_type", "status", "members"):
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        return self

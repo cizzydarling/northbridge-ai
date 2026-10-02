@@ -1,5 +1,4 @@
 import axios from "axios";
-import { getActiveCaseId } from "./utils/activeCase";
 
 const api = axios.create({
   baseURL:
@@ -25,6 +24,7 @@ export const setToken = (token) => {
 
 export const removeToken = () => {
   localStorage.removeItem("token");
+  localStorage.removeItem("nbai_active_application_case_id");
 };
 
 export const getCurrentUserLocal = () => {
@@ -632,8 +632,8 @@ export const runSelfChecklist = (payload) =>
 export const runSelfWorkspace = (payload, language = getLanguage()) =>
   api.post(`/self/workspace?language=${language}`, payload);
 
-export const getSavedSelfApplication = () =>
-  api.get("/self/application/saved");
+export const getSavedSelfApplication = (caseId) =>
+  api.get("/self/application/saved", { params: caseId ? { case_id: caseId } : {} });
 
 export async function saveSelfApplication(
   payload,
@@ -712,8 +712,7 @@ export const removeSelfDocumentFile = (documentId) =>
   api.delete(`/self-documents/${documentId}/file`);
 
 export const getDocuments = () => {
-  const caseId = getActiveCaseId();
-  return api.get(`/documents?case_id=${caseId}`);
+  return api.get("/documents/");
 };
 
 /* =========================
@@ -721,12 +720,7 @@ export const getDocuments = () => {
 ========================= */
 
 function strategyParams(language = getLanguage()) {
-  const caseId = getActiveCaseId();
-
-  return {
-    language,
-    ...(caseId ? { case_id: caseId } : {}),
-  };
+  return { language };
 }
 
 export const getMyStrategy = (language = getLanguage()) =>
@@ -1154,3 +1148,9 @@ export const getApplicationCase = (caseId) =>
 
 export const updateApplicationCase = (caseId, payload) =>
   api.put(`/application-cases/${caseId}`, payload);
+
+export const archiveHouseholdMember = (id) => api.delete(`/households/members/${id}`);
+export const archiveApplicationCase = (id) => api.delete(`/application-cases/${id}`);
+export const activateApplicationCase = (id) => api.post(`/application-cases/${id}/activate`);
+export const getApplicationContext = () => api.get("/application-cases/context");
+export const getFamilyDocuments = () => api.get("/self-documents/family-context");

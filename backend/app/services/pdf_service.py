@@ -742,6 +742,10 @@ def generate_strategy_pdf(
         bullets=strategy.get("next_steps") or [],
     )
 
+    family_context = _as_dict(strategy.get("household_context"))
+    if family_context.get("calculation_notice"):
+        _add_section(elements, styles, label("Family calculation limits", "Limites du calcul familial"),
+                     paragraphs=[family_context["calculation_notice"]])
     family_docs = [
         item for item in (strategy.get("family_document_requirements") or []) if isinstance(item, dict)
     ]

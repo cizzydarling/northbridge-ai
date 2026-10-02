@@ -62,7 +62,7 @@ def build_study_permit_forms_assistant(
             intake.get("proof_of_funds_available"), language
         ),
         "previous_refusal": yes_no(intake.get("previous_refusal"), language),
-        "accompanying_family": yes_no(intake.get("accompanying_family"), language),
+        "accompanying_family": (t("Unknown", "Inconnu", language) if intake.get("accompanying_family") is None else yes_no(intake.get("accompanying_family"), language)),
         "passport_valid": yes_no(intake.get("passport_valid"), language),
         "study_gap_explanation": intake.get("gap_in_studies_explanation") or "",
     }
@@ -222,7 +222,7 @@ def build_work_permit_forms_assistant(
         "expires_on": intake.get("expires_on") or "",
         "lmia_available": yes_no(intake.get("lmia_available"), language),
         "open_work_permit_basis": intake.get("open_work_permit_basis") or "",
-        "accompanying_family": yes_no(intake.get("accompanying_family"), language),
+        "accompanying_family": (t("Unknown", "Inconnu", language) if intake.get("accompanying_family") is None else yes_no(intake.get("accompanying_family"), language)),
     }
 
     if not draft_answers["permit_type"]:
@@ -362,7 +362,7 @@ def build_spousal_sponsorship_forms_assistant(
         "marriage_date": intake.get("marriage_date") or "",
         "cohabiting": yes_no(intake.get("cohabiting"), language),
         "principal_applicant_country": intake.get("principal_applicant_country") or "",
-        "dependent_children": yes_no(intake.get("dependent_children"), language),
+        "dependent_children": (t("Unknown", "Inconnu", language) if intake.get("dependent_children") is None else yes_no(intake.get("dependent_children"), language)),
         "previous_marriage_or_sponsorship": yes_no(
             intake.get("previous_marriage_or_sponsorship"), language
         ),

@@ -25,6 +25,7 @@ from app.services.document_generator_service import (
 )
 from app.services.docx_export_service import build_generated_document_docx
 from app.services.strategy_service import build_strategy
+from app.services.household_service import resolve_application_context, context_snapshot
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -249,14 +250,10 @@ def generate_document(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found.")
 
-    application = (
-        db.query(SelfApplication)
-        .filter(SelfApplication.user_id == current_user.id)
-        .order_by(SelfApplication.updated_at.desc())
-        .first()
-    )
+    context = resolve_application_context(db, current_user)
+    application = context.application
 
-    strategy = build_strategy(profile, language=language)
+    strategy = build_strategy(profile, language=language, household_members=context.members, application_case=context.case)
 
     decision = build_user_decision_context(
         strategy=strategy,
@@ -276,7 +273,7 @@ def generate_document(
             tone="analysis",
             additional_instructions=payload.additional_instructions,
             profile=profile,
-            application={},
+            application={"family_context": context_snapshot(context)},
             decision=decision,
             strategy=strategy,
         )
@@ -299,7 +296,7 @@ def generate_document(
             tone="professional",
             additional_instructions=payload.additional_instructions,
             profile=profile,
-            application={},
+            application={"family_context": context_snapshot(context)},
             decision=decision,
             strategy=strategy,
         )
@@ -320,7 +317,7 @@ def generate_document(
             tone=payload.tone,
             additional_instructions=payload.additional_instructions,
             profile=profile,
-            application={},
+            application={"family_context": context_snapshot(context)},
             decision=decision,
             strategy=strategy,
         )
@@ -356,6 +353,7 @@ def generate_document(
         additional_instructions=payload.additional_instructions,
         profile=profile,
         application={
+            "family_context": context_snapshot(context),
             "matter_type": application.matter_type if application else None,
             "intake_payload": application.intake_payload if application else {},
         },
@@ -409,14 +407,10 @@ def generate_document_docx(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found.")
 
-    application = (
-        db.query(SelfApplication)
-        .filter(SelfApplication.user_id == current_user.id)
-        .order_by(SelfApplication.updated_at.desc())
-        .first()
-    )
+    context = resolve_application_context(db, current_user)
+    application = context.application
 
-    strategy = build_strategy(profile, language=language)
+    strategy = build_strategy(profile, language=language, household_members=context.members, application_case=context.case)
 
     decision = build_user_decision_context(
         strategy=strategy,
@@ -433,6 +427,7 @@ def generate_document_docx(
         additional_instructions=payload.additional_instructions,
         profile=profile,
         application={
+            "family_context": context_snapshot(context),
             "matter_type": application.matter_type if application else None,
             "intake_payload": application.intake_payload if application else {},
         },

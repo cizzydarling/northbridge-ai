@@ -133,30 +133,24 @@ def register_routers(app: FastAPI) -> None:
 
     app.include_router(auth_routes.router)
     app.include_router(app_routes.router)
+    app.include_router(household_routes.router)
+    app.include_router(application_case_routes.router)
     app.include_router(profile_routes.router)
     app.include_router(strategy_routes.router)
     app.include_router(ai_routes.router)
     app.include_router(journey_routes.router)
     app.include_router(document_review_routes.router)
 
-    app.include_router(client_routes.router)
-    app.include_router(client_profile_routes.router)
-    app.include_router(client_strategy_routes.router)
-    app.include_router(client_simulation_routes.router)
-    app.include_router(client_document_routes.router)
     app.include_router(career_match_routes.router)
     app.include_router(citizenship_routes.router)
 
     app.include_router(disclosure_routes.router)
     app.include_router(billing_routes.router)
-    app.include_router(matter_routes.router)
     app.include_router(self_document_routes.router)
     app.include_router(generated_document_routes.router)
     app.include_router(noc_routes.router)
     app.include_router(forms_routes.router)
-    app.include_router(household_routes.router)
     app.include_router(immigration_intelligence_routes.router)
-    app.include_router(application_case_routes.router)
 
 
 def create_app() -> FastAPI:

@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.data.db import Base
@@ -36,8 +36,8 @@ class Profile(Base):
     noc_code = Column(String, nullable=True)
 
     # 🔥 NEW (critical for AI accuracy)
-    job_description = Column(String, nullable=True)
-    job_duties = Column(String, nullable=True)
+    job_description = Column(Text, nullable=True)
+    job_duties = Column(Text, nullable=True)
 
     preferred_province = Column(String, nullable=True)
 

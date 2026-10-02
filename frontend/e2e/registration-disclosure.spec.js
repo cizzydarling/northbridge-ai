@@ -4,6 +4,8 @@ import { expect, test } from "@playwright/test";
 test("new user registers, accepts disclosures, and completes onboarding", async ({
   page,
 }) => {
+  // Real NOC scoring can take ~36s locally, in addition to the UI onboarding steps.
+  test.setTimeout(180_000);
   const email = `e2e-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
   const password = "Launch-test-password-2026";
 
@@ -75,5 +77,5 @@ test("new user registers, accepts disclosures, and completes onboarding", async 
   await expect(page.getByRole("heading", { name: "Profile successfully completed", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back to dashboard", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { name: "Welcome back, Launch", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back, Launch", exact: true })).toBeVisible({ timeout: 120_000 });
 });

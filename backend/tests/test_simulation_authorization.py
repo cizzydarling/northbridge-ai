@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 import backend.launch_smoke_test  # noqa: F401 -- register models and SQLite JSONB support
 from fastapi import FastAPI
@@ -17,7 +19,7 @@ from app.routes.auth_routes import create_access_token
 def simulation_app(monkeypatch):
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("ENVIRONMENT", "test")
-    from app.main import register_routers
+    from app.routes.client_simulation_routes import router
 
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
@@ -32,7 +34,8 @@ def simulation_app(monkeypatch):
             (3, "individual", "individual_pro"),
         ):
             db.add(User(id=user_id, email=f"user{user_id}@example.com", password="unused",
-                        role=role, plan=plan, subscription_status="active"))
+                        role=role, plan=plan, subscription_status="active",
+                        subscription_current_period_end=datetime.now(timezone.utc) + timedelta(days=30)))
             db.add(Client(id=user_id, owner_user_id=user_id, full_name=f"Client {user_id}"))
             db.add(SavedSimulationScenario(
                 id=user_id, client_id=user_id, name=f"Scenario {user_id}",
@@ -45,7 +48,9 @@ def simulation_app(monkeypatch):
             yield db
 
     app = FastAPI()
-    register_routers(app)
+    # Keep ownership/security coverage for the preserved future agent router.
+    # The actual launch registry's isolation is tested separately.
+    app.include_router(router)
     app.dependency_overrides[get_db] = override_db
     with TestClient(app) as client:
         yield client, sessions

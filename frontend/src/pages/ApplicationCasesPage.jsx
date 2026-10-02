@@ -1,466 +1,59 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
-import Card from "../components/ui/Card";
-import Button from "../components/ui/Button";
-import {
-  createApplicationCase,
-  getApplicationCases,
-  getHouseholdMembers,
-} from "../api";
-
-const ACTIVE_CASE_KEY = "nbai_active_application_case_id";
-
-const EMPTY_CASE = {
-  application_type: "permanent_residence",
-  case_title: "",
-  primary_applicant_member_id: "",
-  target_country: "Canada",
-  target_province: "",
-  pathway: "",
-  family_size: 1,
-};
-
-function PageHeader({ brand, title, subtitle }) {
-  return (
-    <div className="mb-6 max-w-3xl">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
-        {brand}
-      </p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-        {title}
-      </h1>
-      <p className="mt-3 text-sm leading-7 text-slate-600 md:text-base">
-        {subtitle}
-      </p>
-    </div>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-        {label}
-      </span>
-      <div className="mt-2">{children}</div>
-    </label>
-  );
-}
-
-function inputClass() {
-  return "w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100";
-}
-
-function CaseBadge({ children }) {
-  return (
-    <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-      {children}
-    </span>
-  );
-}
-
-function getMemberName(member) {
-  return (
-    [member?.first_name, member?.last_name].filter(Boolean).join(" ") || "—"
-  );
-}
+import { getApplicationCases, getApplicationCase, getHouseholdMembers, createApplicationCase, updateApplicationCase, archiveApplicationCase, activateApplicationCase } from "../api";
 
 export default function ApplicationCasesPage() {
-  const { i18n } = useTranslation();
-  const navigate = useNavigate();
-  const language = i18n.language === "fr" ? "fr" : "en";
-
-  const [cases, setCases] = useState([]);
-  const [members, setMembers] = useState([]);
-  const [activeCaseId, setActiveCaseId] = useState(
-    localStorage.getItem(ACTIVE_CASE_KEY) || ""
-  );
-  const [form, setForm] = useState(EMPTY_CASE);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const text = useMemo(() => {
-    if (language === "fr") {
-      return {
-        brand: "NorthBridgeAI",
-        title: "Demandes",
-        subtitle:
-          "Créez une demande active pour relier la stratégie, les documents et les formulaires au bon dossier.",
-        existingCases: "Demandes existantes",
-        createCase: "Créer une demande",
-        noCases: "Aucune demande créée pour le moment.",
-        active: "Active",
-        setActive: "Définir active",
-        openStrategy: "Ouvrir stratégie",
-        openDocuments: "Ouvrir documents",
-        applicationType: "Type de demande",
-        caseTitle: "Titre du dossier",
-        primaryApplicant: "Demandeur principal",
-        targetProvince: "Province cible",
-        pathway: "Parcours",
-        familySize: "Taille de famille",
-        save: "Créer",
-        saving: "Création...",
-        created: "Demande créée.",
-        permanentResidence: "Résidence permanente",
-        studyPermit: "Permis d’études",
-        workPermit: "Permis de travail",
-        visitorVisa: "Visa visiteur",
-        sponsorship: "Parrainage",
-        selectApplicant: "Sélectionner un demandeur",
-      };
-    }
-
-    return {
-      brand: "NorthBridgeAI",
-      title: "Applications",
-      subtitle:
-        "Create an active application case so strategy, documents, and forms connect to the right file.",
-      existingCases: "Existing cases",
-      createCase: "Create application case",
-      noCases: "No application cases created yet.",
-      active: "Active",
-      setActive: "Set active",
-      openStrategy: "Open strategy",
-      openDocuments: "Open documents",
-      applicationType: "Application type",
-      caseTitle: "Case title",
-      primaryApplicant: "Primary applicant",
-      targetProvince: "Target province",
-      pathway: "Pathway",
-      familySize: "Family size",
-      save: "Create",
-      saving: "Creating...",
-      created: "Application case created.",
-      permanentResidence: "Permanent residence",
-      studyPermit: "Study permit",
-      workPermit: "Work permit",
-      visitorVisa: "Visitor visa",
-      sponsorship: "Sponsorship",
-      selectApplicant: "Select applicant",
-    };
-  }, [language]);
-
-  async function loadPage() {
+  const { i18n } = useTranslation(); const fr = i18n.language.startsWith("fr");
+  const t = (a,b) => fr?b:a;
+  const [params, setParams] = useSearchParams();
+  const [cases,setCases] = useState([]); const [members,setMembers] = useState([]);
+  const [selected,setSelected] = useState(null); const [participation,setParticipation] = useState({});
+  const [error,setError] = useState(""); const [loading,setLoading] = useState(true); const [saving,setSaving] = useState(false);
+  async function select(id) {
+    const item = (await getApplicationCase(id)).data;
+    await activateApplicationCase(id);
+    setSelected(item); setParticipation(Object.fromEntries(item.members.filter(m=>m.relationship!=="self").map(m=>[m.member_id,m.participation])));
+    setParams({case_id:String(id)}, {replace:true});
+  }
+  async function load() {
     try {
-      setLoading(true);
-      setMessage("");
-
-      const [casesRes, membersRes] = await Promise.all([
-        getApplicationCases(),
-        getHouseholdMembers(),
-      ]);
-
-      const loadedCases = Array.isArray(casesRes.data) ? casesRes.data : [];
-      const loadedMembers = Array.isArray(membersRes.data) ? membersRes.data : [];
-
-      setCases(loadedCases);
-      setMembers(loadedMembers);
-
-      if (!activeCaseId && loadedCases.length > 0) {
-        const id = String(loadedCases[0].id);
-        setActiveCaseId(id);
-        localStorage.setItem(ACTIVE_CASE_KEY, id);
-      }
-
-      const primary = loadedMembers.find((m) => m.is_primary_applicant);
-      if (primary) {
-        setForm((prev) => ({
-          ...prev,
-          primary_applicant_member_id: String(primary.id),
-          family_size: Math.max(1, loadedMembers.length || 1),
-        }));
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage(
-        language === "fr"
-          ? "Impossible de charger les demandes."
-          : "Unable to load application cases."
-      );
-    } finally {
-      setLoading(false);
-    }
+      const items=(await getApplicationCases()).data; setCases(items);
+      setMembers((await getHouseholdMembers()).data.filter(m=>m.relationship_to_primary!=="self"));
+      const requested=params.get("case_id");
+      const valid=items.find(c=>String(c.id)===requested);
+      if(requested && !valid) setError(t("That application is unavailable. Your active application was restored.", "Cette demande est indisponible. Votre demande active a été rétablie."));
+      const choice=valid || items.find(c=>c.is_active) || items[0];
+      if(choice) await select(choice.id);
+    } catch {setError(t("Unable to load applications.", "Impossible de charger les demandes."));}
+    finally {setLoading(false);}
   }
-
-  useEffect(() => {
-    loadPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language]);
-
-  function updateForm(key, value) {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+  useEffect(()=>{load();},[]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function save(e) {
+    e.preventDefault();setSaving(true);setError("");
+    try {await updateApplicationCase(selected.id,{case_title:selected.case_title||null,application_type:selected.application_type,status:selected.status,
+      members:Object.entries(participation).map(([id,state])=>({household_member_id:Number(id),participation:state}))});await load();}
+    catch {setError(t("Unable to save application.", "Impossible d’enregistrer la demande."));} finally {setSaving(false);}
   }
-
-  function handleSetActive(caseId) {
-    const id = String(caseId);
-    setActiveCaseId(id);
-    localStorage.setItem(ACTIVE_CASE_KEY, id);
-    window.dispatchEvent(new Event("nbai-active-case-updated"));
-  }
-
-  async function handleCreateCase(e) {
-    e.preventDefault();
-
-    try {
-      setSaving(true);
-      setMessage("");
-
-      const res = await createApplicationCase({
-        ...form,
-        case_title: form.case_title.trim() || null,
-        target_province: form.target_province.trim() || null,
-        pathway: form.pathway.trim() || null,
-        primary_applicant_member_id: form.primary_applicant_member_id
-          ? Number(form.primary_applicant_member_id)
-          : null,
-        family_size: Number(form.family_size || 1),
-      });
-
-      const created = res.data;
-      handleSetActive(created.id);
-
-      setForm((prev) => ({
-        ...EMPTY_CASE,
-        primary_applicant_member_id: prev.primary_applicant_member_id,
-        family_size: prev.family_size,
-      }));
-
-      setMessage(text.created);
-      await loadPage();
-    } catch (err) {
-      console.error(err);
-      setMessage(
-        err?.response?.data?.detail ||
-          (language === "fr"
-            ? "Impossible de créer la demande."
-            : "Unable to create application case.")
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function applicationTypeLabel(value) {
-    const map = {
-      permanent_residence: text.permanentResidence,
-      study_permit: text.studyPermit,
-      work_permit: text.workPermit,
-      visitor_visa: text.visitorVisa,
-      sponsorship: text.sponsorship,
-    };
-
-    return map[value] || value;
-  }
-
-  const memberById = useMemo(() => {
-    return members.reduce((acc, member) => {
-      acc[String(member.id)] = member;
-      return acc;
-    }, {});
-  }, [members]);
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center py-24">
-          <p className="text-lg text-slate-700">
-            {language === "fr" ? "Chargement..." : "Loading..."}
-          </p>
-        </div>
-      </Layout>
-    );
-  }
-
-  return (
-    <Layout>
-      <PageHeader brand={text.brand} title={text.title} subtitle={text.subtitle} />
-
-      {message ? (
-        <div className="mb-6 rounded-[24px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-          {message}
-        </div>
-      ) : null}
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
-        <Card padding="lg">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {text.existingCases}
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-                {cases.length} {language === "fr" ? "demande(s)" : "case(s)"}
-              </h2>
-            </div>
-          </div>
-
-          {cases.length > 0 ? (
-            <div className="mt-6 space-y-3">
-              {cases.map((item) => {
-                const isActive = String(item.id) === String(activeCaseId);
-                const applicant = memberById[String(item.primary_applicant_member_id)];
-
-                return (
-                  <div
-                    key={item.id}
-                    className={`rounded-[24px] border p-5 shadow-sm ${
-                      isActive
-                        ? "border-blue-200 bg-blue-50/60"
-                        : "border-slate-200 bg-white"
-                    }`}
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base font-semibold text-slate-900">
-                            {item.case_title ||
-                              applicationTypeLabel(item.application_type)}
-                          </h3>
-
-                          {isActive ? <CaseBadge>{text.active}</CaseBadge> : null}
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <CaseBadge>
-                            {applicationTypeLabel(item.application_type)}
-                          </CaseBadge>
-                          <CaseBadge>
-                            {language === "fr" ? "Famille" : "Family"}:{" "}
-                            {item.family_size || 1}
-                          </CaseBadge>
-                          {applicant ? (
-                            <CaseBadge>{getMemberName(applicant)}</CaseBadge>
-                          ) : null}
-                          {item.pathway ? <CaseBadge>{item.pathway}</CaseBadge> : null}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        {!isActive ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleSetActive(item.id)}
-                          >
-                            {text.setActive}
-                          </Button>
-                        ) : null}
-
-                        <Button size="sm" onClick={() => navigate("/strategy")}>
-                          {text.openStrategy}
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => navigate("/documents")}
-                        >
-                          {text.openDocuments}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-              {text.noCases}
-            </div>
-          )}
-        </Card>
-
-        <Card padding="lg" className="xl:sticky xl:top-24 xl:self-start">
-          <h2 className="text-xl font-semibold tracking-tight text-slate-900">
-            {text.createCase}
-          </h2>
-
-          <form className="mt-5 space-y-4" onSubmit={handleCreateCase}>
-            <Field label={text.applicationType}>
-              <select
-                className={inputClass()}
-                value={form.application_type}
-                onChange={(e) => updateForm("application_type", e.target.value)}
-              >
-                <option value="permanent_residence">{text.permanentResidence}</option>
-                <option value="study_permit">{text.studyPermit}</option>
-                <option value="work_permit">{text.workPermit}</option>
-                <option value="visitor_visa">{text.visitorVisa}</option>
-                <option value="sponsorship">{text.sponsorship}</option>
-              </select>
-            </Field>
-
-            <Field label={text.caseTitle}>
-              <input
-                className={inputClass()}
-                value={form.case_title}
-                onChange={(e) => updateForm("case_title", e.target.value)}
-                placeholder={
-                  language === "fr"
-                    ? "Ex: RP famille 2026"
-                    : "Ex: Family PR 2026"
-                }
-              />
-            </Field>
-
-            <Field label={text.primaryApplicant}>
-              <select
-                className={inputClass()}
-                value={form.primary_applicant_member_id}
-                onChange={(e) =>
-                  updateForm("primary_applicant_member_id", e.target.value)
-                }
-              >
-                <option value="">{text.selectApplicant}</option>
-                {members.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {getMemberName(member)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label={text.targetProvince}>
-              <input
-                className={inputClass()}
-                value={form.target_province}
-                onChange={(e) => updateForm("target_province", e.target.value)}
-                placeholder="Ontario"
-              />
-            </Field>
-
-            <Field label={text.pathway}>
-              <input
-                className={inputClass()}
-                value={form.pathway}
-                onChange={(e) => updateForm("pathway", e.target.value)}
-                placeholder="Express Entry"
-              />
-            </Field>
-
-            <Field label={text.familySize}>
-              <input
-                type="number"
-                min="1"
-                className={inputClass()}
-                value={form.family_size}
-                onChange={(e) => updateForm("family_size", e.target.value)}
-              />
-            </Field>
-
-            <Button type="submit" fullWidth loading={saving}>
-              {saving ? text.saving : text.save}
-            </Button>
-          </form>
-        </Card>
-      </div>
-    </Layout>
-  );
+  async function create() {setSaving(true);try {const item=(await createApplicationCase({application_type:"permanent_residence",case_title:t("New application", "Nouvelle demande")})).data;setCases((await getApplicationCases()).data);await select(item.id);}catch{setError(t("Unable to create application.", "Impossible de créer la demande."));}finally{setSaving(false);}}
+  async function archive() {if(!window.confirm(t("Archive this application? Existing records and documents are preserved.", "Archiver cette demande ? Les dossiers et documents seront conservés.")))return;try{await archiveApplicationCase(selected.id);setParams({}, {replace:true});await load();}catch{setError(t("Unable to archive application.", "Impossible d’archiver la demande."));}}
+  return <Layout><main className="mx-auto max-w-4xl space-y-5"><h1 className="text-3xl font-bold">{t("Applications", "Demandes")}</h1>
+    <nav className="flex gap-4"><Link to="/household">{t("Household", "Ménage")}</Link><Link to="/strategy">{t("Strategy", "Stratégie")}</Link><Link to="/documents">Documents</Link><Link to="/forms">{t("Forms", "Formulaires")}</Link></nav>
+    <p>{t("YOU remain the primary applicant. Save family participation before continuing.", "VOUS restez le demandeur principal. Enregistrez la participation familiale avant de continuer.")}</p>
+    {error&&<p role="alert" className="text-red-700">{error}<button onClick={load} className="ml-3 underline">{t("Retry", "Réessayer")}</button></p>}
+    {loading?<p>{t("Loading…", "Chargement…")}</p>:<>
+      <div className="flex flex-wrap gap-3">{cases.map(c=><button key={c.id} className="rounded border p-3" aria-pressed={selected?.id===c.id} onClick={()=>select(c.id).catch(()=>setError(t("Application unavailable", "Demande indisponible")))}>{c.case_title || t("Application", "Demande")} #{c.id}</button>)}<button disabled={saving} onClick={create}>{t("New application", "Nouvelle demande")}</button></div>
+      {selected&&<form onSubmit={save} className="space-y-4 rounded-xl border bg-white p-6">
+        <label className="block">{t("Case title", "Titre de la demande")}<input className="block w-full border p-2" maxLength={120} value={selected.case_title||""} onChange={e=>setSelected({...selected,case_title:e.target.value})}/></label>
+        <label className="block">{t("Application type", "Type de demande")}<select className="block w-full border p-2" value={selected.application_type} onChange={e=>setSelected({...selected,application_type:e.target.value})}>{[["permanent_residence","Permanent residence","Résidence permanente"],["study_permit","Study permit","Permis d’études"],["work_permit","Work permit","Permis de travail"],["visitor_visa","Visitor visa","Visa de visiteur"],["spousal_sponsorship","Spousal sponsorship","Parrainage conjugal"]].map(([v,en,fr])=><option key={v} value={v}>{t(en,fr)}</option>)}</select></label>
+        <label className="block">{t("Status", "État")}<select value={selected.status} onChange={e=>setSelected({...selected,status:e.target.value})}><option value="draft">{t("Draft", "Brouillon")}</option><option value="in_progress">{t("In progress", "En cours")}</option></select></label>
+        <h2 className="text-xl">{t("Family participation", "Participation familiale")}</h2>
+        {!members.length&&<p>{t("Single applicant. Add family members in Household if needed.", "Demandeur seul. Ajoutez des membres dans Ménage au besoin.")}</p>}
+        {members.map(m=><label className="flex justify-between gap-4" key={m.id}><span>{[m.first_name,m.last_name].filter(Boolean).join(" ")}</span><select aria-label={`${m.first_name} ${t("participation", "participation")}`} value={participation[m.id]||"excluded"} onChange={e=>setParticipation(old=>{const next={...old};if(e.target.value==="excluded")delete next[m.id];else next[m.id]=e.target.value;return next;})}><option value="excluded">{t("Not selected for this case", "Non sélectionné pour cette demande")}</option><option value="unknown">{t("Unknown", "Inconnu")}</option><option value="accompanying">{t("Accompanying", "Accompagnant")}</option><option value="non_accompanying">{t("Non-accompanying", "Non accompagnant")}</option></select></label>)}
+        <p>{t("Participation does not determine immigration dependency eligibility. Unknown facts are not inferred.", "La participation ne détermine pas l’admissibilité comme personne à charge. Les faits inconnus ne sont pas déduits.")}</p>
+        <div className="flex gap-5"><button disabled={saving} className="rounded bg-blue-700 p-3 text-white">{t("Save application", "Enregistrer la demande")}</button><button type="button" onClick={archive}>{t("Archive", "Archiver")}</button></div>
+      </form>}
+    </>}
+  </main></Layout>;
 }

@@ -7,6 +7,7 @@ from app.models.self_application_model import SelfApplication
 from app.models.self_document_model import SelfDocument
 from app.models.user_models import User
 from app.services.strategy_service import build_strategy
+from app.services.household_service import resolve_application_context
 
 
 def _normalize_language(language: str) -> str:
@@ -74,14 +75,9 @@ def get_user_journey(
         db.query(Profile).filter(Profile.user_id == current_user.id).first()
     )
 
-    application: Optional[SelfApplication] = (
-        db.query(SelfApplication)
-        .filter(SelfApplication.user_id == current_user.id)
-        .order_by(SelfApplication.updated_at.desc(), SelfApplication.created_at.desc())
-        .first()
-    )
-
-    strategy = build_strategy(profile, language=language) if profile else None
+    context = resolve_application_context(db, current_user)
+    application = context.application
+    strategy = build_strategy(profile, language=language, household_members=context.members, application_case=context.case) if profile else None
 
     french_advantage = strategy.get("french_advantage") if strategy else {}
     french_value = (french_advantage or {}).get("strategic_value", "low")
@@ -92,7 +88,7 @@ def get_user_journey(
             db.query(SelfDocument)
             .filter(
                 SelfDocument.user_id == current_user.id,
-                SelfDocument.matter_type == application.matter_type,
+                SelfDocument.matter_type == f"case_{context.case.id}",
             )
             .all()
         )

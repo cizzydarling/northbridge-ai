@@ -1,4 +1,6 @@
 from typing import Any, Dict, List, Optional
+from types import SimpleNamespace
+from app.services.household_service import context_snapshot
 
 from app.services import province_targeting_service
 from app.services.ai_advisor import generate_ai_strategy
@@ -29,132 +31,28 @@ def _normalize_language(language: Optional[str]) -> str:
 def _t(en: str, fr: str, language: str) -> str:
     return fr if _normalize_language(language) == "fr" else en
 
-def build_household_strategy_context(
-    household_members: Optional[List[Any]] = None,
-    language: str = "en",
-) -> Dict[str, Any]:
+def build_household_strategy_context(household_members=None, language="en", application_case=None):
     members = household_members or []
-
-    spouse = None
-    children = []
-    dependents = []
-
-    for member in members:
-        relationship = str(
-            getattr(member, "relationship_to_primary", "") or ""
-        ).lower()
-
-        item = {
-            "id": getattr(member, "id", None),
-            "first_name": getattr(member, "first_name", None),
-            "last_name": getattr(member, "last_name", None),
-            "relationship_to_primary": relationship,
-            "nationality": getattr(member, "nationality", None),
-            "current_country": getattr(member, "current_country", None),
-            "date_of_birth": str(getattr(member, "date_of_birth", "") or ""),
-            "email": getattr(member, "email", None),
-            "is_primary_applicant": bool(
-                getattr(member, "is_primary_applicant", False)
-            ),
-        }
-
-        if relationship == "spouse":
-            spouse = item
-            dependents.append(item)
-        elif relationship == "child":
-            children.append(item)
-            dependents.append(item)
-        elif relationship not in {"self", ""}:
-            dependents.append(item)
-
-    family_size = max(1, len(members))
-
-    required_family_documents = []
-
-    def build_doc(doc_id, person, label, priority="high"):
-        return {
-            "id": doc_id,
-            "person": person,
-            "label": label,
-            "priority": priority,
-        }
-
-    if spouse:
-        required_family_documents.extend([
-            build_doc(
-                "spouse_passport",
-                "spouse",
-                _t(
-                    "Spouse passport / identity document",
-                    "Passeport / pièce d’identité de l’époux(se)",
-                    language,
-                ),
-            ),
-            build_doc(
-                "spouse_police_certificate",
-                "spouse",
-                _t(
-                    "Spouse police certificate",
-                    "Certificat de police de l’époux(se)",
-                    language,
-                ),
-            ),
-            build_doc(
-                "relationship_proof",
-                "spouse",
-                _t(
-                    "Marriage or relationship evidence",
-                    "Preuve de mariage ou de relation",
-                    language,
-                ),
-            ),
-        ])
-
-    if children:
-        required_family_documents.extend([
-            build_doc(
-                "child_passport",
-                "child",
-                _t(
-                    "Child passport / identity document",
-                    "Passeport / pièce d’identité de l’enfant",
-                    language,
-                ),
-            ),
-            build_doc(
-                "child_birth_certificate",
-                "child",
-                _t(
-                    "Birth certificate for dependent child",
-                    "Acte de naissance de l’enfant à charge",
-                    language,
-                ),
-            ),
-        ])
-
-        def mark_document_status(doc):
-            # simple logic for now
-            return {
-                **doc,
-                "status": "missing",  # default
-            }
-
-        required_family_documents = [
-            mark_document_status(doc)
-            for doc in required_family_documents
-        ]
-
-    return {
-        "family_size": family_size,
-        "has_spouse": bool(spouse),
-        "spouse": spouse,
-        "children": children,
-        "dependents": dependents,
-        "dependent_count": len(dependents),
-        "required_family_documents": required_family_documents,
-        "household_members": members,
-    }
-    
+    partners = [m for m in members if m.relationship_to_primary in {"spouse", "common_law_partner"}]
+    children = [m for m in members if m.relationship_to_primary == "child"]
+    family = [m for m in members if m.relationship_to_primary != "self"]
+    case_id = getattr(application_case, "id", None)
+    supported = getattr(application_case, "application_type", None) in {
+        "permanent_residence", "study_permit", "work_permit", "visitor_visa", "spousal_sponsorship"}
+    # Organization suggestions only; no unverified immigration requirement is asserted.
+    documents = [{"id": f"family:{case_id}:{m.id}:identity_review", "case_id": case_id,
+                  "member_id": m.id, "document_type": "identity_review", "person": str(m.id),
+                  "label": _t("Optional identity evidence review — applicability unverified", "Examen facultatif d’identité — applicabilité non vérifiée", language),
+                  "priority": "review", "required": False, "status": "unknown",
+                  "rule_status": "REQUIRES RULE VERIFICATION"}
+                 for m in family] if supported and case_id else []
+    return {"family_size": max(1, len(members)), "has_spouse": bool(partners),
+            "spouse": partners[0] if partners else None, "children": children,
+            "dependents": family, "dependent_count": None,
+            "required_family_documents": documents, "household_members": members,
+            "participation_counts": {state: sum(getattr(m, "participation", "unknown") == state for m in family)
+                                     for state in ("accompanying", "non_accompanying", "unknown")},
+            "calculation_status": "REQUIRES RULE VERIFICATION" if family else "not_applicable"}
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
@@ -1765,6 +1663,7 @@ def build_strategy(
     household_context = build_household_strategy_context(
         household_members=household_members,
         language=language,
+        application_case=application_case,
     )
     family_size = household_context["family_size"]
     has_spouse = household_context["has_spouse"]
@@ -1978,6 +1877,8 @@ def build_strategy(
         "profile_snapshot": _build_profile_snapshot(profile),
     }
 
+    family_snapshot = context_snapshot(SimpleNamespace(case=application_case, members=household_members or [])) if application_case else {"status": "unknown", "instruction": "Do not infer family facts"}
+    strategy_context["family_context"] = family_snapshot
     ai_advice = None
     try:
         try:
@@ -2044,11 +1945,15 @@ def build_strategy(
             "has_detected_noc": bool(noc_profile.get("resolved_noc_code")),
             "has_preferred_province": bool(_get_preferred_province(profile)),
         },
+        "family_context": family_snapshot,
         "household_context": {
             "family_size": family_size,
             "has_spouse": has_spouse,
             "dependent_count": household_context["dependent_count"],
             "children_count": len(household_context["children"]),
+            "participation_counts": household_context["participation_counts"],
+            "calculation_status": household_context["calculation_status"],
+            "calculation_notice": _t("Individual estimate only; family-specific calculation requires rule verification.", "Estimation individuelle seulement ; le calcul familial nécessite une vérification des règles.", language) if family_size > 1 else None,
         },
 
         "family_document_requirements": required_family_documents,

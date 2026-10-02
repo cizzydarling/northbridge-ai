@@ -27,7 +27,7 @@ from app.services.immigration_intelligence_service import (
 from app.services.pdf_service import generate_strategy_pdf
 from app.services.strategy_service import build_strategy
 from app.models.application_case_model import ApplicationCase
-from app.services.household_service import get_household_members
+from app.services.household_service import get_household_members, resolve_application_context, context_snapshot, contextual_intake
 
 router = APIRouter(prefix="/self", tags=["Self"])
 
@@ -59,13 +59,8 @@ def t(en: str, fr: str, language: str) -> str:
 
 
 def get_self_application_for_user(db: Session, user_id: int) -> SelfApplication | None:
-    return (
-        db.query(SelfApplication)
-        .filter(SelfApplication.user_id == user_id)
-        .order_by(SelfApplication.updated_at.desc())
-        .first()
-    )
-
+    from app.models.user_models import User
+    return resolve_application_context(db, db.query(User).filter_by(id=user_id).one()).application
 
 def get_profile_for_user(db: Session, user_id: int) -> Profile | None:
     return db.query(Profile).filter(Profile.user_id == user_id).first()
@@ -427,6 +422,10 @@ def build_strategy_payload(
         return strategy
 
     return {
+        "family_context": strategy.get("family_context", {}),
+        "household_context": strategy.get("household_context", {}),
+        "case_context": strategy.get("case_context", {}),
+        "family_document_requirements": strategy.get("family_document_requirements", []),
         "crs_score": strategy.get("crs_score"),
         "strategy_headline": strategy.get("strategy_headline"),
 
@@ -524,19 +523,8 @@ def get_my_strategy(
 ):
     language = normalize_language(language)
 
-    case = None
-    if case_id:
-        case = (
-            db.query(ApplicationCase)
-            .filter(
-                ApplicationCase.id == case_id,
-                ApplicationCase.owner_user_id == current_user.id,
-            )
-            .first()
-        )
-
-    if case_id and not case:
-        raise HTTPException(status_code=404, detail="Application case not found")
+    context = resolve_application_context(db, current_user, case_id)
+    case = context.case
 
     profile = get_profile_for_user(db, current_user.id)
 
@@ -550,20 +538,14 @@ def get_my_strategy(
             ),
         )
 
-    household_members = get_household_members(db, current_user.id)
+    household_members = context.members
 
     subscription_status = str(
         getattr(current_user, "subscription_status", "") or ""
     ).strip().lower()
     plan = str(getattr(current_user, "plan", "") or "").strip().lower()
-    is_active = subscription_status in {"active", "trialing"}
-
-    is_pro = has_individual_pro(current_user) or (
-        plan in {"individual_pro", "pro"} and is_active
-    )
-    is_premium = has_premium_access(current_user) or (
-        plan in {"individual_premium", "premium"} and is_active
-    )
+    is_pro = has_individual_pro(current_user)
+    is_premium = has_premium_access(current_user)
 
     raw_strategy = build_strategy(
         profile,
@@ -616,10 +598,11 @@ def get_self_application_context(
 
 @router.get("/application/saved", response_model=SelfApplicationResponse)
 def get_saved_self_application(
+    case_id: int | None = Query(default=None, gt=0),
     db: Session = Depends(get_db),
     current_user=Depends(require_self_user),
 ):
-    application = get_self_application_for_user(db, current_user.id)
+    application = resolve_application_context(db, current_user, case_id).application
 
     if not application:
         raise HTTPException(status_code=404, detail="No saved self application found.")
@@ -634,8 +617,11 @@ def run_self_workspace(
     db: Session = Depends(get_db),
     current_user=Depends(require_self_user),
 ):
-    matter_type = payload.matter_type
-    intake = payload.intake or {}
+    context = resolve_application_context(db, current_user, payload.case_id)
+    matter_type = context.case.application_type
+    if payload.matter_type != matter_type:
+        raise HTTPException(409, "Update the application case type before running this workspace.")
+    intake = contextual_intake(context, payload.intake)
     language = normalize_language(language)
 
     is_pro = has_individual_pro(current_user)
@@ -648,6 +634,8 @@ def run_self_workspace(
             db=db,
             current_user=current_user,
             language=language,
+            application_case=context.case,
+            household_members=context.members,
         )
         raw_strategy = pr_workspace["strategy"]
         strategy = build_strategy_payload(
@@ -690,7 +678,7 @@ def run_self_workspace(
         language=language,
     )
 
-    application = get_self_application_for_user(db, current_user.id)
+    application = context.application
 
     if application:
         application.matter_type = matter_type
@@ -701,6 +689,7 @@ def run_self_workspace(
     else:
         application = SelfApplication(
             user_id=current_user.id,
+            application_case_id=context.case.id,
             matter_type=matter_type,
             intake_payload=intake,
             eligibility_result=eligibility,
@@ -712,7 +701,7 @@ def run_self_workspace(
     sync_self_documents_from_checklist(
         db=db,
         user_id=current_user.id,
-        matter_type=matter_type,
+        matter_type=f"case_{context.case.id}",
         checklist=checklist,
     )
 
@@ -737,10 +726,12 @@ def run_self_workspace(
 
 @router.get("/strategy/export-pdf")
 def export_strategy_pdf(
+    case_id: int | None = Query(default=None),
     language: str = Query(default="en"),
     db: Session = Depends(get_db),
     current_user=Depends(require_self_user),
 ):
+    context = resolve_application_context(db, current_user, case_id)
     language = normalize_language(language)
     ensure_confirmed_email(current_user)
 
@@ -769,6 +760,8 @@ def export_strategy_pdf(
         profile,
         language=language,
         include_immigration_intelligence=True,
+        household_members=context.members,
+        application_case=context.case,
     )
 
     try:

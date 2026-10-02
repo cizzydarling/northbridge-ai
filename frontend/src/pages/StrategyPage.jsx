@@ -1,3 +1,4 @@
+import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import StrategyProgressCard from "../components/StrategyProgressCard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -3262,6 +3263,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
   if (loading) {
     return (
       <Layout>
+      <ApplicationContextBanner />
         <div className="flex justify-center py-24">
           <div className="rounded-lg border border-slate-200 bg-white px-10 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <p className="text-lg font-medium text-slate-700">
@@ -3276,6 +3278,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
   if (!strategy) {
     return (
       <Layout>
+      <ApplicationContextBanner />
         {message && (
           <div className="mb-6 rounded-[24px] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {message}
@@ -3311,6 +3314,7 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
 
   return (
     <Layout>
+      <ApplicationContextBanner />
       {message && (
         <div className="mb-6 rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           {message}

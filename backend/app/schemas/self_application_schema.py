@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # -----------------------------
@@ -15,12 +15,23 @@ class SelfApplicationBase(BaseModel):
     forms_result: Dict[str, Any] = {}
     checklist_result: List[Dict[str, Any]] = []
 
+    @field_validator("intake_payload", "eligibility_result", "forms_result", mode="before")
+    @classmethod
+    def legacy_empty_object(cls, value):
+        return {} if value is None else value
+
+    @field_validator("checklist_result", mode="before")
+    @classmethod
+    def legacy_empty_list(cls, value):
+        return [] if value is None else value
+
 
 # -----------------------------
 # Request Schemas
 # -----------------------------
 
 class SelfApplicationUpsertRequest(BaseModel):
+    case_id: int | None = Field(default=None, gt=0)
     matter_type: str
     intake: Optional[Dict[str, Any]] = {}
 
@@ -34,6 +45,7 @@ class SelfApplicationResponse(SelfApplicationBase):
 
     id: int
     user_id: int
+    application_case_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

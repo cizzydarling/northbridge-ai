@@ -1,3 +1,5 @@
+import FamilyDocuments from "../components/FamilyDocuments";
+import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -8,6 +10,8 @@ import LockBadge from "../components/ui/LockBadge";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
   getBillingAccess,
+  getApplicationContext,
+  getCurrentUserLocal,
   getCachedBillingAccess,
   getMyStrategyLite,
   getMyStrategy,
@@ -18,7 +22,6 @@ import {
   removeSelfDocumentFile,
   sendAIMessage,
 } from "../api";
-import { getActiveCaseId } from "../utils/activeCase";
 
 const COMPLETION_STORAGE_KEY = "nbai_document_completion_engine_v1";
 
@@ -177,16 +180,16 @@ function buildPremiumPricingPath(source = "documents", intent = "export") {
   return `/pricing?plan=premium&source=${source}&intent=${intent}`;
 }
 
-function readCompletionEngine() {
+function readCompletionEngine(caseId) {
   try {
-    return JSON.parse(localStorage.getItem(COMPLETION_STORAGE_KEY) || "{}");
+    return JSON.parse(localStorage.getItem(`${COMPLETION_STORAGE_KEY}:${getCurrentUserLocal()?.id}:${caseId}`) || "{}");
   } catch {
     return {};
   }
 }
 
-function writeCompletionEngine(value) {
-  localStorage.setItem(COMPLETION_STORAGE_KEY, JSON.stringify(value || {}));
+function writeCompletionEngine(value, caseId) {
+  localStorage.setItem(`${COMPLETION_STORAGE_KEY}:${getCurrentUserLocal()?.id}:${caseId}`, JSON.stringify(value || {}));
   window.dispatchEvent(new Event("nbai-document-engine-updated"));
 }
 
@@ -1151,7 +1154,8 @@ export default function SelfDocumentsPage() {
   const language = i18n.language === "fr" ? "fr" : "en";
   const [strategy, setStrategy] = useState(null);
 
-  const [activeCaseId, setActiveCaseId] = useState(getActiveCaseId());
+  const [activeCaseId, setActiveCaseId] = useState(null);
+  useEffect(() => { getApplicationContext().then(r => setActiveCaseId(r.data.case_id)).catch(() => setUploadMessage(language === "fr" ? "Contexte indisponible" : "Application context unavailable")); }, [language]);
   const [fixingCase, setFixingCase] = useState(false);
   const [fixCaseResult, setFixCaseResult] = useState("");
   const [fixCaseAction, setFixCaseAction] = useState(null);
@@ -1216,11 +1220,12 @@ export default function SelfDocumentsPage() {
         handleEngineUpdate
       );
     };
-  }, [language, activeCaseId, loadAccess]);
+  }, [language, loadAccess]);
 
   const loadUploadedDocuments = useCallback(async () => {
     try {
-      const response = await getSelfDocuments();
+      if (!activeCaseId) return;
+      const response = await getSelfDocuments(`case_${activeCaseId}`);
       const byKey = {};
 
       for (const item of response.data || []) {
@@ -1233,44 +1238,31 @@ export default function SelfDocumentsPage() {
     } catch (err) {
       console.error("Self documents load failed:", err);
     }
-  }, []);
+  }, [activeCaseId]);
 
   useEffect(() => {
     loadUploadedDocuments();
   }, [loadUploadedDocuments]);
 
-  useEffect(() => {
-  function handleActiveCaseUpdate() {
-    setActiveCaseId(getActiveCaseId());
-    loadAccess();
-  }
-
-  window.addEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
-
-  return () => {
-    window.removeEventListener("nbai-active-case-updated", handleActiveCaseUpdate);
-  };
-  }, [loadAccess]);
-
   const engine = useMemo(() => {
     void engineVersion;
-    return readCompletionEngine();
-  }, [engineVersion]);
+    return readCompletionEngine(activeCaseId);
+  }, [engineVersion, activeCaseId]);
   const familyRequirements = useMemo(
     () =>
       Array.isArray(strategy?.family_document_requirements)
-        ? strategy.family_document_requirements
+        ? strategy.family_document_requirements.filter(item => item.required !== false)
         : [],
     [strategy?.family_document_requirements]
   );
 
-  function readFormsPreview() {
+  const readFormsPreview = useCallback(() => {
     try {
-      return JSON.parse(localStorage.getItem("nbai_forms_preview_v1") || "null");
+      return JSON.parse(localStorage.getItem(`nbai_forms_preview_v1:${getCurrentUserLocal()?.id}:${activeCaseId}`) || "null");
     } catch {
       return null;
     }
-  }
+  }, [activeCaseId]);
 
   const familyRequirementIds = useMemo(() => {
     return new Set(familyRequirements.map((item) => item.id));
@@ -1303,7 +1295,7 @@ export default function SelfDocumentsPage() {
   const formsPreview = useMemo(() => {
     void engineVersion;
     return readFormsPreview();
-  }, [engineVersion]);
+  }, [engineVersion, readFormsPreview]);
 
   const submissionReadiness = useMemo(() => {
     return buildSubmissionReadiness({
@@ -1398,7 +1390,7 @@ export default function SelfDocumentsPage() {
   }, [stats, overallProgress, firstIncompleteDoc, language]);
 
   function updateDocument(id, patch) {
-    const current = readCompletionEngine();
+    const current = readCompletionEngine(activeCaseId);
     const existing = current[id] || {
       drafted: false,
       reviewed: false,
@@ -1414,14 +1406,14 @@ export default function SelfDocumentsPage() {
       },
     };
 
-    writeCompletionEngine(next);
+    writeCompletionEngine(next, activeCaseId);
   }
 
   function resetDocument(id) {
-    const current = readCompletionEngine();
+    const current = readCompletionEngine(activeCaseId);
     const next = { ...current };
     delete next[id];
-    writeCompletionEngine(next);
+    writeCompletionEngine(next, activeCaseId);
   }
 
   function handleMarkReviewed(id) {
@@ -1452,6 +1444,7 @@ export default function SelfDocumentsPage() {
   }
 
   async function ensureSelfDocument(doc) {
+    if (!activeCaseId) throw new Error("Application context unavailable");
     if (uploadedDocuments[doc.id]) {
       return uploadedDocuments[doc.id];
     }
@@ -1793,6 +1786,8 @@ export default function SelfDocumentsPage() {
 
   return (
     <Layout>
+      <ApplicationContextBanner />
+      <FamilyDocuments />
       <PageHeader brand={text.brand} title={text.title} subtitle={text.subtitle} />
 
       {!isPremium && (

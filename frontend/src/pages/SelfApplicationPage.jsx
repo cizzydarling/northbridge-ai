@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ApplicationContextBanner from "../components/ApplicationContextBanner";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -10,6 +11,7 @@ import {
   getCachedBillingAccess,
   getMyAccess,
   getMyProfile,
+  getApplicationContext,
   getSavedSelfApplication,
   runSelfWorkspace,
 } from "../api";
@@ -95,15 +97,15 @@ export default function SelfApplicationPage() {
   const [selectedApplicationType, setSelectedApplicationType] = useState(
     "permanent_residence"
   );
-  const userSelectedApplicationTypeRef = useRef(false);
 
   const loadPage = useCallback(async () => {
     try {
       setLoading(true);
 
+      const context = (await getApplicationContext()).data;
       const [profileRes, savedAppRes, accessRes] = await Promise.allSettled([
         getMyProfile(),
-        getSavedSelfApplication(),
+        getSavedSelfApplication(context.case_id),
         getMyAccess(),
       ]);
 
@@ -119,11 +121,7 @@ export default function SelfApplicationPage() {
         profileRes.status === "fulfilled" ? profileRes.value.data : null;
 
       const intakePayload = savedApplication?.intake_payload || {};
-      const applicationType = userSelectedApplicationTypeRef.current
-        ? selectedApplicationType
-        : intakePayload.application_type ||
-          savedApplication?.matter_type ||
-          selectedApplicationType;
+      const applicationType = context.case.application_type;
       const nextIntakePayload = {
         ...intakePayload,
         ...getProfileIntake(profile),
@@ -134,6 +132,7 @@ export default function SelfApplicationPage() {
 
       const workspaceRes = await runSelfWorkspace(
         {
+          case_id: context.case_id,
           matter_type: applicationType,
           intake: nextIntakePayload,
         },
@@ -151,7 +150,7 @@ export default function SelfApplicationPage() {
     } finally {
       setLoading(false);
     }
-  }, [language, selectedApplicationType]);
+  }, [language]);
 
   useEffect(() => {
     loadPage();
@@ -233,15 +232,12 @@ export default function SelfApplicationPage() {
     { key: "checklist", label: text.checklist },
   ];
 
-  async function handleApplicationTypeChange(value) {
-    userSelectedApplicationTypeRef.current = true;
-    setSelectedApplicationType(value);
-    setMessage("");
-  }
+  function handleApplicationTypeChange() { navigate("/applications"); }
 
   if (loading) {
     return (
       <Layout>
+      <ApplicationContextBanner />
         <div className="py-20 text-center text-slate-500">{text.loading}</div>
       </Layout>
     );
@@ -249,6 +245,7 @@ export default function SelfApplicationPage() {
 
   return (
     <Layout>
+      <ApplicationContextBanner />
       {message && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {message}
