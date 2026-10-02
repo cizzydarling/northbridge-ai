@@ -1,4 +1,6 @@
 import os
+from contextlib import asynccontextmanager
+from starlette.concurrency import run_in_threadpool
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -11,6 +13,7 @@ from app.data.db import engine
 from app.services.document_storage import document_storage_healthcheck
 from app.services.observability import configure_error_monitoring, observe_request
 from app.services.security_controls import rate_limiter_healthcheck
+from app.services.noc_service import prepare_noc_data
 
 from app.routes import (
     ai_routes,
@@ -153,10 +156,24 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(immigration_intelligence_routes.router)
 
 
+@asynccontextmanager
+async def application_lifespan(app):
+    app.state.noc_ready = False
+    # Uvicorn does not accept application traffic until this succeeds.
+    # Exceptions fail startup visibly rather than serving a partially initialized worker.
+    await run_in_threadpool(prepare_noc_data)
+    app.state.noc_ready = True
+    try:
+        yield
+    finally:
+        app.state.noc_ready = False
+
+
 def create_app() -> FastAPI:
     validate_runtime_configuration()
     configure_error_monitoring()
-    app = FastAPI(title="NorthBridgeAI API")
+    app = FastAPI(title="NorthBridgeAI API", lifespan=application_lifespan)
+    app.state.noc_ready = False
 
     allowed_origins = get_allowed_origins()
     print("CORS allowed origins:", allowed_origins)
@@ -208,7 +225,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health/ready", include_in_schema=False)
     def readiness():
-        components: dict[str, str] = {}
+        components: dict[str, str] = {"noc": "ok" if app.state.noc_ready else "unavailable"}
 
         try:
             with engine.connect() as connection:

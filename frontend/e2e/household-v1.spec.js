@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 const api="http://127.0.0.1:8010";
 async function account(request, suffix) {
   const email=`family-${Date.now()}-${suffix}@example.com`;

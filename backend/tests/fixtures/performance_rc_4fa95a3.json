@@ -1,0 +1,1825 @@
+{
+  "source_commit": "4fa95a30da33056eb7b39c0904463bece502aab6",
+  "noc": [
+    {
+      "occupation_input": "Administrative officer",
+      "job_description_input": "",
+      "duties_input": [],
+      "suggested_noc": "13100",
+      "suggested_title": "Administrative officers",
+      "teer": 3,
+      "confidence": 0.98,
+      "score": 166.0,
+      "match_quality": "high",
+      "broad_category": "Business, finance and administration occupations",
+      "why_matched": [
+        "Exact core occupation title match.",
+        "Exact example title match.",
+        "Strong title similarity.",
+        "Occupation title appears in NOC profile."
+      ],
+      "alternatives": [],
+      "matches": [
+        {
+          "noc": "13100",
+          "title": "Administrative officers",
+          "teer": 3,
+          "score": 166.0,
+          "confidence": 0.98,
+          "broad_category": "Business, finance and administration occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Exact core occupation title match.",
+            "Exact example title match.",
+            "Strong title similarity.",
+            "Occupation title appears in NOC profile."
+          ]
+        }
+      ],
+      "immigration_flags": {
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3"
+        ]
+      },
+      "noc_summary": {
+        "occupation": "Administrative officer",
+        "noc_code": "13100",
+        "noc_title": "Administrative officers",
+        "teer": 3,
+        "confidence": 0.98,
+        "broad_category": "Business, finance and administration occupations",
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3"
+        ]
+      }
+    },
+    {
+      "occupation_input": "infirmière autorisée",
+      "job_description_input": "",
+      "duties_input": [],
+      "suggested_noc": "31301",
+      "suggested_title": "Infirmiers autorisés/infirmières autorisées et infirmiers psychiatriques autorisés/infirmières psychiatriques autorisées",
+      "teer": 1,
+      "confidence": 0.98,
+      "score": 184.0,
+      "match_quality": "high",
+      "broad_category": "Health occupations",
+      "why_matched": [
+        "Exact French example title match.",
+        "Strong title similarity.",
+        "Close example title match.",
+        "Close French example title match."
+      ],
+      "alternatives": [],
+      "matches": [
+        {
+          "noc": "31301",
+          "title": "Infirmiers autorisés/infirmières autorisées et infirmiers psychiatriques autorisés/infirmières psychiatriques autorisées",
+          "teer": 1,
+          "score": 184.0,
+          "confidence": 0.98,
+          "broad_category": "Health occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "healthcare_social_services"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Exact French example title match.",
+            "Strong title similarity.",
+            "Close example title match.",
+            "Close French example title match."
+          ]
+        }
+      ],
+      "immigration_flags": {
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "healthcare_social_services"
+        ]
+      },
+      "noc_summary": {
+        "occupation": "infirmière autorisée",
+        "noc_code": "31301",
+        "noc_title": "Infirmiers autorisés/infirmières autorisées et infirmiers psychiatriques autorisés/infirmières psychiatriques autorisées",
+        "teer": 1,
+        "confidence": 0.98,
+        "broad_category": "Health occupations",
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "healthcare_social_services"
+        ]
+      }
+    },
+    {
+      "occupation_input": "Software developer",
+      "job_description_input": "Design and maintain software applications",
+      "duties_input": [
+        "Write and test software",
+        "Review requirements"
+      ],
+      "suggested_noc": "21232",
+      "suggested_title": "Software developers and programmers",
+      "teer": 1,
+      "confidence": 0.98,
+      "score": 124.0,
+      "match_quality": "high",
+      "broad_category": "Natural and applied sciences and related occupations",
+      "why_matched": [
+        "Exact example title match.",
+        "Moderate title similarity.",
+        "Occupation title appears in NOC profile.",
+        "Related occupation wording appears in NOC profile."
+      ],
+      "alternatives": [
+        {
+          "noc": "21234",
+          "title": "Web developers and programmers",
+          "teer": 1,
+          "score": 79.6,
+          "confidence": 0.9,
+          "broad_category": "Natural and applied sciences and related occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "stem"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Moderate title similarity.",
+            "Close example title match.",
+            "Related occupation wording appears in NOC profile.",
+            "Occupation keywords overlap: developer, software."
+          ]
+        },
+        {
+          "noc": "21231",
+          "title": "Software engineers and designers",
+          "teer": 1,
+          "score": 72.4,
+          "confidence": 0.9,
+          "broad_category": "Natural and applied sciences and related occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "stem"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Moderate title similarity.",
+            "Close example title match.",
+            "Related occupation wording appears in NOC profile.",
+            "Occupation keywords overlap: software."
+          ]
+        }
+      ],
+      "matches": [
+        {
+          "noc": "21232",
+          "title": "Software developers and programmers",
+          "teer": 1,
+          "score": 124.0,
+          "confidence": 0.98,
+          "broad_category": "Natural and applied sciences and related occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "stem"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Exact example title match.",
+            "Moderate title similarity.",
+            "Occupation title appears in NOC profile.",
+            "Related occupation wording appears in NOC profile."
+          ]
+        },
+        {
+          "noc": "21234",
+          "title": "Web developers and programmers",
+          "teer": 1,
+          "score": 79.6,
+          "confidence": 0.9,
+          "broad_category": "Natural and applied sciences and related occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "stem"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Moderate title similarity.",
+            "Close example title match.",
+            "Related occupation wording appears in NOC profile.",
+            "Occupation keywords overlap: developer, software."
+          ]
+        },
+        {
+          "noc": "21231",
+          "title": "Software engineers and designers",
+          "teer": 1,
+          "score": 72.4,
+          "confidence": 0.9,
+          "broad_category": "Natural and applied sciences and related occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "stem"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Moderate title similarity.",
+            "Close example title match.",
+            "Related occupation wording appears in NOC profile.",
+            "Occupation keywords overlap: software."
+          ]
+        }
+      ],
+      "immigration_flags": {
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "stem"
+        ]
+      },
+      "noc_summary": {
+        "occupation": "Software developer",
+        "noc_code": "21232",
+        "noc_title": "Software developers and programmers",
+        "teer": 1,
+        "confidence": 0.98,
+        "broad_category": "Natural and applied sciences and related occupations",
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "stem"
+        ]
+      }
+    },
+    {
+      "occupation_input": "administration",
+      "job_description_input": "",
+      "duties_input": [],
+      "suggested_noc": "00010",
+      "suggested_title": "Membres des corps législatifs",
+      "teer": 0,
+      "confidence": 0.12,
+      "score": 5.5,
+      "match_quality": "low",
+      "broad_category": "Legislative and senior management occupations",
+      "why_matched": [
+        "Occupation title appears in NOC profile.",
+        "Occupation keywords overlap: administration.",
+        "Weak overall occupation alignment penalty."
+      ],
+      "alternatives": [],
+      "matches": [
+        {
+          "noc": "00010",
+          "title": "Membres des corps législatifs",
+          "teer": 0,
+          "score": 5.5,
+          "confidence": 0.12,
+          "broad_category": "Legislative and senior management occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "management"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Occupation title appears in NOC profile.",
+            "Occupation keywords overlap: administration.",
+            "Weak overall occupation alignment penalty."
+          ]
+        }
+      ],
+      "immigration_flags": {
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "management"
+        ]
+      },
+      "noc_summary": {
+        "occupation": "administration",
+        "noc_code": "00010",
+        "noc_title": "Membres des corps législatifs",
+        "teer": 0,
+        "confidence": 0.12,
+        "broad_category": "Legislative and senior management occupations",
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "management"
+        ]
+      }
+    },
+    {
+      "occupation_input": "quantum cloud storyteller",
+      "job_description_input": "",
+      "duties_input": [],
+      "suggested_noc": "00010",
+      "suggested_title": "Legislators",
+      "teer": 0,
+      "confidence": 0.12,
+      "score": 0,
+      "match_quality": "low",
+      "broad_category": "Legislative and senior management occupations",
+      "why_matched": [
+        "Weak overall occupation alignment penalty."
+      ],
+      "alternatives": [],
+      "matches": [
+        {
+          "noc": "00010",
+          "title": "Legislators",
+          "teer": 0,
+          "score": 0,
+          "confidence": 0.12,
+          "broad_category": "Legislative and senior management occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "management"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Weak overall occupation alignment penalty."
+          ]
+        }
+      ],
+      "immigration_flags": {
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "management"
+        ]
+      },
+      "noc_summary": {
+        "occupation": "quantum cloud storyteller",
+        "noc_code": "00010",
+        "noc_title": "Legislators",
+        "teer": 0,
+        "confidence": 0.12,
+        "broad_category": "Legislative and senior management occupations",
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "management"
+        ]
+      }
+    },
+    {
+      "occupation_input": "manager",
+      "job_description_input": "",
+      "duties_input": [],
+      "suggested_noc": "30010",
+      "suggested_title": "Managers in health care",
+      "teer": 0,
+      "confidence": 0.4,
+      "score": 23.5,
+      "match_quality": "low",
+      "broad_category": "Health occupations",
+      "why_matched": [
+        "Occupation title appears in NOC profile.",
+        "Occupation keywords overlap: manager."
+      ],
+      "alternatives": [],
+      "matches": [
+        {
+          "noc": "30010",
+          "title": "Managers in health care",
+          "teer": 0,
+          "score": 23.5,
+          "confidence": 0.4,
+          "broad_category": "Health occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "healthcare_social_services",
+            "management"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Occupation title appears in NOC profile.",
+            "Occupation keywords overlap: manager."
+          ]
+        }
+      ],
+      "immigration_flags": {
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "healthcare_social_services",
+          "management"
+        ]
+      },
+      "noc_summary": {
+        "occupation": "manager",
+        "noc_code": "30010",
+        "noc_title": "Managers in health care",
+        "teer": 0,
+        "confidence": 0.4,
+        "broad_category": "Health occupations",
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "healthcare_social_services",
+          "management"
+        ]
+      }
+    },
+    {
+      "occupation_input": "zzzzzzzz",
+      "job_description_input": "",
+      "duties_input": [],
+      "suggested_noc": "00010",
+      "suggested_title": "Legislators",
+      "teer": 0,
+      "confidence": 0.12,
+      "score": 0,
+      "match_quality": "low",
+      "broad_category": "Legislative and senior management occupations",
+      "why_matched": [
+        "Weak overall occupation alignment penalty."
+      ],
+      "alternatives": [],
+      "matches": [
+        {
+          "noc": "00010",
+          "title": "Legislators",
+          "teer": 0,
+          "score": 0,
+          "confidence": 0.12,
+          "broad_category": "Legislative and senior management occupations",
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3",
+            "management"
+          ],
+          "express_entry_skilled_work": true,
+          "why_matched": [
+            "Weak overall occupation alignment penalty."
+          ]
+        }
+      ],
+      "immigration_flags": {
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "management"
+        ]
+      },
+      "noc_summary": {
+        "occupation": "zzzzzzzz",
+        "noc_code": "00010",
+        "noc_title": "Legislators",
+        "teer": 0,
+        "confidence": 0.12,
+        "broad_category": "Legislative and senior management occupations",
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "management"
+        ]
+      }
+    }
+  ],
+  "strategy": [
+    {
+      "crs_score": 332,
+      "crs_band": {
+        "label": "Needs improvement",
+        "description": "Your current profile likely needs stronger immigration levers before becoming competitive for permanent residence."
+      },
+      "strategy_headline": "Your current best path appears to be Francophone and bilingual pathways, but your profile would benefit from targeted optimization.",
+      "best_pathway": {
+        "name": "Ontario Provincial Nominee Program",
+        "reasons": [
+          "Province preference aligns with this pathway.",
+          "Province targeting may also support this strategy through Alberta and Alberta Express Entry Stream."
+        ],
+        "confidence": "Low",
+        "score": 38
+      },
+      "recommended_programs": [
+        "Francophone and bilingual pathways",
+        "Ontario Provincial Nominee Program",
+        "Federal Skilled Worker"
+      ],
+      "scored_programs": [
+        {
+          "program": "Ontario Provincial Nominee Program",
+          "score": 38,
+          "reasons": [
+            "Province preference aligns with this pathway."
+          ]
+        },
+        {
+          "program": "Francophone and bilingual pathways",
+          "score": 34,
+          "reasons": [
+            "French ability increases competitiveness for this pathway."
+          ]
+        },
+        {
+          "program": "Federal Skilled Worker",
+          "score": 20,
+          "reasons": [
+            "Skilled work experience and language profile support this pathway."
+          ]
+        }
+      ],
+      "improvement_scenarios": {
+        "current_profile": {
+          "age": 28,
+          "education": "bachelor",
+          "language_score": 9,
+          "experience_years": 3,
+          "has_job_offer": false,
+          "has_canadian_experience": false,
+          "studied_in_canada": false,
+          "occupation": "Administrative officer",
+          "noc_code": "13100",
+          "preferred_province": "Ontario"
+        },
+        "simulated_changes": {
+          "language_score": 9,
+          "experience_years": 4,
+          "has_job_offer": false,
+          "has_canadian_experience": false,
+          "studied_in_canada": false
+        },
+        "crs_comparison": {
+          "current_crs_score": 353,
+          "simulated_crs_score": 368,
+          "difference": 15
+        },
+        "pathway_comparison": {
+          "current_eligible_pathways": [
+            "Express Entry",
+            "Ontario Provincial Nominee Program"
+          ],
+          "simulated_eligible_pathways": [
+            "Express Entry",
+            "Ontario Provincial Nominee Program"
+          ],
+          "newly_unlocked_pathways": []
+        }
+      },
+      "ai_strategy": "",
+      "roadmap": [
+        {
+          "title": "Review francophone and bilingual immigration opportunities first",
+          "estimated_crs_gain": 0,
+          "priority": 2,
+          "difficulty": "Low",
+          "reason": "French-capable profiles may unlock stronger category-based or province-targeted options."
+        },
+        {
+          "title": "Gain 1 more year of skilled work experience",
+          "estimated_crs_gain": 10,
+          "priority": 4,
+          "difficulty": "Time-based",
+          "reason": "More skilled experience strengthens CRS and program competitiveness."
+        },
+        {
+          "title": "Secure a valid Canadian job offer",
+          "estimated_crs_gain": 0,
+          "priority": 5,
+          "difficulty": "Hard",
+          "reason": "A qualifying job offer may support some pathways, but no longer adds CRS points as of March 25, 2025."
+        },
+        {
+          "title": "Gain Canadian work experience",
+          "estimated_crs_gain": 40,
+          "priority": 6,
+          "difficulty": "Medium",
+          "reason": "Canadian experience improves both CRS and pathway flexibility."
+        },
+        {
+          "title": "Consider study-based pathways in Canada",
+          "estimated_crs_gain": 30,
+          "priority": 7,
+          "difficulty": "Long-term",
+          "reason": "Canadian education can strengthen profile quality and open additional options."
+        },
+        {
+          "title": "Target Alberta through Alberta Express Entry Stream",
+          "estimated_crs_gain": 600,
+          "priority": 8,
+          "difficulty": "High impact",
+          "reason": "Alberta favors moderate CRS profiles."
+        }
+      ],
+      "province_recommendations": [
+        {
+          "province": "Alberta",
+          "program": "Alberta Express Entry Stream",
+          "chance": "High",
+          "score": 75,
+          "reason": "Alberta favors moderate CRS profiles."
+        },
+        {
+          "province": "Saskatchewan",
+          "program": "SINP Skilled Worker",
+          "chance": "Medium",
+          "score": 70,
+          "reason": "Experience-driven eligibility aligns with SINP."
+        }
+      ],
+      "timeline_estimate": {
+        "readiness": "Needs profile strengthening",
+        "estimated_pr_timeline_min_months": 22,
+        "estimated_pr_timeline_max_months": 44,
+        "timeline_steps": [
+          {
+            "title": "Gain more skilled work experience",
+            "estimated_time_min_months": 6,
+            "estimated_time_max_months": 12,
+            "reason": "Experience gains depend on employment duration and timing."
+          },
+          {
+            "title": "Secure a valid Canadian job offer",
+            "estimated_time_min_months": 3,
+            "estimated_time_max_months": 8,
+            "reason": "Finding an employer and completing the process can take time."
+          },
+          {
+            "title": "Gain Canadian work experience",
+            "estimated_time_min_months": 6,
+            "estimated_time_max_months": 12,
+            "reason": "Canadian experience usually requires time working in Canada."
+          },
+          {
+            "title": "Target Ontario Provincial Nominee Program",
+            "estimated_time_min_months": 4,
+            "estimated_time_max_months": 6,
+            "reason": "PNP processing and nomination timelines vary by province."
+          },
+          {
+            "title": "Improve profile before likely invitation",
+            "estimated_time_min_months": 3,
+            "estimated_time_max_months": 6,
+            "reason": "Additional time may be needed to strengthen competitiveness before invitation."
+          }
+        ]
+      },
+      "timeline_summary": "Estimated timeline: approximately 22-44 months (Needs profile strengthening).",
+      "probability_estimate": {
+        "overall_probability": 48,
+        "score": 48,
+        "probability": 48,
+        "chance_of_pr_within_12_months": 48,
+        "chance_via_express_entry": 39,
+        "chance_via_pnp": 56,
+        "confidence": "Low",
+        "strongest_path": "Provincial Nominee Program",
+        "strongest_path_reason": "Your profile currently appears more likely to benefit from provincial targeting."
+      },
+      "draw_prediction": {
+        "predicted_draw_type": "Category-based / PNP-supported strategy",
+        "predicted_cutoff_min": 440,
+        "predicted_cutoff_max": 500,
+        "likelihood": "Low",
+        "estimated_time_window": "6+ months",
+        "reason": "Your current CRS may need improvement or provincial support before a draw invitation is likely.",
+        "category_hints": [
+          "A strong language score improves your competitiveness in federal and targeted draws."
+        ],
+        "next_best_move": "Prioritize CRS improvement and provincial nomination targeting before relying on federal draws.",
+        "scenarios": [
+          {
+            "draw_type": "Category-based / PNP-supported strategy",
+            "predicted_cutoff_min": 440,
+            "predicted_cutoff_max": 500,
+            "likelihood": "Low",
+            "estimated_time_window": "6+ months",
+            "reason": "Your current CRS may need improvement or provincial support before a draw invitation is likely."
+          }
+        ],
+        "disclaimer": "This draw predictor is an internal estimate based on profile strength and general competitiveness patterns. It is not an official IRCC forecast."
+      },
+      "immigration_intelligence": null,
+      "strengths": [
+        "The profile may benefit from a priority francophone or bilingual strategy.",
+        "Provincial focus improves options in Ontario",
+        "Strong language score"
+      ],
+      "weaknesses": [
+        "Current CRS score is likely too low for direct Express Entry selection",
+        "More work experience would improve competitiveness",
+        "No job offer currently on file"
+      ],
+      "next_steps": [
+        "Review Alberta first through Alberta Express Entry Stream.",
+        "Confirm whether French ability can strengthen PR pathway options.",
+        "Gain additional skilled work experience",
+        "Explore Canadian employers and job offer pathways",
+        "Consider gaining Canadian work experience if possible",
+        "Consider study-based pathways if aligned with your goals"
+      ],
+      "advisor_summary": "Based on your profile, your estimated CRS score is 332. Your strongest current options are Ontario Provincial Nominee Program. Key areas to improve include Current CRS score is likely too low for direct Express Entry selection, More work experience would improve competitiveness. Recommended next steps: Gain additional skilled work experience, Explore Canadian employers and job offer pathways, Consider gaining Canadian work experience if possible.",
+      "french_advantage": {
+        "is_potentially_french_competitive": false,
+        "strategic_value": "medium",
+        "signals": [
+          "Preferred destination outside Quebec may strengthen the value of a francophone-focused strategy in provinces such as Ontario."
+        ],
+        "recommendations": [
+          "Assess dedicated francophone and bilingual immigration opportunities alongside standard permanent residence pathways.",
+          "Add a French score separately if you have test results; English alone should not be treated as French ability.",
+          "Review provincial pathways connected to Ontario and compare them with broader permanent residence options."
+        ]
+      },
+      "noc_advantage": {
+        "has_noc": true,
+        "noc_code": "13100",
+        "entered_noc_code": "13100",
+        "resolved_title": "Administrative officers",
+        "teer": 3,
+        "is_high_demand": false,
+        "strategic_value": "medium",
+        "signals": [
+          "The occupation appears to fall under a skilled TEER level that can support multiple economic pathways."
+        ],
+        "recommendations": [
+          "Compare occupation-linked targeted pathways against relevant provincial programs."
+        ],
+        "used_suggested_noc": false,
+        "suggested_confidence": 0.98,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3"
+        ],
+        "express_entry_skilled_work": true,
+        "suggested_match": {
+          "occupation_input": "Administrative officer",
+          "job_description_input": "",
+          "duties_input": [],
+          "suggested_noc": "13100",
+          "suggested_title": "Administrative officers",
+          "teer": 3,
+          "confidence": 0.98,
+          "score": 166.0,
+          "match_quality": "high",
+          "broad_category": "Business, finance and administration occupations",
+          "why_matched": [
+            "Exact core occupation title match.",
+            "Exact example title match.",
+            "Strong title similarity.",
+            "Occupation title appears in NOC profile."
+          ],
+          "alternatives": [],
+          "matches": [
+            {
+              "noc": "13100",
+              "title": "Administrative officers",
+              "teer": 3,
+              "score": 166.0,
+              "confidence": 0.98,
+              "broad_category": "Business, finance and administration occupations",
+              "immigration_category_tags": [
+                "express_entry_skilled_work_teer_0_3"
+              ],
+              "express_entry_skilled_work": true,
+              "why_matched": [
+                "Exact core occupation title match.",
+                "Exact example title match.",
+                "Strong title similarity.",
+                "Occupation title appears in NOC profile."
+              ]
+            }
+          ],
+          "immigration_flags": {
+            "express_entry_skilled_work": true,
+            "category_tags": [
+              "express_entry_skilled_work_teer_0_3"
+            ]
+          },
+          "noc_summary": {
+            "occupation": "Administrative officer",
+            "noc_code": "13100",
+            "noc_title": "Administrative officers",
+            "teer": 3,
+            "confidence": 0.98,
+            "broad_category": "Business, finance and administration occupations",
+            "express_entry_skilled_work": true,
+            "category_tags": [
+              "express_entry_skilled_work_teer_0_3"
+            ]
+          }
+        }
+      },
+      "noc_profile": {
+        "entered_noc_code": "13100",
+        "entered_noc_record": {
+          "noc": "13100",
+          "title": "Administrative officers",
+          "teer": 3,
+          "broad_category": "Business, finance and administration occupations",
+          "class_definition": "Administrative officers oversee and implement administrative procedures, establish work priorities, conduct analyses of administrative operations and coordinate acquisition of administrative services such as office space, supplies and security services. They are employed throughout the public and private sectors. Administrative officers who are supervisors are included in this unit group.",
+          "example_titles": [
+            "access to information and privacy officer",
+            "administrative officer",
+            "administrative services coordinator",
+            "forms management officer",
+            "office administrator",
+            "office manager",
+            "office services coordinator",
+            "planning officer",
+            "records analyst - access to information",
+            "surplus assets officer",
+            "university admissions officer",
+            "access to information officer",
+            "administration analyst",
+            "administration officer",
+            "administration services coordinator",
+            "administrative analyst",
+            "administrative coordinator",
+            "administrative planning officer",
+            "administrative services officer",
+            "administrative support officer",
+            "administrative technician",
+            "admissions officer - post-secondary educational institution",
+            "band administrator",
+            "bilingual services coordinator",
+            "budget analyst",
+            "business representative - club, lodge or society",
+            "business services officer",
+            "chief invigilator",
+            "civil emergency measures officer",
+            "claims officer",
+            "communications service coordinator",
+            "Crown assets distribution officer",
+            "documentation and projects analyst",
+            "exam invigilator - post-secondary institution",
+            "exam proctor - post-secondary institution",
+            "exam supervisor - post-secondary institution",
+            "financial aid officer",
+            "financial assistance coordinator - college or university",
+            "financial assistance officer",
+            "freedom of information officer",
+            "immigrant investors program coordinator",
+            "implementation officer",
+            "lease administration supervisor",
+            "liaison officer",
+            "management planning officer",
+            "Native band administrator",
+            "Native reserve administrator",
+            "non-technical project manager",
+            "office automation administrator",
+            "office automation coordinator",
+            "office automation technician",
+            "office coordinator",
+            "official languages coordinator",
+            "ombudsman officer",
+            "operating officer - administration",
+            "operational officer - administration",
+            "operations officer - administration",
+            "organization and productivity project manager",
+            "organization and productivity project officer",
+            "parking coordinator",
+            "preliminary press planner",
+            "prepress planner - publishing",
+            "privacy officer",
+            "project administration officer",
+            "public trustee",
+            "regional services chief",
+            "relocation commissioner",
+            "reserve administrator",
+            "student aid officer",
+            "student assistance officer",
+            "technical assistant - office support",
+            "test administrator",
+            "testing coordinator",
+            "testing supervisor"
+          ],
+          "keywords": [
+            "communications service coordinator",
+            "exam invigilator - post-secondary institution",
+            "exam supervisor - post-secondary institution",
+            "implementation officer",
+            "liaison officer",
+            "public trustee",
+            "regional services chief",
+            "relocation commissioner",
+            "Progression to administrative service management positions is possible with experience."
+          ],
+          "main_duties": [
+            "This group performs some or all of the following duties:",
+            "Oversee and coordinate office administrative procedures and review, evaluate and implement new procedures",
+            "Establish work priorities, delegate work to office support staff, and ensure deadlines are met and procedures are followed",
+            "Carry out administrative activities associated with admissions to post-secondary educational institutions",
+            "Administer policies and procedures related to the release of records in processing requests under government access to information and privacy legislation",
+            "Coordinate and plan for office services, such as accommodation, relocations, equipment, supplies, forms, disposal of assets, parking, maintenance and security services",
+            "Conduct analyses and oversee administrative operations related to budgeting, contracting and project planning and management processes",
+            "Assist in preparation of operating budget and maintain inventory and budgetary controls",
+            "Assemble data and prepare periodic and special reports, manuals and correspondence",
+            "May supervise records management technicians and related staff."
+          ],
+          "employment_requirements": [
+            "Completion of secondary school is required.",
+            "A university degree or college diploma in business or public administration may be required.",
+            "Experience in a senior clerical or executive secretarial position related to office administration is usually required.",
+            "Project management certification may be required by some employers."
+          ],
+          "exclusions": [
+            "Administrative services manager (See 10019 Other administrative services managers)",
+            "Conference and event planners (See 12103 Conference and event planners)",
+            "Executive assistants (See 12100 Executive assistants)",
+            "Property administrators (See 13101 Property administrators)"
+          ],
+          "immigration_category_tags": [
+            "express_entry_skilled_work_teer_0_3"
+          ],
+          "express_entry_skilled_work": true,
+          "source": "Statistics Canada NOC 2021 Version 1.0",
+          "_search_blob": "administrative officers access to information and privacy officer administrative officer administrative services coordinator forms management officer office administrator office manager office services coordinator planning officer records analyst access to information surplus assets officer university admissions officer access to information officer administration analyst administration officer administration services coordinator administrative analyst administrative coordinator administrative planning officer administrative services officer administrative support officer administrative technician admissions officer post secondary educational institution band administrator bilingual services coordinator budget analyst business representative club lodge or society business services officer chief invigilator civil emergency measures officer claims officer communications service coordinator crown assets distribution officer documentation and projects analyst exam invigilator post secondary institution exam proctor post secondary institution exam supervisor post secondary institution financial aid officer financial assistance coordinator college or university financial assistance officer freedom of information officer immigrant investors program coordinator implementation officer lease administration supervisor liaison officer management planning officer native band administrator native reserve administrator non technical project manager office automation administrator office automation coordinator office automation technician office coordinator official languages coordinator ombudsman officer operating officer administration operational officer administration operations officer administration organization and productivity project manager organization and productivity project officer parking coordinator preliminary press planner prepress planner publishing privacy officer project administration officer public trustee regional services chief relocation commissioner reserve administrator student aid officer student assistance officer technical assistant office support test administrator testing coordinator testing supervisor communications service coordinator exam invigilator post secondary institution exam supervisor post secondary institution implementation officer liaison officer public trustee regional services chief relocation commissioner progression to administrative service management positions is possible with experience this group performs some or all of the following duties oversee and coordinate office administrative procedures and review evaluate and implement new procedures establish work priorities delegate work to office support staff and ensure deadlines are met and procedures are followed carry out administrative activities associated with admissions to post secondary educational institutions administer policies and procedures related to the release of records in processing requests under government access to information and privacy legislation coordinate and plan for office services such as accommodation relocations equipment supplies forms disposal of assets parking maintenance and security services conduct analyses and oversee administrative operations related to budgeting contracting and project planning and management processes assist in preparation of operating budget and maintain inventory and budgetary controls assemble data and prepare periodic and special reports manuals and correspondence may supervise records management technicians and related staff completion of secondary school is required a university degree or college diploma in business or public administration may be required experience in a senior clerical or executive secretarial position related to office administration is usually required project management certification may be required by some employers",
+          "_search_tokens": [
+            "access",
+            "accommodation",
+            "activity",
+            "administer",
+            "administration",
+            "administrative",
+            "administrator",
+            "admission",
+            "aid",
+            "all",
+            "analys",
+            "analyst",
+            "are",
+            "as",
+            "assemble",
+            "asset",
+            "assist",
+            "assistance",
+            "assistant",
+            "associated",
+            "automation",
+            "band",
+            "be",
+            "bilingual",
+            "budget",
+            "budgetary",
+            "budgeting",
+            "business",
+            "carry",
+            "certification",
+            "chief",
+            "civil",
+            "claim",
+            "clerical",
+            "club",
+            "college",
+            "commissioner",
+            "communication",
+            "completion",
+            "conduct",
+            "contracting",
+            "control",
+            "coordinate",
+            "coordinator",
+            "correspondence",
+            "crown",
+            "data",
+            "deadline",
+            "degree",
+            "delegate",
+            "diploma",
+            "disposal",
+            "distribution",
+            "documentation",
+            "duty",
+            "educational",
+            "emergency",
+            "employer",
+            "ensure",
+            "equipment",
+            "establish",
+            "evaluate",
+            "exam",
+            "executive",
+            "experience",
+            "financial",
+            "followed",
+            "following",
+            "form",
+            "freedom",
+            "government",
+            "group",
+            "immigrant",
+            "implement",
+            "implementation",
+            "information",
+            "institution",
+            "inventory",
+            "investor",
+            "invigilator",
+            "is",
+            "language",
+            "lease",
+            "legislation",
+            "liaison",
+            "lodge",
+            "maintain",
+            "maintenance",
+            "management",
+            "manager",
+            "manual",
+            "may",
+            "measure",
+            "met",
+            "native",
+            "new",
+            "non",
+            "office",
+            "officer",
+            "official",
+            "ombudsman",
+            "operating",
+            "operation",
+            "operational",
+            "organization",
+            "out",
+            "oversee",
+            "parking",
+            "perform",
+            "periodic",
+            "plan",
+            "planner",
+            "planning",
+            "policy",
+            "position",
+            "possible",
+            "post",
+            "preliminary",
+            "preparation",
+            "prepare",
+            "prepress",
+            "press",
+            "priority",
+            "privacy",
+            "procedure",
+            "process",
+            "processing",
+            "proctor",
+            "productivity",
+            "program",
+            "progression",
+            "project",
+            "public",
+            "publishing",
+            "record",
+            "regional",
+            "related",
+            "release",
+            "relocation",
+            "report",
+            "representative",
+            "request",
+            "required",
+            "reserve",
+            "review",
+            "school",
+            "secondary",
+            "secretarial",
+            "security",
+            "senior",
+            "service",
+            "society",
+            "some",
+            "special",
+            "staff",
+            "student",
+            "such",
+            "supervise",
+            "supervisor",
+            "supply",
+            "support",
+            "surplus",
+            "technical",
+            "technician",
+            "test",
+            "testing",
+            "thi",
+            "trustee",
+            "under",
+            "university",
+            "usually",
+            "work"
+          ]
+        },
+        "suggested_match": {
+          "occupation_input": "Administrative officer",
+          "job_description_input": "",
+          "duties_input": [],
+          "suggested_noc": "13100",
+          "suggested_title": "Administrative officers",
+          "teer": 3,
+          "confidence": 0.98,
+          "score": 166.0,
+          "match_quality": "high",
+          "broad_category": "Business, finance and administration occupations",
+          "why_matched": [
+            "Exact core occupation title match.",
+            "Exact example title match.",
+            "Strong title similarity.",
+            "Occupation title appears in NOC profile."
+          ],
+          "alternatives": [],
+          "matches": [
+            {
+              "noc": "13100",
+              "title": "Administrative officers",
+              "teer": 3,
+              "score": 166.0,
+              "confidence": 0.98,
+              "broad_category": "Business, finance and administration occupations",
+              "immigration_category_tags": [
+                "express_entry_skilled_work_teer_0_3"
+              ],
+              "express_entry_skilled_work": true,
+              "why_matched": [
+                "Exact core occupation title match.",
+                "Exact example title match.",
+                "Strong title similarity.",
+                "Occupation title appears in NOC profile."
+              ]
+            }
+          ],
+          "immigration_flags": {
+            "express_entry_skilled_work": true,
+            "category_tags": [
+              "express_entry_skilled_work_teer_0_3"
+            ]
+          },
+          "noc_summary": {
+            "occupation": "Administrative officer",
+            "noc_code": "13100",
+            "noc_title": "Administrative officers",
+            "teer": 3,
+            "confidence": 0.98,
+            "broad_category": "Business, finance and administration occupations",
+            "express_entry_skilled_work": true,
+            "category_tags": [
+              "express_entry_skilled_work_teer_0_3"
+            ]
+          }
+        },
+        "suggested_noc_code": "13100",
+        "suggested_title": "Administrative officers",
+        "suggested_teer": 3,
+        "suggested_confidence": 0.98,
+        "resolved_noc_code": "13100",
+        "resolved_teer": 3,
+        "resolved_title": "Administrative officers",
+        "resolved_is_high_demand": false,
+        "used_suggested_noc": false,
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3"
+        ]
+      },
+      "risk_analysis": [
+        {
+          "risk": "No qualifying job offer",
+          "impact": "You may be relying more heavily on CRS improvements or provincial selection.",
+          "mitigation": "Prioritize employer outreach and province-aligned job targeting."
+        },
+        {
+          "risk": "Limited Canadian profile depth",
+          "impact": "Lack of Canadian work experience may reduce flexibility across pathways.",
+          "mitigation": "Evaluate work, study, or transitional routes that can build Canadian experience."
+        },
+        {
+          "risk": "Occupation targeting not fully validated",
+          "impact": "A weak or missing NOC signal can reduce strategy precision.",
+          "mitigation": "Validate occupation and NOC alignment before relying on category-based assumptions."
+        },
+        {
+          "risk": "Current CRS competitiveness",
+          "impact": "General federal draws may be less realistic without improvements or targeted pathways.",
+          "mitigation": "Focus on score-building actions and province/category fit rather than waiting passively."
+        }
+      ],
+      "profile_snapshot": {
+        "age": 28,
+        "education": "bachelor",
+        "language_score": 9,
+        "english_language_score": 9,
+        "french_language_score": 0,
+        "experience_years": 3,
+        "has_job_offer": false,
+        "has_canadian_experience": false,
+        "studied_in_canada": false,
+        "occupation": "Administrative officer",
+        "job_description": "",
+        "duties": [],
+        "noc_code": "13100",
+        "resolved_noc_code": "13100",
+        "resolved_noc_title": "Administrative officers",
+        "preferred_province": "Ontario"
+      },
+      "completion_signals": {
+        "has_language_score": true,
+        "has_experience_years": true,
+        "has_occupation": true,
+        "has_noc_code": true,
+        "has_detected_noc": true,
+        "has_preferred_province": true
+      },
+      "family_context": {
+        "status": "unknown",
+        "instruction": "Do not infer family facts"
+      },
+      "household_context": {
+        "family_size": 1,
+        "has_spouse": false,
+        "dependent_count": null,
+        "children_count": 0,
+        "participation_counts": {
+          "accompanying": 0,
+          "non_accompanying": 0,
+          "unknown": 0
+        },
+        "calculation_status": "not_applicable",
+        "calculation_notice": null
+      },
+      "family_document_requirements": [],
+      "case_context": {
+        "case_id": null,
+        "application_type": null,
+        "case_title": null,
+        "pathway": null,
+        "target_province": null,
+        "family_size": 1
+      }
+    },
+    {
+      "crs_score": 332,
+      "crs_band": {
+        "label": "À renforcer",
+        "description": "Votre profil actuel a probablement besoin de leviers plus solides avant d’être compétitif pour la résidence permanente."
+      },
+      "strategy_headline": "Votre meilleur levier à court terme peut venir d’une stratégie francophone axée sur Voies francophones et bilingues.",
+      "best_pathway": {
+        "name": "Ontario Provincial Nominee Program",
+        "reasons": [
+          "La préférence provinciale concorde avec ce parcours.",
+          "Le ciblage provincial peut aussi soutenir cette stratégie via Ontario et Sélection ciblée en santé."
+        ],
+        "confidence": "Moyenne",
+        "score": 44
+      },
+      "recommended_programs": [
+        "Voies francophones et bilingues",
+        "Sélections par catégorie liées à la profession",
+        "Ontario Provincial Nominee Program",
+        "Programme des travailleurs qualifiés (fédéral)",
+        "Programme des candidats de la province de Ontario"
+      ],
+      "scored_programs": [
+        {
+          "program": "Ontario Provincial Nominee Program",
+          "score": 44,
+          "reasons": [
+            "La préférence provinciale concorde avec ce parcours."
+          ]
+        },
+        {
+          "program": "Programme des candidats de la province de Ontario",
+          "score": 44,
+          "reasons": [
+            "La préférence provinciale concorde avec ce parcours."
+          ]
+        },
+        {
+          "program": "Voies francophones et bilingues",
+          "score": 34,
+          "reasons": [
+            "Le français améliore la compétitivité pour ce parcours."
+          ]
+        },
+        {
+          "program": "Sélections par catégorie liées à la profession",
+          "score": 24,
+          "reasons": [
+            "La profession se trouve dans une catégorie ciblée ou en forte demande."
+          ]
+        },
+        {
+          "program": "Programme des travailleurs qualifiés (fédéral)",
+          "score": 20,
+          "reasons": [
+            "L’expérience qualifiée et le profil linguistique soutiennent ce parcours."
+          ]
+        }
+      ],
+      "improvement_scenarios": {
+        "current_profile": {
+          "age": 28,
+          "education": "bachelor",
+          "language_score": 9,
+          "experience_years": 3,
+          "has_job_offer": false,
+          "has_canadian_experience": false,
+          "studied_in_canada": false,
+          "occupation": "infirmière autorisée",
+          "noc_code": "",
+          "preferred_province": "Ontario"
+        },
+        "simulated_changes": {
+          "language_score": 9,
+          "experience_years": 4,
+          "has_job_offer": false,
+          "has_canadian_experience": false,
+          "studied_in_canada": false
+        },
+        "crs_comparison": {
+          "current_crs_score": 353,
+          "simulated_crs_score": 368,
+          "difference": 15
+        },
+        "pathway_comparison": {
+          "current_eligible_pathways": [
+            "Express Entry",
+            "Ontario Provincial Nominee Program"
+          ],
+          "simulated_eligible_pathways": [
+            "Express Entry",
+            "Ontario Provincial Nominee Program"
+          ],
+          "newly_unlocked_pathways": []
+        }
+      },
+      "ai_strategy": "",
+      "roadmap": [
+        {
+          "title": "Exploiter les voies d’immigration liées à la profession",
+          "estimated_crs_gain": 0,
+          "priority": 1,
+          "difficulty": "Faible",
+          "reason": "Votre profession pourrait correspondre à des sélections ciblées ou à des catégories prioritaires."
+        },
+        {
+          "title": "Évaluer les possibilités francophones et bilingues",
+          "estimated_crs_gain": 0,
+          "priority": 2,
+          "difficulty": "Faible",
+          "reason": "Les voies francophones peuvent devenir une priorité stratégique pour un profil fort en français."
+        },
+        {
+          "title": "Acquérir 1 année supplémentaire d’expérience de travail qualifié",
+          "estimated_crs_gain": 10,
+          "priority": 4,
+          "difficulty": "Lié au temps",
+          "reason": "Une expérience qualifiée supplémentaire renforce le score CRS et l’admissibilité aux programmes."
+        },
+        {
+          "title": "Obtenir une offre d’emploi valide au Canada",
+          "estimated_crs_gain": 0,
+          "priority": 5,
+          "difficulty": "Difficile",
+          "reason": "Une offre d’emploi peut soutenir certains parcours, mais ne donne plus de points CRS depuis le 25 mars 2025."
+        },
+        {
+          "title": "Acquérir une expérience de travail canadienne",
+          "estimated_crs_gain": 40,
+          "priority": 6,
+          "difficulty": "Moyen",
+          "reason": "L’expérience canadienne améliore à la fois le score CRS et la flexibilité des parcours."
+        },
+        {
+          "title": "Envisager des parcours d’études au Canada",
+          "estimated_crs_gain": 30,
+          "priority": 7,
+          "difficulty": "Long terme",
+          "reason": "Les études au Canada peuvent renforcer le profil et ouvrir des options supplémentaires."
+        },
+        {
+          "title": "Cibler en priorité Ontario et le programme Sélection ciblée en santé",
+          "estimated_crs_gain": 600,
+          "priority": 8,
+          "difficulty": "Impact élevé",
+          "reason": "Les professions de la santé sont activement ciblées."
+        }
+      ],
+      "province_recommendations": [
+        {
+          "province": "Ontario",
+          "program": "Sélection ciblée en santé",
+          "chance": "Élevée",
+          "score": 93,
+          "reason": "Les professions de la santé sont activement ciblées."
+        },
+        {
+          "province": "Alberta",
+          "program": "Volet Entrée express de l’Alberta",
+          "chance": "Élevée",
+          "score": 75,
+          "reason": "L’Alberta favorise souvent les profils avec un score CRS modéré."
+        },
+        {
+          "province": "Saskatchewan",
+          "program": "Volet travailleur qualifié du SINP",
+          "chance": "Moyenne",
+          "score": 70,
+          "reason": "L’admissibilité fondée sur l’expérience correspond bien au SINP."
+        }
+      ],
+      "timeline_estimate": {
+        "readiness": "Needs profile strengthening",
+        "estimated_pr_timeline_min_months": 22,
+        "estimated_pr_timeline_max_months": 44,
+        "timeline_steps": [
+          {
+            "title": "Gain more skilled work experience",
+            "estimated_time_min_months": 6,
+            "estimated_time_max_months": 12,
+            "reason": "Experience gains depend on employment duration and timing."
+          },
+          {
+            "title": "Secure a valid Canadian job offer",
+            "estimated_time_min_months": 3,
+            "estimated_time_max_months": 8,
+            "reason": "Finding an employer and completing the process can take time."
+          },
+          {
+            "title": "Gain Canadian work experience",
+            "estimated_time_min_months": 6,
+            "estimated_time_max_months": 12,
+            "reason": "Canadian experience usually requires time working in Canada."
+          },
+          {
+            "title": "Target Ontario Provincial Nominee Program",
+            "estimated_time_min_months": 4,
+            "estimated_time_max_months": 6,
+            "reason": "PNP processing and nomination timelines vary by province."
+          },
+          {
+            "title": "Improve profile before likely invitation",
+            "estimated_time_min_months": 3,
+            "estimated_time_max_months": 6,
+            "reason": "Additional time may be needed to strengthen competitiveness before invitation."
+          }
+        ]
+      },
+      "timeline_summary": "Délai estimé : environ 22-44 mois (Needs profile strengthening).",
+      "probability_estimate": {
+        "overall_probability": 48,
+        "score": 48,
+        "probability": 48,
+        "chance_of_pr_within_12_months": 48,
+        "chance_via_express_entry": 39,
+        "chance_via_pnp": 56,
+        "confidence": "Faible",
+        "strongest_path": "Programme des candidats des provinces",
+        "strongest_path_reason": "Votre profil semble actuellement plus susceptible de profiter d'un ciblage provincial."
+      },
+      "draw_prediction": {
+        "predicted_draw_type": "Category-based / PNP-supported strategy",
+        "predicted_cutoff_min": 440,
+        "predicted_cutoff_max": 500,
+        "likelihood": "Low",
+        "estimated_time_window": "6+ months",
+        "reason": "Your current CRS may need improvement or provincial support before a draw invitation is likely.",
+        "category_hints": [
+          "A strong language score improves your competitiveness in federal and targeted draws."
+        ],
+        "next_best_move": "Prioritize CRS improvement and provincial nomination targeting before relying on federal draws.",
+        "scenarios": [
+          {
+            "draw_type": "Category-based / PNP-supported strategy",
+            "predicted_cutoff_min": 440,
+            "predicted_cutoff_max": 500,
+            "likelihood": "Low",
+            "estimated_time_window": "6+ months",
+            "reason": "Your current CRS may need improvement or provincial support before a draw invitation is likely."
+          }
+        ],
+        "disclaimer": "This draw predictor is an internal estimate based on profile strength and general competitiveness patterns. It is not an official IRCC forecast."
+      },
+      "immigration_intelligence": null,
+      "strengths": [
+        "Le moteur a détecté automatiquement un CNP probable pour le rôle « Registered nurses and registered psychiatric nurses ».",
+        "La profession déclarée peut ouvrir des voies ciblées liées au CNP et aux sélections par catégorie.",
+        "Le profil peut bénéficier d’une stratégie francophone ou bilingue prioritaire.",
+        "Provincial focus improves options in Ontario",
+        "Strong language score"
+      ],
+      "weaknesses": [
+        "Current CRS score is likely too low for direct Express Entry selection",
+        "More work experience would improve competitiveness",
+        "No job offer currently on file"
+      ],
+      "next_steps": [
+        "Confirmer si le CNP détecté pour « Registered nurses and registered psychiatric nurses » correspond exactement à votre rôle réel.",
+        "Examiner en priorité Ontario via Sélection ciblée en santé.",
+        "Confirmer si le français peut renforcer les options de résidence permanente.",
+        "Valider le code CNP choisi et comparer les voies ciblées selon la profession et la province.",
+        "Gain additional skilled work experience",
+        "Explore Canadian employers and job offer pathways",
+        "Consider gaining Canadian work experience if possible",
+        "Consider study-based pathways if aligned with your goals"
+      ],
+      "advisor_summary": "Based on your profile, your estimated CRS score is 332. Your strongest current options are Ontario Provincial Nominee Program. Key areas to improve include Current CRS score is likely too low for direct Express Entry selection, More work experience would improve competitiveness. Recommended next steps: Gain additional skilled work experience, Explore Canadian employers and job offer pathways, Consider gaining Canadian work experience if possible. Les possibilités francophones devraient être traitées comme une priorité stratégique. Votre profession semble aussi mériter une analyse ciblée des voies par profession et des provinces qui recrutent ce type de profil. Un code CNP probable a aussi été détecté automatiquement pour renforcer la précision de la stratégie.",
+      "french_advantage": {
+        "is_potentially_french_competitive": true,
+        "strategic_value": "high",
+        "signals": [
+          "Le profil est actuellement évalué en français.",
+          "Le profil linguistique fort peut appuyer une stratégie bilingue ou francophone.",
+          "Un très bon score linguistique peut améliorer la compétitivité pour les voies axées sur la langue.",
+          "La préférence pour une destination hors Québec peut renforcer la valeur d’une stratégie francophone, notamment pour Ontario."
+        ],
+        "recommendations": [
+          "Évaluez les possibilités d’immigration francophones et bilingues en parallèle des voies classiques de résidence permanente.",
+          "Si vous pouvez démontrer une bonne maîtrise du français, intégrez les voies francophones dans votre stratégie d’immigration.",
+          "Examinez les programmes provinciaux liés à Ontario et comparez-les avec les autres options de résidence permanente."
+        ]
+      },
+      "noc_advantage": {
+        "has_noc": true,
+        "noc_code": "31301",
+        "entered_noc_code": "",
+        "resolved_title": "Registered nurses and registered psychiatric nurses",
+        "teer": 1,
+        "is_high_demand": true,
+        "strategic_value": "high",
+        "signals": [
+          "La profession semble relever d’un niveau TEER qualifié pouvant soutenir plusieurs voies économiques.",
+          "Le niveau TEER 0 à 2 peut améliorer la compétitivité pour Entrée express et certaines voies ciblées.",
+          "La profession pourrait correspondre à une catégorie prioritaire ou à des sélections ciblées.",
+          "Le moteur a détecté automatiquement un code CNP probable à partir du titre du poste et des responsabilités."
+        ],
+        "recommendations": [
+          "Priorisez les sélections par catégorie et les provinces qui ciblent cette profession.",
+          "Vérifiez le CNP détecté automatiquement pour confirmer qu’il correspond bien à votre rôle réel.",
+          "Comparer les voies ciblées associées à cette profession avec les programmes provinciaux pertinents."
+        ],
+        "used_suggested_noc": true,
+        "suggested_confidence": 0.98,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "healthcare_social_services"
+        ],
+        "express_entry_skilled_work": true,
+        "suggested_match": {
+          "occupation_input": "infirmière autorisée",
+          "job_description_input": "",
+          "duties_input": [],
+          "suggested_noc": "31301",
+          "suggested_title": "Registered nurses and registered psychiatric nurses",
+          "teer": 1,
+          "confidence": 0.98,
+          "score": 184.0,
+          "match_quality": "high",
+          "broad_category": "Health occupations",
+          "why_matched": [
+            "Exact French example title match.",
+            "Strong title similarity.",
+            "Close example title match.",
+            "Close French example title match."
+          ],
+          "alternatives": [],
+          "matches": [
+            {
+              "noc": "31301",
+              "title": "Registered nurses and registered psychiatric nurses",
+              "teer": 1,
+              "score": 184.0,
+              "confidence": 0.98,
+              "broad_category": "Health occupations",
+              "immigration_category_tags": [
+                "express_entry_skilled_work_teer_0_3",
+                "healthcare_social_services"
+              ],
+              "express_entry_skilled_work": true,
+              "why_matched": [
+                "Exact French example title match.",
+                "Strong title similarity.",
+                "Close example title match.",
+                "Close French example title match."
+              ]
+            }
+          ],
+          "immigration_flags": {
+            "express_entry_skilled_work": true,
+            "category_tags": [
+              "express_entry_skilled_work_teer_0_3",
+              "healthcare_social_services"
+            ]
+          },
+          "noc_summary": {
+            "occupation": "infirmière autorisée",
+            "noc_code": "31301",
+            "noc_title": "Registered nurses and registered psychiatric nurses",
+            "teer": 1,
+            "confidence": 0.98,
+            "broad_category": "Health occupations",
+            "express_entry_skilled_work": true,
+            "category_tags": [
+              "express_entry_skilled_work_teer_0_3",
+              "healthcare_social_services"
+            ]
+          }
+        }
+      },
+      "noc_profile": {
+        "entered_noc_code": "",
+        "entered_noc_record": null,
+        "suggested_match": {
+          "occupation_input": "infirmière autorisée",
+          "job_description_input": "",
+          "duties_input": [],
+          "suggested_noc": "31301",
+          "suggested_title": "Registered nurses and registered psychiatric nurses",
+          "teer": 1,
+          "confidence": 0.98,
+          "score": 184.0,
+          "match_quality": "high",
+          "broad_category": "Health occupations",
+          "why_matched": [
+            "Exact French example title match.",
+            "Strong title similarity.",
+            "Close example title match.",
+            "Close French example title match."
+          ],
+          "alternatives": [],
+          "matches": [
+            {
+              "noc": "31301",
+              "title": "Registered nurses and registered psychiatric nurses",
+              "teer": 1,
+              "score": 184.0,
+              "confidence": 0.98,
+              "broad_category": "Health occupations",
+              "immigration_category_tags": [
+                "express_entry_skilled_work_teer_0_3",
+                "healthcare_social_services"
+              ],
+              "express_entry_skilled_work": true,
+              "why_matched": [
+                "Exact French example title match.",
+                "Strong title similarity.",
+                "Close example title match.",
+                "Close French example title match."
+              ]
+            }
+          ],
+          "immigration_flags": {
+            "express_entry_skilled_work": true,
+            "category_tags": [
+              "express_entry_skilled_work_teer_0_3",
+              "healthcare_social_services"
+            ]
+          },
+          "noc_summary": {
+            "occupation": "infirmière autorisée",
+            "noc_code": "31301",
+            "noc_title": "Registered nurses and registered psychiatric nurses",
+            "teer": 1,
+            "confidence": 0.98,
+            "broad_category": "Health occupations",
+            "express_entry_skilled_work": true,
+            "category_tags": [
+              "express_entry_skilled_work_teer_0_3",
+              "healthcare_social_services"
+            ]
+          }
+        },
+        "suggested_noc_code": "31301",
+        "suggested_title": "Registered nurses and registered psychiatric nurses",
+        "suggested_teer": 1,
+        "suggested_confidence": 0.98,
+        "resolved_noc_code": "31301",
+        "resolved_teer": 1,
+        "resolved_title": "Registered nurses and registered psychiatric nurses",
+        "resolved_is_high_demand": true,
+        "used_suggested_noc": true,
+        "express_entry_skilled_work": true,
+        "category_tags": [
+          "express_entry_skilled_work_teer_0_3",
+          "healthcare_social_services"
+        ]
+      },
+      "risk_analysis": [
+        {
+          "risk": "Absence d’offre d’emploi admissible",
+          "impact": "Vous pourriez dépendre davantage des améliorations CRS ou de la sélection provinciale.",
+          "mitigation": "Prioriser la prospection employeur et le ciblage d’emplois alignés avec les provinces."
+        },
+        {
+          "risk": "Profondeur limitée du profil canadien",
+          "impact": "L’absence d’expérience de travail canadienne peut réduire la flexibilité entre les parcours.",
+          "mitigation": "Évaluer les voies de travail, d’études ou de transition pouvant créer de l’expérience canadienne."
+        },
+        {
+          "risk": "Compétitivité CRS actuelle",
+          "impact": "Les rondes fédérales générales peuvent être moins réalistes sans améliorations ou voies ciblées.",
+          "mitigation": "Se concentrer sur les actions d’amélioration du score et l’adéquation province/catégorie plutôt que d’attendre passivement."
+        }
+      ],
+      "profile_snapshot": {
+        "age": 28,
+        "education": "bachelor",
+        "language_score": 9,
+        "english_language_score": 9,
+        "french_language_score": 9,
+        "experience_years": 3,
+        "has_job_offer": false,
+        "has_canadian_experience": false,
+        "studied_in_canada": false,
+        "occupation": "infirmière autorisée",
+        "job_description": "",
+        "duties": [],
+        "noc_code": "",
+        "resolved_noc_code": "31301",
+        "resolved_noc_title": "Registered nurses and registered psychiatric nurses",
+        "preferred_province": "Ontario"
+      },
+      "completion_signals": {
+        "has_language_score": true,
+        "has_experience_years": true,
+        "has_occupation": true,
+        "has_noc_code": false,
+        "has_detected_noc": true,
+        "has_preferred_province": true
+      },
+      "family_context": {
+        "case_id": 1,
+        "application_type": "permanent_residence",
+        "family_size": 3,
+        "members": [
+          {
+            "member_id": 1,
+            "relationship": "self",
+            "participation": "accompanying",
+            "dependency_eligibility": "not_applicable"
+          },
+          {
+            "member_id": 2,
+            "relationship": "spouse",
+            "participation": "accompanying",
+            "dependency_eligibility": "unknown"
+          },
+          {
+            "member_id": 3,
+            "relationship": "child",
+            "participation": "accompanying",
+            "dependency_eligibility": "unknown"
+          }
+        ],
+        "family_calculation_status": "REQUIRES RULE VERIFICATION",
+        "instruction": "Use only these known facts. Unknown is not false. Do not infer dependency eligibility or missing family facts."
+      },
+      "household_context": {
+        "family_size": 3,
+        "has_spouse": true,
+        "dependent_count": null,
+        "children_count": 1,
+        "participation_counts": {
+          "accompanying": 2,
+          "non_accompanying": 0,
+          "unknown": 0
+        },
+        "calculation_status": "REQUIRES RULE VERIFICATION",
+        "calculation_notice": "Estimation individuelle seulement ; le calcul familial nécessite une vérification des règles."
+      },
+      "family_document_requirements": [
+        {
+          "id": "family:1:2:identity_review",
+          "case_id": 1,
+          "member_id": 2,
+          "document_type": "identity_review",
+          "person": "2",
+          "label": "Examen facultatif d’identité — applicabilité non vérifiée",
+          "priority": "review",
+          "required": false,
+          "status": "unknown",
+          "rule_status": "REQUIRES RULE VERIFICATION"
+        },
+        {
+          "id": "family:1:3:identity_review",
+          "case_id": 1,
+          "member_id": 3,
+          "document_type": "identity_review",
+          "person": "3",
+          "label": "Examen facultatif d’identité — applicabilité non vérifiée",
+          "priority": "review",
+          "required": false,
+          "status": "unknown",
+          "rule_status": "REQUIRES RULE VERIFICATION"
+        }
+      ],
+      "case_context": {
+        "case_id": 1,
+        "application_type": "permanent_residence",
+        "case_title": "Synthetic family",
+        "pathway": null,
+        "target_province": "Ontario",
+        "family_size": 3
+      }
+    }
+  ]
+}

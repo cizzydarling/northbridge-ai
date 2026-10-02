@@ -739,10 +739,8 @@ export const exportMyStrategyPdf = (language = getLanguage()) =>
 
 export const downloadStrategyReport = exportMyStrategyPdf;
 
-export const getMyStrategyLite = (language = getLanguage()) =>
-  api.get("/self/strategy", {
-    params: strategyParams(language),
-  });
+// Compatibility alias: Strategy has one endpoint; this is not a fallback request.
+export const getMyStrategyLite = getMyStrategy;
 
 export const getImmigrationIntelligence = (language = getLanguage()) =>
   api.get("/immigration-intelligence/summary", {

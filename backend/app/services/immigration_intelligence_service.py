@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import os
+from app.services.computation_context import reuse, scoped_computation
 import re
 import time
 from datetime import datetime, timezone
@@ -137,6 +138,10 @@ def _fetch_text(url: str) -> str:
 
 
 def _fetch_json(url: str) -> Any:
+    return reuse("public_json", url, lambda: _retrieve_json(url), cache_failure=True)
+
+
+def _retrieve_json(url: str) -> Any:
     response = requests.get(
         url,
         timeout=REQUEST_TIMEOUT_SECONDS,
@@ -563,6 +568,10 @@ def _get_processing_data(language: str) -> Dict[str, Any]:
     non_country_times = _fetch_json(PROCESSING_TIMES_NON_COUNTRY_JSON_URLS[language])
     country_names_payload = _fetch_json(COUNTRY_NAMES_JSON_URLS[language])
     country_names = country_names_payload.get("country-name", {})
+
+    if not all(isinstance(value, dict) and value for value in
+               (country_times, non_country_times, country_names)):
+        raise ValueError("Invalid IRCC processing-time data")
 
     return _cache_set(
         cache_key,
@@ -1012,6 +1021,7 @@ def build_profile_processing_targets(profile: Any, language: str = "en") -> List
     return targets
 
 
+@scoped_computation
 def build_immigration_intelligence(
     *,
     profile: Any = None,

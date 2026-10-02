@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("individual routes ignore stale cases and deferred routes never load", async ({ page, request }) => {
   test.setTimeout(600_000);
@@ -66,4 +66,26 @@ test("individual routes ignore stale cases and deferred routes never load", asyn
   expect(requests.some((url) => url.includes("/self/strategy"))).toBe(true);
   expect(failures).toEqual([]);
   expect(errors).toEqual([]);
+
+  // One explicit refresh must not retry the identical endpoint automatically.
+  await page.unroute("**/self/strategy?**");
+  let failedStrategyRequests = 0;
+  await page.route("**/self/strategy?**", (route) => {
+    failedStrategyRequests += 1;
+    return route.fulfill({ status: 503, json: { detail: "Synthetic strategy failure" } });
+  });
+  await page.goto("/strategy");
+  await expect(page.getByText("Synthetic strategy failure", { exact: true })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  const beforeRefresh = failedStrategyRequests;
+  await page.evaluate(() => window.dispatchEvent(new Event("nbai-strategy-refresh")));
+  await expect.poll(() => failedStrategyRequests).toBe(beforeRefresh + 1);
+  await page.waitForLoadState("networkidle");
+  expect(failedStrategyRequests).toBe(beforeRefresh + 1);
+  // A later explicit retry can recover without changing the existing UI contract.
+  await page.unroute("**/self/strategy?**");
+  await page.route("**/self/strategy?**", (route) => route.fulfill({ json: verifiedStrategy }));
+  await page.evaluate(() => window.dispatchEvent(new Event("nbai-strategy-refresh")));
+  await expect(page.getByText("Synthetic strategy failure", { exact: true })).toHaveCount(0);
+  await expect(page.locator("h1").first()).toBeVisible();
 });

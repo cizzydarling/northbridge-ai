@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 from types import SimpleNamespace
+from app.services.computation_context import reuse, scoped_computation
 from app.services.household_service import context_snapshot
 
 from app.services import province_targeting_service
@@ -607,6 +608,11 @@ def _translate_province_matches(matches: List[Dict], language: str = "en") -> Li
 
 
 def rank_provinces_for_profile(profile, crs_score: int = 0, language: str = "en") -> List[Dict]:
+    return reuse("province", (id(profile), crs_score, language),
+                 lambda: _rank_provinces_for_profile(profile, crs_score, language))
+
+
+def _rank_provinces_for_profile(profile, crs_score: int = 0, language: str = "en") -> List[Dict]:
     language = _normalize_language(language)
     if _get_preferred_province(profile).casefold() in {"quebec", "québec"}:
         return []
@@ -1595,6 +1601,10 @@ def _build_risk_analysis(
 
 
 def _build_profile_snapshot(profile) -> Dict[str, Any]:
+    return reuse("profile_snapshot", id(profile), lambda: _compute_profile_snapshot(profile))
+
+
+def _compute_profile_snapshot(profile) -> Dict[str, Any]:
     noc_profile = _resolve_noc_profile(profile)
 
     return {
@@ -1651,6 +1661,7 @@ def _build_timeline_summary(timeline_estimate: Any, language: str) -> str:
     )
 
 
+@scoped_computation
 def build_strategy(
     profile,
     language: str = "en",

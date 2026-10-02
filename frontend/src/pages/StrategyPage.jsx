@@ -15,7 +15,6 @@ import {
   getCachedBillingAccess,
   getImmigrationIntelligence,
   getMyStrategy,
-  getMyStrategyLite,
   sendAIMessage,
 } from "../api";
 
@@ -2209,32 +2208,27 @@ export default function StrategyPage() {
       setLoading(true);
       setMessage("");
 
-      const [liteRes, accessRes] = await Promise.allSettled([
-        getMyStrategyLite(language),
+      const [strategyRes, accessRes] = await Promise.allSettled([
+        getMyStrategy(language),
         getBillingAccess(),
       ]);
 
       let strategyData = null;
       let accessData = null;
 
-      if (liteRes.status === "fulfilled") {
-        strategyData = liteRes.value?.data || null;
+      if (strategyRes.status === "fulfilled") {
+        strategyData = strategyRes.value?.data || null;
       } else {
-        try {
-          const fallback = await getMyStrategy(language);
-          strategyData = fallback?.data || null;
-        } catch (err) {
-          const status = err?.response?.status;
-
-          if (status !== 404) {
-            console.error(err);
-            setMessage(
-              err?.response?.data?.detail ||
-                (language === "fr"
-                  ? "Impossible de charger la stratégie."
-                  : "Failed to load strategy.")
-            );
-          }
+        const err = strategyRes.reason;
+        const status = err?.response?.status;
+        if (status !== 404) {
+          console.error(err);
+          setMessage(
+            err?.response?.data?.detail ||
+              (language === "fr"
+                ? "Impossible de charger la stratégie."
+                : "Failed to load strategy.")
+          );
         }
       }
 

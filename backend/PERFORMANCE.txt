@@ -1,0 +1,110 @@
+Strategy/NOC performance remediation (base RC 4fa95a3)
+
+Behavior boundary
+-----------------
+Only raw NOC scores are reused. Strategy's 0.84 resolution policy and province
+matching's 0.75 policy remain separate. Scoring weights, stable candidate ordering,
+confidence, explanations, CRS and family rules are unchanged. Language and top_k
+are applied after raw scoring; occupation, description and ordered duties identify
+the raw computation. No user-input result cache survives a computation scope.
+
+ComputationContext is created inside build_strategy, after route authentication,
+ownership and entitlement checks. It is also used for standalone NOC/intelligence
+calls. ContextVar isolation and finally cleanup apply on success and failure.
+Cached values are detached copies. Province and profile-snapshot reuse assumes
+the profile is unchanged during the synchronous Strategy build. No ORM object,
+authorization decision or entitlement is stored in the context.
+
+Startup and memory
+------------------
+FastAPI lifespan prepares English/French dataset features before readiness.
+Initialization errors abort startup. /health/live remains process liveness;
+/health/ready additionally requires successful NOC preparation. Normal ASGI
+servers wait for lifespan startup before accepting requests. Do not disable
+lifespan. Startup must be allowed enough time for CPU-heavy CSV normalization.
+
+Each worker owns its dataset and immutable feature mappings. A lock and atomic
+publication prevent duplicate preparation within a worker. More workers increase
+total memory/startup CPU; this is not shared memory. User input never enters these
+global features. Bundled dataset/scoring version changes require worker restart;
+hot replacement of dataset files or clearing individual loader caches is unsupported.
+No persisted feature cache or cross-user NOC result cache is introduced.
+
+IRCC and AI
+-----------
+Within a computation, each JSON source URL is retrieved once, including failed
+retrievals. Failures remain explicitly unavailable and are discarded with the
+context. Successful processing data retains the existing one-hour TTL. Existing
+draw fallback TTL behavior is preserved. Six-second public HTTP timeouts remain;
+there is no claim that multiple distinct sources share a total wall-clock deadline.
+
+AI narrative delivery remains synchronous. Its SDK request uses timeout=15 seconds
+and max_retries=0; this is an HTTP timeout budget, not a hard end-to-end deadline.
+No provider call was needed to benchmark deterministic computation. Provider failure
+retains the existing fallback and cannot alter deterministic scores. Live provider
+latency remains an additional cost and must be measured separately in staging.
+
+Diagnostics
+-----------
+computation_scope() exposes only counters and durations to tests/development.
+Counters include noc_scan, province, profile_snapshot and public_json. The application
+does not log profile data, keys, duties, tokens or these instrumentation dictionaries.
+
+Set TEST_POSTGRES_ADMIN_URL to an explicitly disposable loopback /postgres database.
+From repository root, run:
+  .venv\Scripts\python.exe backend\performance_benchmark.py
+The benchmark migrates a random synthetic local database, exercises real JWT/ORM
+routes, blocks external socket connections, prints timings/counts, then drops only
+its own database. It never reads DATABASE_URL as its target. Run without competing
+test/build workloads. Startup preparation is timed separately from ready-worker
+Strategy/NOC requests. Windows working-set delta is approximate, not a heap profile.
+
+Regression:
+  .venv\Scripts\python.exe -m pytest backend -q
+Supply the same disposable TEST_POSTGRES_ADMIN_URL to include migration/household
+tests. Golden JSON fixtures were captured from unmodified RC 4fa95a3; do not regenerate
+them to accommodate an optimization. Synthetic tie and threshold-boundary tests
+supplement the English/French, descriptions/duties and individual/family fixtures.
+
+Production-build browser rehearsal (local only, PowerShell):
+  $env:VITE_API_BASE_URL='http://127.0.0.1:8010'
+  npm --prefix frontend run build
+  $env:E2E_FRONTEND_COMMAND='npm run preview -- --host 127.0.0.1 --port 4173'
+  npm --prefix frontend run test:e2e
+Vite embeds its API URL at build time; setting an environment variable only on the
+preview server cannot replace it. The shared Playwright fixture blocks all browser
+requests outside loopback and fails the test if any external origin is attempted.
+
+Verification on 2026-10-02
+-------------------------
+Isolated synthetic PostgreSQL, Administrative officer / 13100 / Ontario, premium
+individual, initialized household, OpenAI disabled and external sockets blocked:
+
+                                      RC diagnostic       Remediated
+First Strategy request                37.780 s            0.329 s (ready worker)
+Warm Strategy request                 22.590 s            0.250 s
+Raw NOC scans per Strategy             11                  1
+Province computations per Strategy    2                   1
+Profile snapshot computations         2                   1
+NOC first request                     15.670 s            0.519 s (ready worker)
+NOC repeated input                    2.049 s             0.167 s
+NOC warm scoring wall / CPU           2.038 / 1.750 s     0.140 / 0.125 s
+Strategy SQL queries                  11                  11
+IRCC attempts: first / warm failure   22 / 21              2 / 1
+
+Startup preparation: 15.208 s, before readiness. Measured working-set growth during
+preparation: 129,622,016 bytes (~123.6 MiB). This includes existing datasets plus new
+features and startup overhead, NOT a measured incremental memory increase over RC.
+Budget memory per worker and measure the actual deployment-sized instance before
+changing worker count. These are local single-request measurements, not production
+latency percentiles; live AI and successful/slow external sources were not measured.
+
+Final verification: 312 backend tests passed (zero skips), including 113 billing,
+19 PostgreSQL/migration and 15 household tests. All 4 production-build browser
+journeys passed, including EN/FR families and explicit Strategy failure/retry.
+Frontend lint and production build passed. No migrations/models/auth guards changed.
+
+Known pre-existing development-only observation: ApplicationCasesPage's duplicate
+React StrictMode loads can overwrite a participation selection during initial load.
+One development browser run exposed this race. That page was not changed; all
+production-build journeys passed. Track the development load race separately.

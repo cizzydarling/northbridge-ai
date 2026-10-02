@@ -6,6 +6,9 @@ import unicodedata
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Set
+from threading import Lock
+from types import MappingProxyType
+from app.services.computation_context import reuse, scoped_computation
 
 
 DATA_FILE = os.path.join(
@@ -759,26 +762,37 @@ def _is_weakly_related(
     return True
 
 
-def _duty_alignment_score(duties: List[str], main_duties: List[str], combined_user_text: str) -> tuple[float, List[str]]:
+def _prepare_duties(duties):
+    normalized = [_normalize_text(item) for item in duties if _normalize_text(item)]
+    return tuple((text, frozenset(_token_set(text))) for text in normalized)
+
+
+def _compact_duty_tokens(prepared):
+    tokens = []
+    for text, _ in prepared[:8]:
+        tokens.extend(_tokenize(text)[:5])
+    return tuple(_deduplicate_preserve_order(tokens))
+
+
+def _duty_alignment_score(duties: List[str], main_duties: List[str], combined_user_text: str,
+                          user_features=None, main_features=None, compact_tokens=None) -> tuple[float, List[str]]:
     if not duties or not main_duties:
         return 0.0, []
 
     score = 0.0
     reasons: List[str] = []
 
-    normalized_user_duties = [_normalize_text(item) for item in duties if _normalize_text(item)]
-    normalized_main_duties = [_normalize_text(item) for item in main_duties if _normalize_text(item)]
+    user_features = _prepare_duties(duties) if user_features is None else user_features
+    main_features = _prepare_duties(main_duties) if main_features is None else main_features
 
     matched_count = 0
 
-    for user_duty in normalized_user_duties:
-        user_tokens = _token_set(user_duty)
+    for _, user_tokens in user_features:
         if not user_tokens:
             continue
 
         best_similarity = 0.0
-        for noc_duty in normalized_main_duties:
-            noc_tokens = _token_set(noc_duty)
+        for _, noc_tokens in main_features:
             if not noc_tokens:
                 continue
 
@@ -799,11 +813,8 @@ def _duty_alignment_score(duties: List[str], main_duties: List[str], combined_us
     if matched_count:
         reasons.append("User responsibilities align with main duties.")
 
-    compact_tokens = []
-    for duty in normalized_main_duties[:8]:
-        compact_tokens.extend(_tokenize(duty)[:5])
-
-    compact_tokens = _deduplicate_preserve_order(compact_tokens)
+    if compact_tokens is None:
+        compact_tokens = _compact_duty_tokens(main_features)
     fragment_hits = sum(1 for token in compact_tokens if token in combined_user_text)
     if fragment_hits:
         score += min(fragment_hits * 1.2, 10)
@@ -812,22 +823,11 @@ def _duty_alignment_score(duties: List[str], main_duties: List[str], combined_us
     return min(score, 26), _deduplicate_preserve_order(reasons)
 
 
-def _score_record(
-    record: Dict[str, Any],
-    *,
-    occupation: str,
-    job_description: str,
-    duties: List[str],
-) -> NocMatch:
-    occupation_norm = _normalize_text(occupation)
-    occupation_core = _strip_seniority_tokens(occupation)
-    occupation_variants = _expand_occupation_variants(occupation)
-    job_description_norm = _normalize_text(job_description)
-    duties_text = _normalize_text(" ".join(duties))
-    combined_user_text = _normalize_text(
-        " ".join([occupation_norm, occupation_core, job_description_norm, duties_text])
-    )
+_PREPARATION_LOCK = Lock()
+_PREPARED_FEATURES = None
 
+
+def _prepare_record(record):
     french_record = load_french_noc_index().get(_extract_numeric_noc(record.get("noc")), {})
     english_blob = record.get("_search_blob")
     if not english_blob:
@@ -855,6 +855,106 @@ def _score_record(
     french_requirements = list(french_record.get("normalized_requirements") or [])
     main_duties = main_duties + french_duties
     keywords = keywords + french_titles + french_requirements
+
+    duty_features = _prepare_duties(main_duties)
+    title_values = [title, title_core, french_title, french_title_core] + french_titles[:25] + french_examples[:50]
+    title_tokens = MappingProxyType({value: frozenset(_token_set(value)) for value in title_values})
+    blob_tokens = frozenset(record.get("_search_tokens") or ()).union(french_record.get("search_tokens") or ())
+    return MappingProxyType({
+        "blob": blob,
+        "title": title,
+        "title_core": title_core,
+        "example_titles": tuple(example_titles),
+        "example_title_cores": tuple(example_title_cores),
+        "keywords": tuple(keywords),
+        "main_duties": tuple(main_duties),
+        "french_title": french_title,
+        "french_title_core": french_title_core,
+        "french_titles": tuple(french_titles),
+        "french_title_cores": tuple(french_title_cores),
+        "french_examples": tuple(french_examples),
+        "french_example_cores": tuple(french_example_cores),
+        "title_tokens": title_tokens,
+        "blob_tokens": blob_tokens,
+        "keyword_phrases": tuple(_normalize_phrase(word) for word in keywords),
+        "duty_features": duty_features,
+        "compact_duty_tokens": _compact_duty_tokens(duty_features),
+    })
+
+
+def prepare_noc_data():
+    """Prepare once per worker before readiness. Deploy/restart invalidates features.
+
+    Only bundled dataset text is retained here; user input is never stored globally.
+    Publish all features atomically so concurrent callers cannot see partial state.
+    """
+    global _PREPARED_FEATURES
+    with _PREPARATION_LOCK:
+        if _PREPARED_FEATURES is None:
+            dataset = load_noc_dataset()
+            if not dataset or not load_french_noc_index():
+                raise RuntimeError("Required NOC datasets are empty or unavailable")
+            _PREPARED_FEATURES = MappingProxyType({id(record): _prepare_record(record) for record in dataset})
+    return _PREPARED_FEATURES
+
+
+def _prepare_query(occupation, job_description, duties):
+    occupation_norm = _normalize_text(occupation)
+    occupation_core = _strip_seniority_tokens(occupation)
+    occupation_variants = _expand_occupation_variants(occupation)
+    job_description_norm = _normalize_text(job_description)
+    duties_text = _normalize_text(" ".join(duties))
+    combined_user_text = _normalize_text(
+        " ".join([occupation_norm, occupation_core, job_description_norm, duties_text])
+    )
+
+    return {"occupation_norm": occupation_norm, "occupation_core": occupation_core,
+            "occupation_variants": occupation_variants, "job_description_norm": job_description_norm,
+            "combined_user_text": combined_user_text,
+            "title_tokens": {value: frozenset(_token_set(value)) for value in
+                             [occupation_norm, occupation_core] + occupation_variants},
+            "occupation_tokens": frozenset(_tokenize(occupation_norm)),
+            "core_tokens": frozenset(_tokenize(occupation_core)),
+            "variant_tokens": frozenset(token for variant in occupation_variants for token in _tokenize(variant)),
+            "jd_tokens": frozenset(_tokenize(job_description_norm)),
+            "duty_features": _prepare_duties(duties)}
+
+
+def _score_record(
+    record: Dict[str, Any],
+    *,
+    occupation: str,
+    job_description: str,
+    duties: List[str],
+    query=None,
+    features=None,
+) -> NocMatch:
+    query = query if query is not None else _prepare_query(occupation, job_description, duties)
+    features = features if features is not None else _prepare_record(record)
+    occupation_norm = query["occupation_norm"]
+    occupation_core = query["occupation_core"]
+    occupation_variants = query["occupation_variants"]
+    job_description_norm = query["job_description_norm"]
+    combined_user_text = query["combined_user_text"]
+    blob = features["blob"]
+    title = features["title"]
+    title_core = features["title_core"]
+    example_titles = features["example_titles"]
+    example_title_cores = features["example_title_cores"]
+    keywords = features["keywords"]
+    main_duties = features["main_duties"]
+    french_title = features["french_title"]
+    french_title_core = features["french_title_core"]
+    french_titles = features["french_titles"]
+    french_title_cores = features["french_title_cores"]
+    french_examples = features["french_examples"]
+    french_example_cores = features["french_example_cores"]
+    def similarity(left, right):
+        left_tokens = query["title_tokens"][left]
+        right_tokens = features["title_tokens"][right]
+        if not left_tokens or not right_tokens:
+            return 0.0
+        return round(len(left_tokens.intersection(right_tokens)) / len(left_tokens.union(right_tokens)), 4)
 
     score = 0.0
     why: List[str] = []
@@ -894,12 +994,12 @@ def _score_record(
         why.append("Exact French core example title match.")
 
     best_title_similarity = max(
-        [_title_similarity(occupation_norm, title), _title_similarity(occupation_core, title_core)] +
-        [_title_similarity(occupation_norm, french_title), _title_similarity(occupation_core, french_title_core)] +
-        [_title_similarity(variant, title) for variant in occupation_variants] +
-        [_title_similarity(variant, french_title) for variant in occupation_variants] +
-        [_title_similarity(occupation_norm, item) for item in french_titles[:25]] +
-        [_title_similarity(occupation_norm, item) for item in french_examples[:50]],
+        [similarity(occupation_norm, title), similarity(occupation_core, title_core)] +
+        [similarity(occupation_norm, french_title), similarity(occupation_core, french_title_core)] +
+        [similarity(variant, title) for variant in occupation_variants] +
+        [similarity(variant, french_title) for variant in occupation_variants] +
+        [similarity(occupation_norm, item) for item in french_titles[:25]] +
+        [similarity(occupation_norm, item) for item in french_examples[:50]],
         default=0.0,
     )
 
@@ -941,15 +1041,10 @@ def _score_record(
             why.append("Related occupation wording appears in NOC profile.")
             break
 
-    occupation_tokens = set(_tokenize(occupation_norm))
-    core_tokens = set(_tokenize(occupation_core))
-    variant_tokens = set()
-    for variant in occupation_variants:
-        variant_tokens.update(_tokenize(variant))
-
-    blob_tokens = set(record.get("_search_tokens") or set()).union(
-        french_record.get("search_tokens") or set()
-    )
+    occupation_tokens = query["occupation_tokens"]
+    core_tokens = query["core_tokens"]
+    variant_tokens = query["variant_tokens"]
+    blob_tokens = features["blob_tokens"]
     overlap = occupation_tokens.intersection(blob_tokens)
     core_overlap = core_tokens.intersection(blob_tokens)
     variant_overlap = variant_tokens.intersection(blob_tokens)
@@ -968,8 +1063,8 @@ def _score_record(
         why.append(f"Related keywords overlap: {', '.join(sorted(variant_overlap)[:5])}.")
 
     keyword_hits = 0
-    for keyword in keywords:
-        if keyword and _contains_phrase(combined_user_text, keyword):
+    for keyword, phrase in zip(keywords, features["keyword_phrases"]):
+        if keyword and combined_user_text and phrase and phrase in combined_user_text:
             keyword_hits += 1
 
     if keyword_hits:
@@ -980,12 +1075,15 @@ def _score_record(
         duties=duties,
         main_duties=main_duties,
         combined_user_text=combined_user_text,
+        user_features=query["duty_features"],
+        main_features=features["duty_features"],
+        compact_tokens=features["compact_duty_tokens"],
     )
     score += duty_score
     why.extend(duty_reasons)
 
     if job_description_norm:
-        jd_tokens = set(_tokenize(job_description_norm))
+        jd_tokens = query["jd_tokens"]
         jd_overlap = jd_tokens.intersection(blob_tokens)
         if jd_overlap:
             score += min(len(jd_overlap) * 1.7, 14)
@@ -1065,6 +1163,16 @@ def _build_noc_summary(best: Optional[NocMatch], occupation: str) -> Dict[str, A
     }
 
 
+def _raw_noc_scores(occupation, job_description, duties):
+    features = prepare_noc_data()
+    query = _prepare_query(occupation, job_description, duties)
+    matches = [_score_record(record, occupation=occupation, job_description=job_description,
+                             duties=duties, query=query, features=features[id(record)])
+               for record in load_noc_dataset()]
+    return sorted(matches, key=lambda item: (item.score, item.confidence), reverse=True)
+
+
+@scoped_computation
 def suggest_noc_matches(
     *,
     occupation: str,
@@ -1078,23 +1186,8 @@ def suggest_noc_matches(
     job_description = str(job_description or "").strip()
     top_k = max(1, min(int(top_k or 3), 10))
 
-    dataset = load_noc_dataset()
-
-    matches = [
-        _score_record(
-            record,
-            occupation=occupation,
-            job_description=job_description,
-            duties=duties,
-        )
-        for record in dataset
-    ]
-
-    ranked = sorted(
-        matches,
-        key=lambda x: (x.score, x.confidence),
-        reverse=True,
-    )
+    ranked = reuse("noc_scan", (occupation, job_description, tuple(duties)),
+                   lambda: _raw_noc_scores(occupation, job_description, duties))
 
     if not ranked:
         empty_summary = _build_noc_summary(None, occupation)

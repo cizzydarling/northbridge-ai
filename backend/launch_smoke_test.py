@@ -298,14 +298,14 @@ def main() -> None:
     from app.main import app as production_app
     from app.main import validate_runtime_configuration
 
-    health_client = TestClient(production_app)
-    live_response = health_client.get("/health/live")
-    assert live_response.status_code == 200, live_response.text
-    assert live_response.headers.get("x-request-id")
-    with patch("app.main.engine", ownership_engine):
-        ready_response = health_client.get("/health/ready")
-    assert ready_response.status_code == 200, ready_response.text
-    assert ready_response.json()["status"] == "ready"
+    with TestClient(production_app) as health_client:
+        live_response = health_client.get("/health/live")
+        assert live_response.status_code == 200, live_response.text
+        assert live_response.headers.get("x-request-id")
+        with patch("app.main.engine", ownership_engine):
+            ready_response = health_client.get("/health/ready")
+        assert ready_response.status_code == 200, ready_response.text
+        assert ready_response.json()["status"] == "ready"
 
     with patch.dict(os.environ, production_settings, clear=False):
         os.environ.pop("REDIS_URL", None)

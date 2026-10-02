@@ -1161,6 +1161,8 @@ def generate_ai_strategy(
         return _fallback_strategy_response(language)
 
     try:
+        # Bound optional narrative latency; deterministic calculations have already completed.
+        openai_client = openai_client.with_options(timeout=15.0, max_retries=0)
         messages: List[Dict[str, str]] = [
             {"role": "system", "content": _build_strategy_system_prompt(language)},
             {
