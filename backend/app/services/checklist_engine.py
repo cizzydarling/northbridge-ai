@@ -122,6 +122,7 @@ def build_spousal_sponsorship_checklist(intake=None, language="en"):
 
 
 def build_checklist(matter_type, intake=None, language="en"):
+    return []  # No personalized mandatory checklist is verified for soft launch.
     language = normalize_language(language)
 
     if matter_type == "study_permit":

@@ -162,7 +162,7 @@ def _build_primary_recommendation(
     )
 
 
-def build_user_decision_context(
+def _build_unverified_decision_context(
     *,
     strategy: dict[str, Any] | None = None,
     eligibility: dict[str, Any] | None = None,
@@ -265,3 +265,7 @@ def build_user_decision_context(
         "missing_fields_count": missing_fields_count,
         "remaining_required_documents": remaining_required_documents,
     }
+
+def build_user_decision_context(*, strategy=None, eligibility=None, forms_assistant=None, checklist=None, language="en"):
+    from app.services.content_scope import planning_result
+    return planning_result(language)

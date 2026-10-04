@@ -27,7 +27,8 @@ def test_strategy_context_auth_entitlements_and_ownership_are_fresh(api, monkeyp
     assert other.status_code == 200
     a, b = first.json(), other.json()
     assert a["case_context"]["case_id"] != b["case_context"]["case_id"]
-    assert a["noc_profile"] != b["noc_profile"]
+    assert "noc_profile" not in a and "noc_profile" not in b  # no inferred NOC strategy
+    assert a["family_context"]["members"] != b["family_context"]["members"]
     foreign_case = b["case_context"]["case_id"]
     assert client.get(f"/self/strategy?case_id={foreign_case}", headers=headers(1)).status_code == 404
     assert a["access"]["is_pro"] is False

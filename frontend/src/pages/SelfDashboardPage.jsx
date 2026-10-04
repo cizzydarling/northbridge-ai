@@ -1,3 +1,4 @@
+import OfficialCrsHandoff from "../components/OfficialCrsHandoff";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -604,9 +605,9 @@ export default function SelfDashboardPage() {
             </div>
             <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4">
               <Eyebrow tone="light">
-                {language === "fr" ? "Score CRS actuel" : "Current CRS score"}
+                {language === "fr" ? "Outil CRS officiel" : "Official CRS tool"}
               </Eyebrow>
-              <p className="mt-3 text-3xl font-semibold">{crsScore}</p>
+              <div className="mt-3"><OfficialCrsHandoff /></div>
             </div>
             <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4">
               <Eyebrow tone="light">

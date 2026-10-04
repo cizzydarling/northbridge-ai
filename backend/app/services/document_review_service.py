@@ -1,3 +1,4 @@
+from app.services.content_scope import AI_SCOPE
 from typing import Any, Optional
 
 from app.services.ai_advisor import get_openai_client
@@ -88,6 +89,8 @@ User profile:
 
 
 def build_strategy_context(strategy: Optional[dict], decision: Optional[dict], language: str) -> str:
+    from app.services.content_scope import context_text
+    return context_text(strategy)
     language = normalize_language(language)
     strategy = strategy or {}
     decision = decision or {}
@@ -212,7 +215,7 @@ def _trim_list(items: list[str], max_items: int) -> list[str]:
     return cleaned
 
 
-def review_document_with_ai(
+def _unfiltered_review_document_with_ai(
     *,
     document_type: str,
     content: str,
@@ -322,7 +325,7 @@ Instructions:
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": system_prompt + "\n" + AI_SCOPE},
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.2,
@@ -360,3 +363,7 @@ Instructions:
         }
     except Exception:
         return fallback
+
+def review_document_with_ai(*args, **kwargs):
+    from app.services.content_scope import guard_generated_text
+    return guard_generated_text(_unfiltered_review_document_with_ai(*args, **kwargs), kwargs.get("language", "en"))

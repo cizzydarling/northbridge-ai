@@ -46,19 +46,11 @@ def get_immigration_intelligence_summary(
             },
         }
 
-    profile = get_profile_for_user(db, current_user.id)
-    crs_score = calculate_crs(profile) if profile else 0
-    province_recommendations = (
-        rank_provinces_for_profile(profile, crs_score, language=language)
-        if profile
-        else []
-    )
-
     return {
         **build_immigration_intelligence(
-            profile=profile,
-            crs_score=crs_score,
-            province_recommendations=province_recommendations,
+
+
+
             language=language,
             include_live=True,
         ),

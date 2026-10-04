@@ -1,3 +1,4 @@
+from app.services.content_scope import AI_SCOPE
 from typing import Any, Dict, Optional
 
 from app.services.ai_advisor import get_openai_client
@@ -133,6 +134,8 @@ User profile:
 
 
 def build_application_context(application: Optional[dict], language: str) -> str:
+    from app.services.content_scope import application_context_text
+    return application_context_text(application)
     language = normalize_language(language)
     application = application or {}
 
@@ -159,6 +162,8 @@ def build_decision_context(
     strategy: Optional[dict],
     language: str,
 ) -> str:
+    from app.services.content_scope import context_text
+    return context_text(strategy)
     language = normalize_language(language)
     decision = decision or {}
     strategy = strategy or {}
@@ -264,7 +269,7 @@ Sincerely,
         "disclaimer": disclaimer,
     }
 
-def generate_document_draft(
+def _unfiltered_generate_document_draft(
     *,
     document_type: str,
     language: str,
@@ -306,13 +311,13 @@ def generate_document_draft(
     if noc:
         if language == "fr":
             noc_block = f"""
-Aligner subtilement le contenu avec la CNP {noc}.
+CNP déclarée {noc} : suggestion à vérifier selon les fonctions réelles; ne pas adapter les faits pour correspondre à la CNP.
 Mettre en valeur les responsabilités, compétences et logique de parcours liées à cette CNP lorsque pertinent.
 Ne jamais inventer de faits.
 """.strip()
         else:
             noc_block = f"""
-Subtly align the content with NOC {noc}.
+User-entered NOC {noc}: suggested classification requiring duties review; never tailor facts to fit the NOC.
 Emphasize responsibilities, skills, and career logic tied to this NOC where relevant.
 Never invent facts.
 """.strip()
@@ -502,7 +507,7 @@ Write like a strong real applicant.
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": system_prompt + "\n" + AI_SCOPE},
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.5,
@@ -541,3 +546,10 @@ Write like a strong real applicant.
         }
     except Exception:
         return fallback
+
+def generate_document_draft(*args, **kwargs):
+    if kwargs.get("mode") in {"confidence", "officer_ready"}:
+        from fastapi import HTTPException
+        raise HTTPException(410, "Predictive confidence and filing-readiness assessments are unavailable.")
+    from app.services.content_scope import guard_generated_text
+    return guard_generated_text(_unfiltered_generate_document_draft(*args, **kwargs), kwargs.get("language", "en"))

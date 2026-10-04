@@ -1,3 +1,4 @@
+import PreparationNotice from "../components/PreparationNotice";
 import useBillingAccess from "../hooks/useBillingAccess";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -1784,9 +1785,9 @@ export default function DocumentGeneratorPage() {
         reviewPromptTitle: "Débloquez la révision complète",
         reviewPromptBody:
           "Passez à Pro pour obtenir la révision IA complète de vos brouillons.",
-        finalPremiumTitle: "Votre document est prêt à être finalisé",
+        finalPremiumTitle: "Votre brouillon est disponible pour révision",
         finalPremiumBody:
-          "Passez à Premium pour exporter un PDF propre et prêt à être soumis.",
+          "Passez à Premium pour exporter un PDF de brouillon à vérifier.",
         continueToReview: "Continuer vers la révision IA",
         unlockReview: "Débloquer la révision IA",
         improveBeforeExport: "Améliorer avant export",
@@ -1796,9 +1797,9 @@ export default function DocumentGeneratorPage() {
         generatingExplanation: "Analyse...",
         officerReady: "Le rendre officer-ready",
         officerReadying: "Renforcement...",
-        nocTailoringTitle: "Moteur d’adaptation CNP",
+        nocTailoringTitle: "Suggestion CNP à vérifier",
         nocTailoringBody:
-          "Le contenu sera orienté vers les responsabilités, compétences et la logique de parcours liées à votre CNP quand cela est pertinent.",
+          "Vérifiez la suggestion CNP par rapport à vos fonctions réelles. Le brouillon doit refléter uniquement vos faits.",
         officerPromptTitle: "Débloquez la version officer-ready",
         officerPromptBody:
           "Passez à Pro pour réécrire automatiquement votre document dans une version plus claire, plus structurée et plus persuasive.",
@@ -1884,9 +1885,9 @@ export default function DocumentGeneratorPage() {
       reviewPromptTitle: "Unlock full review",
       reviewPromptBody:
         "Upgrade to Pro to get full AI review for your drafts.",
-      finalPremiumTitle: "Your document is ready to finalize",
+      finalPremiumTitle: "Your draft is available for review",
       finalPremiumBody:
-        "Upgrade to Premium to export a clean, submission-ready PDF.",
+        "Upgrade to Premium to export a clean, draft PDF for review.",
       continueToReview: "Continue to AI Review",
       unlockReview: "Unlock AI Review",
       improveBeforeExport: "Improve before export",
@@ -1896,9 +1897,9 @@ export default function DocumentGeneratorPage() {
       generatingExplanation: "Analyzing...",
       officerReady: "Make it officer-ready",
       officerReadying: "Upgrading...",
-      nocTailoringTitle: "NOC tailoring engine",
+      nocTailoringTitle: "NOC suggestion for review",
       nocTailoringBody:
-        "The draft will be steered toward responsibilities, skills, and case logic that align with your NOC where relevant.",
+        "Verify the NOC suggestion against your actual duties. Drafts must reflect only your facts.",
       officerPromptTitle: "Unlock officer-ready rewriting",
       officerPromptBody:
         "Upgrade to Pro to automatically rewrite your document into a clearer, stronger, more persuasive version.",
@@ -1922,6 +1923,7 @@ export default function DocumentGeneratorPage() {
 
   return (
     <Layout>
+      <PreparationNotice />
       {message && (
         <div className="mb-6 rounded-[24px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           {message}
@@ -2470,15 +2472,7 @@ export default function DocumentGeneratorPage() {
                     {explaining ? pageText.generatingExplanation : pageText.whyThisWorks}
                   </Button>
 
-                  <Button
-                    variant="secondary"
-                    onClick={handleScoreConfidence}
-                    disabled={scoringConfidence}
-                  >
-                    {scoringConfidence
-                      ? pageText.confidenceScoring
-                      : pageText.confidenceScore}
-                  </Button>
+
 
                   <Button
                     variant="secondary"
@@ -2488,15 +2482,7 @@ export default function DocumentGeneratorPage() {
                     {fixingAll ? pageText.fixingAll : pageText.fixAll}
                   </Button>
 
-                  <Button
-                    variant="secondary"
-                    onClick={handleMakeOfficerReady}
-                    disabled={officerReadyLoading}
-                  >
-                    {officerReadyLoading
-                      ? pageText.officerReadying
-                      : pageText.officerReady}
-                  </Button>
+
                 </div>
 
                 {!hasAdvancedCopilot && (

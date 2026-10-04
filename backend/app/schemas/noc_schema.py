@@ -18,8 +18,8 @@ class NocAlternative(BaseModel):
     score: Optional[float] = None
     confidence: float
     broad_category: str
-    immigration_category_tags: List[str]
-    express_entry_skilled_work: bool
+    immigration_category_tags: List[str] = Field(exclude=True)
+    express_entry_skilled_work: bool = Field(exclude=True)
     why_matched: Optional[List[str]] = []
 
 
@@ -30,8 +30,8 @@ class NocSummary(BaseModel):
     teer: Optional[int]
     confidence: float
     broad_category: str
-    express_entry_skilled_work: bool
-    category_tags: List[str]
+    express_entry_skilled_work: bool = Field(exclude=True)
+    category_tags: List[str] = Field(exclude=True)
 
 
 class NocSuggestResponse(BaseModel):
@@ -51,7 +51,8 @@ class NocSuggestResponse(BaseModel):
     alternatives: List[NocAlternative]
     matches: List[NocAlternative]
 
-    immigration_flags: Dict[str, Any]
+    immigration_flags: Dict[str, Any] = Field(exclude=True)
+    classification_status: str = "suggested_match_requires_duties_review"
 
     # 🔥 NEW — used across strategy + frontend
     noc_summary: Optional[NocSummary] = None

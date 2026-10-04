@@ -85,6 +85,9 @@ def _build_profile_snapshot(profile: Optional[Profile]) -> Dict[str, Any]:
 
 
 def _build_application_snapshot(application: Optional[SelfApplication]) -> Dict[str, Any]:
+    from app.services.forms_mapping_service import normalize_application_data
+    return {"matter_type": getattr(application, "matter_type", None),
+            "intake_payload": normalize_application_data(getattr(application, "intake_payload", None))}
     if not application:
         return {}
 

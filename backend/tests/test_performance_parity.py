@@ -16,7 +16,7 @@ def test_noc_rc_parity(index):
 def test_strategy_rc_parity(index, monkeypatch):
     monkeypatch.setattr(strategy_service, "generate_ai_strategy", lambda **kwargs: {})
     profile, language, members, case = strategy_case(index)
-    actual = strategy_service.build_strategy(profile, language, members, case)
+    actual = strategy_service._build_unverified_strategy(profile, language, members, case)
     expected = json.loads(GOLDEN.read_text(encoding="utf-8"))
     assert actual.pop("ai_status") == "unavailable"
     assert actual.pop("ai_strategy") is None

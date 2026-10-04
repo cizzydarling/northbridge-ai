@@ -94,7 +94,7 @@ def _build_forms_package_pdf(package: Dict[str, Any], lang: str) -> bytes:
 
     meta_rows = [
         [
-            "Complétude" if lang == "fr" else "Completeness",
+            "Progression de la collecte NorthBridgeAI" if lang == "fr" else "NorthBridgeAI intake progress",
             f"{summary.get('completeness_score', 0)}%",
         ],
         [
@@ -120,9 +120,9 @@ def _build_forms_package_pdf(package: Dict[str, Any], lang: str) -> bytes:
 
     story.append(
         Paragraph(
-            "Formulaires requis et conditionnels"
+            "Formulaires suggérés — applicabilité à vérifier"
             if lang == "fr"
-            else "Required and conditional forms",
+            else "Suggested forms — verify applicability",
             styles["Heading2"],
         )
     )
@@ -138,9 +138,9 @@ def _build_forms_package_pdf(package: Dict[str, Any], lang: str) -> bytes:
         ]]
         for form in forms:
             status = (
-                "Prêt" if lang == "fr" else "Ready"
+                "Brouillon à vérifier" if lang == "fr" else "Draft information collected"
             ) if form.get("ready") else (
-                "À compléter" if lang == "fr" else "Needs completion"
+                "Collecte à vérifier" if lang == "fr" else "Draft intake to review"
             )
             missing = ", ".join(form.get("missing_fields") or []) or "-"
             rows.append([

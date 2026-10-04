@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, field_serializer
 
 
 # -----------------------------
@@ -14,6 +14,14 @@ class SelfApplicationBase(BaseModel):
     eligibility_result: Dict[str, Any] = {}
     forms_result: Dict[str, Any] = {}
     checklist_result: List[Dict[str, Any]] = []
+
+    @field_serializer("eligibility_result", "forms_result")
+    def suppress_historical_analysis(self, value):
+        return {}
+
+    @field_serializer("checklist_result")
+    def suppress_historical_checklist(self, value):
+        return []
 
     @field_validator("intake_payload", "eligibility_result", "forms_result", mode="before")
     @classmethod

@@ -227,9 +227,10 @@ def test_real_strategy_preserves_formula_and_labels_family_limit(monkeypatch):
     case=SimpleNamespace(id=1,application_type="permanent_residence",family_size=2)
     single=strategy.build_strategy(profile,household_members=[owner],application_case=case,include_immigration_intelligence=False)
     family=strategy.build_strategy(profile,household_members=[owner,child],application_case=case,include_immigration_intelligence=False)
-    assert single["crs_score"]==family["crs_score"]
-    assert family["household_context"]["calculation_status"]=="REQUIRES RULE VERIFICATION"
-    assert sent[-1]["strategy_data"]["family_context"]["members"][1]["participation"]=="unknown"
+    assert "crs_score" not in single and "crs_score" not in family
+    assert family["family_context"]["family_calculation_status"]=="REQUIRES RULE VERIFICATION"
+    assert sent == []
+    assert family["family_context"]["members"][1]["participation"] == "unknown"
     assert "family_calculation_status" in _extract_strategy_context(family,"en")
     assert "unknown" in _extract_application_context({"family_context":family["family_context"]},"fr")
 

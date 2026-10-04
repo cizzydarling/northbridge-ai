@@ -99,8 +99,8 @@ export default function LandingPage() {
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
               {isFrench
-                ? "Analysez votre admissibilité, construisez une stratégie personnalisée, préparez vos documents et avancez avec une expérience moderne, structurée et guidée."
-                : "Analyze your eligibility, build a personalized strategy, prepare your documents, and move forward with a modern, structured, guided experience."}
+                ? "Organisez votre profil et votre ménage, consultez les sources officielles et préparez vos brouillons dans un espace structuré."
+                : "Organize your profile and household, explore official information, and prepare document drafts in a structured workspace."}
             </p>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
@@ -189,8 +189,8 @@ export default function LandingPage() {
             title={isFrench ? "Analyse intelligente" : "Smart analysis"}
             desc={
               isFrench
-                ? "Comprenez vos chances, vos écarts et les éléments qui influencent le plus votre dossier."
-                : "Understand your chances, your gaps, and the factors that matter most in your case."
+                ? "Organisez vos renseignements et consultez les critères officiels."
+                : "Organize your information and review official criteria."
             }
           />
           <FeatureCard
@@ -250,18 +250,18 @@ export default function LandingPage() {
             }
             body={
               isFrench
-                ? "Que vous exploriez vos chances ou que vous soyez prêt à préparer un dossier plus complet, la plateforme s’adapte à votre étape."
-                : "Whether you are exploring your chances or ready to prepare a fuller case, the platform adapts to your stage."
+                ? "Explorez les sources officielles et préparez les renseignements de votre dossier à votre rythme."
+                : "Explore official sources and prepare your case information at your own pace."
             }
             items={
               isFrench
                 ? [
-                    "Explorer votre admissibilité",
+                    "Consulter les critères officiels",
                     "Construire une stratégie personnalisée",
                     "Passer à l’exécution avec les bons documents",
                   ]
                 : [
-                    "Explore your eligibility",
+                    "Explore official criteria",
                     "Build a personalized strategy",
                     "Move into execution with the right documents",
                   ]

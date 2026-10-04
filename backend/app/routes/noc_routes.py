@@ -49,4 +49,5 @@ def get_noc_details(
     if not result:
         raise HTTPException(status_code=404, detail="NOC code not found.")
 
-    return result
+    return {key: value for key, value in result.items()
+            if key not in {"immigration_category_tags", "express_entry_skilled_work", "category_tags", "immigration_flags"}}

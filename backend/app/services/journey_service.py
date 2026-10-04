@@ -69,6 +69,7 @@ def get_user_journey(
     current_user: User,
     language: str = "en",
 ) -> Dict[str, Any]:
+    return {"language": language, "current_stage": "Organisation" if language == "fr" else "Organization", "next_best_action": "Vérifier vos renseignements" if language == "fr" else "Review your information", "recommended_route": "/profile"}
     language = _normalize_language(language)
 
     profile: Optional[Profile] = (

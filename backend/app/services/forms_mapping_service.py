@@ -21,7 +21,9 @@ def _safe_int(value: Any) -> int | None:
 
 
 def _bool_label(value: Any, language: str) -> str:
-    truthy = bool(value)
+    if value is None or str(value).strip().lower() in {"", "unknown"}:
+        return "Inconnu" if language == "fr" else "Unknown"
+    truthy = value is True or str(value).strip().lower() in {"true", "yes", "1"}
     if language == "fr":
         return "Oui" if truthy else "Non"
     return "Yes" if truthy else "No"

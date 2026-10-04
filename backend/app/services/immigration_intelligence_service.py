@@ -1022,7 +1022,7 @@ def build_profile_processing_targets(profile: Any, language: str = "en") -> List
 
 
 @scoped_computation
-def build_immigration_intelligence(
+def _build_unverified_immigration_intelligence(
     *,
     profile: Any = None,
     crs_score: Optional[int] = None,
@@ -1123,6 +1123,11 @@ def build_immigration_intelligence(
 
 
 def build_locked_immigration_intelligence_preview(language: str = "en") -> Dict[str, Any]:
+    from app.services.content_scope import notice, SCOPE
+    return {"content_scope": SCOPE, "locked": True, "premium_feature": True,
+            "required_plan": "premium", "source_url": EXPRESS_ENTRY_ROUNDS_URL,
+            "upgrade_title": _t("Official information", "Information officielle", language),
+            "upgrade_reason": notice(language), "teaser_cards": []}
     language = _normalize_language(language)
     return {
         "locked": True,
@@ -1166,3 +1171,13 @@ def build_locked_immigration_intelligence_preview(language: str = "en") -> Dict[
             },
         ],
     }
+
+
+def build_immigration_intelligence(*, profile=None, crs_score=None, province_recommendations=None, language="en", include_live=True):
+    from app.services.content_scope import notice, SCOPE
+    return {"content_scope": SCOPE, "locked": False, "generated_at": _now_iso(),
+            "latest_draws": get_latest_ircc_draws(language=language) if include_live else {},
+            "processing_times": get_processing_time_catalog(language),
+            "disclaimer": notice(language),
+            "sources": [{"label": "IRCC", "url": EXPRESS_ENTRY_ROUNDS_URL},
+                        {"label": "PNP / PCP", "url": PNP_URL}]}

@@ -466,6 +466,8 @@ def build_forms_assistant(
     intake: dict[str, Any] | None = None,
     language: str = "en",
 ) -> dict[str, Any]:
+    from app.services.content_scope import notice
+    return {"summary": notice(language), "recommended_forms": [], "missing_fields": [], "preparation_notes": []}
     language = normalize_language(language)
 
     if matter_type == "study_permit":

@@ -245,6 +245,8 @@ def generate_document(
     is_premium = has_individual_pro(current_user)
 
     mode = getattr(payload, "mode", "generate")
+    if mode in {"confidence", "officer_ready"}:
+        raise HTTPException(410, "Predictive confidence and filing-readiness assessments are unavailable.")
 
     profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
     if not profile:

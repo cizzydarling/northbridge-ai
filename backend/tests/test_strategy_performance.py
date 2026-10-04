@@ -13,7 +13,7 @@ from app.services.computation_context import computation_scope
 def test_one_scan_one_province_one_snapshot(monkeypatch):
     monkeypatch.setattr(strategy, "generate_ai_strategy", lambda **kwargs: {})
     with computation_scope() as stats:
-        strategy.build_strategy(*strategy_case(0))
+        strategy._build_unverified_strategy(*strategy_case(0))
     assert stats.counts["noc_scan"] == 1
     assert stats.counts["province"] == 1
     assert stats.counts["profile_snapshot"] == 1
@@ -87,9 +87,9 @@ def test_successful_public_data_retains_ttl(monkeypatch):
 
 def test_ai_failure_leaves_deterministic_strategy_unchanged(monkeypatch):
     monkeypatch.setattr(strategy, "generate_ai_strategy", lambda **kw: {})
-    expected = strategy.build_strategy(*strategy_case(0))
+    expected = strategy._build_unverified_strategy(*strategy_case(0))
     monkeypatch.setattr(strategy, "generate_ai_strategy", Mock(side_effect=TimeoutError("synthetic")))
-    actual = strategy.build_strategy(*strategy_case(0))
+    actual = strategy._build_unverified_strategy(*strategy_case(0))
     expected.pop("ai_strategy")
     actual.pop("ai_strategy")
     assert actual == expected
@@ -134,7 +134,7 @@ def test_ai_cannot_mutate_response_snapshot(monkeypatch):
         kwargs["strategy_data"]["profile_snapshot"]["occupation"] = "mutated"
         return {}
     monkeypatch.setattr(strategy, "generate_ai_strategy", mutate)
-    result = strategy.build_strategy(*strategy_case(0))
+    result = strategy._build_unverified_strategy(*strategy_case(0))
     assert result["profile_snapshot"]["occupation"] == "Administrative officer"
 
 

@@ -12,7 +12,7 @@ from app.services import ai_advisor, strategy_service
 @pytest.mark.parametrize('mode', ['success','timeout','error','malformed','missing','partial'])
 def test_ai_state_and_deterministic_parity(monkeypatch, mode):
     monkeypatch.setattr(ai_advisor, '_get_openai_client', lambda: None)
-    expected = strategy_service.build_strategy(*strategy_case(0))
+    expected = strategy_service._build_unverified_strategy(*strategy_case(0))
     client = Mock()
     completion = client.with_options.return_value.chat.completions.create
     if mode in {'timeout','error'}:
@@ -21,7 +21,7 @@ def test_ai_state_and_deterministic_parity(monkeypatch, mode):
         text = 'not json' if mode=='malformed' else json.dumps({'advisor_summary':'Personalized summary','ai_strategy':'Personalized analysis'} if mode=='success' else {'advisor_summary':'partial'})
         completion.return_value = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text))])
     monkeypatch.setattr(ai_advisor, '_get_openai_client', lambda: None if mode=='missing' else client)
-    actual = strategy_service.build_strategy(*strategy_case(0))
+    actual = strategy_service._build_unverified_strategy(*strategy_case(0))
     assert actual.pop('ai_status') == ('available' if mode=='success' else 'unavailable')
     narrative = actual.pop('ai_strategy')
     assert bool(narrative) == (mode=='success')

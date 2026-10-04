@@ -1,3 +1,4 @@
+import PreparationNotice from "../components/PreparationNotice";
 import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -616,9 +617,9 @@ export default function DocumentReviewPage() {
           "Pro débloque l’analyse complète et la boucle d’amélioration. Premium s’intègre au flux avancé global.",
         finalizeDocument: "Finaliser le document",
         improveFurther: "Améliorer encore",
-        premiumReadyTitle: "Votre document est prêt",
+        premiumReadyTitle: "Votre brouillon est disponible",
         premiumReadyBody:
-          "Passez à Premium pour exporter un PDF propre, prêt à être soumis.",
+          "Passez à Premium pour exporter un brouillon PDF à vérifier.",
       };
     }
 
@@ -687,9 +688,9 @@ export default function DocumentReviewPage() {
         "Pro unlocks full analysis and the improvement loop. Premium fits into the broader advanced workflow.",
       finalizeDocument: "Finalize document",
       improveFurther: "Improve further",
-      premiumReadyTitle: "Your document is ready",
+      premiumReadyTitle: "Your draft is available",
       premiumReadyBody:
-        "Upgrade to Premium to export a clean, submission-ready PDF.",
+        "Upgrade to Premium to export a draft PDF for review.",
     };
   }, [language, reviewUsage]);
 
@@ -863,6 +864,7 @@ export default function DocumentReviewPage() {
 
   return (
     <Layout>
+      <PreparationNotice />
       {message && (
         <div className="mb-6 rounded-[24px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           {message}

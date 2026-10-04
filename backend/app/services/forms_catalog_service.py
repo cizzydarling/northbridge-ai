@@ -271,8 +271,8 @@ def get_forms_for_application_type(application_type: str, language: str = "en") 
             {
                 "code": form["code"],
                 "title": form[f"title_{lang}"],
-                "description": form[f"description_{lang}"],
-                "required": bool(form["required"]),
+                "description": ("Suggestion à vérifier selon les instructions officielles actuelles." if lang == "fr" else "Suggestion to verify against current official instructions."),
+                "required": False,
                 "conditional_rule": form.get("conditional_rule"),
             }
         )

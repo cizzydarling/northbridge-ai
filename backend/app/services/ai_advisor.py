@@ -68,7 +68,7 @@ def _extract_profile_context(profile: Any, language: str) -> str:
         "has_canadian_experience": _safe_get(profile, "has_canadian_experience"),
         "studied_in_canada": _safe_get(profile, "studied_in_canada"),
         "occupation": _safe_get(profile, "occupation"),
-        "noc_code": _safe_get(profile, "noc_code"),
+        "user_entered_noc_suggestion_requires_duties_review": _safe_get(profile, "noc_code"),
         "preferred_province": _safe_get(profile, "preferred_province"),
     }
 
@@ -96,6 +96,8 @@ def _ensure_list(value: Any) -> List[Any]:
 
 
 def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str) -> str:
+    from app.services.content_scope import context_text
+    return context_text(strategy)
     if not strategy:
         return (
             "No strategy available."
@@ -179,6 +181,7 @@ def _extract_strategy_context(strategy: Optional[Dict[str, Any]], language: str)
 def _extract_chat_history(
     chat_history: Optional[List[Dict[str, Any]]],
 ) -> List[Dict[str, str]]:
+    return []  # Historical assistant analysis predates this scope; never replay it.
     normalized: List[Dict[str, str]] = []
 
     for item in chat_history or []:
@@ -202,6 +205,8 @@ def _extract_application_context(
     application_context: Optional[Dict[str, Any]],
     language: str,
 ) -> str:
+    from app.services.content_scope import application_context_text
+    return application_context_text(application_context)
     if not application_context:
         return (
             "No application context available."
@@ -250,6 +255,8 @@ def _extract_decision_context(
     decision_context: Optional[Dict[str, Any]],
     language: str,
 ) -> str:
+    from app.services.content_scope import notice
+    return notice(language)
     if not decision_context:
         return (
             "No decision context available."
@@ -264,6 +271,8 @@ def _extract_feature_context(
     feature_context: Optional[Dict[str, Any]],
     language: str,
 ) -> str:
+    from app.services.content_scope import AI_SCOPE
+    return AI_SCOPE
     if not feature_context:
         return (
             "No product feature context available."
@@ -995,7 +1004,7 @@ def _fallback_strategy_response(language: str) -> Dict[str, str]:
     return {"status": "unavailable", "advisor_summary": "", "ai_strategy": ""}
 
 
-def generate_ai_chat_reply(
+def _unfiltered_generate_ai_chat_reply(
     *,
     message: str,
     language: str,
@@ -1169,3 +1178,8 @@ def generate_ai_strategy(
 
     except Exception:
         return _fallback_strategy_response(language)
+
+
+def generate_ai_chat_reply(*args, **kwargs):
+    from app.services.content_scope import guard_generated_text
+    return guard_generated_text(_unfiltered_generate_ai_chat_reply(*args, **kwargs), kwargs.get("language", "en"))

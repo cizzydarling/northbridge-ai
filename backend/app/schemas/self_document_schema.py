@@ -2,7 +2,7 @@ from typing import Optional
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 
 class SelfDocumentBase(BaseModel):
@@ -39,3 +39,12 @@ class SelfDocumentResponse(SelfDocumentBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+    @field_serializer("required")
+    def unverified_requirement(self, value):
+        return False
+
+    @field_serializer("priority")
+    def planning_priority(self, value):
+        return "Review"

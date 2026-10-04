@@ -20,8 +20,8 @@ const SelfDashboardPage = lazy(() => import("./pages/SelfDashboardPage"));
 const HouseholdPage = lazy(() => import("./pages/HouseholdPage"));
 const ApplicationCasesPage = lazy(() => import("./pages/ApplicationCasesPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
-const StrategyPage = lazy(() => import("./pages/StrategyPage"));
-const StrategySimulatorPage = lazy(() => import("./pages/StrategySimulatorPage"));
+const StrategyPage = lazy(() => import("./pages/PlanningStrategyPage"));
+const StrategySimulatorPage = lazy(() => import("./pages/PlanningStrategyPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const SelfApplicationPage = lazy(() => import("./pages/SelfApplicationPage"));
 const SelfDocumentsPage = lazy(() => import("./pages/SelfDocumentsPage"));
@@ -49,7 +49,7 @@ function prefetchAppRoutes() {
   const run = () => {
     import("./pages/SelfDashboardPage");
     import("./pages/ProfilePage");
-    import("./pages/StrategyPage");
+    import("./pages/PlanningStrategyPage");
     import("./pages/SelfDocumentsPage");
     import("./pages/CareerMatchPage");
     import("./pages/CitizenshipPracticePage");

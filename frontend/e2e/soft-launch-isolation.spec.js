@@ -46,7 +46,7 @@ test("individual routes ignore stale cases and deferred routes never load", asyn
   for (const path of ["/dashboard", "/strategy", "/strategy/simulator", "/forms", "/self/application", "/documents"]) {
     await page.goto(path);
     await expect(page).toHaveURL(new RegExp(`${path}$`));
-    // Exercise the real backend, including the existing slow NOC computation.
+    // Exercise the real backend and the contained planning views.
     await expect(page.locator("h1").first()).toBeVisible({ timeout: 120_000 });
     await expect(page.locator('a[href^="/clients"]')).toHaveCount(0);
   }
@@ -67,25 +67,18 @@ test("individual routes ignore stale cases and deferred routes never load", asyn
   expect(failures).toEqual([]);
   expect(errors).toEqual([]);
 
-  // One explicit refresh must not retry the identical endpoint automatically.
+  // The contained Strategy page must not request analytical results, even on
+  // an event left over from the previous release.
   await page.unroute("**/self/strategy?**");
-  let failedStrategyRequests = 0;
+  let analyticalRequests = 0;
   await page.route("**/self/strategy?**", (route) => {
-    failedStrategyRequests += 1;
+    analyticalRequests += 1;
     return route.fulfill({ status: 503, json: { detail: "Synthetic strategy failure" } });
   });
   await page.goto("/strategy");
-  await expect(page.getByText("Synthetic strategy failure", { exact: true })).toBeVisible();
-  await page.waitForLoadState("networkidle");
-  const beforeRefresh = failedStrategyRequests;
+  await expect(page.getByRole("link", { name: "Open the Government of Canada calculator" })).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new Event("nbai-strategy-refresh")));
-  await expect.poll(() => failedStrategyRequests).toBe(beforeRefresh + 1);
   await page.waitForLoadState("networkidle");
-  expect(failedStrategyRequests).toBe(beforeRefresh + 1);
-  // A later explicit retry can recover without changing the existing UI contract.
-  await page.unroute("**/self/strategy?**");
-  await page.route("**/self/strategy?**", (route) => route.fulfill({ json: verifiedStrategy }));
-  await page.evaluate(() => window.dispatchEvent(new Event("nbai-strategy-refresh")));
+  expect(analyticalRequests).toBe(0);
   await expect(page.getByText("Synthetic strategy failure", { exact: true })).toHaveCount(0);
-  await expect(page.locator("h1").first()).toBeVisible();
 });

@@ -991,7 +991,7 @@ def evaluate_spousal_sponsorship_eligibility(
     }
 
 
-def evaluate_matter_eligibility(
+def _evaluate_unverified_matter_eligibility(
     matter_type: str | None,
     intake: dict[str, Any] | None = None,
     language: str = "en",
@@ -1008,3 +1008,7 @@ def evaluate_matter_eligibility(
         return evaluate_spousal_sponsorship_eligibility(intake, language)
 
     return _build_default_result(matter_type, language)
+
+def evaluate_matter_eligibility(matter_type, intake=None, language="en"):
+    from app.services.content_scope import planning_result
+    return {**planning_result(language), "matter_type": matter_type}

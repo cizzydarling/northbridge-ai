@@ -1662,7 +1662,7 @@ def _build_timeline_summary(timeline_estimate: Any, language: str) -> str:
 
 
 @scoped_computation
-def build_strategy(
+def _build_unverified_strategy(
     profile,
     language: str = "en",
     household_members: Optional[List[Any]] = None,
@@ -1978,3 +1978,28 @@ def build_strategy(
             "family_size": getattr(application_case, "family_size", family_size),
         },
         }
+
+
+@scoped_computation
+def build_strategy(profile, language="en", household_members=None, application_case=None,
+                   include_immigration_intelligence=False):
+    """Public planning output. Never execute the retained analytical engines."""
+    from app.services.content_scope import SCOPE, CRS_URL, notice
+    members = household_members or []
+    context = SimpleNamespace(case=application_case, members=members)
+    family = context_snapshot(context) if application_case else {"members": [], "status": "unknown"}
+    household = build_household_strategy_context(members, language, application_case)
+    result = {
+        "content_scope": SCOPE, "status": "informational_only",
+        "advisor_summary": notice(language), "strategy_headline": notice(language),
+        "official_crs_url": CRS_URL, "family_context": family,
+        "household_context": {key: household[key] for key in
+            ("family_size", "has_spouse", "participation_counts", "calculation_status")},
+        "case_context": {"case_id": getattr(application_case, "id", None)},
+        "family_document_requirements": household["required_family_documents"],
+        "recommended_programs": [], "strengths": [], "weaknesses": [], "next_steps": [],
+        "ai_status": "not_requested", "can_export_pdf": False,
+    }
+    if include_immigration_intelligence:
+        result["immigration_intelligence"] = build_immigration_intelligence(language=language)
+    return result

@@ -1,3 +1,4 @@
+import OfficialCrsHandoff from "../components/OfficialCrsHandoff";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -466,7 +467,7 @@ export default function Dashboard() {
         readyBody: "Votre tableau de bord regroupe vos signaux clés, votre meilleure voie et les actions les plus importantes.",
         pendingBody: "Complétez davantage votre profil pour débloquer une stratégie plus précise.",
         profileCompletion: "Profil",
-        crsScore: "Score CRS",
+        crsScore: "Outil CRS officiel",
         bestPathway: "Meilleur parcours",
         topImprovement: "Priorité",
         strategyAvailable: "Stratégie disponible",
@@ -524,7 +525,7 @@ export default function Dashboard() {
       readyBody: "Your dashboard brings together your key signals, strongest pathway, and most important actions.",
       pendingBody: "Complete more of your profile to unlock a more precise strategy.",
       profileCompletion: "Profile",
-      crsScore: "CRS score",
+      crsScore: "Official CRS tool",
       bestPathway: "Best pathway",
       topImprovement: "Priority",
       strategyAvailable: "Strategy available",
@@ -738,9 +739,7 @@ export default function Dashboard() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-100">
                   {pageText.crsScore}
                 </p>
-                <p className="mt-2 text-4xl font-semibold tracking-tight text-white">
-                  {hasStrategy ? crsScore ?? "—" : "—"}
-                </p>
+                <div className="mt-2"><OfficialCrsHandoff /></div>
               </div>
 
               <div className="rounded-[24px] border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
@@ -785,7 +784,7 @@ export default function Dashboard() {
                 />
                 <MetricCard
                   label={pageText.crsScore}
-                  value={hasStrategy ? crsScore ?? "—" : "—"}
+                  value={<OfficialCrsHandoff />}
                   body={hasStrategy ? pageText.strategyAvailable : pageText.noStrategy}
                   tone={hasStrategy ? "blue" : "default"}
                 />
@@ -923,7 +922,7 @@ export default function Dashboard() {
 
                 <div className="mt-5 grid grid-cols-3 gap-2">
                   <MiniStat label={pageText.profileCompletion} value={`${profileCompletion}%`} />
-                  <MiniStat label={pageText.crsScore} value={hasStrategy ? crsScore ?? "—" : "—"} />
+                  <MiniStat label={pageText.crsScore} value={<OfficialCrsHandoff />} />
                   <MiniStat label={pageText.recommendedPrograms} value={localizedRecommendations.length || 0} />
                 </div>
 

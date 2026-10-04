@@ -1030,7 +1030,7 @@ export default function PricingPage() {
         formsDownload: "Téléchargement des formulaires",
         documents: "Génération de documents",
         review: "Révision IA",
-        irccIntel: "Veille IRCC et ciblage provincial",
+        irccIntel: "Sources officielles IRCC et provinciales",
         exports: "Export PDF",
         citizenshipPractice: "Pratique de la citoyenneté et des langues",
         citizenshipProgress: "Progression citoyenneté sauvegardée",
@@ -1176,7 +1176,7 @@ export default function PricingPage() {
       formsDownload: "Forms download",
       documents: "Document generation",
       review: "AI review",
-      irccIntel: "IRCC intelligence and province targeting",
+      irccIntel: "Official IRCC and provincial information",
       exports: "PDF export",
       citizenshipPractice: "Unlimited citizenship quizzes",
       citizenshipProgress: "Saved citizenship progress",
@@ -1323,8 +1323,8 @@ export default function PricingPage() {
             ? "Veille IRCC : rondes, délais et catégories"
             : "IRCC intelligence: draws, times, and categories",
           language === "fr"
-            ? "Signaux Job Bank et ciblage provincial"
-            : "Job Bank signals and province targeting",
+            ? "Liens Job Bank et sources provinciales"
+            : "Job Bank links and provincial sources",
           text.citizenshipPremiumPractice,
           language === "fr" ? "Examens blancs complets de 20 questions, sans limite d’essais" : "Full 20-question mock exams with no attempt cap",
           text.careerAdvanced,

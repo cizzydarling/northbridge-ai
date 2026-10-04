@@ -1,3 +1,4 @@
+import PreparationNotice from "../components/PreparationNotice";
 import useBillingAccess from "../hooks/useBillingAccess";
 import FamilyDocuments from "../components/FamilyDocuments";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
@@ -589,10 +590,8 @@ function getStrategyNocLabel(strategy) {
 
 function PathwayBanner({ pathway, strategy, activeCaseId, language }) {
   const pathwayName = getStrategyPathwayName(strategy, pathway);
-  const crsScore = strategy?.crs_score;
   const nocLabel = getStrategyNocLabel(strategy);
   const bannerItems = [
-    [language === "fr" ? "Score CRS" : "CRS Score", crsScore],
     [language === "fr" ? "CNP" : "NOC", nocLabel],
     [language === "fr" ? "Parcours" : "Pathway", pathwayName],
   ].filter(([, value]) => value !== null && typeof value !== "undefined" && value !== "");
@@ -909,7 +908,7 @@ function getSmartMomentum({
 
   if (completed >= total && total > 0) {
     return {
-      title: language === "fr" ? "Prêt pour la finalisation" : "Ready to finalize",
+      title: language === "fr" ? "Éléments organisés — à vérifier" : "Items organized — verify applicability",
       body:
         language === "fr"
           ? "Vos documents principaux sont complétés. Passez à la révision finale."
@@ -948,6 +947,8 @@ function getSmartMomentum({
 
 
 function detectCriticalDocumentGaps({ strategy, engine, language }) {
+  // Applicability is not verified: do not infer document requirements from strategy.
+  return [];
   const completed = (id) => Boolean(engine?.[id]?.completed);
 
   const strategyText = [
@@ -1030,7 +1031,7 @@ function detectCriticalDocumentGaps({ strategy, engine, language }) {
       "proof_of_funds",
       "Proof of funds missing",
       "Preuve de fonds manquante",
-      "Financial evidence may be needed to support readiness and admissibility.",
+      "Check the official instructions to determine whether financial evidence applies.",
       "Les preuves financières peuvent soutenir la préparation et l’admissibilité."
     );
   }
@@ -1083,8 +1084,8 @@ function buildSubmissionReadiness({
     label: item.label,
     reason:
       language === "fr"
-        ? "Document critique requis avant finalisation."
-        : "Critical document required before finalization.",
+        ? "Élément à vérifier; applicabilité non vérifiée."
+        : "Planning item to review; applicability unverified.",
   }));
 
   if (missingFormFields.length > 0) {
@@ -1096,8 +1097,8 @@ function buildSubmissionReadiness({
           : "Missing form fields",
       reason:
         language === "fr"
-          ? "Certains formulaires ne sont pas encore complets."
-          : "Some forms are not complete yet.",
+          ? "Certains champs de collecte restent à vérifier."
+          : "Some draft intake fields remain to review.",
     });
   }
 
@@ -1110,8 +1111,8 @@ function buildSubmissionReadiness({
           : "Incomplete documents",
       reason:
         language === "fr"
-          ? "Tous les documents requis ne sont pas encore marqués comme complétés."
-          : "Not all required documents are marked as completed yet.",
+          ? "Certains éléments restent à recueillir; leur applicabilité est à vérifier."
+          : "Some organizer items have not been marked as collected. Applicability has not been verified.",
     });
   }
 
@@ -1251,7 +1252,7 @@ export default function SelfDocumentsPage() {
 
   const readFormsPreview = useCallback(() => {
     try {
-      return JSON.parse(localStorage.getItem(`nbai_forms_preview_v1:${getCurrentUserLocal()?.id}:${activeCaseId}`) || "null");
+      return JSON.parse(localStorage.getItem(`nbai_forms_preview_planning_v2:${getCurrentUserLocal()?.id}:${activeCaseId}`) || "null");
     } catch {
       return null;
     }
@@ -1446,8 +1447,8 @@ export default function SelfDocumentsPage() {
       matter_type: activeCaseId ? `case_${activeCaseId}` : "personal_workspace",
       document_key: doc.id,
       document_name: doc.title[language] || doc.title.en,
-      priority: "Required",
-      required: true,
+      priority: "Applicability to verify",
+      required: false,
       notes: doc.description[language] || doc.description.en,
     });
 
@@ -1687,7 +1688,7 @@ export default function SelfDocumentsPage() {
         total: "Total",
         finalizeTitle: "Finalisez vos documents",
         finalizeBody:
-          "Passez à Premium pour exporter vos documents en PDF prêt à être soumis.",
+          "Passez à Premium pour exporter des PDF de brouillon à vérifier.",
         upgradeToPremium: "Passer à Premium",
         noDocuments: "Aucun document dans cette catégorie.",
         sectionLabel: "Espace documentaire",
@@ -1700,7 +1701,7 @@ export default function SelfDocumentsPage() {
         guidedHeadline: "Commencez par votre document prioritaire",
         unlockedHeadline: "Vos outils documents sont disponibles",
         guidedBody:
-          "Téléversez chaque pièce justificative demandée et suivez sa validation jusqu’à la finalisation.",
+          "Organisez les pièces de votre choix et suivez votre progression. Leur applicabilité reste à vérifier.",
         unlockedBody:
           "Téléversez et organisez vos preuves ici. Utilisez les outils IA séparés pour les lettres et explications.",
         lockedBadge: "Pro requis",
@@ -1723,7 +1724,7 @@ export default function SelfDocumentsPage() {
       brand: "NorthBridgeAI",
       title: "My Documents",
       subtitle:
-        "Upload, organize, and track the supporting evidence required for your application.",
+        "Upload, organize, and track your documents. This is not a verified mandatory checklist.",
       upgradeTitle: "Unlock AI drafting tools",
       upgradeBody:
         "Upgrade to Pro to draft and review letters, study plans, and explanations with AI.",
@@ -1746,7 +1747,7 @@ export default function SelfDocumentsPage() {
       total: "Total",
       finalizeTitle: "Finalize your documents",
       finalizeBody:
-        "Upgrade to Premium to export clean, submission-ready PDFs.",
+        "Upgrade to Premium to export draft PDFs for review.",
       upgradeToPremium: "Upgrade to Premium",
       noDocuments: "No documents in this category.",
       sectionLabel: "Document workspace",
@@ -1759,7 +1760,7 @@ export default function SelfDocumentsPage() {
       guidedHeadline: "Start with your highest-priority document",
       unlockedHeadline: "Your document tools are available",
       guidedBody:
-        "Upload each required piece of evidence and track it through review and completion.",
+        "Upload items you choose to organize and track your planning progress.",
       unlockedBody:
         "Upload and organize evidence here. Use the separate AI tools for letters and explanations.",
       lockedBadge: "Pro required",
@@ -1779,6 +1780,7 @@ export default function SelfDocumentsPage() {
 
   return (
     <Layout>
+      <PreparationNotice />
       <ApplicationContextBanner />
       <FamilyDocuments />
       <PageHeader brand={text.brand} title={text.title} subtitle={text.subtitle} />
@@ -1951,7 +1953,7 @@ export default function SelfDocumentsPage() {
         }`}
       >
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-          {language === "fr" ? "Préparation à la soumission" : "Submission readiness"}
+          {language === "fr" ? "Progression de l’organisation" : "Organizer progress"}
         </p>
 
         <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1963,15 +1965,15 @@ export default function SelfDocumentsPage() {
             <p className="mt-2 text-sm leading-6 text-slate-700">
               {submissionReadiness.status === "ready"
                 ? language === "fr"
-                  ? "Votre dossier semble prêt pour une révision finale."
-                  : "Your case appears ready for final review."
+                  ? "Les éléments suivis sont organisés; vérifiez leur applicabilité."
+                  : "Tracked items are organized; verify their applicability."
                 : submissionReadiness.status === "almost"
                 ? language === "fr"
-                  ? "Votre dossier est proche, mais certains points doivent être réglés."
-                  : "Your case is close, but some items still need attention."
+                  ? "Certains éléments de l’organisateur restent à vérifier."
+                  : "Some organizer items remain to review."
                 : language === "fr"
-                ? "Votre dossier n’est pas encore prêt à être soumis."
-                : "Your case is not ready for submission yet."}
+                ? "La collecte des éléments suivis est en cours; aucune conclusion sur la soumission."
+                : "Tracked-item collection is in progress; this is not a filing assessment."}
             </p>
           </div>
 

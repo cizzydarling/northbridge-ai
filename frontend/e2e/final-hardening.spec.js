@@ -51,7 +51,8 @@ for(const language of ["en","fr"]){
     await expect(page.locator('h1').first()).toBeVisible();
     await expect(page.getByTestId('upgrade-prompt')).toHaveCount(0);
     await page.goto('/strategy');
-    await expect(page.getByTestId('ai-unavailable')).toContainText(language==='fr'?'stratégie calculée':'calculated strategy');
+    await expect(page.locator('a[href$="/express-entry/check-score.html"]')).toBeVisible();
+    await expect(page.getByTestId('ai-unavailable')).toHaveCount(0);
     await expect(page.locator('h1').first()).toBeVisible();
   });
   test(`entitlement ${language}: free only after verification, billing error and recovery`,async({page,request})=>{

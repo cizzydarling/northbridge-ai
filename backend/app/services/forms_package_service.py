@@ -101,13 +101,13 @@ def _completion_score(forms: List[Dict[str, Any]]) -> int:
     total_missing = 0
 
     for form in forms:
-        if form.get("required") or form.get("is_conditionally_required"):
+        if form.get("code") != "IMM5476":
             required_fields = len(_required_missing_fields_for_form(form["code"]))
             total_required += required_fields
             total_missing += len(form.get("missing_fields", []))
 
     if total_required == 0:
-        return 100
+        return 0
 
     filled = max(total_required - total_missing, 0)
     return round((filled / total_required) * 100)
@@ -175,12 +175,14 @@ def build_forms_package(
                 "code": form["code"],
                 "title": form["title"],
                 "description": form["description"],
-                "required": bool(form["required"]),
+                "required": bool(conditionally_required),
+                "applicability": "user_confirmed_representative" if conditionally_required else "unverified",
                 "is_conditionally_required": conditionally_required,
                 "conditional_rule": form.get("conditional_rule"),
                 "mapped_fields": mapped_fields,
                 "missing_fields": missing,
-                "ready": len(missing) == 0,
+                "ready": False,
+                "intake_fields_collected": len(missing) == 0,
             }
         )
 

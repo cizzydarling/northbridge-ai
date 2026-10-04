@@ -1,3 +1,4 @@
+import PreparationNotice from "../components/PreparationNotice";
 import useBillingAccess from "../hooks/useBillingAccess";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -829,7 +830,7 @@ export default function FormsPage() {
       setPreview(res.data);
 
       localStorage.setItem(
-        `nbai_forms_preview_v1:${getCurrentUserLocal()?.id}:${activeCase?.id}`,
+        `nbai_forms_preview_planning_v2:${getCurrentUserLocal()?.id}:${activeCase?.id}`,
         JSON.stringify(res.data || null)
       );
     } catch (err) {
@@ -934,7 +935,7 @@ export default function FormsPage() {
         heroEyebrow: "Centre de commande formulaires",
         heroTitle: "Générez le bon dossier pour chaque type de demande",
         heroBody:
-          "Sélectionnez un type de demande, complétez les champs utiles et générez un aperçu clair des formulaires requis, conditionnels et manquants.",
+          "Sélectionnez un type de demande, complétez les champs utiles et générez un aperçu clair des formulaires suggérés, conditionnels et manquants.",
         formsAvailable: "Types disponibles",
         everyTypeReady: "Chaque type peut générer un dossier",
         activeApplication: "Demande active",
@@ -966,24 +967,24 @@ export default function FormsPage() {
         summaryEyebrow: "Résumé",
         summaryTitle: "Aperçu du dossier",
         formsCount: "Nombre de formulaires",
-        completeness: "Complétude",
-        formsTitle: "Formulaires requis et conditionnels",
+        completeness: "Progression de la collecte NorthBridgeAI",
+        formsTitle: "Formulaires suggérés — applicabilité à vérifier",
         mappedFields: "Champs préremplis",
         missingFields: "Champs manquants",
-        noMissingFields: "Aucun champ manquant détecté.",
+        noMissingFields: "Aucun champ de collecte manquant détecté; la complétude officielle n’est pas évaluée.",
         noMappedFields: "Aucun champ mappé pour le moment.",
-        notReady: "À compléter",
-        ready: "Prêt",
-        required: "Obligatoire",
-        conditional: "Conditionnel",
+        notReady: "Collecte à vérifier",
+        ready: "Brouillon à vérifier",
+        required: "Représentation déclarée",
+        conditional: "Applicabilité à vérifier",
         missingTitle: "Points à compléter avant téléchargement",
         noMissingItems: "Aucun point critique manquant pour le moment.",
-        upgradeTitle: "Votre dossier est prêt à être débloqué",
+        upgradeTitle: "Votre brouillon peut être téléchargé",
         upgradeBody:
           "Prévisualisez gratuitement, puis débloquez le téléchargement avec Pro (30 jours) ou choisissez Premium (90 jours) pour une préparation plus complète et plus confortable.",
         emptyTitle: "Aucun aperçu généré",
         emptyBody:
-          "Choisissez un type de demande, complétez les champs utiles, puis générez un aperçu pour voir les formulaires requis.",
+          "Choisissez un type de demande, complétez les champs utiles, puis générez un aperçu pour voir les formulaires suggérés.",
         noInlineFields:
           "Aucun champ supplémentaire recommandé pour ce type de demande pour le moment.",
         disclaimer:
@@ -1018,9 +1019,9 @@ export default function FormsPage() {
         accessLabel: "Votre plan actuel",
         aiEyebrow: "Insight IA",
         aiSummarySingle:
-          "L’IA a détecté 1 élément manquant qui pourrait affecter la complétude du dossier.",
+          "La collecte NorthBridgeAI signale 1 élément manquant qui pourrait affecter la complétude du dossier.",
         aiSummaryMulti: (count) =>
-          `L’IA a détecté ${count} éléments manquants qui pourraient affecter la complétude du dossier.`,
+          `La collecte NorthBridgeAI signale ${count} éléments manquants qui pourraient affecter la complétude du dossier.`,
         aiPromptLocked:
           "Passez à Pro ou Premium pour débloquer le téléchargement du dossier prérempli.",
         aiPromptEnabled:
@@ -1038,13 +1039,13 @@ export default function FormsPage() {
         unlockDownloadBody:
           "Passez à Pro pour télécharger votre dossier de formulaires.",
         upgradeToPro: "Passer à Pro",
-        packageReadyTitle: "Votre dossier est prêt",
+        packageReadyTitle: "Vos renseignements de brouillon sont disponibles",
         packageReadyBody:
-          "Passez à la génération de documents pour compléter votre dossier.",
+          "Vérifiez le brouillon selon les formulaires et listes officiels actuels.",
         continueToDocuments: "Continuer vers les documents",
         unlockPdfPremium: "Débloquer PDF (Premium)",
         finalStepTitle: "Étape finale : générer votre dossier",
-        aiStrong: "Votre dossier est solide",
+        aiStrong: "Vérifiez vos renseignements de brouillon",
         aiGaps: (count) => `Vous avez ${count} écarts critiques`,
         docsShort: "dossiers",
       };
@@ -1058,7 +1059,7 @@ export default function FormsPage() {
       heroEyebrow: "Forms command center",
       heroTitle: "Generate the right package for every application type",
       heroBody:
-        "Select an application type, complete useful fields, and generate a clear preview of required, conditional, and missing forms.",
+        "Select an application type, complete useful fields, and generate a clear preview of suggested forms and draft intake fields.",
       formsAvailable: "Types available",
       everyTypeReady: "Every type can generate a package",
       activeApplication: "Active application",
@@ -1090,24 +1091,24 @@ export default function FormsPage() {
       summaryEyebrow: "Summary",
       summaryTitle: "Package preview",
       formsCount: "Forms count",
-      completeness: "Completeness",
-      formsTitle: "Required and conditional forms",
+      completeness: "NorthBridgeAI intake progress",
+      formsTitle: "Suggested forms — verify applicability",
       mappedFields: "Mapped fields",
       missingFields: "Missing fields",
-      noMissingFields: "No missing fields detected.",
+      noMissingFields: "No missing NorthBridgeAI intake fields detected; official form completeness is not assessed.",
       noMappedFields: "No mapped fields yet.",
-      notReady: "Needs completion",
-      ready: "Ready",
-      required: "Required",
-      conditional: "Conditional",
+      notReady: "Draft intake to review",
+      ready: "Draft information collected",
+      required: "Applicability to verify",
+      conditional: "Applicability unverified",
       missingTitle: "Items to complete before download",
       noMissingItems: "No critical missing items at the moment.",
-      upgradeTitle: "Your package is ready to unlock",
+      upgradeTitle: "Your draft is available to download",
       upgradeBody:
         "Preview for free, then unlock download with Pro (30 days) or choose Premium (90 days) for a longer and more complete preparation workspace.",
       emptyTitle: "No preview yet",
       emptyBody:
-        "Choose an application type, complete useful fields, then generate a preview to see the required forms.",
+        "Choose an application type, complete useful fields, then generate a preview of suggested forms.",
       noInlineFields:
         "No additional recommended fields for this application type yet.",
       disclaimer:
@@ -1141,13 +1142,13 @@ export default function FormsPage() {
       accessLabel: "Your current plan",
       aiEyebrow: "AI insight",
       aiSummarySingle:
-        "AI detected 1 missing item that could affect package completeness.",
+        "NorthBridgeAI intake checks found 1 missing item that could affect package completeness.",
       aiSummaryMulti: (count) =>
-        `AI detected ${count} missing items that could affect package completeness.`,
+        `NorthBridgeAI intake checks found ${count} missing items that could affect package completeness.`,
       aiPromptLocked:
         "Upgrade to Pro or Premium to unlock download of your prefilled package.",
       aiPromptEnabled:
-        "You can now download your prefilled package when the required items are ready.",
+        "You can download a draft intake summary. Official forms and checklists control.",
       previewHintLocked:
         "Free mode lets you see what is missing before you unlock download.",
       previewHintEnabled:
@@ -1161,13 +1162,13 @@ export default function FormsPage() {
       unlockDownloadBody:
         "Upgrade to Pro to download your forms package.",
       upgradeToPro: "Upgrade to Pro",
-      packageReadyTitle: "Your forms package is ready",
+      packageReadyTitle: "Your draft information is available",
       packageReadyBody:
-        "Move to document generation to complete your application.",
+        "Preparation assistance only. Verify the current official IRCC form and checklist before filing.",
       continueToDocuments: "Continue to Document Generator",
       unlockPdfPremium: "Unlock PDF (Premium)",
       finalStepTitle: "Final step: generate your package",
-      aiStrong: "Your package is strong",
+      aiStrong: "Review your draft information",
       aiGaps: (count) => `You have ${count} critical gaps`,
       docsShort: "docs",
     };
@@ -1181,6 +1182,7 @@ export default function FormsPage() {
 
   return (
     <Layout>
+      <PreparationNotice />
       <ApplicationContextBanner />
       {message && (
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
@@ -1565,8 +1567,8 @@ export default function FormsPage() {
                     </p>
                     <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
                       {language === "fr"
-                        ? "Ce que l’IA voit dans votre dossier"
-                        : "What AI sees in your package"}
+                        ? "Champs de collecte à vérifier"
+                        : "Draft intake fields to review"}
                     </h2>
                   </div>
                   <ProgressBadge score={preview?.summary?.completeness_score ?? 0} />

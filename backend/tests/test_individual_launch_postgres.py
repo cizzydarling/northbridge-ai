@@ -397,10 +397,9 @@ def test_individual_journey_without_deferred_tables(pg_database, monkeypatch):
             response = client.get(path, headers=headers)
             assert response.status_code == 200, (path, response.text)
         response = client.post("/recommendations/simulate", headers=headers, json={"language_score": 10})
-        assert response.status_code == 200, response.text
+        assert response.status_code == 404, response.text
         response = client.post("/recommendations/generate", headers=headers)
-        assert response.status_code == 200, response.text
-        assert response.json()["full_result"]["advisor_summary_ai"] == "Synthetic AI response"
+        assert response.status_code == 404, response.text
         response = client.post("/forms/package/preview", headers=headers, json={"application_type": "express_entry", "language": "en"})
         assert response.status_code == 200, response.text
         case = client.get("/application-cases/context", headers=headers).json()["case"]

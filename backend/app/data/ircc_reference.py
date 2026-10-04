@@ -23,11 +23,12 @@ EXPRESS_ENTRY_CATEGORY_SELECTION = [
 
 def get_ircc_reference_context(language: str = "en") -> str:
     language = "fr" if str(language or "").lower() == "fr" else "en"
+    from app.services.content_scope import AI_SCOPE
     categories = ", ".join(EXPRESS_ENTRY_CATEGORY_SELECTION)
 
     if language == "fr":
         return (
-            f"Reference IRCC/StatCan verifiee le {IRCC_REFERENCE_LAST_REVIEWED}: "
+            AI_SCOPE + f"Reference IRCC/StatCan verifiee le {IRCC_REFERENCE_LAST_REVIEWED}: "
             "Express Entry utilise des rondes generales, propres aux programmes et par categorie. "
             f"Categories IRCC actuelles connues: {categories}. "
             "Pour la categorie de competence en francais, IRCC exige des resultats de test en francais "
@@ -41,7 +42,7 @@ def get_ircc_reference_context(language: str = "en") -> str:
         )
 
     return (
-        f"IRCC/StatCan reference reviewed on {IRCC_REFERENCE_LAST_REVIEWED}: "
+        AI_SCOPE + f"IRCC/StatCan reference reviewed on {IRCC_REFERENCE_LAST_REVIEWED}: "
         "Express Entry uses general, program-specific, and category-based rounds. "
         f"Current known IRCC categories: {categories}. "
         "For the French-language proficiency category, IRCC requires French test results showing at least NCLC 7 "

@@ -1,3 +1,4 @@
+from app.services.content_scope import safe_application
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -115,6 +116,8 @@ def sync_self_documents_from_checklist(
 
 
 def build_pr_eligibility_from_strategy(strategy: dict, language: str) -> dict:
+    from app.services.content_scope import planning_result
+    return planning_result(language)
     readiness = "Strong" if (strategy.get("crs_score") or 0) >= 470 else (
         "Moderate" if (strategy.get("crs_score") or 0) >= 430 else "Weak"
     )
@@ -161,6 +164,8 @@ def build_pr_eligibility_from_strategy(strategy: dict, language: str) -> dict:
 
 
 def build_pr_forms_assistant_from_strategy(strategy: dict, language: str) -> dict:
+    from app.services.content_scope import notice
+    return {"summary": notice(language), "recommended_forms": [], "missing_fields": [], "preparation_notes": []}
     pathways = list(strategy.get("recommended_programs") or [])
     missing_fields = []
 
@@ -243,6 +248,7 @@ def build_pr_forms_assistant_from_strategy(strategy: dict, language: str) -> dic
 
 
 def build_pr_checklist_from_strategy(strategy: dict, language: str) -> list[dict]:
+    return list(strategy.get("family_document_requirements") or [])
     pathways = list(strategy.get("recommended_programs") or [])
     french_advantage = strategy.get("french_advantage") or {}
     has_french_advantage = french_advantage.get("strategic_value") in {"medium", "high"}
@@ -403,6 +409,8 @@ def build_strategy_payload(
     is_premium: bool,
     language: str,
 ) -> dict:
+    from app.services.content_scope import safe_strategy_context, notice, CRS_URL
+    return {**safe_strategy_context(strategy), "advisor_summary": notice(language), "official_crs_url": CRS_URL, "family_document_requirements": strategy.get("family_document_requirements", []), "locked": not is_pro, "is_premium": is_premium, "can_export_pdf": False}
     strategy = dict(strategy or {})
 
     if is_pro:
@@ -570,7 +578,7 @@ def get_my_strategy(
         "access": {
             "is_pro": is_pro,
             "is_premium": is_premium,
-            "can_export_pdf": is_premium,
+            "can_export_pdf": False,
             "can_use_live_ircc_draws": is_premium,
             "can_view_processing_times": is_premium,
             "can_use_job_opportunity_matching": is_premium,
@@ -593,7 +601,7 @@ def get_self_application_context(
         "email": current_user.email,
         "role": getattr(current_user, "role", None),
         "plan": getattr(current_user, "plan", None),
-        "application": application,
+        "application": safe_application(application),
     }
 
 
@@ -608,7 +616,7 @@ def get_saved_self_application(
     if not application:
         raise HTTPException(status_code=404, detail="No saved self application found.")
 
-    return application
+    return safe_application(application)
 
 
 @router.post("/workspace", response_model=SelfWorkspaceResponse)
@@ -710,7 +718,7 @@ def run_self_workspace(
     db.refresh(application)
 
     response_payload = {
-        "application": application,
+        "application": safe_application(application),
         "eligibility": eligibility,
         "forms_assistant": forms_assistant,
         "checklist": checklist,
@@ -732,6 +740,7 @@ def export_strategy_pdf(
     db: Session = Depends(get_db),
     current_user=Depends(require_self_user),
 ):
+    raise HTTPException(status_code=410, detail="Analytical Strategy PDF is unavailable / Le PDF analytique est indisponible.")
     context = resolve_application_context(db, current_user, case_id)
     language = normalize_language(language)
     ensure_confirmed_email(current_user)
