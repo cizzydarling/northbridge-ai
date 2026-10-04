@@ -683,166 +683,31 @@ def _build_contextual_fallback_insights(
 
 
 def ask_self_user_copilot(
-    *,
-    db: Session,
-    current_user: User,
-    message: str,
-    language: str = "en",
-    chat_history: Optional[List[Any]] = None,
-    fail_silently: bool = False,
+    *, db: Session, current_user: User, message: str, language: str = "en",
+    chat_history: Optional[List[Any]] = None, fail_silently: bool = False,
 ) -> Dict[str, Any]:
+    from app.services.chat_contract import boundary_intent, boundary_response, fallback
     language = _normalize_language(language)
-    context = build_self_user_ai_context(
-        db=db,
-        current_user=current_user,
-        language=language,
-    )
-
-    fn = getattr(ai_advisor, "generate_ai_chat_reply", None)
-    if not callable(fn):
-        fallback = format_ai_response(
-            raw_text=_build_contextual_fallback_reply(
-                language=language,
-                strategy=context.get("strategy") or {},
-                application=context.get("application"),
-            ),
-            language=language,
-            plan=context["ai_plan"],
-            strategy=context.get("strategy") or {},
-            application=context.get("application"),
-            suggested_next_actions=_build_contextual_fallback_actions(
-                language=language,
-                plan=context["ai_plan"],
-                strategy=context.get("strategy") or {},
-                application=context.get("application"),
-            ),
-            insights=_build_contextual_fallback_insights(
-                language=language,
-                strategy=context.get("strategy") or {},
-            ),
-        )
-
-        if fail_silently:
-            return {
-                **fallback,
-                "profile_found": context["profile_found"],
-                "strategy_loaded": context["strategy_loaded"],
-                "application_found": context["application_found"],
-                "language": language,
-                "pathways": (
-                    context["strategy"].get("recommended_programs", [])
-                    if context["strategy"]
-                    else []
-                ),
-                "french_advantage": (
-                    context["strategy"].get("french_advantage", {})
-                    if context["strategy"]
-                    else {}
-                ),
-                "decision": context.get("decision") or {},
-                "matter_type": (
-                    getattr(context.get("application"), "matter_type", None)
-                    if context.get("application")
-                    else None
-                ),
-            }
-        raise RuntimeError("generate_ai_chat_reply not found in ai_advisor")
-
+    # These responses need neither personal data nor provider availability.
+    intent = boundary_intent(message)
+    if intent:
+        return {**boundary_response(intent, language, message), "language": language,
+                "profile_found": False, "strategy_loaded": False}
     try:
-        ai_context = context.get("ai_context") or {}
-        strategy = context.get("strategy") or {}
-        application = context.get("application")
-        decision = context.get("decision") or {}
-        plan = context.get("ai_plan", "free")
-
-        result = fn(
-            message=(message or "").strip(),
-            language=language,
-            profile=context["profile"],
-            strategy=strategy,
-            chat_history=_serialize_chat_history(chat_history),
-            application_context=ai_context.get("application", {}),
-            decision_context=decision,
-            feature_context=ai_context.get("features", {}),
-            plan=plan,
+        context = build_self_user_ai_context(db=db, current_user=current_user, language=language)
+        result = ai_advisor.generate_ai_chat_reply(
+            message=message.strip(), language=language, profile=context["profile"],
+            application_context=(context.get("ai_context") or {}).get("application", {}),
+            plan=context.get("ai_plan", "free"),
         )
-
-        result = _coerce_ai_result(result, language)
-
-        raw_reply = (result.get("reply") or "").strip()
-
-        formatted = format_ai_response(
-            raw_text=raw_reply,
-            language=language,
-            plan=plan,
-            strategy=strategy,
-            application=application,
-            suggested_next_actions=result.get("suggested_next_actions", []),
-            insights=result.get("insights", []),
-        )
-
-        return {
-            **formatted,
-            "reply": raw_reply or formatted.get("reply", ""),
-            "profile_found": context["profile_found"],
-            "strategy_loaded": context["strategy_loaded"],
-            "application_found": context["application_found"],
-            "language": language,
-            "pathways": strategy.get("recommended_programs", []) if strategy else [],
-            "french_advantage": strategy.get("french_advantage", {}) if strategy else {},
-            "decision": decision,
-            "matter_type": getattr(application, "matter_type", None) if application else None,
-        }
-
+        # Do not add legacy strategic insights, upsells, pathways, or fallback prose.
+        return {**result, "profile_found": context["profile_found"],
+                "strategy_loaded": False, "language": language}
     except Exception:
         if not fail_silently:
             raise
-
-        fallback = format_ai_response(
-            raw_text=_build_contextual_fallback_reply(
-                language=language,
-                strategy=context.get("strategy") or {},
-                application=context.get("application"),
-            ),
-            language=language,
-            plan=context["ai_plan"],
-            strategy=context.get("strategy") or {},
-            application=context.get("application"),
-            suggested_next_actions=_build_contextual_fallback_actions(
-                language=language,
-                plan=context["ai_plan"],
-                strategy=context.get("strategy") or {},
-                application=context.get("application"),
-            ),
-            insights=_build_contextual_fallback_insights(
-                language=language,
-                strategy=context.get("strategy") or {},
-            ),
-        )
-
-        return {
-            **fallback,
-            "profile_found": context["profile_found"],
-            "strategy_loaded": context["strategy_loaded"],
-            "application_found": context["application_found"],
-            "language": language,
-            "pathways": (
-                context["strategy"].get("recommended_programs", [])
-                if context["strategy"]
-                else []
-            ),
-            "french_advantage": (
-                context["strategy"].get("french_advantage", {})
-                if context["strategy"]
-                else {}
-            ),
-            "decision": context.get("decision") or {},
-            "matter_type": (
-                getattr(context.get("application"), "matter_type", None)
-                if context.get("application")
-                else None
-            ),
-        }
+        return {**fallback(language), "profile_found": False,
+                "strategy_loaded": False, "language": language}
 
 
 def build_dashboard_copilot_prompt(context: Dict[str, Any]) -> str:

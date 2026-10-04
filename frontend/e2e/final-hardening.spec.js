@@ -83,6 +83,8 @@ test("account switch clears paid UI; logout clears access", async ({page, contex
   await page.goto("/documents/review");
   await expect(page.locator("h1").first()).toBeVisible();
   await expect(page.getByTestId("upgrade-prompt")).toHaveCount(0);
+  // Dismiss the first-visit guide through its normal UI before testing logout.
+  await page.getByRole('button', {name:'Got it', exact:true}).click();
   current = await prepare(page, request, "en", false);
   const session = sessions.get(current);
   // Changing storage in another same-origin tab emits the actual storage event.

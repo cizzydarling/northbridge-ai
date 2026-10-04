@@ -1,3 +1,4 @@
+import { openChatAction } from "../utils/chatActions";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { sendAIMessage } from "../api";
@@ -54,7 +55,7 @@ function extractReply(data) {
 function extractInsights(data) {
   if (!data || typeof data !== "object") return [];
 
-  if (Array.isArray(data.insights)) return normalizeStringArray(data.insights);
+  if (Array.isArray(data.insights)) return normalizeStringArray([...data.insights, ...(data.limitations || [])]);
 
   const fallback = [
     ...(Array.isArray(data.pathways) ? data.pathways : []),
@@ -191,7 +192,7 @@ export default function AICopilotCard({
 
   function handleActionClick(action) {
     if (!action?.route) return;
-    navigate(action.route);
+    openChatAction(action.route, navigate);
   }
 
   return (

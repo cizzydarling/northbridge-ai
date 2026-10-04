@@ -1,3 +1,4 @@
+import { openChatAction } from "../utils/chatActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -133,7 +134,7 @@ function normalizeInsights(items) {
   return items
     .map((item) => String(item || "").trim())
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, 9);
 }
 
 function HeaderBadge({ children, tone = "default" }) {
@@ -208,7 +209,7 @@ export default function ChatPage() {
   const initialPrompt = location.state?.initialPrompt || "";
   const sourceTitle = location.state?.title || "";
   const forcedLanguage = location.state?.language;
-  const language = normalizeLanguage(forcedLanguage);
+  const language = normalizeLanguage(forcedLanguage || localStorage.getItem("language") || localStorage.getItem("i18nextLng"));
 
   const firstName =
     profile?.first_name ||
@@ -217,27 +218,27 @@ export default function ChatPage() {
   const starterPrompts = useMemo(() => {
     if (language === "fr") {
       return [
-        `Comment puis-je améliorer mon score CRS, ${firstName} ?`,
-        "Quel est mon meilleur parcours d’immigration en ce moment ?",
+        "Expliquez les critères officiels d’Entrée express.",
+        "Comment organiser les renseignements de mon ménage ?",
         "Quels documents devrais-je préparer ensuite ?",
         "Quelle est mon action prioritaire maintenant ?",
       ];
     }
 
     return [
-      `How can I improve my CRS score, ${firstName}?`,
-      "What is my best immigration pathway right now?",
+      "Explain the official Express Entry criteria.",
+      "How can I organize my household information?",
       "What documents should I prepare next?",
       "What is my highest-priority action right now?",
     ];
-  }, [firstName, language]);
+  }, [language]);
 
   const welcomeText = useMemo(() => {
     if (language === "fr") {
-      return `Bonjour ${firstName}, je suis votre assistant NorthBridgeAI personnalisé. Je peux vous aider à comprendre votre stratégie, vos prochaines étapes, vos documents et la meilleure action à prendre maintenant.`;
+      return `Bonjour ${firstName}, je suis votre assistant NorthBridgeAI personnalisé. Je peux vous aider à comprendre les critères généraux, organiser vos renseignements et préparer vos documents sans déterminer votre admissibilité.`;
     }
 
-    return `Hi ${firstName}, I’m your personalized NorthBridgeAI assistant. I can help you understand your strategy, next steps, documents, and the best action to take right now.`;
+    return `Hi ${firstName}, I’m your personalized NorthBridgeAI assistant. I can help you understand general criteria, organize your information and prepare documents without determining your eligibility.`;
   }, [firstName, language]);
 
   const ui = useMemo(() => {
@@ -260,7 +261,7 @@ export default function ChatPage() {
         assistantBadge: "Copilote IA",
         helperTitle: "Meilleures questions à poser",
         helperBody:
-          "Posez des questions sur votre score CRS, votre meilleur parcours, vos documents ou votre prochaine priorité.",
+          "Posez des questions sur les critères officiels, le ménage, les documents ou la préparation des formulaires.",
         noMessages:
           "Commencez une conversation pour obtenir un accompagnement personnalisé.",
         useThisPrompt: "Utiliser",
@@ -289,7 +290,7 @@ export default function ChatPage() {
       assistantBadge: "AI Copilot",
       helperTitle: "Best things to ask",
       helperBody:
-        "Ask about your CRS score, best pathway, documents, or highest-priority next step.",
+        "Ask about official criteria, household information, documents or form preparation.",
       noMessages:
         "Start a conversation to get personalized guidance.",
       useThisPrompt: "Use this prompt",
@@ -347,7 +348,7 @@ export default function ChatPage() {
         .filter(Boolean)
         .slice(0, 3);
 
-      const normalizedInsights = normalizeInsights(res.data?.insights);
+      const normalizedInsights = normalizeInsights([...(res.data?.insights || []), ...(res.data?.limitations || [])]);
 
       setMessages((prev) => [
         ...prev,
@@ -436,7 +437,7 @@ export default function ChatPage() {
     if (!normalized) return;
 
     if (normalized.route) {
-      navigate(normalized.route);
+      openChatAction(normalized.route, navigate);
       return;
     }
 

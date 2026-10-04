@@ -92,15 +92,16 @@ def test_forms_are_unverified_drafts(language):
 def test_provider_cannot_replay_analytical_context(monkeypatch, language):
     client = Mock()
     client.chat.completions.create.return_value = SimpleNamespace(choices=[SimpleNamespace(
-        message=SimpleNamespace(content=json.dumps({"reply":"Your CRS is 999 and your chance is 88%", "suggested_next_actions":[]})))])
+        finish_reason="stop", message=SimpleNamespace(refusal=None, content=json.dumps({
+            "reply":"Your CRS is 999 and your chance is 88%", "actions":[], "insights":[], "limitations":[]})))])
     monkeypatch.setattr(ai_advisor, "_get_openai_client", lambda: client)
-    result = ai_advisor.generate_ai_chat_reply(message="Help organize my documents", language=language,
+    result = ai_advisor.generate_ai_chat_reply(message="Draft a polite question for my adviser", language=language,
         profile=SimpleNamespace(noc_code="13100"), strategy={"crs_score":999,"advisor_summary":"POISON"},
         application_context={"eligibility_result":{"summary":"POISON"},"family_context":{"participation":"unknown"}},
         chat_history=[{"role":"assistant","content":"POISON"}])
     sent = json.dumps(client.chat.completions.create.call_args.kwargs["messages"])
     assert "POISON" not in sent and "999" not in sent
-    assert "unknown" in sent and "suggestion_requires_duties_review" in sent
+    assert "unknown" in sent and "suggested_match" in sent
     assert "999" not in result["reply"] and "88%" not in result["reply"]
 
 

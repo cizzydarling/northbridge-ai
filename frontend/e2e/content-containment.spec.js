@@ -41,6 +41,8 @@ for (const language of ["en", "fr"]) {
     }
     await page.goto("/forms");
     await expect(page.locator("h1").first()).toBeVisible();
+    // First-visit guidance must be dismissed before interacting with the page.
+    await page.getByRole("button", { name: language === "fr" ? "Compris" : "Got it", exact: true }).click();
     await page.getByRole("button", { name: language === "fr" ? "Prévisualiser le dossier" : "Preview package", exact: true }).first().click();
     await expect(page.getByText(language === "fr" ? "Progression de la collecte NorthBridgeAI" : "NorthBridgeAI intake progress", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(language === "fr" ? "Votre dossier est prêt" : "Your forms package is ready", { exact: true })).toHaveCount(0);

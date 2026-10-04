@@ -1,5 +1,4 @@
 from io import BytesIO
-import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -100,139 +99,23 @@ def _normalize_insights(insights, pathways=None) -> list[str]:
     return []
 
 
-def _fallback_chat_payload(language: str) -> dict:
-    return {
-        "reply": json.dumps(
-            {
-                "answer": _t(
-                    "Here is a personalized analysis based on your current profile.",
-                    "Voici une analyse personnalisée basée sur votre profil actuel.",
-                    language,
-                ),
-                "reasons": [
-                    _t(
-                        "Your profile still has room for stronger optimization.",
-                        "Votre profil présente encore un potentiel d’optimisation.",
-                        language,
-                    ),
-                    _t(
-                        "Language results, experience, and document quality often have the biggest impact.",
-                        "Les résultats linguistiques, l’expérience et la qualité documentaire ont souvent le plus d’impact.",
-                        language,
-                    ),
-                ],
-                "actions": [
-                    _t("Open my strategy", "Ouvrir ma stratégie", language),
-                    _t("Improve my profile", "Améliorer mon profil", language),
-                    _t("Open my documents", "Ouvrir mes documents", language),
-                ],
-            },
-            ensure_ascii=False,
-        ),
-        "profile_found": True,
-        "strategy_loaded": False,
-        "language": language,
-        "suggested_next_actions": _normalize_actions(
-            [
-                {
-                    "label": _t(
-                        "Open my strategy",
-                        "Ouvrir ma stratégie",
-                        language,
-                    ),
-                    "route": "/strategy",
-                },
-                {
-                    "label": _t(
-                        "Improve my profile",
-                        "Améliorer mon profil",
-                        language,
-                    ),
-                    "route": "/profile",
-                },
-                {
-                    "label": _t(
-                        "Open my documents",
-                        "Ouvrir mes documents",
-                        language,
-                    ),
-                    "route": "/documents",
-                },
-            ]
-        ),
-        "pathways": [],
-        "french_advantage": {},
-        "insights": [
-            _t(
-                "Your profile still has room for stronger optimization.",
-                "Votre profil présente encore un potentiel d’optimisation.",
-                language,
-            ),
-            _t(
-                "Language results, experience, and document quality often have the biggest impact.",
-                "Les résultats linguistiques, l’expérience et la qualité documentaire ont souvent le plus d’impact.",
-                language,
-            ),
-        ],
-    }
-
-
 @router.post("/chat", response_model=AIChatResponse)
 def chat_with_ai(
     payload: AIChatRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from app.services.chat_contract import fallback
     language = _normalize_language(payload.language)
-
     try:
         result = ask_self_user_copilot(
-            db=db,
-            current_user=current_user,
-            message=(payload.message or "").strip(),
-            language=language,
-            chat_history=payload.chat_history,
-            fail_silently=True,
-        ) or {}
-
-        reply = str(result.get("reply") or "").strip()
-        actions = _normalize_actions(result.get("suggested_next_actions", []))
-        pathways = result.get("pathways") or []
-        insights = _normalize_insights(result.get("insights"), pathways)
-
-        if not reply:
-            fallback = _fallback_chat_payload(language)
-            reply = fallback["reply"]
-            if not actions:
-                actions = fallback["suggested_next_actions"]
-            if not insights:
-                insights = fallback["insights"]
-
-        return AIChatResponse(
-            reply=reply,
-            profile_found=bool(result.get("profile_found", True)),
-            strategy_loaded=bool(result.get("strategy_loaded", True)),
-            language=language,
-            suggested_next_actions=actions,
-            pathways=pathways if isinstance(pathways, list) else [],
-            french_advantage=result.get("french_advantage", {}) or {},
-            insights=insights,
+            db=db, current_user=current_user, message=payload.message.strip(),
+            language=language, chat_history=payload.chat_history, fail_silently=True,
         )
-
-    except Exception as e:
-        print("❌ AI CHAT ERROR:", str(e))
-        fallback = _fallback_chat_payload(language)
-
-        return AIChatResponse(
-            reply=fallback["reply"],
-            profile_found=fallback["profile_found"],
-            strategy_loaded=fallback["strategy_loaded"],
-            language=fallback["language"],
-            suggested_next_actions=fallback["suggested_next_actions"],
-            pathways=fallback["pathways"],
-            french_advantage=fallback["french_advantage"],
-            insights=fallback["insights"],
-        )
+        return AIChatResponse(**result)
+    except Exception:
+        return AIChatResponse(**fallback(language), language=language,
+                              profile_found=False, strategy_loaded=False)
 
 
 @router.post("/generate-document", response_model=DocumentGeneratorResponse)

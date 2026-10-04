@@ -20,6 +20,9 @@ class AIChatRequest(BaseModel):
 
 
 class AIChatResponse(BaseModel):
+    ai_status: Literal["available", "unavailable", "not_requested"]
+    response_mode: Literal["ai", "official_handoff", "product_boundary", "fallback"]
+    limitations: List[str] = Field(default_factory=list)
     reply: str = ""
     profile_found: bool = True
     strategy_loaded: bool = True
