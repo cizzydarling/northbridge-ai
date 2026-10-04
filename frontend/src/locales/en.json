@@ -764,5 +764,41 @@
     "upgradeTitle": "Unlock the full decision engine",
     "upgradeBody": "Upgrade to Premium to unlock the full decision engine, deeper actions, and full pathway ranking.",
     "upgradeButton": "Upgrade to Premium"
+  },
+  "feedback": {
+    "title": "Beta Feedback",
+    "category": "Category (required)",
+    "choose": "Choose a category",
+    "message": "Message (required)",
+    "prompt": "What happened, or what could we improve?",
+    "aiPrompt": "Tell us what was helpful or unhelpful about the AI response.",
+    "rating": "Experience rating (optional)",
+    "noRating": "No rating",
+    "ratings": {
+      "1": "1 — Very poor",
+      "2": "2 — Poor",
+      "3": "3 — Neutral",
+      "4": "4 — Good",
+      "5": "5 — Very good"
+    },
+    "followUp": "You may contact me about this feedback.",
+    "privacy": "Feedback helps improve the beta. Please avoid highly sensitive personal information. Basic technical context, such as this page, is included. We will contact you about this feedback only if you give permission.",
+    "submit": "Send feedback",
+    "sending": "Sending…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "success": "Thanks — your feedback helps us improve NorthBridgeAI.",
+    "error": "We could not send your feedback. Your message is still here; please try again.",
+    "rateLimit": "You have sent several comments recently. Please wait a minute and try again; the hourly limit may require a longer wait. Your message is saved here.",
+    "validation": "Choose a category and enter a message between 10 and 4,000 characters.",
+    "length": "{{count}} / 4,000 characters (minimum 10)",
+    "categories": {
+      "bug": "Bug / Problem",
+      "ux": "Confusing / Hard to use",
+      "ai": "AI Assistant feedback",
+      "content": "Content / Information issue",
+      "feature": "Feature request",
+      "general": "General feedback"
+    }
   }
 }

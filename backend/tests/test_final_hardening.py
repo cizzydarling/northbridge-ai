@@ -34,8 +34,8 @@ def test_ai_state_and_deterministic_parity(monkeypatch, mode):
 @pytest.mark.parametrize('host', ['northbridge-ai-2.onrender.com','www.northbridgeia.com','api.stripe.com','api.resend.com','smtp.example.com','192.0.2.1'])
 def test_external_network_rejected_before_transport(host):
     try:
-        with pytest.raises(RuntimeError, match='TEST isolation'):
-            socket.socket().connect((host,443))
+        with socket.socket() as connection, pytest.raises(RuntimeError, match='TEST isolation'):
+            connection.connect((host,443))
         assert VIOLATIONS
     finally:
         VIOLATIONS.clear()  # this test deliberately exercises the boundary

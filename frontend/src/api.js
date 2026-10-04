@@ -1,5 +1,6 @@
 import { beginEntitlements, finishEntitlements, failEntitlements, resetEntitlements, getEntitlementState } from "./entitlementStore";
 import axios from "axios";
+import { rememberFeedbackAIStatus } from './feedbackContext';
 
 const api = axios.create({
   baseURL:
@@ -7,6 +8,11 @@ const api = axios.create({
     import.meta.env.VITE_API_URL ||
     "http://127.0.0.1:8000",
 });
+
+export const submitBetaFeedback = async (payload) => {
+  const { data } = await api.post('/feedback', payload);
+  return data;
+};
 
 /* =========================
    TOKEN + USER HELPERS
@@ -18,6 +24,7 @@ localStorage.removeItem(ACCESS_CACHE_KEY); // discard legacy unbound persisted e
 
 export const saveToken = (token) => {
   if (getToken() !== token) {
+    rememberFeedbackAIStatus(null);
     resetEntitlements(token);
     localStorage.removeItem(ACCESS_CACHE_KEY);
   }
@@ -29,6 +36,7 @@ export const setToken = (token) => {
 };
 
 export const removeToken = () => {
+  rememberFeedbackAIStatus(null);
   resetEntitlements();
   localStorage.removeItem(ACCESS_CACHE_KEY);
   localStorage.removeItem("token");
@@ -159,7 +167,12 @@ api.interceptors.request.use((config) => {
 ========================= */
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config.url === '/ai/chat' && response.config.headers?.Authorization === `Bearer ${getToken()}`) {
+      rememberFeedbackAIStatus(response.data?.ai_status);
+    }
+    return response;
+  },
   (error) => {
     const status = error.response?.status;
 

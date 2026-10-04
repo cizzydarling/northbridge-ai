@@ -25,13 +25,13 @@ from app.routes import auth_routes as auth
 from app.services import security_controls
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "fc9a4123b075"
+HEAD = "ad2f6801c947"
 DEFERRED = set()
 TABLES = {"users", "profiles", "clients", "client_documents", "matters", "saved_simulation_scenarios",
           "recommendations", "self_applications", "self_documents", "disclosure_acceptances",
           "generated_documents", "billing_transactions", "promo_codes", "promo_code_redemptions",
           "citizenship_questions", "citizenship_quiz_attempts", "citizenship_answers",
-          "language_practice_sessions", "saved_career_jobs", "alembic_version", "households", "household_members", "application_cases", "application_case_members"}
+          "language_practice_sessions", "saved_career_jobs", "alembic_version", "households", "household_members", "application_cases", "application_case_members", "beta_feedback"}
 
 
 def test_revision_graph_from_repository_root():
@@ -42,7 +42,7 @@ def test_revision_graph_from_repository_root():
     from alembic.config import Config
     from alembic.script import ScriptDirectory
     revisions = list(ScriptDirectory.from_config(Config(str(ROOT / "backend/alembic.ini"))).walk_revisions())
-    assert len(revisions) == 20
+    assert len(revisions) == 21
     assert all(not revision.is_branch_point and not revision.is_merge_point for revision in revisions)
 
 

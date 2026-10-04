@@ -1,5 +1,6 @@
 import useBillingAccess from "../hooks/useBillingAccess";
 import EntitlementStatus from "./EntitlementStatus";
+import BetaFeedback from "./BetaFeedback";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -276,13 +277,16 @@ export default function Layout(props) {
   useEffect(() => {
     if (user && status === "unknown") getBillingAccess().catch(() => {});
   }, [user, status]);
-  if (user && !status.startsWith("verified_")) {
-    return <EntitlementStatus error={status === "error"} onRetry={() => getBillingAccess().catch(() => {})} />;
-  }
-  return <ResolvedLayout {...props} />;
+  const feedbackEnabled = user?.role === "individual" && user?.plan !== "agent_pro";
+  return <>
+    {feedbackEnabled && <BetaFeedback key={user.id} />}
+    {user && !status.startsWith("verified_")
+      ? <EntitlementStatus error={status === "error"} onRetry={() => getBillingAccess().catch(() => {})} />
+      : <ResolvedLayout {...props} feedbackEnabled={feedbackEnabled} />}
+  </>;
 }
 
-function ResolvedLayout({ children }) {
+function ResolvedLayout({ children, feedbackEnabled }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
@@ -693,7 +697,7 @@ function ResolvedLayout({ children }) {
         </aside>
 
         <div className="min-h-screen flex-1 lg:pl-72">
-          <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f5f7fb]/88 backdrop-blur-xl">
+          <header className={`${feedbackEnabled ? "top-12" : "top-0"} sticky z-30 border-b border-slate-200/80 bg-[#f5f7fb]/88 backdrop-blur-xl`}>
             <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-3 sm:h-16 sm:px-4 md:px-6">
               <button
                 type="button"

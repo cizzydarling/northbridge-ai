@@ -135,6 +135,8 @@ def register_routers(app: FastAPI) -> None:
 
 
 
+    from app.routes.feedback_routes import router as feedback_router
+    app.include_router(feedback_router)
     app.include_router(auth_routes.router)
     app.include_router(app_routes.router)
     app.include_router(household_routes.router)

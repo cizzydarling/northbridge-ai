@@ -764,5 +764,41 @@
     "saved": "Enregistré avec succès.",
     "updated": "Mis à jour avec succès.",
     "deleted": "Supprimé avec succès."
+  },
+  "feedback": {
+    "title": "Commentaires bêta",
+    "category": "Catégorie (obligatoire)",
+    "choose": "Choisissez une catégorie",
+    "message": "Message (obligatoire)",
+    "prompt": "Que s’est-il passé ou que pourrions-nous améliorer ?",
+    "aiPrompt": "Dites-nous ce qui était utile ou inutile dans la réponse de l’IA.",
+    "rating": "Évaluation de l’expérience (facultatif)",
+    "noRating": "Aucune évaluation",
+    "ratings": {
+      "1": "1 — Très mauvaise",
+      "2": "2 — Mauvaise",
+      "3": "3 — Neutre",
+      "4": "4 — Bonne",
+      "5": "5 — Très bonne"
+    },
+    "followUp": "Vous pouvez me contacter au sujet de ce commentaire.",
+    "privacy": "Vos commentaires servent à améliorer la bêta. Évitez les renseignements personnels très sensibles. Un contexte technique de base, comme cette page, est inclus. Nous vous contacterons à ce sujet uniquement avec votre permission.",
+    "submit": "Envoyer le commentaire",
+    "sending": "Envoi…",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "success": "Merci — vos commentaires nous aident à améliorer NorthBridgeAI.",
+    "error": "Impossible d’envoyer votre commentaire. Votre message est conservé ici ; veuillez réessayer.",
+    "rateLimit": "Vous avez envoyé plusieurs commentaires récemment. Attendez une minute avant de réessayer ; la limite horaire peut nécessiter une attente plus longue. Votre message est conservé ici.",
+    "validation": "Choisissez une catégorie et saisissez un message de 10 à 4 000 caractères.",
+    "length": "{{count}} / 4 000 caractères (minimum 10)",
+    "categories": {
+      "bug": "Bogue / Problème",
+      "ux": "Confus / Difficile à utiliser",
+      "ai": "Commentaire sur l’assistant IA",
+      "content": "Problème de contenu / d’information",
+      "feature": "Suggestion de fonctionnalité",
+      "general": "Commentaire général"
+    }
   }
 }
