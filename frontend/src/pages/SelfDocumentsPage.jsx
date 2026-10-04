@@ -946,97 +946,9 @@ function getSmartMomentum({
 
 
 
-function detectCriticalDocumentGaps({ strategy, engine, language }) {
+function detectCriticalDocumentGaps() {
   // Applicability is not verified: do not infer document requirements from strategy.
   return [];
-  const completed = (id) => Boolean(engine?.[id]?.completed);
-
-  const strategyText = [
-    strategy?.best_pathway?.name,
-    ...(Array.isArray(strategy?.recommended_programs)
-      ? strategy.recommended_programs
-      : []),
-    ...(Array.isArray(strategy?.weaknesses) ? strategy.weaknesses : []),
-    ...(Array.isArray(strategy?.next_steps) ? strategy.next_steps : []),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const gaps = [];
-
-  const addGap = (id, en, fr, reasonEn, reasonFr) => {
-    if (!completed(id)) {
-      gaps.push({
-        id,
-        title: language === "fr" ? fr : en,
-        reason: language === "fr" ? reasonFr : reasonEn,
-      });
-    }
-  };
-
-  if (
-    strategyText.includes("express entry") ||
-    strategyText.includes("crs") ||
-    Number(strategy?.crs_score || 0) > 0
-  ) {
-    addGap(
-      "language_results",
-      "Language results missing",
-      "Résultats linguistiques manquants",
-      "Language proof is usually critical for CRS-based pathways.",
-      "Les preuves linguistiques sont souvent essentielles pour les parcours basés sur le CRS."
-    );
-
-    addGap(
-      "education_records",
-      "Education records missing",
-      "Preuves d’études manquantes",
-      "Education evidence supports points, eligibility, and credibility.",
-      "Les preuves d’études soutiennent les points, l’admissibilité et la crédibilité."
-    );
-
-    addGap(
-      "work_experience_records",
-      "Work experience proof missing",
-      "Preuves d’expérience manquantes",
-      "Work evidence is central to skilled immigration credibility.",
-      "Les preuves d’expérience sont centrales pour la crédibilité en immigration qualifiée."
-    );
-  }
-
-  if (
-    strategyText.includes("pnp") ||
-    strategyText.includes("provincial") ||
-    strategyText.includes("province") ||
-    strategyText.includes("british columbia") ||
-    strategyText.includes("ontario")
-  ) {
-    addGap(
-      "work_experience_records",
-      "Province-aligned work proof missing",
-      "Preuves d’emploi alignées à la province manquantes",
-      "Provincial pathways often depend on occupation fit and strong employment evidence.",
-      "Les voies provinciales dépendent souvent de l’adéquation professionnelle et de preuves d’emploi solides."
-    );
-  }
-
-  if (
-    strategyText.includes("fund") ||
-    strategyText.includes("financial") ||
-    strategyText.includes("fonds") ||
-    strategyText.includes("financier")
-  ) {
-    addGap(
-      "proof_of_funds",
-      "Proof of funds missing",
-      "Preuve de fonds manquante",
-      "Check the official instructions to determine whether financial evidence applies.",
-      "Les preuves financières peuvent soutenir la préparation et l’admissibilité."
-    );
-  }
-
-  return gaps.slice(0, 3);
 }
 
 function buildSubmissionReadiness({

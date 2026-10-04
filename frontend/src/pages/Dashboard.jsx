@@ -329,7 +329,6 @@ export default function Dashboard() {
   );
 
   const {
-    crsScore,
     recommendations,
     nextSteps,
     summary,

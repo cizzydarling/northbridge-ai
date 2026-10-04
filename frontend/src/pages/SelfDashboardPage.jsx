@@ -428,7 +428,6 @@ export default function SelfDashboardPage() {
 
   const localizedBestPathway = translateProgramLabel(bestPathway, language);
 
-  const crsScore = strategy?.crs_score ?? "--";
   const strategySummary =
     translateStrategySummary(
       strategy?.advisor_summary || strategy?.strategy_headline,

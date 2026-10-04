@@ -21,8 +21,6 @@ import {
   improveAIDocumentBody,
   improveAIDocumentConclusion,
   improveAIDocumentIntro,
-  makeAIDocumentOfficerReady,
-  scoreAIDocumentConfidence,
   updateDocument,
 } from "../api";
 
@@ -890,11 +888,9 @@ export default function DocumentGeneratorPage() {
   const [duplicatingDraft, setDuplicatingDraft] = useState(false);
   const [deletingDraft, setDeletingDraft] = useState(false);
   const [explaining, setExplaining] = useState(false);
-  const [officerReadyLoading, setOfficerReadyLoading] = useState(false);
   const [syncingSections, setSyncingSections] = useState(false);
   const [fixingAll, setFixingAll] = useState(false);
   const [improvingSection, setImprovingSection] = useState("");
-  const [scoringConfidence, setScoringConfidence] = useState(false);
   const [message, setMessage] = useState("");
 
   const loadDrafts = useCallback(async () => {
@@ -1463,57 +1459,6 @@ export default function DocumentGeneratorPage() {
     }
   }
 
-  async function handleMakeOfficerReady() {
-    const content = getCurrentDraftContent();
-    if (!content) return;
-
-    if (!hasAdvancedCopilot) {
-      navigate(proPath);
-      return;
-    }
-
-    try {
-      setOfficerReadyLoading(true);
-      setMessage("");
-      setWhyThisWorks("");
-      setConfidenceReport("");
-
-      const res = await makeAIDocumentOfficerReady({
-        document_type: documentType,
-        language,
-        tone,
-        additional_instructions: content,
-      });
-
-      const nextContent = String(res?.data?.content || "").trim();
-      const nextSections =
-        res?.data?.sections || splitContentIntoSections(nextContent);
-
-      setResult((prev) => ({
-        ...(prev || {}),
-        ...(res?.data || {}),
-        title: prev?.title || documentTypeLabel,
-        content: nextContent || prev?.content || "",
-        sections: nextSections,
-      }));
-
-      setMessage(
-        language === "fr"
-          ? "Document renforcé en version prête pour l’agent."
-          : "Document upgraded into an officer-ready version."
-      );
-    } catch (err) {
-      console.error(err);
-      setMessage(
-        language === "fr"
-          ? "Impossible de produire la version officer-ready."
-          : "Failed to create the officer-ready version."
-      );
-    } finally {
-      setOfficerReadyLoading(false);
-    }
-  }
-
   async function handleSyncSectionsToDraft() {
     try {
       setSyncingSections(true);
@@ -1647,40 +1592,6 @@ export default function DocumentGeneratorPage() {
       );
     } finally {
       setImprovingSection("");
-    }
-  }
-
-  async function handleScoreConfidence() {
-    const content = getCurrentDraftContent();
-    if (!content) return;
-
-    try {
-      setScoringConfidence(true);
-      setMessage("");
-
-      const res = await scoreAIDocumentConfidence({
-        document_type: documentType,
-        language,
-        tone,
-        additional_instructions: content,
-      });
-
-      setConfidenceReport(String(res?.data?.content || "").trim());
-
-      setMessage(
-        language === "fr"
-          ? "Analyse de confiance générée."
-          : "Confidence analysis generated."
-      );
-    } catch (err) {
-      console.error(err);
-      setMessage(
-        language === "fr"
-          ? "Impossible de générer le score de confiance."
-          : "Failed to generate the confidence score."
-      );
-    } finally {
-      setScoringConfidence(false);
     }
   }
 
