@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import StrategyProgressCard from "../components/StrategyProgressCard";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -2118,7 +2119,7 @@ export default function StrategyPage() {
   const intent = searchParams.get("intent") || "";
 
   const [data, setData] = useState(null);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [message, setMessage] = useState("");
   const [engineVersion, setEngineVersion] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -2274,7 +2275,6 @@ export default function StrategyPage() {
       }
 
       setData(strategyData);
-      setAccess(accessData);
     } catch (err) {
       console.error(err);
       setMessage(
@@ -3309,6 +3309,9 @@ const heroTimelinePreview = getTimelineLabel(timelineValue, language);
   return (
     <Layout>
       <ApplicationContextBanner />
+      {strategy.ai_status !== "available" && <div role="status" data-testid="ai-unavailable" className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-700">
+        {language === "fr" ? "Les analyses de l’IA sont temporairement indisponibles. Votre stratégie calculée demeure disponible." : "AI insights are temporarily unavailable. Your calculated strategy is still available."}
+      </div>}
       {message && (
         <div className="mb-6 rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           {message}

@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -14,7 +15,6 @@ import {
   fixAIDocumentIssues,
   generateAIDocument,
   getBillingAccess,
-  getCachedBillingAccess,
   getDocument,
   getSavedDocuments,
   improveAIDocumentBody,
@@ -854,7 +854,7 @@ export default function DocumentGeneratorPage() {
   const pathway = searchParams.get("pathway") || "";
   const language = i18n.language === "fr" ? "fr" : "en";
 
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [documentType, setDocumentType] = useState("letter_of_explanation");
   const [tone, setTone] = useState("professional");
   const [additionalInstructions, setAdditionalInstructions] = useState("");
@@ -902,14 +902,12 @@ export default function DocumentGeneratorPage() {
       setDrafts(res.data || []);
     } catch (err) {
       console.error(err);
-      setAccess(getCachedBillingAccess());
     }
   }, []);
 
   const loadAccess = useCallback(async () => {
     try {
-      const res = await getBillingAccess();
-      setAccess(res.data);
+      await getBillingAccess();
     } catch (err) {
       console.error(err);
     }

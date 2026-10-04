@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
@@ -5,7 +6,6 @@ import UpgradePrompt from "../components/UpgradePrompt";
 import Card from "../components/ui/Card";
 import {
   buildProPricingPath,
-  getCachedBillingAccess,
   getCitizenshipProgress,
   getMyAccess,
 } from "../api";
@@ -41,7 +41,7 @@ export default function CitizenshipProgressPage() {
   const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
   const [progress, setProgress] = useState(null);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,13 +50,11 @@ export default function CitizenshipProgressPage() {
       try {
         const accessRes = await getMyAccess();
         if (!mounted) return;
-        setAccess(accessRes.data);
         if (!accessRes.data?.can_track_citizenship_progress) return;
         const progressRes = await getCitizenshipProgress();
         if (mounted) setProgress(progressRes.data);
       } catch (err) {
         console.error(err);
-        if (mounted) setAccess(getCachedBillingAccess());
       } finally {
         if (mounted) setLoading(false);
       }

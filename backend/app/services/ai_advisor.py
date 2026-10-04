@@ -880,18 +880,13 @@ def _normalize_chat_response(
 
 
 def _normalize_strategy_response(payload: Any, language: str) -> Dict[str, str]:
-    if not isinstance(payload, dict):
+    if not isinstance(payload, dict) or any(
+        not isinstance(payload.get(key), str) or not payload[key].strip()
+        for key in ("advisor_summary", "ai_strategy")
+    ):
         return _fallback_strategy_response(language)
-
-    advisor_summary = str(payload.get("advisor_summary", "")).strip()
-    ai_strategy = str(payload.get("ai_strategy", "")).strip()
-
-    fallback = _fallback_strategy_response(language)
-
-    return {
-        "advisor_summary": advisor_summary or fallback["advisor_summary"],
-        "ai_strategy": ai_strategy or fallback["ai_strategy"],
-    }
+    return {"status": "available", "advisor_summary": payload["advisor_summary"].strip(),
+            "ai_strategy": payload["ai_strategy"].strip()}
 
 
 def _build_contextual_fallback_chat_response(
@@ -996,29 +991,8 @@ def _build_contextual_fallback_chat_response(
 
 
 def _fallback_strategy_response(language: str) -> Dict[str, str]:
-    if language == "fr":
-        return {
-            "advisor_summary": (
-                "Votre stratégie initiale est disponible. Renforcez votre profil pour obtenir une analyse plus approfondie et plus précise."
-            ),
-            "ai_strategy": (
-                "## Analyse stratégique\n\n"
-                "- Vérifiez les informations clés de votre profil.\n"
-                "- Renforcez le score linguistique, l’expérience et la cohérence documentaire.\n"
-                "- Priorisez le parcours le plus solide selon votre situation actuelle."
-            ),
-        }
-    return {
-        "advisor_summary": (
-            "Your initial strategy is available. Strengthen your profile to unlock a deeper and more precise analysis."
-        ),
-        "ai_strategy": (
-            "## Strategic analysis\n\n"
-            "- Review the key parts of your profile.\n"
-            "- Strengthen language score, work experience, and document consistency.\n"
-            "- Prioritize the strongest pathway for your current situation."
-        ),
-    }
+    # Never substitute generic prose for a successful personalized AI result.
+    return {"status": "unavailable", "advisor_summary": "", "ai_strategy": ""}
 
 
 def generate_ai_chat_reply(
@@ -1189,15 +1163,9 @@ def generate_ai_strategy(
         try:
             parsed = json.loads(raw_content)
         except json.JSONDecodeError:
-            fallback = _fallback_strategy_response(language)
-            plain = raw_content.strip()
-            return {
-                "advisor_summary": plain or fallback["advisor_summary"],
-                "ai_strategy": plain or fallback["ai_strategy"],
-            }
+            return _fallback_strategy_response(language)
 
         return _normalize_strategy_response(parsed, language)
 
-    except Exception as e:
-        print("AI STRATEGY ERROR:", str(e))
+    except Exception:
         return _fallback_strategy_response(language)

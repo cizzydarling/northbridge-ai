@@ -11,6 +11,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+if __name__ == "__main__":
+    from testing.isolation import configure_environment, install_network_guard
+    configure_environment()
+    install_network_guard()
+
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("STRIPE_SECRET_KEY", "sk_test_launch_smoke")
 

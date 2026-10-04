@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,7 +12,6 @@ import api, {
   getBillingAccess,
   getApplicationContext,
   getCurrentUserLocal,
-  getCachedBillingAccess,
   getFormsApplicationTypes,
   getMyProfile,
   getSavedSelfApplication,
@@ -591,7 +591,7 @@ export default function FormsPage() {
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [savingInline, setSavingInline] = useState(false);
   const [accessLoading, setAccessLoading] = useState(true);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [activeCase, setActiveCase] = useState(null);
   const [activeStudioTab, setActiveStudioTab] = useState("setup");
   const [activeResultTab, setActiveResultTab] = useState("summary");
@@ -649,11 +649,9 @@ export default function FormsPage() {
   async function loadAccess() {
     try {
       setAccessLoading(true);
-      const res = await getBillingAccess();
-      setAccess(res?.data || null);
+      await getBillingAccess();
     } catch (err) {
       console.error(err);
-      setAccess(getCachedBillingAccess());
     } finally {
       setAccessLoading(false);
     }

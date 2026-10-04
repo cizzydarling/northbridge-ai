@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,7 +9,6 @@ import Button from "../components/ui/Button";
 import AICopilotCard from "../components/AICopilotCard";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
-  getCachedBillingAccess,
   getMyAccess,
   getMyProfile,
   getApplicationContext,
@@ -90,7 +90,7 @@ export default function SelfApplicationPage() {
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const [workspace, setWorkspace] = useState(null);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("priority");
@@ -103,17 +103,11 @@ export default function SelfApplicationPage() {
       setLoading(true);
 
       const context = (await getApplicationContext()).data;
-      const [profileRes, savedAppRes, accessRes] = await Promise.allSettled([
+      const [profileRes, savedAppRes, _accessRes] = await Promise.allSettled([
         getMyProfile(),
         getSavedSelfApplication(context.case_id),
         getMyAccess(),
       ]);
-
-      if (accessRes.status === "fulfilled") {
-        setAccess(accessRes.value.data);
-      } else {
-        setAccess(getCachedBillingAccess());
-      }
 
       const savedApplication =
         savedAppRes.status === "fulfilled" ? savedAppRes.value.data : null;

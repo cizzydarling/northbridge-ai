@@ -1,9 +1,10 @@
+import useBillingAccess from "../hooks/useBillingAccess";
+import EntitlementStatus from "./EntitlementStatus";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getBillingAccess,
-  getCachedBillingAccess,
   getCurrentUserLocal,
   getMyProfile,
   getUserDisplayName,
@@ -269,17 +270,28 @@ function MobileNavButton({ active, onClick, children }) {
   );
 }
 
-export default function Layout({ children }) {
+export default function Layout(props) {
+  const { status } = useBillingAccess();
+  const user = getCurrentUserLocal();
+  useEffect(() => {
+    if (user && status === "unknown") getBillingAccess().catch(() => {});
+  }, [user, status]);
+  if (user && !status.startsWith("verified_")) {
+    return <EntitlementStatus error={status === "error"} onRetry={() => getBillingAccess().catch(() => {})} />;
+  }
+  return <ResolvedLayout {...props} />;
+}
+
+function ResolvedLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
   const [currentUser, setCurrentUser] = useState(getCurrentUserLocal());
   const [profileIdentity, setProfileIdentity] = useState(null);
-  const [effectivePlan, setEffectivePlan] = useState(
-    normalizePlan(getCachedBillingAccess()?.plan || currentUser?.plan)
-  );
-  const [loadingPlan, setLoadingPlan] = useState(!getCachedBillingAccess());
+  const { access } = useBillingAccess();
+  const effectivePlan = normalizePlan(access?.plan);
+  const loadingPlan = false;
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [confirmationSending, setConfirmationSending] = useState(false);
@@ -298,9 +310,8 @@ export default function Layout({ children }) {
   useEffect(() => {
     const handleUserUpdate = () => {
       const nextUser = getCurrentUserLocal();
-      const cachedAccess = getCachedBillingAccess();
+
       setCurrentUser(nextUser);
-      setEffectivePlan(normalizePlan(cachedAccess?.plan || nextUser?.plan));
     };
 
     window.addEventListener("storage", handleUserUpdate);
@@ -321,9 +332,8 @@ export default function Layout({ children }) {
         const res = await refreshCurrentUser();
         if (mounted) {
           const nextUser = res?.data || getCurrentUserLocal();
-          const cachedAccess = getCachedBillingAccess();
+
           setCurrentUser(nextUser);
-          setEffectivePlan(normalizePlan(cachedAccess?.plan || nextUser?.plan));
         }
       } catch {
         if (mounted) {
@@ -384,45 +394,6 @@ export default function Layout({ children }) {
       window.removeEventListener("userUpdated", loadProfileIdentity);
     };
   }, [currentUser]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadPlan() {
-      try {
-        const cachedAccess = getCachedBillingAccess();
-        if (cachedAccess) {
-          setEffectivePlan(normalizePlan(cachedAccess.plan || currentUser?.plan));
-        } else {
-          setLoadingPlan(true);
-        }
-        const res = await getBillingAccess();
-        if (mounted) {
-          setEffectivePlan(normalizePlan(res?.data?.plan || currentUser?.plan));
-        }
-      } catch (err) {
-        console.error(err);
-        if (mounted) {
-          setEffectivePlan(normalizePlan(currentUser?.plan));
-        }
-      } finally {
-        if (mounted) {
-          setLoadingPlan(false);
-        }
-      }
-    }
-
-    loadPlan();
-
-    window.addEventListener("storage", loadPlan);
-    window.addEventListener("userUpdated", loadPlan);
-
-    return () => {
-      mounted = false;
-      window.removeEventListener("storage", loadPlan);
-      window.removeEventListener("userUpdated", loadPlan);
-    };
-  }, [currentUser?.plan]);
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -614,21 +585,12 @@ export default function Layout({ children }) {
       return;
     }
 
-    if (effectivePlan === "pro") {
-      navigate("/pricing?plan=premium&source=shell&intent=export");
-      return;
-    }
-
     navigate("/chat");
   }
 
   const upgradeLabel =
-    effectivePlan === "premium"
+    effectivePlan !== "free"
       ? t("nav.aiAssistant")
-      : effectivePlan === "pro"
-      ? language === "fr"
-        ? "Premium"
-        : "Go Premium"
       : language === "fr"
       ? "Passer Pro"
       : "Upgrade";

@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -6,7 +7,6 @@ import Button from "../components/ui/Button";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
   getBillingAccess,
-  getCachedBillingAccess,
   getMyProfile,
   getToken,
 } from "../api";
@@ -156,7 +156,7 @@ export default function StrategySimulatorPage() {
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(defaultProfile);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [selectedScenarioId, setSelectedScenarioId] = useState(null);
@@ -173,7 +173,7 @@ export default function StrategySimulatorPage() {
         setLoading(true);
         setMessage("");
 
-        const [profileRes, accessRes] = await Promise.allSettled([
+        const [profileRes, _accessRes] = await Promise.allSettled([
           getMyProfile(),
           getBillingAccess(),
         ]);
@@ -188,12 +188,6 @@ export default function StrategySimulatorPage() {
             profileRes.reason?.response?.data?.detail ||
               "Unable to load your profile for simulation."
           );
-        }
-
-        if (accessRes.status === "fulfilled") {
-          setAccess(accessRes.value?.data || null);
-        } else {
-          setAccess(getCachedBillingAccess());
         }
       } catch (err) {
         console.error(err);

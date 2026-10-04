@@ -18,5 +18,8 @@ def test_strategy_rc_parity(index, monkeypatch):
     profile, language, members, case = strategy_case(index)
     actual = strategy_service.build_strategy(profile, language, members, case)
     expected = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    assert actual.pop("ai_status") == "unavailable"
+    assert actual.pop("ai_strategy") is None
+    assert expected["strategy"][index].pop("ai_strategy") == ""
     # Internal cached dataset tokens are sets; canonicalize only their JSON representation.
     assert json.loads(json.dumps(actual, default=sorted)) == expected["strategy"][index]

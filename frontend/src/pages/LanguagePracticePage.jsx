@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
@@ -7,7 +8,6 @@ import Card from "../components/ui/Card";
 import {
   buildPremiumPricingPath,
   createLanguagePracticeSession,
-  getCachedBillingAccess,
   getLanguagePracticePrompts,
   getLanguagePracticeSessions,
   getMyAccess,
@@ -23,7 +23,7 @@ export default function LanguagePracticePage() {
   const [responseText, setResponseText] = useState("");
   const [selfScore, setSelfScore] = useState(70);
   const [sessions, setSessions] = useState([]);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -33,7 +33,6 @@ export default function LanguagePracticePage() {
       setLoading(true);
       const accessRes = await getMyAccess();
       if (!mounted) return;
-      setAccess(accessRes.data);
       if (!accessRes.data?.can_use_language_practice) return;
       const [promptRes, sessionRes] = await Promise.all([
         getLanguagePracticePrompts(targetLanguage),
@@ -51,7 +50,6 @@ export default function LanguagePracticePage() {
     load().catch((err) => {
       console.error(err);
       if (mounted) {
-        setAccess(getCachedBillingAccess());
         setMessage(uiLanguage === "fr" ? "Chargement impossible." : "Unable to load practice.");
       }
     }).finally(() => {

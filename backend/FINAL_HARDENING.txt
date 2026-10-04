@@ -1,0 +1,170 @@
+FINAL HARDENING — LOCAL VALIDATION AND DEPLOYMENT PREPARATION
+
+Base candidate: 4cc9eb34d168ff498a269c6c00116650c15ff854.
+No migration, ORM-model, immigration-formula or NOC-ranking change is intended.
+
+RENDER CHANGE AFTER RELEASE VALIDATION (manual, not performed by this code)
+Service: northbridge-ai-2
+Health Check Path = /health/ready
+Keep one instance and one Uvicorn worker on the current 512 MB / 0.5 CPU plan.
+Start command remains: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+Do not deploy merely to apply this document. Follow the release approval process.
+
+Readiness returns 200 only when NOC initialization, the database, configured
+storage and the configured rate limiter are ready. OpenAI and IRCC are optional
+and are never probed. Dependency probes share a 2.5-second response budget;
+unfinished probes remain in flight rather than spawning another probe on every
+request. Failure responses contain component names/statuses only. Liveness does
+not depend on remote providers. Uvicorn binds after lifespan startup.
+After an authorized deployment, verify /health/ready returns 200 within Render's
+5-second health-check limit, inspect memory and CPU, and verify a startup failure
+cannot receive traffic. A TCP check alone does not exercise dependency readiness.
+
+ENTITLEMENTS
+The shared store contains unknown/loading, verified_free, verified_paid or error.
+Only current-session bootstrap/billing responses may publish verified access.
+User serialization and persisted browser data cannot grant or overwrite access.
+Expired/in-flight responses from old sessions are discarded. Logout/account
+switch clears access, including changes received from another browser tab.
+Layout and upgrade prompts gate rendering centrally. All feature pages subscribe
+to the same snapshot. A lookup failure offers retry and never synthesizes Free.
+Backend authorization remains the authority; this UI state is not a security grant.
+
+AI
+Strategy adds ai_status: available | unavailable. Only validated nonempty JSON
+narrative fields yield available. Missing key, timeout, error and malformed output
+produce unavailable with ai_strategy=null, leaving calculated fields unchanged.
+The UI shows a bilingual, non-blocking notice. The SDK timeout is 15 seconds with
+zero retries; it is not a strict whole-request wall-clock deadline.
+
+TEST COMMANDS (repository root unless stated otherwise)
+.\.venv\Scripts\python.exe -m pytest -q backend/tests backend/launch_smoke_test.py
+Set TEST_POSTGRES_ADMIN_URL securely to a disposable loopback /postgres database
+for PostgreSQL rehearsal tests. Without it, those tests explicitly skip; a release
+verification must configure it and have zero skips. Random nbai_rehearsal_* and
+nbai_perf_* databases are created and removed by their owners.
+.\.venv\Scripts\python.exe backend/performance_benchmark.py
+cd frontend
+npm test
+npm run lint
+npm run test:e2e
+
+E2E always builds a localhost-targeted production bundle before previewing it.
+It does not reuse servers or accept an arbitrary backend/frontend start command.
+Do not deploy the locally generated E2E bundle: its API URL is localhost.
+Retries are disabled. Each test resets only the loopback test app's process-local
+rate-limit fixtures; production limit implementations and values are unchanged.
+The reset/status endpoints are attached solely by backend/e2e_server.py, never by
+app.main. The production application cannot expose these endpoints.
+
+ISOLATION
+Pytest installs the guard before collecting tests. E2E and benchmark entry points
+install the same guard before loading the app. Python dotenv loading is disabled;
+provider/database credentials are removed. Socket DNS/connect/connect_ex and
+libpq connections are checked. PostgreSQL must use loopback and the explicit
+admin or disposable test database names. Subprocess migrations inherit the guard.
+Unexpected attempts are recorded and fail pytest/E2E even if app code catches the
+network exception. Optional public intelligence is mocked unavailable by default.
+Browser and API-request fixtures allow only HTTP/WS loopback ports 8010 and 4173.
+API redirects are disabled; service workers are blocked; browser requests and
+WebSockets are intercepted. Safely fulfilled local route mocks need no external
+network. CORS is not used as a safety boundary.
+
+LIMITS
+The test boundary protects normal repository entry points, not malicious test
+code deliberately undoing the guard or arbitrary native networking libraries.
+Short local benchmarks are not Linux-container peak-memory or long-soak proofs.
+
+FINAL LOCAL RESULTS — 2026-10-02
+Backend: 327 passed, zero skipped (283.97 s), including disposable PostgreSQL
+migration/auth/Household concurrency tests. Frontend contract/guard tests: 4 passed.
+ESLint passed. Production build passed (370 modules). Chromium: 10 passed, zero
+retries (3.1 minutes), including EN/FR individual and Household journeys, paid/free,
+slow/failed access, retry, refresh, account switch/logout, AI unavailable and agents.
+Paid browser UI fixtures mock authoritative access; backend billing tests validate
+real entitlement rules independently. No live Stripe/OpenAI/provider calls made.
+
+Strategy first/warm: 0.212 / 0.204 s; 11 SQL statements each.
+NOC ready/repeated input: 0.187 / 0.141 s; one SQL statement each.
+App import + lifespan preparation: 17.625 s (import 2.793 s, preparation 14.832 s).
+This startup measurement excludes interpreter launch and Uvicorn socket binding.
+Absolute working set: 241.94 MiB after preload; 243.50 MiB after requests.
+Measured with FastAPI TestClient, synthetic local PostgreSQL, OpenAI disabled and
+public HTTP fixtures immediately unavailable. Not production or provider latency.
+No material local startup/memory/latency regression was observed.
+
+Alembic head: fc9a4123b075 (single head). No migration or ORM-model file was edited.
+All 43 migration/model tracked files match RC2 after CRLF/LF normalization;
+Git reports no changes in these directories. Raw blob-to-working-tree comparison
+is not byte-identical for some files because of existing Windows line endings.
+Immigration formulas, NOC scoring/ranking and Household architecture unchanged.
+Git diff --check passed; Git emitted only an existing sitemap line-ending notice.
+
+FAILURES / WARNINGS / RISKS
+No unresolved validation failure. Initial new Free-account browser assertions
+expected a usage-limit banner rather than the actual Upgrade button; corrected.
+SQLite has no PostgreSQL owner-row lock: new browser fixtures initialize their
+household before concurrent UI requests. Production concurrency remains tested
+against migrated disposable PostgreSQL; no Household implementation changed.
+The unused CurrentPlanBadge consumer was also migrated to the shared contract.
+Readiness workers retain at most one unfinished probe per dependency; a permanently
+stuck dependency stays unavailable until it recovers or the process restarts.
+Entitlement refresh deliberately hides the shell while re-verifying; network
+failure requires retry instead of silently showing Free or stale paid content.
+Tests enforce normal repository entry points, not an OS-level network sandbox.
+
+BLOCKS SOFT LAUNCH: none found in this bounded hardening validation.
+SHOULD FIX BEFORE INVITES: manually configure Render Health Check Path to
+/health/ready after the approved release, then verify readiness/startup and actual
+Linux-container memory. Keep one worker. No Render change was performed here.
+SAFE TO DEFER DURING CONTROLLED BETA: longer Linux/load soak and richer optional
+provider telemetry. AI SDK timeout remains a per-operation timeout, not a strict
+whole-request deadline; deterministic Strategy is preserved on provider failure.
+
+FINAL HARDENING READY FOR RELEASE-CANDIDATE COMMIT: YES
+No commit, deployment, production access, or Render configuration change performed.
+
+FILES CHANGED (repository-relative)
+backend/FINAL_HARDENING.txt
+backend/app/main.py
+backend/app/routes/strategy_routes.py
+backend/app/services/ai_advisor.py
+backend/app/services/strategy_service.py
+backend/e2e_server.py
+backend/launch_smoke_test.py
+backend/performance_benchmark.py
+backend/testing/isolation.py
+backend/testing/sitecustomize.py
+backend/tests/test_final_hardening.py
+backend/tests/test_performance_parity.py
+conftest.py
+frontend/e2e/final-hardening.spec.js
+frontend/e2e/fixtures.js
+frontend/e2e/networkGuard.js
+frontend/entitlement-contract.test.mjs
+frontend/package.json
+frontend/playwright.config.js
+frontend/src/App.jsx
+frontend/src/api.js
+frontend/src/components/CurrentPlanBadge.jsx
+frontend/src/components/EntitlementStatus.jsx
+frontend/src/components/Layout.jsx
+frontend/src/components/UpgradePrompt.jsx
+frontend/src/entitlementStore.js
+frontend/src/hooks/useBillingAccess.js
+frontend/src/pages/BillingSuccessPage.jsx
+frontend/src/pages/CareerMatchPage.jsx
+frontend/src/pages/CitizenshipPracticePage.jsx
+frontend/src/pages/CitizenshipProgressPage.jsx
+frontend/src/pages/CitizenshipQuizPage.jsx
+frontend/src/pages/DocumentGeneratorPage.jsx
+frontend/src/pages/DocumentReviewPage.jsx
+frontend/src/pages/FormsPage.jsx
+frontend/src/pages/LanguagePracticePage.jsx
+frontend/src/pages/OfficialFindersPage.jsx
+frontend/src/pages/PricingPage.jsx
+frontend/src/pages/SavedJobsPage.jsx
+frontend/src/pages/SelfApplicationPage.jsx
+frontend/src/pages/SelfDocumentsPage.jsx
+frontend/src/pages/StrategyPage.jsx
+frontend/src/pages/StrategySimulatorPage.jsx

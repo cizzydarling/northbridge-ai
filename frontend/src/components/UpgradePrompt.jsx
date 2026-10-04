@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +20,7 @@ export default function UpgradePrompt({
   className = "",
   compact = false,
 }) {
+  const { status } = useBillingAccess();
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const language = i18n.language === "fr" ? "fr" : "en";
@@ -43,10 +45,13 @@ export default function UpgradePrompt({
     };
   }, [language]);
 
+  if (status !== "verified_free") return null;
+
   const defaultButtonLabel = buttonLabel || copy.defaultButtonLabel;
 
   return (
     <div
+      data-testid="upgrade-prompt"
       className={`overflow-hidden rounded-2xl border border-amber-200 bg-stone-50 shadow-[0_16px_48px_rgba(15,23,42,0.06)] ${className}`}
     >
       <div className={compact ? "p-5" : "p-6 md:p-7"}>

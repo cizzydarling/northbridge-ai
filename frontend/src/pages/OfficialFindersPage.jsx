@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
@@ -7,7 +8,6 @@ import Input from "../components/ui/Input";
 import UpgradePrompt from "../components/UpgradePrompt";
 import {
   getBillingAccess,
-  getCachedBillingAccess,
   getMyProfile,
 } from "../api";
 
@@ -203,7 +203,7 @@ export default function OfficialFindersPage() {
   const [activeTab, setActiveTab] = useState("tests");
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
   const [testLanguage, setTestLanguage] = useState("all");
@@ -216,7 +216,7 @@ export default function OfficialFindersPage() {
     let mounted = true;
 
     Promise.allSettled([getMyProfile(), getBillingAccess()])
-      .then(([profileResult, accessResult]) => {
+      .then(([profileResult]) => {
         if (!mounted) return;
         if (profileResult.status === "fulfilled") {
           const nextProfile = profileResult.value?.data || null;
@@ -225,13 +225,9 @@ export default function OfficialFindersPage() {
           setCity(nextProfile?.current_city || "");
           setProvince(normalizeProvince(nextProfile?.preferred_province));
         }
-        if (accessResult.status === "fulfilled") {
-          setAccess(accessResult.value?.data || getCachedBillingAccess());
-        }
       })
       .catch((error) => {
         console.error("Unable to load official finders", error);
-        if (mounted) setAccess(getCachedBillingAccess());
       })
       .finally(() => {
         if (mounted) setLoading(false);

@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -8,7 +9,6 @@ import Card from "../components/ui/Card";
 import {
   buildPremiumPricingPath,
   buildProPricingPath,
-  getCachedBillingAccess,
   getMyAccess,
   getMyProfile,
   runCareerMatch,
@@ -265,7 +265,7 @@ export default function CareerMatchPage() {
     use_profile_defaults: true,
   });
   const [result, setResult] = useState(null);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [loading, setLoading] = useState(false);
   const [savingUrl, setSavingUrl] = useState("");
   const [message, setMessage] = useState("");
@@ -374,19 +374,7 @@ export default function CareerMatchPage() {
     };
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    getMyAccess()
-      .then((res) => {
-        if (mounted) setAccess(res.data);
-      })
-      .catch(() => {
-        if (mounted) setAccess(getCachedBillingAccess());
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  useEffect(() => { getMyAccess().catch(() => {}); }, []);
 
   useEffect(() => {
     if (!form.occupation && !form.noc_code) return;

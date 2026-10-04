@@ -1,3 +1,4 @@
+import EntitlementStatus from "./components/EntitlementStatus";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
@@ -173,7 +174,7 @@ function BootstrapGate({ children }) {
   }
 
   if (!bootstrap) {
-    return <Navigate to="/auth" replace state={{ from: location }} />;
+    return <EntitlementStatus error onRetry={() => window.dispatchEvent(new Event("nbai-bootstrap-refresh"))} />;
   }
 
   const isDisclosurePage = location.pathname === "/legal/disclosure";

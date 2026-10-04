@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
@@ -7,7 +8,6 @@ import Button from "../components/ui/Button";
 import {
   buildProPricingPath,
   deleteSavedCareerJob,
-  getCachedBillingAccess,
   getMyAccess,
   getSavedCareerJobs,
 } from "../api";
@@ -16,7 +16,7 @@ export default function SavedJobsPage() {
   const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
   const [jobs, setJobs] = useState([]);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [loading, setLoading] = useState(true);
 
   const text =
@@ -49,13 +49,11 @@ export default function SavedJobsPage() {
     try {
       setLoading(true);
       const accessRes = await getMyAccess();
-      setAccess(accessRes.data);
       if (!accessRes.data?.can_save_career_jobs) return;
       const res = await getSavedCareerJobs();
       setJobs(res.data || []);
     } catch (err) {
       console.error(err);
-      setAccess(getCachedBillingAccess());
     } finally {
       setLoading(false);
     }

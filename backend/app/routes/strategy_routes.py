@@ -422,6 +422,7 @@ def build_strategy_payload(
         return strategy
 
     return {
+        "ai_status": strategy.get("ai_status", "unavailable"),
         "family_context": strategy.get("family_context", {}),
         "household_context": strategy.get("household_context", {}),
         "case_context": strategy.get("case_context", {}),

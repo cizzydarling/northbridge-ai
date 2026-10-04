@@ -1,3 +1,4 @@
+import { beginEntitlements, finishEntitlements, failEntitlements, resetEntitlements, getEntitlementState } from "./entitlementStore";
 import axios from "axios";
 
 const api = axios.create({
@@ -13,8 +14,13 @@ const api = axios.create({
 
 export const getToken = () => localStorage.getItem("token");
 const ACCESS_CACHE_KEY = "nbai_billing_access";
+localStorage.removeItem(ACCESS_CACHE_KEY); // discard legacy unbound persisted entitlements
 
 export const saveToken = (token) => {
+  if (getToken() !== token) {
+    resetEntitlements(token);
+    localStorage.removeItem(ACCESS_CACHE_KEY);
+  }
   localStorage.setItem("token", token);
 };
 
@@ -23,6 +29,8 @@ export const setToken = (token) => {
 };
 
 export const removeToken = () => {
+  resetEntitlements();
+  localStorage.removeItem(ACCESS_CACHE_KEY);
   localStorage.removeItem("token");
   localStorage.removeItem("nbai_active_application_case_id");
 };
@@ -33,38 +41,15 @@ export const getCurrentUserLocal = () => {
   return raw ? JSON.parse(raw) : null;
 };
 
-function readLocalJson(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
+export const getCachedBillingAccess = () => getEntitlementState().access;
+
+// Kept private: user records and persisted browser data are not entitlements.
+function verifiedAccess(raw) {
+  if (!raw || typeof raw.is_pro !== "boolean" || typeof raw.is_premium !== "boolean" || !raw.features) {
+    throw new Error("Invalid entitlement response");
   }
+  return normalizeAccess(raw);
 }
-
-function buildAccessFromUser(user) {
-  if (!user) return null;
-  return normalizeAccess({
-    plan: user.plan || "free",
-    subscription_status: user.subscription_status,
-    role: user.role,
-    features: user.features || {},
-  });
-}
-
-export const getCachedBillingAccess = () => {
-  const cached = readLocalJson(ACCESS_CACHE_KEY);
-  if (cached) return normalizeAccess(cached);
-
-  return buildAccessFromUser(getCurrentUserLocal());
-};
-
-export const saveBillingAccess = (access) => {
-  if (!access) return null;
-  const normalized = normalizeAccess(access);
-  localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify(normalized));
-  return normalized;
-};
 
 function humanizeEmailName(email) {
   const localPart = String(email || "").split("@")[0]?.trim();
@@ -113,10 +98,12 @@ export const getUserDisplayName = (user, fallback = "User") => {
   );
 };
 
-export const saveCurrentUser = (user) => {
+export const saveCurrentUser = (user, { invalidateAccess = true } = {}) => {
+  const previous = getCurrentUserLocal();
+  if (invalidateAccess && previous?.email !== user?.email) resetEntitlements(getToken());
   localStorage.setItem("current_user", JSON.stringify(user));
   localStorage.setItem("user", JSON.stringify(user));
-  saveBillingAccess(buildAccessFromUser(user));
+
   window.dispatchEvent(new Event("userUpdated"));
 };
 
@@ -125,6 +112,7 @@ export const setCurrentUserLocal = (user) => {
 };
 
 export const removeCurrentUserLocal = () => {
+  resetEntitlements();
   localStorage.removeItem("current_user");
   localStorage.removeItem("user");
   localStorage.removeItem(ACCESS_CACHE_KEY);
@@ -134,6 +122,14 @@ export const logoutUser = () => {
   removeToken();
   removeCurrentUserLocal();
 };
+
+// A different tab can switch accounts without calling this tab's API helpers.
+window.addEventListener("storage", (event) => {
+  if (["token", "current_user", "user"].includes(event.key) || event.key === null) {
+    resetEntitlements(getToken());
+    window.dispatchEvent(new Event("nbai-bootstrap-refresh"));
+  }
+});
 
 export const getLanguage = () => {
   const raw =
@@ -183,20 +179,20 @@ export default api;
 ========================= */
 
 function normalizeAccess(raw) {
-  const plan = raw?.plan || "free";
+  const plan = raw?.is_premium === true ? "premium" : raw?.is_pro === true ? "pro" : "free";
   const features = raw?.features || {};
 
   const isPro =
-    Boolean(raw?.is_pro) || plan === "pro" || plan === "premium";
+    raw?.is_pro === true;
   const isPremium =
-    Boolean(raw?.is_premium) || plan === "premium";
+    raw?.is_premium === true;
 
   return {
     ...raw,
     plan,
     features,
 
-    is_free: raw?.is_free ?? (!isPro && !isPremium),
+    is_free: !isPro && !isPremium,
     is_pro: isPro,
     is_premium: isPremium,
 
@@ -310,45 +306,43 @@ function normalizeAccess(raw) {
   };
 }
 
-export const getBillingAccess = async () => {
-  try {
-    const res = await api.get("/billing/access");
-    return { data: saveBillingAccess(res.data) };
-  } catch (err) {
-    console.warn("Billing access fallback triggered", err);
-    const cached = getCachedBillingAccess();
-    if (cached) {
-      return { data: cached };
-    }
-
-    return {
-      data: normalizeAccess({
-        plan: "free",
-        is_free: true,
-        is_pro: false,
-        is_premium: false,
-        features: {},
-      }),
-    };
-  }
+let accessRequest = null;
+export const getBillingAccess = () => {
+  const token = getToken();
+  if (accessRequest?.token === token) return accessRequest.promise;
+  const ticket = beginEntitlements(token);
+  const request = { token };
+  request.promise = api.get("/billing/access").then((res) => {
+    const access = verifiedAccess(res.data);
+    if (getToken() !== token || !finishEntitlements(ticket, access)) throw new Error("Session changed");
+    return { data: access };
+  }).catch((err) => {
+    failEntitlements(ticket);
+    throw err;
+  }).finally(() => {
+    if (accessRequest === request) accessRequest = null;
+  });
+  accessRequest = request;
+  return request.promise;
 };
 
 export const getMyAccess = getBillingAccess;
 
 export const getAppBootstrap = async () => {
-  const res = await api.get("/app/bootstrap");
-  const access = res.data?.access
-    ? saveBillingAccess(res.data.access)
-    : getCachedBillingAccess() || normalizeAccess();
-  if (res.data?.user) {
-    saveCurrentUser(res.data.user);
+  const token = getToken();
+  const ticket = beginEntitlements(token);
+  try {
+    const res = await api.get("/app/bootstrap");
+    if (getToken() !== token) throw new Error("Session changed");
+    // This response already verifies the current token and owns the loading ticket.
+    if (res.data?.user) saveCurrentUser(res.data.user, { invalidateAccess: false });
+    const access = verifiedAccess(res.data?.access);
+    if (!finishEntitlements(ticket, access)) throw new Error("Session changed");
+    return { data: { ...res.data, access } };
+  } catch (err) {
+    failEntitlements(ticket);
+    throw err;
   }
-  return {
-    data: {
-      ...res.data,
-      access,
-    },
-  };
 };
 
 /* =========================

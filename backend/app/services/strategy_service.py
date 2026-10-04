@@ -1891,6 +1891,7 @@ def build_strategy(
     family_snapshot = context_snapshot(SimpleNamespace(case=application_case, members=household_members or [])) if application_case else {"status": "unknown", "instruction": "Do not infer family facts"}
     strategy_context["family_context"] = family_snapshot
     ai_advice = None
+    ai_status = "unavailable"
     try:
         try:
             ai_result = generate_ai_strategy(
@@ -1906,7 +1907,8 @@ def build_strategy(
                 language=language,
             )
 
-        if isinstance(ai_result, dict):
+        if isinstance(ai_result, dict) and ai_result.get("status") == "available":
+            ai_status = "available"
             ai_advice = (
                 (
                     (ai_result.get("advisor_summary", "") or "").strip()
@@ -1916,12 +1918,9 @@ def build_strategy(
             ).strip()
             if not ai_advice:
                 ai_advice = (ai_result.get("reply", "") or "").strip()
-        else:
-            ai_advice = str(ai_result).strip()
-
-    except Exception as e:
+    except Exception:
         ai_advice = None
-        print("OPENAI ERROR:", repr(e))
+        ai_status = "unavailable"
 
     return {
         "crs_score": crs_score,
@@ -1932,6 +1931,7 @@ def build_strategy(
         "scored_programs": scored_programs,
         "improvement_scenarios": scenarios,
         "ai_strategy": ai_advice,
+        "ai_status": ai_status,
         "roadmap": roadmap,
         "province_recommendations": province_recommendations,
         "timeline_estimate": timeline_estimate,

@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -6,7 +7,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import AICopilotCard from "../components/AICopilotCard";
 import UpgradePrompt from "../components/UpgradePrompt";
-import { getBillingAccess, getCachedBillingAccess, reviewAIDocument } from "../api";
+import { getBillingAccess, reviewAIDocument } from "../api";
 
 const DOCUMENT_TYPES = [
   {
@@ -429,7 +430,7 @@ export default function DocumentReviewPage() {
   const [searchParams] = useSearchParams();
   const language = i18n.language === "fr" ? "fr" : "en";
 
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [documentType, setDocumentType] = useState("letter_of_explanation");
   const [reviewDepth, setReviewDepth] = useState("standard");
   const [content, setContent] = useState("");
@@ -519,11 +520,9 @@ export default function DocumentReviewPage() {
 
   async function loadAccess() {
     try {
-      const res = await getBillingAccess();
-      setAccess(res.data);
+      await getBillingAccess();
     } catch (err) {
       console.error(err);
-      setAccess(getCachedBillingAccess());
     }
   }
 

@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import FamilyDocuments from "../components/FamilyDocuments";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -12,7 +13,6 @@ import {
   getBillingAccess,
   getApplicationContext,
   getCurrentUserLocal,
-  getCachedBillingAccess,
   getMyStrategyLite,
   getMyStrategy,
   getSelfDocuments,
@@ -1168,7 +1168,7 @@ export default function SelfDocumentsPage() {
   }, [location.search]);
 
   const [engineVersion, setEngineVersion] = useState(0);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [activeCategory, setActiveCategory] = useState(getCategoryOrder()[0]);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState({});
@@ -1177,16 +1177,10 @@ export default function SelfDocumentsPage() {
 
   const loadAccess = useCallback(async () => {
     try {
-      const [accessRes, strategyLiteRes] = await Promise.allSettled([
+      const [_accessRes, strategyLiteRes] = await Promise.allSettled([
         getBillingAccess(),
         getMyStrategyLite(language),
       ]);
-
-      if (accessRes.status === "fulfilled") {
-        setAccess(accessRes.value.data);
-      } else {
-        setAccess(getCachedBillingAccess());
-      }
 
       if (strategyLiteRes.status === "fulfilled") {
         setStrategy(strategyLiteRes.value?.data || null);
@@ -1200,7 +1194,6 @@ export default function SelfDocumentsPage() {
       }
     } catch (err) {
       console.error(err);
-      setAccess(getCachedBillingAccess());
       setStrategy(null);
     }
   }, [language]);

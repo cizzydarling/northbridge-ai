@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -7,7 +8,6 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import {
   buildPremiumPricingPath,
-  getCachedBillingAccess,
   getCitizenshipQuestions,
   getMyAccess,
   submitCitizenshipQuiz,
@@ -24,7 +24,7 @@ export default function CitizenshipQuizPage() {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,7 +38,6 @@ export default function CitizenshipQuizPage() {
         setAnswers({});
         const accessRes = await getMyAccess();
         if (!mounted) return;
-        setAccess(accessRes.data);
         if (mode === "mock" && !accessRes.data?.can_take_citizenship_mock_exam) {
           setQuestions([]);
           return;
@@ -55,7 +54,6 @@ export default function CitizenshipQuizPage() {
       } catch (err) {
         console.error(err);
         if (mounted) {
-          setAccess(getCachedBillingAccess());
           setMessage(language === "fr" ? "Impossible de charger le quiz." : "Unable to load quiz.");
         }
       } finally {

@@ -1,3 +1,4 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from starlette.concurrency import run_in_threadpool
@@ -223,28 +224,27 @@ def create_app() -> FastAPI:
     def liveness():
         return {"status": "ok"}
 
+    # Keep at most one in-flight probe per dependency. A slow dependency cannot
+    # accumulate threads on repeated health checks or exceed Render's 5s budget.
+    readiness_tasks = {}
+    def database_probe():
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
     @app.get("/health/ready", include_in_schema=False)
-    def readiness():
-        components: dict[str, str] = {"noc": "ok" if app.state.noc_ready else "unavailable"}
-
-        try:
-            with engine.connect() as connection:
-                connection.execute(text("SELECT 1"))
-            components["database"] = "ok"
-        except Exception:
-            components["database"] = "unavailable"
-
-        try:
-            rate_limiter_healthcheck()
-            components["rate_limiter"] = "ok"
-        except Exception:
-            components["rate_limiter"] = "unavailable"
-
-        try:
-            document_storage_healthcheck()
-            components["document_storage"] = "ok"
-        except Exception:
-            components["document_storage"] = "unavailable"
+    async def readiness():
+        components = {"noc": "ok" if app.state.noc_ready else "unavailable"}
+        checks = {"database": database_probe, "rate_limiter": rate_limiter_healthcheck,
+                  "document_storage": document_storage_healthcheck}
+        for name, check in checks.items():
+            task = readiness_tasks.get(name)
+            if task is None or task.done():
+                if task is not None and not task.cancelled():
+                    task.exception()  # consume any previous failed probe
+                readiness_tasks[name] = asyncio.create_task(run_in_threadpool(check))
+        await asyncio.wait(list(readiness_tasks.values()), timeout=2.5)
+        for name, task in readiness_tasks.items():
+            components[name] = "ok" if task.done() and not task.cancelled() and task.exception() is None else "unavailable"
 
         ready = all(value == "ok" for value in components.values())
         payload = {

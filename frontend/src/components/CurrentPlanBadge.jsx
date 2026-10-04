@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { getBillingAccess, getCachedBillingAccess } from "../api";
+import { getBillingAccess } from "../api";
 
 function normalizePlan(plan) {
   const value = String(plan || "").trim().toLowerCase();
@@ -18,51 +19,11 @@ export default function CurrentPlanBadge({ className = "" }) {
   const language = String(i18n.language || "en").toLowerCase().startsWith("fr")
     ? "fr"
     : "en";
-  const cachedAccess = getCachedBillingAccess();
-
-  const [plan, setPlan] = useState(normalizePlan(cachedAccess?.plan));
-  const [loading, setLoading] = useState(!cachedAccess);
-
+  const { status, access } = useBillingAccess();
+  const plan = normalizePlan(access?.plan);
   useEffect(() => {
-    let mounted = true;
-
-    async function loadAccess() {
-      try {
-        const cached = getCachedBillingAccess();
-        if (cached) {
-          setPlan(normalizePlan(cached.plan));
-        } else {
-          setLoading(true);
-        }
-        const res = await getBillingAccess();
-        if (!mounted) return;
-        setPlan(normalizePlan(res?.data?.plan));
-      } catch (err) {
-        console.error(err);
-        if (!mounted) return;
-        setPlan("free");
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadAccess();
-
-    function handleUserUpdated() {
-      loadAccess();
-    }
-
-    window.addEventListener("userUpdated", handleUserUpdated);
-    window.addEventListener("storage", handleUserUpdated);
-
-    return () => {
-      mounted = false;
-      window.removeEventListener("userUpdated", handleUserUpdated);
-      window.removeEventListener("storage", handleUserUpdated);
-    };
-  }, []);
+    if (status === "unknown") getBillingAccess().catch(() => {});
+  }, [status]);
 
   const ui = useMemo(() => {
     if (language === "fr") {
@@ -94,12 +55,12 @@ export default function CurrentPlanBadge({ className = "" }) {
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
       : "border-amber-200 bg-amber-50 text-amber-700";
 
-  if (loading) {
+  if (!status.startsWith("verified_")) {
     return (
       <div
         className={`rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 ${className}`}
       >
-        {ui.loading}
+        {status === "error" ? (language === "fr" ? "Accès indisponible" : "Access unavailable") : ui.loading}
       </div>
     );
   }

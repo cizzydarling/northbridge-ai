@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -9,7 +10,6 @@ import {
   createPortalSession,
   devSetPlan,
   getBillingAccess,
-  getCachedBillingAccess,
   getBillingPlans,
   getBillingStatus,
   getBillingTransactions,
@@ -615,7 +615,7 @@ export default function PricingPage() {
   const language = normalizeLanguage(i18n.language);
 
   const [billingStatus, setBillingStatus] = useState(null);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [availablePlans, setAvailablePlans] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [message, setMessage] = useState("");
@@ -645,7 +645,7 @@ export default function PricingPage() {
   const loadBillingPage = useCallback(async () => {
     try {
       setLoading(true);
-      const [statusRes, accessRes, plansRes, transactionsRes] =
+      const [statusRes, _accessRes, plansRes, transactionsRes] =
         await Promise.allSettled([
           getBillingStatus(),
           getBillingAccess(),
@@ -655,10 +655,6 @@ export default function PricingPage() {
 
       if (statusRes.status === "fulfilled") {
         setBillingStatus(statusRes.value.data);
-      }
-
-      if (accessRes.status === "fulfilled") {
-        setAccess(accessRes.value.data);
       }
 
       if (plansRes.status === "fulfilled") {

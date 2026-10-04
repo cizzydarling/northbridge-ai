@@ -1,3 +1,4 @@
+import useBillingAccess from "../hooks/useBillingAccess";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -7,7 +8,6 @@ import Button from "../components/ui/Button";
 import {
   getBillingAccess,
   getBillingStatus,
-  getCachedBillingAccess,
   refreshCurrentUser,
 } from "../api";
 
@@ -32,7 +32,7 @@ export default function BillingSuccessPage() {
 
   const [loading, setLoading] = useState(true);
   const [billingStatus, setBillingStatus] = useState(null);
-  const [access, setAccess] = useState(() => getCachedBillingAccess());
+  const { access } = useBillingAccess();
   const [message, setMessage] = useState("");
 
   const sessionId = searchParams.get("session_id") || "";
@@ -42,17 +42,13 @@ export default function BillingSuccessPage() {
       setLoading(true);
       setMessage("");
 
-      const [statusRes, accessRes] = await Promise.allSettled([
+      const [statusRes, _accessRes] = await Promise.allSettled([
         getBillingStatus(),
         getBillingAccess(),
       ]);
 
       if (statusRes.status === "fulfilled") {
         setBillingStatus(statusRes.value.data);
-      }
-
-      if (accessRes.status === "fulfilled") {
-        setAccess(accessRes.value.data);
       }
 
       try {

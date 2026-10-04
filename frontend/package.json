@@ -10,7 +10,8 @@
     "build": "vite build",
     "test:e2e": "playwright test",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test entitlement-contract.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "4.3.3",

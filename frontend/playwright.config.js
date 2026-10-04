@@ -2,7 +2,6 @@ import { defineConfig, devices } from "@playwright/test";
 import process from "node:process";
 
 const backendCommand =
-  process.env.E2E_BACKEND_COMMAND ||
   "..\\.venv\\Scripts\\python.exe ../backend/e2e_server.py";
 
 export default defineConfig({
@@ -10,13 +9,14 @@ export default defineConfig({
   timeout: 90_000,
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  retries: 0,
   workers: 1,
   reporter: process.env.CI ? "github" : "list",
   expect: {
     timeout: 30_000,
   },
   use: {
+    serviceWorkers: "block",
     baseURL: "http://127.0.0.1:4173",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -32,7 +32,7 @@ export default defineConfig({
     {
       command: backendCommand,
       url: "http://127.0.0.1:8010/health/ready",
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000,
       env: {
         ...process.env,
@@ -45,10 +45,9 @@ export default defineConfig({
     },
     {
       command:
-        process.env.E2E_FRONTEND_COMMAND ||
-        "npm run dev -- --host 127.0.0.1 --port 4173",
+        "npm run build && npm run preview -- --host 127.0.0.1 --port 4173",
       url: "http://127.0.0.1:4173",
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000,
       env: {
         ...process.env,

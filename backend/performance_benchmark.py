@@ -41,6 +41,9 @@ def working_set_bytes():
 
 
 def main():
+    from testing.isolation import configure_environment, install_network_guard
+    configure_environment()
+    install_network_guard()
     url = make_url(os.environ["TEST_POSTGRES_ADMIN_URL"])
     if url.get_backend_name() != "postgresql" or url.host not in {"127.0.0.1", "localhost", "::1"} or url.database != "postgres":
         raise RuntimeError("Requires an explicitly configured disposable loopback PostgreSQL /postgres database")
@@ -65,6 +68,7 @@ def main():
                 raise RuntimeError("External connection blocked by benchmark")
             return original_connect(sock, address)
         with patch.object(socket.socket, "connect", local_connect):
+            import_started = time.perf_counter()
             from app.main import app
             from app.data.db import engine as application_engine, SessionLocal
             from app.models.user_models import User
@@ -74,6 +78,11 @@ def main():
             from app.services.computation_context import computation_scope
             from app.services import noc_service as noc
             from fastapi.testclient import TestClient
+            from app.services import immigration_intelligence_service as intelligence
+            app_import_seconds = time.perf_counter() - import_started
+            def unavailable_source(_url):
+                raise ConnectionError("Synthetic provider unavailable")
+            intelligence._retrieve_json = unavailable_source
             engine = application_engine
             with SessionLocal() as db:
                 user = User(email="performance@example.invalid", password="unused", role="individual",
@@ -104,9 +113,13 @@ def main():
             memory_before = working_set_bytes()
             started = time.perf_counter()
             with patch.object(noc, "_raw_noc_scores", timed_scan), TestClient(app) as client:
+                output["working_set_before_bytes"] = memory_before
                 output["startup_preparation_s"] = time.perf_counter()-started
+                output["app_import_s"] = app_import_seconds
+                output["app_import_and_preparation_s"] = app_import_seconds + output["startup_preparation_s"]
                 output["noc_ready"] = app.state.noc_ready
                 memory_after = working_set_bytes()
+                output["working_set_after_preload_bytes"] = memory_after
                 output["startup_working_set_delta_bytes"] = memory_after-memory_before if memory_after is not None and memory_before is not None else None
                 for label, path in [("strategy_first", "/self/strategy"), ("strategy_warm", "/self/strategy"),
                                     ("noc_ready_worker", "/noc/suggest"), ("noc_repeated_input", "/noc/suggest")]:
@@ -120,7 +133,7 @@ def main():
                     if response.status_code != 200:
                         raise RuntimeError(f"Benchmark {label} returned {response.status_code}")
                     output[label] = {"wall_s": time.perf_counter()-started, "cpu_s": time.process_time()-cpu,
-                                     "queries": len(queries), "counts": stats.counts, "seconds": stats.seconds,
+                                     "working_set_bytes": working_set_bytes(), "queries": len(queries), "counts": stats.counts, "seconds": stats.seconds,
                                      "scans": list(scans)}
             print(json.dumps(output, indent=2))
     finally:
