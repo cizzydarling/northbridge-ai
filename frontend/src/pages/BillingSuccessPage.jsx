@@ -17,6 +17,7 @@ function normalizeLanguage(language) {
 
 function normalizePlan(plan) {
   const value = String(plan || "").trim().toLowerCase();
+  if (value === "individual_premium") return "premium";
   if (value === "individual_pro") return "pro";
   if (value === "agent_pro") return "premium";
   if (value === "premium") return "premium";
@@ -80,9 +81,9 @@ export default function BillingSuccessPage() {
     if (language === "fr") {
       return {
         brand: "NorthBridgeAI",
-        title: "Paiement confirmé",
+        title: "Statut de facturation",
         subtitle:
-          "Votre abonnement a été traité. Votre accès devrait maintenant être activé.",
+          "Consultez votre accès actuel. Cette page ne confirme pas un paiement.",
         loading: "Chargement...",
         activePlan: "Plan actif",
         billingStatus: "Statut de facturation",
@@ -107,9 +108,9 @@ export default function BillingSuccessPage() {
 
     return {
       brand: "NorthBridgeAI",
-      title: "Payment confirmed",
+      title: "Billing status",
       subtitle:
-        "Your subscription was processed. Your access should now be active.",
+        "Review your current access. This page does not confirm a payment.",
       loading: "Loading...",
       activePlan: "Active plan",
       billingStatus: "Billing status",

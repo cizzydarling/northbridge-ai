@@ -932,9 +932,16 @@ def _user_payload(user: User) -> dict:
     }
 
 
+def paid_checkout_enabled() -> bool:
+    """Only an explicit true enables new checkout creation, in every environment."""
+    return os.getenv("PAID_CHECKOUT_ENABLED", "").strip().lower() == "true"
+
+
 @router.get("/plans")
 def list_billing_plans():
     return {
+        "checkout_available": paid_checkout_enabled(),
+        "reason": None if paid_checkout_enabled() else "beta_checkout_disabled",
         "available_plans": ["free", "pro", "premium"],
         "stripe_configured": {
             "secret_key": bool(stripe.api_key),
@@ -950,7 +957,7 @@ def list_billing_plans():
                 "key": "pro",
                 "backend_plan": "individual_pro",
                 "checkout_enabled": bool(
-                    stripe.api_key
+                    paid_checkout_enabled() and stripe.api_key
                     and (
                         STRIPE_PLAN_CONFIG["individual_pro"].get("price_id")
                         or STRIPE_PLAN_CONFIG["individual_pro"].get("product_id")
@@ -961,7 +968,7 @@ def list_billing_plans():
                 "key": "premium",
                 "backend_plan": "individual_premium",
                 "checkout_enabled": bool(
-                    stripe.api_key
+                    paid_checkout_enabled() and stripe.api_key
                     and (
                         STRIPE_PLAN_CONFIG["individual_premium"].get("price_id")
                         or STRIPE_PLAN_CONFIG["individual_premium"].get("product_id")
@@ -1085,6 +1092,13 @@ def create_checkout_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if not paid_checkout_enabled():
+        raise HTTPException(status_code=403, detail={
+            "code": "beta_checkout_disabled",
+            "reason": "beta_checkout_disabled",
+            "checkout_available": False,
+            "message": "Paid checkout is unavailable during the invitation-only beta.",
+        })
     selected_plan = _normalize_plan(payload.get("plan"))
     if selected_plan == "agent_pro":
         raise HTTPException(status_code=403, detail="Agent checkout is not available during the individual soft launch.")

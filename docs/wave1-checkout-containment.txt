@@ -1,0 +1,26 @@
+WAVE 1 CHECKOUT CONTAINMENT
+Required production configuration: PAID_CHECKOUT_ENABLED=false.
+Missing, false, empty and unrecognized values disable all new checkout creation.
+Only explicit true (case-insensitive, surrounding whitespace ignored) enables it.
+The server owns this decision. Request bodies, headers and browser storage cannot override it.
+Both target-connected Render services must be controlled during rollout; old code does not enforce this gate.
+No production configuration was changed by this implementation.
+
+GET /billing/plans exposes checkout_available and beta_checkout_disabled.
+POST /billing/create-checkout-session returns authenticated callers HTTP 403 with that reason before any Stripe operation.
+Anonymous callers retain the existing authentication rejection.
+Entitlement reads, promo redemption, synchronization and webhooks remain available.
+Pricing retains planned prices and displays EN/FR invitation-only beta states instead of purchase buttons.
+Other upgrade links navigate to this pricing/access page; they do not create checkout sessions.
+
+PROMO AUDIT
+Existing codes support individual_pro and individual_premium only, positive duration, active/expiry checks,
+max-use enforcement, row locking and per-user redemption checks. Grants have a finite access period.
+Codes are bearer invitations, not email-bound: issue one-use codes privately to designated testers.
+Redeeming another valid code may change the current plan and extend the existing period; review target accounts first.
+No grants, existing users, models, migrations or entitlement rules were changed.
+
+WAVE 2
+Before explicitly enabling: configure canonical live webhook, align signing secret, test subscription lifecycle,
+complete historical billing reconciliation, and pass production billing acceptance.
+Use a separately approved release/configuration action. This gate alone does not certify billing readiness.

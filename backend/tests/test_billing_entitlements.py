@@ -352,6 +352,7 @@ def test_matching_inline_price_supported(env):
 
 
 def test_checkout_creation_never_grants_access(env, monkeypatch):
+    monkeypatch.setenv("PAID_CHECKOUT_ENABLED", "true")
     monkeypatch.setattr(billing, "require_global_disclosures_accepted", lambda *args: None)
     monkeypatch.setattr(billing.stripe.Customer, "modify", Mock())
     create = Mock(return_value=SimpleNamespace(id="cs_open", url="https://checkout.stripe.com/test"))
@@ -410,3 +411,96 @@ def test_strategy_cannot_bypass_expired_entitlement(monkeypatch):
     assert not result["access"]["is_premium"]
     assert not result["access"]["is_pro"]
     assert build.call_args.kwargs["include_immigration_intelligence"] is False
+
+
+@pytest.mark.parametrize("flag", [None, "false", "", "yes", "1", "invalid"])
+@pytest.mark.parametrize("plan", ["pro", "premium", "individual_pro", "individual_premium", "agent_pro", "free"])
+def test_wave1_checkout_fails_closed(env, monkeypatch, flag, plan):
+    if flag is None:
+        monkeypatch.delenv("PAID_CHECKOUT_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("PAID_CHECKOUT_ENABLED", flag)
+    customer = Mock(side_effect=AssertionError("Customer must not be created"))
+    checkout = Mock(side_effect=AssertionError("Checkout must not be created"))
+    monkeypatch.setattr(billing, "get_or_create_stripe_customer", customer)
+    monkeypatch.setattr(billing.stripe.checkout.Session, "create", checkout)
+    response = env.client.post("/billing/create-checkout-session?PAID_CHECKOUT_ENABLED=true",
+        headers={**headers(), "PAID_CHECKOUT_ENABLED": "true"},
+        json={"plan": plan, "checkout_available": True, "PAID_CHECKOUT_ENABLED": True})
+    assert response.status_code == 403
+    assert response.json()["detail"]["reason"] == "beta_checkout_disabled"
+    assert response.json()["detail"]["checkout_available"] is False
+    customer.assert_not_called()
+    checkout.assert_not_called()
+    plans = env.client.get("/billing/plans").json()
+    assert plans["checkout_available"] is False
+    assert all(not p["checkout_enabled"] for p in plans["plans"])
+    assert_no_access(env)
+
+
+def test_wave1_anonymous_and_aliases(env, monkeypatch):
+    monkeypatch.setenv("PAID_CHECKOUT_ENABLED", "false")
+    assert env.client.post("/billing/create-checkout-session", json={"plan":"pro"}).status_code == 401
+    for path in ("/billing/checkout", "/checkout", "/billing/checkout/pro", "/billing/plans/pro/checkout"):
+        assert env.client.post(path, headers=headers(), json={"plan":"pro"}).status_code in (404, 405)
+
+
+def test_wave1_existing_premium_unchanged(env, monkeypatch):
+    monkeypatch.setenv("PAID_CHECKOUT_ENABLED", "false")
+    with env.db() as db:
+        user = db.get(User, 1)
+        user.plan = "individual_premium"
+        user.subscription_status = "active"
+        user.subscription_current_period_end = datetime.now(timezone.utc) + timedelta(days=7)
+        db.commit()
+        before = (user.plan, user.subscription_status, user.subscription_current_period_end)
+    assert env.client.post("/billing/create-checkout-session",headers=headers(),json={"plan":"pro"}).status_code == 403
+    assert env.client.get("/test/pro",headers=headers()).status_code == 200
+    with env.db() as db:
+        user = db.get(User,1)
+        assert (user.plan,user.subscription_status,user.subscription_current_period_end) == before
+        assert access.has_premium_access(user)
+
+
+@pytest.mark.parametrize("plan", ["individual_pro", "individual_premium"])
+def test_wave1_bounded_promo(env, monkeypatch, plan):
+    monkeypatch.setenv("PAID_CHECKOUT_ENABLED", "false")
+    from fastapi import HTTPException
+    with env.db() as db:
+        code = PromoCode(code="WAVEONE", access_type=plan, duration_days=7, max_uses=1,
+                         current_uses=0, active=True, expires_at=datetime.now(timezone.utc)+timedelta(days=1))
+        db.add(code); db.commit()
+        owner = db.get(User,1)
+        redeem_promo_code(db,user=owner,code=" waveone ")
+        assert access.has_individual_pro(owner)
+        assert owner.plan == plan
+        assert db.get(User,2).plan == "free"
+        for user in (owner, db.get(User,2)):
+            with pytest.raises(HTTPException):
+                redeem_promo_code(db,user=user,code="WAVEONE")
+        assert db.query(PromoCodeRedemption).count() == 1
+        assert code.current_uses == 1
+
+
+def test_wave1_reconciliation_preserved(env, monkeypatch):
+    monkeypatch.setenv("PAID_CHECKOUT_ENABLED", "false")
+    assert sync(env).status_code == 200
+    assert webhook(env,"customer.subscription.updated",env.subscription).status_code == 200
+    assert env.client.get("/test/pro",headers=headers()).status_code == 200
+
+
+@pytest.mark.parametrize("kind", ["missing", "expired", "inactive", "invalid_plan"])
+def test_wave1_invalid_promo_preserves_access(env, monkeypatch, kind):
+    from fastapi import HTTPException
+    monkeypatch.setenv("PAID_CHECKOUT_ENABLED", "false")
+    with env.db() as db:
+        if kind != "missing":
+            db.add(PromoCode(code="INVALID", access_type="agent_pro" if kind == "invalid_plan" else "individual_pro",
+                duration_days=7, max_uses=1, current_uses=0, active=kind != "inactive",
+                expires_at=datetime.now(timezone.utc)+timedelta(days=-1 if kind == "expired" else 1)))
+            db.commit()
+        user = db.get(User, 1)
+        with pytest.raises(HTTPException):
+            redeem_promo_code(db, user=user, code="INVALID")
+        assert user.plan == "free"
+        assert db.query(PromoCodeRedemption).count() == 0

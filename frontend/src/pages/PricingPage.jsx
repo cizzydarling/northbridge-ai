@@ -1,5 +1,5 @@
 import useBillingAccess from "../hooks/useBillingAccess";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -17,6 +17,16 @@ import {
   refreshCurrentUser,
   syncCheckoutSession,
 } from "../api";
+
+const CheckoutContext = createContext({ available: false, label: "Beta access by invitation" });
+
+function CheckoutButton({ paid = true, children, ...props }) {
+  const { available, label } = useContext(CheckoutContext);
+  if (paid && !available) {
+    return <p data-testid="beta-checkout-disabled" className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">{label}</p>;
+  }
+  return <Button {...props}>{children}</Button>;
+}
 
 function normalizeLanguage(language) {
   return String(language || "en").toLowerCase().startsWith("fr") ? "fr" : "en";
@@ -381,7 +391,7 @@ function PricingHero({
               </>
             ) : (
               <>
-                <Button
+                <CheckoutButton
                   onClick={onPro}
                   loading={checkoutLoadingPlan === "pro"}
                   disabled={checkoutLoadingPlan === "pro"}
@@ -389,8 +399,8 @@ function PricingHero({
                   {checkoutLoadingPlan === "pro"
                     ? text.loading
                     : text.quickDecisionCta}
-                </Button>
-                <Button
+                </CheckoutButton>
+                <CheckoutButton
                   variant="secondary"
                   onClick={onPremium}
                   loading={checkoutLoadingPlan === "premium"}
@@ -399,7 +409,7 @@ function PricingHero({
                   {checkoutLoadingPlan === "premium"
                     ? text.loading
                     : text.upgradeToPremium}
-                </Button>
+                </CheckoutButton>
               </>
             )}
           </div>
@@ -459,13 +469,13 @@ function DecisionPanel({ text, checkoutLoadingPlan, onPro }) {
         {text.quickDecisionBody}
       </p>
       <div className="mt-5">
-        <Button
+        <CheckoutButton
           onClick={onPro}
           disabled={checkoutLoadingPlan === "pro"}
           loading={checkoutLoadingPlan === "pro"}
         >
           {checkoutLoadingPlan === "pro" ? text.loading : text.quickDecisionCta}
-        </Button>
+        </CheckoutButton>
       </div>
     </SurfaceCard>
   );
@@ -593,7 +603,8 @@ function PlanCard({
             {text.current}
           </Button>
         ) : (
-          <Button
+          <CheckoutButton
+            paid={plan.key !== "free"}
             onClick={onSelect}
             disabled={loading}
             loading={loading}
@@ -601,7 +612,7 @@ function PlanCard({
             variant={isDark ? "white" : isPremium ? "primary" : "secondary"}
           >
             {loading ? text.loading : plan.cta}
-          </Button>
+          </CheckoutButton>
         )}
       </div>
     </article>
@@ -620,6 +631,8 @@ export default function PricingPage() {
   const [transactions, setTransactions] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [checkoutAvailable, setCheckoutAvailable] = useState(false);
+  const betaLabel = language === "fr" ? "Accès bêta sur invitation" : "Beta access by invitation";
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState("");
   const [portalLoading, setPortalLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -645,6 +658,7 @@ export default function PricingPage() {
   const loadBillingPage = useCallback(async () => {
     try {
       setLoading(true);
+      setCheckoutAvailable(false);
       const [statusRes, _accessRes, plansRes, transactionsRes] =
         await Promise.allSettled([
           getBillingStatus(),
@@ -659,6 +673,7 @@ export default function PricingPage() {
 
       if (plansRes.status === "fulfilled") {
         setAvailablePlans(plansRes.value.data?.available_plans || []);
+        setCheckoutAvailable(plansRes.value.data?.checkout_available === true);
       }
 
       if (transactionsRes.status === "fulfilled") {
@@ -692,9 +707,8 @@ export default function PricingPage() {
         setSuccessRefreshing(true);
         setMessage("");
 
-        if (checkoutSessionId) {
-          await syncCheckoutSession(checkoutSessionId);
-        }
+        if (!checkoutSessionId) throw new Error("Missing checkout session");
+        await syncCheckoutSession(checkoutSessionId);
 
         await refreshCurrentUser();
         await loadBillingPage();
@@ -717,8 +731,8 @@ export default function PricingPage() {
         console.error(err);
         setMessage(
           language === "fr"
-            ? "Le paiement a réussi, mais l’actualisation du compte a échoué. Rechargez la page dans quelques secondes."
-            : "Payment succeeded, but account refresh failed. Reload the page in a few seconds."
+            ? "Impossible de confirmer le paiement. Réessayez ou contactez le soutien."
+            : "Unable to confirm payment. Try again or contact support."
         );
       } finally {
         setSuccessRefreshing(false);
@@ -745,6 +759,10 @@ export default function PricingPage() {
   }, [cancelledFlag, language, searchParams, setSearchParams]);
 
   async function handleCheckout(plan) {
+    if (!checkoutAvailable) {
+      setMessage(betaLabel);
+      return;
+    }
     try {
       setCheckoutLoadingPlan(plan);
       setMessage("");
@@ -1409,7 +1427,9 @@ export default function PricingPage() {
   }
 
   return (
+    <CheckoutContext.Provider value={{ available: checkoutAvailable, label: betaLabel }}>
     <Layout>
+      {!checkoutAvailable && <p role="status" className="mb-5 rounded-lg bg-blue-50 p-4 text-blue-900">{language === "fr" ? "Accès bêta sur invitation. Le paiement est indisponible pendant la bêta; les tarifs affichés restent les tarifs prévus." : "Beta access by invitation. Paid checkout is unavailable during beta; displayed prices remain the planned prices."}</p>}
       {message ? (
         <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
           {message}
@@ -1422,7 +1442,7 @@ export default function PricingPage() {
             <div className="mt-1 h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                {text.paymentConfirmed}
+                {text.loading}
               </p>
               <p className="mt-3 text-sm leading-7 text-slate-700">
                 {language === "fr"
@@ -1687,14 +1707,14 @@ export default function PricingPage() {
         </h2>
         <p className="mt-3 text-sm text-slate-600">{text.bottomCtaBody}</p>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-          <Button
+          <CheckoutButton
             onClick={() => handleCheckout("pro")}
             disabled={checkoutLoadingPlan === "pro"}
             loading={checkoutLoadingPlan === "pro"}
           >
             {checkoutLoadingPlan === "pro" ? text.loading : text.bottomCtaPrimary}
-          </Button>
-          <Button
+          </CheckoutButton>
+          <CheckoutButton
             variant="secondary"
             onClick={() => handleCheckout("premium")}
             disabled={checkoutLoadingPlan === "premium"}
@@ -1703,7 +1723,7 @@ export default function PricingPage() {
               {checkoutLoadingPlan === "premium"
                 ? text.loading
                 : text.bottomCtaSecondary}
-            </Button>
+            </CheckoutButton>
           </div>
         </SurfaceCard>
       ) : null}
@@ -1754,5 +1774,6 @@ export default function PricingPage() {
         </Link>
       </div>
     </Layout>
+    </CheckoutContext.Provider>
   );
 }

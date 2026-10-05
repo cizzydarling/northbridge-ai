@@ -354,10 +354,11 @@ def main() -> None:
     assert status.status_code == 200, status.text
     assert status.json()["accepted"] is False
 
-    blocked = client.post(
-        "/billing/create-checkout-session",
-        json={"plan": "individual_pro"},
-    )
+    with patch.dict(os.environ, {"PAID_CHECKOUT_ENABLED": "true"}):
+        blocked = client.post(
+            "/billing/create-checkout-session",
+            json={"plan": "individual_pro"},
+        )
     assert blocked.status_code == 403, blocked.text
     assert blocked.json()["detail"]["code"] == "disclosures_required"
 
