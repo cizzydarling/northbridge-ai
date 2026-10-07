@@ -1,11 +1,12 @@
 import asyncio
 import os
+import time
 from contextlib import asynccontextmanager
 from starlette.concurrency import run_in_threadpool
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -13,6 +14,7 @@ from sqlalchemy import text
 from app.data.db import engine
 from app.services.document_storage import document_storage_healthcheck
 from app.services.observability import configure_error_monitoring, observe_request
+from app.services.readiness_observability import ProbeTiming, log_readiness_failure
 from app.services.security_controls import rate_limiter_healthcheck
 from app.services.noc_service import prepare_noc_data
 
@@ -229,13 +231,17 @@ def create_app() -> FastAPI:
     # Keep at most one in-flight probe per dependency. A slow dependency cannot
     # accumulate threads on repeated health checks or exceed Render's 5s budget.
     readiness_tasks = {}
+    readiness_timings = {}
     def database_probe():
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
 
     @app.get("/health/ready", include_in_schema=False)
-    async def readiness():
+    async def readiness(request: Request):
+        started = time.perf_counter()
+        noc_started = time.perf_counter()
         components = {"noc": "ok" if app.state.noc_ready else "unavailable"}
+        noc_duration_ms = round((time.perf_counter() - noc_started) * 1000, 3)
         checks = {"database": database_probe, "rate_limiter": rate_limiter_healthcheck,
                   "document_storage": document_storage_healthcheck}
         for name, check in checks.items():
@@ -243,7 +249,9 @@ def create_app() -> FastAPI:
             if task is None or task.done():
                 if task is not None and not task.cancelled():
                     task.exception()  # consume any previous failed probe
-                readiness_tasks[name] = asyncio.create_task(run_in_threadpool(check))
+                timing = ProbeTiming()
+                readiness_tasks[name] = asyncio.create_task(run_in_threadpool(timing.run, check))
+                readiness_timings[name] = timing
         await asyncio.wait(list(readiness_tasks.values()), timeout=2.5)
         for name, task in readiness_tasks.items():
             components[name] = "ok" if task.done() and not task.cancelled() and task.exception() is None else "unavailable"
@@ -254,6 +262,8 @@ def create_app() -> FastAPI:
             "components": components,
         }
         if not ready:
+            log_readiness_failure(request.state.request_id, started, noc_duration_ms,
+                                  components, readiness_tasks, readiness_timings)
             return JSONResponse(status_code=503, content=payload)
         return payload
 

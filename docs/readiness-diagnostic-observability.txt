@@ -1,0 +1,112 @@
+NorthBridgeAI readiness diagnostic-only instrumentation
+Date: 2026-10-07 UTC
+Baseline backend: cd0e8585fd8cfaa1a9763e1ea7e647bceb378907
+Workspace HEAD / current frontend: c7147f75e1bd1b884560b497b348c637d87adb90
+Database migration head: ad2f6801c947
+Production root cause remains UNKNOWN. This change is local and undeployed.
+
+FILES CHANGED
+backend/app/main.py — passive component timing wrappers and failure-log invocation.
+backend/app/services/observability.py — generate the existing request correlation ID server-side for /health/ready only.
+backend/app/services/readiness_observability.py — new timing and sanitized structured warning implementation.
+backend/tests/test_readiness_observability.py — failure, parity, safety, queue, cancellation, recovery and correlation tests.
+backend/testing/benchmark_readiness.py — isolated repeatable benchmark against exact original backend main.py from Git.
+docs/readiness-diagnostic-observability.txt — decision-tree and validation report.
+Pre-existing untracked Gate F/G reports, private baselines and scripts were not changed or staged. Nothing was committed or pushed.
+
+CURRENT READINESS DECISION TREE — PRESERVED
+1. NOC: snapshot app.state.noc_ready at the start of readiness. true => ok; false => unavailable. No additional preparation/data check is run. Application lifespan still prepares NOC before serving and marks false on shutdown. No timeout added to the flag check; failed preparation still fails startup.
+2. Construct the same required checks: database, rate_limiter and document_storage.
+3. For each component, reuse an existing pending task. If absent or completed, consume the preceding task's exception unless canceled and create a new thread-pool task. There is still at most one in-flight task per dependency. The timing wrapper runs the identical check and returns its unchanged result or re-raises its unchanged exception.
+4. Await the same asyncio.wait over the current tasks with timeout=2.5 seconds. Tasks are not canceled on expiry. Checks remain concurrent under this shared deadline; individual dependency configuration is untouched.
+5. Read the same current shared task dictionary. A component is ok only when its task is done, not canceled and has no exception. Pending, canceled and exceptional tasks are unavailable. The pre-existing behavior when overlapping requests replace completed tasks is preserved, not repaired.
+6. All four required components must be ok for HTTP 200. Otherwise emit the new diagnostic warning and return the same HTTP 503 response. Public JSON remains {status: ready|not_ready, components: {noc, database, rate_limiter, document_storage}}, with component values ok|unavailable. No infrastructure or exception details were added to the body.
+
+EXACT PROBES / FAILURE PATHS
+DATABASE: engine.connect() then SELECT 1. Pool timeout 30 seconds, size 5, overflow 10, pre-ping enabled, recycle 300 seconds are unchanged. Typed pool/connect/query timeout exceptions remain unavailable; connection/query errors remain unavailable. A still-pending database task after the shared wait remains unavailable. No new database time limit or query was introduced.
+STORAGE: deployed S3 branch still constructs its client and calls head_bucket. Client connect/read timeouts remain 60 seconds with existing retry behavior. Typed storage timeout exceptions remain unavailable, other storage exceptions remain unavailable, and a still-pending task remains unavailable. The local storage fallback and its directory permission check are unchanged.
+RATE LIMITER: configured Redis still runs PING with existing 2-second socket connect/read timeouts; timeout/error/pending task remains unavailable. In-process configuration still has a no-op healthcheck, without lock/cleanup enforcement. No limits, keys or behavior changed. Configured Redis failure is tested with a mock client, not a live Redis service.
+NOC: false flag remains unavailable; true remains ok. NOC scoring, matching, cache and preparation are untouched. OpenAI and IRCC are still absent from the required readiness checks.
+The shared 2.5-second wait is not a hard limit on full HTTP response latency; scheduling and middleware/serialization/logging overhead still exist.
+
+INSTRUMENTATION ADDED / FAILURE LOG SCHEMA
+Exactly one northbridge.readiness WARNING event per normal non-200 readiness response. No new success INFO or DEBUG event. Existing generic HTTP logging remains unchanged.
+Top-level JSON fields:
+  event: readiness_failed
+  timestamp: UTC ISO 8601
+  request_id: generated random UUID hex; no user/session identifier
+  status_code: 503
+  duration_ms: elapsed readiness endpoint time until failure diagnostics are assembled
+  components: one detail object for each of the four required components
+Every component: status, duration_ms, failure_type.
+I/O components also: queue_ms, task_age_ms, execution_state, exception_type.
+duration_ms measures execution in the thread; for a running task it is elapsed execution, not completed latency. Before execution it is zero, with queue_ms showing elapsed queue time. task_age_ms includes queue time and can predate the current request when an in-flight task is reused. Completed timings persist alongside their matching task until replacement. NOC timing measures only the flag check.
+failure_type:
+  null — component ok
+  not_ready — false NOC flag
+  component_timeout — recognized dependency timeout exception
+  exception — other exception from the component
+  shared_deadline_exhausted — task is still pending when the existing decision evaluates it; execution_state distinguishes queued from running
+  unavailable — canceled task or unclassified unavailable state
+The wait does not itself cancel a task. Explicit cancellation is logged as canceled/unavailable, not misrepresented as deadline-triggered cancellation. Shared-deadline classification describes the observed pending state; it does not prove why that task was slow. Pre-existing overlapping-task evaluation behavior can also contribute to that state.
+No exception message, traceback, result, URL, connection string, bucket name, credentials, API key, JWT, token, header, cookie or user information is copied into this event. Exception classes are allowlisted by exact module and class name. Unknown/custom classes become the literal Exception. A class whose name contains sensitive information is covered by a leak test.
+Logging/handler exceptions are contained so they cannot replace a readiness response. That safeguard can lose a diagnostic event if logging itself fails; it never changes health. Normal failure logging is synchronous, so a blocked log destination can add failure-path latency; healthy requests do not invoke it.
+
+CORRELATION METHOD
+Readiness-only resolve_request_id generates a UUID regardless of an inbound X-Request-ID. The existing observe_request middleware stores it on request.state, returns it in the existing X-Request-ID header and uses it in existing generic request logs. The failure warning uses that same ID. No new response field/header is introduced. Matching a private captured 503 header to the readiness_failed event is exact; generic HTTP completion logs share the ID where INFO logging is collected. Bare Uvicorn access lines do not contain this ID and require timestamp/status correlation.
+Other paths preserve existing caller-supplied request ID handling; this has an explicit regression test. Readiness callers can no longer prescribe its request ID. This intentional diagnostic correlation change does not alter status, payload, probes, timeout or required components.
+
+TEST RESULTS
+Readiness-focused suite: 16 passed.
+DATABASE FAILURE TEST: PASS, RuntimeError => 503/database unavailable/exception.
+DATABASE TIMEOUT TEST: PASS, built-in TimeoutError and SQLAlchemy pool TimeoutError => component_timeout. Actual slow database double => shared_deadline_exhausted/running; unchanged 503 then recovery to 200 with no duplicate task.
+STORAGE FAILURE TEST: PASS, RuntimeError => 503/storage unavailable/exception.
+STORAGE TIMEOUT TEST: PASS, botocore ReadTimeoutError => component_timeout. Actual slow storage double => shared_deadline_exhausted/running; unchanged 503 then recovery to 200 with no duplicate task.
+NOC FAILURE TEST: PASS, false flag => 503/noc unavailable/not_ready.
+RATE LIMITER TEST: PASS, injected readiness failure and exact configured-Redis PING path with Redis TimeoutError; current in-process behavior untouched.
+SHARED DEADLINE TEST: PASS, tasks blocked before thread execution => unchanged 503, queued state, zero execution duration, >=2.4 seconds queued. No 2.5-second deadline substitution is used in tests. Separate cancellation test preserves 503 and identifies cancellation instead of pretending it is deadline cancellation.
+SECRET-LEAK TEST: PASS, credential/connection-string-shaped exception messages, inbound correlation token, Authorization and cookie sentinels absent from diagnostic events and public JSON. Custom exception class name redacted. A failing log handler does not change the HTTP response.
+BEHAVIOR PARITY: explicit frozen original-readiness oracle compared with instrumented application for all healthy, database unhealthy, storage unhealthy, NOC unhealthy, rate limiter unhealthy, typed timeouts, real slow-probe deadline expiry, pre-execution queue exhaustion and cancellation. Same status and complete public JSON. Running task reuse/recovery also compared. Normal application request-ID behavior unchanged.
+READINESS TIMEOUT BEFORE: 2.5 seconds.
+READINESS TIMEOUT AFTER: 2.5 seconds.
+REQUIRED COMPONENTS BEFORE/AFTER: noc, database, rate_limiter, document_storage — identical.
+
+PERFORMANCE
+Exact original backend main.py AND observability.py from cd0e858 compared against the instrumented full application, in one isolated process with no external network or production database. All dependency operations are local no-op doubles to isolate instrumentation overhead, not simulate production I/O. Eight alternating-order blocks after warmup, 800 healthy requests per implementation.
+Healthy median before: 1.4922 ms.
+Healthy median after: 1.5030 ms.
+Difference: +0.0108 ms. PASS against the benchmark's +0.1 ms overhead threshold. This is not a production latency claim or a guarantee under blocked log-output conditions. The final comparison includes the readiness-only request-ID change; the preliminary benchmark did not separately load the original correlation middleware and was superseded.
+Repeat with: .venv/Scripts/python.exe backend/testing/benchmark_readiness.py
+
+REGRESSION
+Backend full suite: 908 passed, 23 skipped, 79.45 seconds; warnings treated as errors with the repository CI's explicit passlib crypt deprecation exemption. The same final readiness-focused tests are included in this full-suite result.
+Launch smoke: PASS, launch smoke OK.
+Frontend contracts: 5 passed.
+Frontend lint: PASS, npm run lint, exit 0.
+Frontend build: PASS, Vite 8.1.5, 377 modules, 16.97 seconds.
+Initial sandbox Node test/build attempts failed because worker creation was denied (EPERM); authorized retries outside the sandbox passed. No product code change was needed.
+Build warned about plugin timings; no functional build failure remained. Git emits an LF/CRLF advisory for observability.py; whitespace validation is performed before completion.
+
+RELEASE GUARDS
+FRONTEND CHANGED: NO. Build output is local ignored output; tracked frontend files remain unchanged.
+MODELS CHANGED: NO.
+MIGRATIONS CHANGED: NO.
+ALEMBIC HEAD: ad2f6801c947 (head), verified by alembic heads, no upgrade command run.
+DATABASE CONFIGURATION CHANGED: NO.
+READINESS TIMEOUT CHANGED: NO.
+READINESS REQUIRED COMPONENTS CHANGED: NO.
+Auth, AI, NOC scoring, Household, billing and Beta Feedback implementations unchanged; full regression/launch checks cover existing contracts. No production calls, database queries or writes were performed by this implementation task. Tests use the repository's isolated environment/network guard.
+Both numbered services were left in their existing maintenance state. No Render or Vercel configuration was touched, no production deployment occurred, and production still runs the original backend.
+
+FAILURES / WARNINGS / NEW RISKS
+No unresolved implementation failure identified. One initial readiness-test elapsed-time lower bound was too strict for Windows timer resolution (observed about 2.49 seconds for the unchanged 2.5-second wait); test tolerance was corrected while the production deadline remained identical. Before/after statuses and bodies agreed.
+New diagnostic overhead is bounded to one metadata record per component alongside existing task reuse. Existing readiness concurrency behavior is preserved, so instrumentation is not a concurrency fix. Failure logging can add small serialization/output cost; output backpressure is not simulated by the healthy benchmark. If logging fails, its diagnostic event may be lost while readiness behavior remains intact. Exception messages are deliberately unavailable; only recognized classes and timings are emitted.
+All 23 skips were PostgreSQL-dependent cases requiring TEST_POSTGRES_ADMIN_URL: Beta Feedback (1), Household (3), individual launch PostgreSQL (18), Strategy request security (1). No disposable PostgreSQL test connection was explicitly configured. Production credentials were not used as a substitute. This local verification does not claim those 23 PostgreSQL checks passed. No model, migration, pool or database configuration change requires a new database rehearsal for this diagnostic-only patch.
+
+GIT DIFF SUMMARY
+Two tracked files modified: backend/app/main.py (+13/-3), services/observability.py (+3/-0).
+Four new task files: readiness_observability.py, test_readiness_observability.py, benchmark_readiness.py, this report.
+Tracked frontend, models, migrations, database configuration, storage, limiter and NOC implementation files have no diff. Existing unrelated untracked files are excluded from the proposed change. No staging, commit, push or deployment.
+
+READINESS DIAGNOSTIC INSTRUMENTATION READY TO COMMIT: YES
+Do not commit, push, deploy or reopen production under this task.

@@ -34,6 +34,9 @@ def configure_error_monitoring() -> bool:
 
 
 def resolve_request_id(request: Request) -> str:
+    # Health correlation must never copy a caller's token/session data into logs.
+    if request.url.path == "/health/ready":
+        return uuid4().hex
     candidate = request.headers.get("x-request-id", "").strip()
     if candidate and REQUEST_ID_PATTERN.fullmatch(candidate):
         return candidate
