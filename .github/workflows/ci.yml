@@ -60,7 +60,10 @@ jobs:
         run: python -m alembic -c backend/alembic.ini upgrade head
 
       - name: Run backend tests
-        run: python -m pytest backend/tests --verbose -W error
+        # CLI filters override pytest.ini; the last matching filter wins.
+        run: >-
+          python -m pytest backend/tests --verbose -W error
+          -W "ignore:'crypt' is deprecated and slated for removal in Python 3.13:DeprecationWarning:passlib.utils"
 
   frontend:
     runs-on: ubuntu-latest
