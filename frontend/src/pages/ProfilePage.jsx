@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
+import NocMatchPresentation, { NocMatchSignal, NocMatchQualification } from "../components/NocMatchPresentation";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
@@ -250,7 +251,6 @@ export default function ProfilePage() {
         suggestNoc: "Suggérer un CNP",
         suggestingNoc: "Analyse du CNP...",
         suggestedNoc: "CNP suggéré",
-        confidence: "Confiance",
         teer: "TEER",
         category: "Catégorie",
         whyMatched: "Pourquoi ce CNP correspond",
@@ -350,7 +350,6 @@ export default function ProfilePage() {
       suggestNoc: "Suggest NOC",
       suggestingNoc: "Analyzing NOC...",
       suggestedNoc: "Suggested NOC",
-      confidence: "Confidence",
       teer: "TEER",
       category: "Category",
       whyMatched: "Why this matched",
@@ -464,10 +463,7 @@ export default function ProfilePage() {
     [pageText]
   );
 
-  const normalizedConfidence = useMemo(() => {
-    const raw = nocResult?.confidence || 0;
-    return Math.round(raw * 100);
-  }, [nocResult]);
+  const alternativesReviewId = useId();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -747,7 +743,7 @@ Return:
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
-            <Card padding="lg" className="xl:sticky xl:top-6">
+            <Card padding="lg" className="min-w-0 xl:sticky xl:top-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 {pageText.navTitle}
               </p>
@@ -789,7 +785,7 @@ Return:
 
             <div
               key={activeSection}
-              className="space-y-6 animate-[fadeIn_.18s_ease-out]"
+              className="min-w-0 space-y-6 animate-[fadeIn_.18s_ease-out]"
             >
               {activeSection === "personal" && (
                 <Card padding="lg" className="space-y-6">
@@ -1001,9 +997,9 @@ Return:
                         </Button>
 
                         {nocResult?.suggested_noc ? (
-                          <div className="inline-flex items-center rounded-full border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700">
-                            {nocResult.suggested_noc} — {nocResult.suggested_title} ·{" "}
-                            {pageText.confidence}: {normalizedConfidence}%
+                          <div className="min-w-0 w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700">
+                            <p>{nocResult.suggested_noc} — {nocResult.suggested_title}</p>
+                            <NocMatchPresentation confidence={nocResult.confidence} language={language} />
                           </div>
                         ) : null}
                       </div>
@@ -1191,12 +1187,10 @@ Return:
                               {pageText.teer}: {nocResult.teer}
                             </span>
                             <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                              {pageText.confidence}: {normalizedConfidence}%
-                            </span>
-                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                               {pageText.category}: {nocResult.broad_category}
                             </span>
                           </div>
+                          <NocMatchPresentation confidence={nocResult.confidence} language={language} />
                         </div>
 
                         <div className="flex flex-col gap-2">
@@ -1246,7 +1240,9 @@ Return:
 
                         {Array.isArray(nocResult.alternatives) &&
                         nocResult.alternatives.length > 0 ? (
-                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <div className="mt-3 space-y-3" data-testid="noc-alternatives">
+                            <NocMatchQualification language={language} id={alternativesReviewId} />
+                          <div className="grid gap-3 md:grid-cols-2">
                             {nocResult.alternatives.map((alt) => (
                               <div
                                 key={alt.noc}
@@ -1256,9 +1252,9 @@ Return:
                                   {alt.noc} — {alt.title}
                                 </p>
                                 <p className="mt-2 text-xs text-slate-500">
-                                  {pageText.teer}: {alt.teer} · {pageText.confidence}:{" "}
-                                  {Math.round((alt.confidence || 0) * 100)}%
+                                  {pageText.teer}: {alt.teer}
                                 </p>
+                                <NocMatchSignal confidence={alt.confidence} language={language} describedBy={alternativesReviewId} />
                                 <div className="mt-4 flex flex-wrap gap-2">
                                   <Button
                                     type="button"
@@ -1281,6 +1277,7 @@ Return:
                                 </div>
                               </div>
                             ))}
+                          </div>
                           </div>
                         ) : (
                           <p className="mt-3 text-sm text-slate-500">

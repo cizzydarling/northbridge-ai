@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { NocMatchSignal, NocMatchQualification } from "./NocMatchPresentation";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Card from "./ui/Card";
@@ -211,6 +212,7 @@ function getNocTitle(match) {
 }
 
 export default function OnboardingModal() {
+  const nocReviewId = useId();
   const location = useLocation();
   const navigate = useNavigate();
   const { i18n } = useTranslation();
@@ -795,13 +797,10 @@ export default function OnboardingModal() {
 
                   {nocSuggestions.length > 0 ? (
                     <div className="mt-3 grid gap-2">
+                      <NocMatchQualification language={language} id={nocReviewId} />
                       {nocSuggestions.slice(0, 3).map((match, index) => {
                         const code = getNocCode(match);
                         const title = getNocTitle(match);
-                        const confidence =
-                          typeof match?.confidence === "number"
-                            ? `${Math.round(match.confidence * 100)}%`
-                            : null;
 
                         return (
                           <button
@@ -816,11 +815,7 @@ export default function OnboardingModal() {
                             {title ? (
                               <span className="text-slate-700"> - {title}</span>
                             ) : null}
-                            {confidence ? (
-                              <span className="ml-2 text-xs text-slate-500">
-                                {confidence}
-                              </span>
-                            ) : null}
+                            <NocMatchSignal confidence={match.confidence} language={language} describedBy={nocReviewId} />
                           </button>
                         );
                       })}

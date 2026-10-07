@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { NocMatchQualification } from "../components/NocMatchPresentation";
 import { useTranslation } from "react-i18next";
 import {
   getMyProfile,
@@ -415,8 +416,6 @@ export default function OnboardingPage() {
         suggestingNoc: "Suggestion...",
         suggestedNocs: "Suggestions de CNP",
         noNocFound: "Aucune suggestion CNP trouvée pour cette profession.",
-        nocHelper:
-          "Choisissez la suggestion la plus proche pour améliorer immédiatement la qualité de votre stratégie.",
         onboardingSaveError:
           "Échec de l’enregistrement des informations d’onboarding.",
         nocSuggestionError:
@@ -520,8 +519,6 @@ export default function OnboardingPage() {
       suggestingNoc: "Suggesting...",
       suggestedNocs: "Suggested NOCs",
       noNocFound: "No NOC suggestions found for this occupation.",
-      nocHelper:
-        "Choose the closest suggestion to immediately improve strategy quality.",
       onboardingSaveError: "Failed to save onboarding details.",
       nocSuggestionError: "Unable to suggest a NOC code right now.",
       completedTitle: "Profile successfully completed",
@@ -1495,9 +1492,7 @@ Explain:
                           );
                         })}
 
-                        <p className="text-xs text-slate-500">
-                          {pageText.nocHelper}
-                        </p>
+                        <NocMatchQualification language={language} />
                       </div>
                     )}
                   </div>
