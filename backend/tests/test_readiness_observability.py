@@ -23,6 +23,15 @@ from app.services.observability import observe_request
 SECRET = "postgresql://private-user:private-password@private-db/private-data JWT private-token bucket-key"
 
 
+@pytest.fixture(autouse=True)
+def readiness_logger_enabled(monkeypatch):
+    # The in-process PostgreSQL migration rehearsal uses Alembic fileConfig,
+    # which disables existing application loggers. caplog.set_level does not
+    # reset Logger.disabled. Restore only this test module's logger, and let
+    # monkeypatch restore its previous state after each test.
+    monkeypatch.setattr(diagnostics.logger, "disabled", False)
+
+
 def before_app(checks, noc=True, runner=run_in_threadpool):
     app = FastAPI()
     app.state.noc_ready = noc
