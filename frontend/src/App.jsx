@@ -1,5 +1,6 @@
 import EntitlementStatus from "./components/EntitlementStatus";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { getEntitlementState } from "./entitlementStore";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import "./i18n";
@@ -122,38 +123,41 @@ function BootstrapGate({ children }) {
   const [bootstrap, setBootstrap] = useState(null);
   const [verifiedBootstrapKey, setVerifiedBootstrapKey] = useState(null);
   const bootstrapKey = `${user?.email || ""}:${location.pathname}`;
-  const bootstrapLoadedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
+    let latestRequest = 0;
+    let verified = false;
 
     async function loadBootstrap() {
+      const request = ++latestRequest;
       if (!getCurrentUserLocal()) {
-        bootstrapLoadedRef.current = false;
         if (mounted) setLoading(false);
         return;
       }
 
       try {
-        if (!bootstrapLoadedRef.current) {
-          setLoading(true);
-        }
+        // Invalidated sessions must hide the previous route before its billing
+        // effects can compete with bootstrap. Verified same-account refreshes
+        // keep component state, including onboarding's save confirmation.
+        if (!verified || getEntitlementState().status === "unknown") setLoading(true);
         const res = await getAppBootstrap();
-        if (!mounted) return;
+        if (!mounted || request !== latestRequest) return;
 
         syncLocalUser(res.data?.user);
         setBootstrap(res.data);
         setVerifiedBootstrapKey(`${getCurrentUserLocal()?.email || ""}:${location.pathname}`);
-        bootstrapLoadedRef.current = true;
+        verified = true;
         prefetchAppRoutes();
       } catch (err) {
+        // Superseded requests may reject after a newer bootstrap succeeded.
+        if (!mounted || request !== latestRequest) return;
         if (err?.response?.status === 401) {
           logoutUser();
-          bootstrapLoadedRef.current = false;
         }
-        if (mounted) setBootstrap(null);
+        setBootstrap(null);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted && request === latestRequest) setLoading(false);
       }
     }
 

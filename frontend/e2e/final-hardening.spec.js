@@ -117,3 +117,39 @@ test("bootstrap failure is retryable and agent accounts stay isolated", async ({
   await page.getByRole("button",{name:"Try again",exact:true}).click();
   await expect(page.getByText("This launch is available to individual users only.")).toBeVisible();
 });
+
+test("a superseded bootstrap cannot erase the latest verified free access", async ({page, request}) => {
+  const bootstrap = await prepare(page, request, "en", false);
+  await page.route("**/app/bootstrap", r => r.fulfill({json:bootstrap}));
+  await page.goto("/documents/review");
+  const upgrade = page.getByRole('button', {name:'Upgrade', exact:true}).first();
+  await expect(upgrade).toBeVisible();
+
+  let releaseOlder;
+  let olderStarted;
+  const olderResponse = new Promise(resolve => { releaseOlder = resolve; });
+  const started = new Promise(resolve => { olderStarted = resolve; });
+  let requests = 0;
+  await page.route("**/app/bootstrap", async route => {
+    if (++requests === 1) {
+      olderStarted();
+      await olderResponse;
+    }
+    await route.fulfill({json:bootstrap});
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event("nbai-bootstrap-refresh")));
+  await started;
+  await expect(upgrade).toHaveCount(0);
+  await expect(page.getByTestId('upgrade-prompt')).toHaveCount(0);
+  const latestFinished = page.waitForResponse(response => response.url().endsWith('/app/bootstrap'));
+  await page.evaluate(() => window.dispatchEvent(new Event("nbai-bootstrap-refresh")));
+  await (await latestFinished).finished();
+  await expect(upgrade).toBeVisible();
+  const olderFinished = page.waitForResponse(response => response.url().endsWith('/app/bootstrap'));
+  releaseOlder();
+  await (await olderFinished).finished();
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  // A stale request rejection must not replace an already verified route.
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(upgrade).toBeVisible();
+});

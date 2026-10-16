@@ -38,17 +38,17 @@ test("individual routes ignore stale cases and deferred routes never load", asyn
   const failures = [];
   let verifiedStrategy;
   page.on("response", (res) => { if (res.url().startsWith(api) && res.status() >= 500) failures.push(res.url()); });
-  page.on("response", async (res) => {
-    if (res.url().startsWith(`${api}/self/strategy?`) && res.status() === 200) {
-      verifiedStrategy = await res.json();
-    }
-  });
+  const dashboardStrategy = page.waitForResponse(res =>
+    res.url().startsWith(`${api}/self/strategy?`) && res.status() === 200);
   for (const path of ["/dashboard", "/strategy", "/strategy/simulator", "/forms", "/self/application", "/documents"]) {
     await page.goto(path);
     await expect(page).toHaveURL(new RegExp(`${path}$`));
     // Exercise the real backend and the contained planning views.
     await expect(page.locator("h1").first()).toBeVisible({ timeout: 120_000 });
     await expect(page.locator('a[href^="/clients"]')).toHaveCount(0);
+    // Read the real body before navigation can discard its CDP resource. A
+    // detached async listener must not outlive the request it is verifying.
+    if (path === "/dashboard") verifiedStrategy = await (await dashboardStrategy).json();
   }
   expect(verifiedStrategy).toBeTruthy();
   // The following assertions test route isolation. Reuse the real response already
