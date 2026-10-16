@@ -544,6 +544,13 @@ export const updateAdminPromoCode = (promoCodeIdentifier, payload) =>
 ========================= */
 
 export const normalizeProfilePayload = (payload = {}) => {
+  for (const field of ["language_score", "english_language_score", "french_language_score"]) {
+    const value = payload[field];
+    if (value === "" || value == null) continue;
+    if (typeof value === "boolean" || !Number.isInteger(Number(value)) || Number(value) < 1 || Number(value) > 12) {
+      throw new Error("Choose a benchmark from 1 to 12, or unknown.");
+    }
+  }
   const normalized = {
     ...payload,
     first_name: payload.first_name?.trim() || null,
@@ -606,7 +613,9 @@ export const normalizeProfilePayload = (payload = {}) => {
     studied_in_canada: Boolean(payload.studied_in_canada),
   };
 
-  return normalized;
+  // Normalization must not turn omission into an explicit clear.
+  return Object.fromEntries(Object.entries(normalized).filter(([key]) =>
+    Object.prototype.hasOwnProperty.call(payload, key) && payload[key] !== undefined));
 };
 
 export const getMyProfile = () => api.get("/profiles/me");
@@ -619,7 +628,7 @@ export const saveMyProfile = (payload) =>
   api.put("/profiles/me", normalizeProfilePayload(payload));
 
 export const updateMyProfile = (payload) =>
-  api.put("/profiles/me", normalizeProfilePayload(payload));
+  api.patch("/profiles/me", normalizeProfilePayload(payload));
 
 /* =========================
    SELF WORKSPACE

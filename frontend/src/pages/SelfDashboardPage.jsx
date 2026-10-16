@@ -1,3 +1,4 @@
+import { LanguageResultsSummary } from "../components/LanguageBenchmarks";
 import OfficialCrsHandoff from "../components/OfficialCrsHandoff";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -395,8 +396,6 @@ export default function SelfDashboardPage() {
       profile.last_name,
       profile.age,
       profile.education,
-      profile.english_language_score || profile.language_score,
-      profile.french_language_score,
       profile.experience_years,
       profile.occupation,
       profile.noc_code,
@@ -619,6 +618,7 @@ export default function SelfDashboardPage() {
 
         <Panel className="flex flex-col justify-between gap-6">
           <div>
+            <LanguageResultsSummary profile={profile} />
             <Eyebrow>{language === "fr" ? "Priorité" : "Next best move"}</Eyebrow>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
               {!profile

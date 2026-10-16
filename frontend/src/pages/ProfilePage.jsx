@@ -1,4 +1,6 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import LanguageBenchmarks from "../components/LanguageBenchmarks";
+import { profileLanguagePayload } from "../utils/languageBenchmarks";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import NocMatchPresentation, { NocMatchSignal, NocMatchQualification } from "../components/NocMatchPresentation";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -86,9 +88,6 @@ function hydrateProfileForm(data) {
     }
   });
 
-  if (!merged.english_language_score && merged.language_score) {
-    merged.english_language_score = merged.language_score;
-  }
 
   return merged;
 }
@@ -105,6 +104,7 @@ export default function ProfilePage() {
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const [form, setForm] = useState(defaultForm);
+  const originalProfile = useRef(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
@@ -126,6 +126,7 @@ export default function ProfilePage() {
   }, [form]);
 
   useEffect(() => {
+    if (originalProfile.current !== null) return;
     const fetchProfile = async () => {
       const token = getToken();
 
@@ -140,6 +141,7 @@ export default function ProfilePage() {
 
         const hydrated = hydrateProfileForm(data);
 
+        originalProfile.current = hydrated;
         setForm(hydrated);
         setNocDescription(hydrated.job_description || "");
         setNocDutyInput(hydrated.job_duties || "");
@@ -561,15 +563,9 @@ export default function ProfilePage() {
     setLoading(true);
 
     try {
-      const payload = {
+      const payload = profileLanguagePayload({
         ...form,
         age: normalizeNumber(form.age),
-        english_language_score: normalizeNumber(form.english_language_score),
-        french_language_score: normalizeNumber(form.french_language_score),
-        language_score: Math.max(
-          normalizeNumber(form.english_language_score) || 0,
-          normalizeNumber(form.french_language_score) || 0
-        ) || null,
         experience_years: normalizeNumber(form.experience_years),
         first_name: form.first_name?.trim() || null,
         last_name: form.last_name?.trim() || null,
@@ -585,9 +581,10 @@ export default function ProfilePage() {
         job_description: nocDescription?.trim() || null,
         job_duties: nocDutyInput?.trim() || null,
         preferred_province: form.preferred_province || null,
-      };
+      }, form, originalProfile.current || {});
 
       await updateMyProfile(payload);
+      originalProfile.current = { ...form };
 
       const currentUser =
         JSON.parse(localStorage.getItem("current_user") || "null") ||
@@ -596,8 +593,8 @@ export default function ProfilePage() {
 
       const patchedUser = {
         ...currentUser,
-        first_name: payload.first_name,
-        last_name: payload.last_name,
+        ...(Object.hasOwn(payload, "first_name") ? { first_name: payload.first_name } : {}),
+        ...(Object.hasOwn(payload, "last_name") ? { last_name: payload.last_name } : {}),
       };
 
       localStorage.setItem("current_user", JSON.stringify(patchedUser));
@@ -609,8 +606,8 @@ export default function ProfilePage() {
 
       setForm((prev) => ({
         ...prev,
-        job_description: payload.job_description || "",
-        job_duties: payload.job_duties || "",
+        job_description: Object.hasOwn(payload, "job_description") ? payload.job_description || "" : prev.job_description,
+        job_duties: Object.hasOwn(payload, "job_duties") ? payload.job_duties || "" : prev.job_duties,
       }));
 
       setMessage(
@@ -941,21 +938,7 @@ Return:
                       </select>
                     </div>
 
-                    <Input
-                      name="english_language_score"
-                      type="number"
-                      label={pageText.englishLanguageScore}
-                      value={form.english_language_score}
-                      onChange={handleChange}
-                    />
-
-                    <Input
-                      name="french_language_score"
-                      type="number"
-                      label={pageText.frenchLanguageScore}
-                      value={form.french_language_score}
-                      onChange={handleChange}
-                    />
+                    <LanguageBenchmarks form={form} onChange={handleChange} />
 
                     <Input
                       name="experience_years"

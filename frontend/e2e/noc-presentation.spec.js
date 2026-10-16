@@ -102,7 +102,7 @@ for (const language of ["en", "fr"]) {
     const next = page.getByRole("button", { name: language === "fr" ? "Suivant" : "Next", exact: true });
     await next.click();
     await page.locator('input[name="age"]').fill("30");
-    await page.locator('input[name="english_language_score"]').fill("9");
+    await page.locator('select[name="english_language_score"]').selectOption("9");
     await page.locator('select[name="education"]').selectOption("masters");
     await page.locator('input[name="experience_years"]').fill("3");
     await next.click();

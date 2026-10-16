@@ -1,3 +1,4 @@
+import { benchmarkState } from "../utils/languageBenchmarks";
 import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -131,8 +132,7 @@ const PROVINCES = [
 ];
 
 function normalizeScore(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
+  return benchmarkState(value) === "reported" ? Number(value) : null;
 }
 
 function normalizeProvince(value) {
@@ -390,19 +390,14 @@ export default function OfficialFindersPage() {
   }
 
   const englishScore = normalizeScore(
-    profile?.english_language_score ?? profile?.language_score
+    profile?.english_language_score
   );
   const frenchScore = normalizeScore(profile?.french_language_score);
 
-  const recommendation = (() => {
-    if (englishScore === null && frenchScore === null) return copy.noScores;
-    if (englishScore !== null && frenchScore !== null) {
-      if (englishScore > frenchScore) return copy.strongerEnglish;
-      if (frenchScore > englishScore) return copy.strongerFrench;
-      return copy.bothLanguages;
-    }
-    return englishScore !== null ? copy.strongerEnglish : copy.strongerFrench;
-  })();
+  const needsReview = [profile?.english_language_score, profile?.french_language_score].some(value => benchmarkState(value) === "review") || profile?.language_score != null;
+  const recommendation = needsReview
+    ? (language === "fr" ? "À vérifier : les niveaux historiques ne sont pas vérifiés." : "Needs review: legacy benchmarks are not verified.")
+    : (language === "fr" ? "Les niveaux déclarés ne sont pas vérifiés indépendamment. Choisissez le test selon votre objectif." : "Reported levels are not independently verified. Choose a test for your goal.");
 
   const visibleTests = TESTS.filter((test) => {
     if (testLanguage !== "all" && test.language !== testLanguage) return false;

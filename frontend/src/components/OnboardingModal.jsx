@@ -1,3 +1,5 @@
+import LanguageBenchmarks from "./LanguageBenchmarks";
+import { profileLanguagePayload } from "../utils/languageBenchmarks";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { NocMatchSignal, NocMatchQualification } from "./NocMatchPresentation";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -109,8 +111,6 @@ function computeProfileCompletion(profile) {
     profile.preferred_language,
     profile.age,
     profile.education,
-    profile.english_language_score || profile.language_score,
-    profile.french_language_score,
     profile.experience_years,
     profile.occupation,
     profile.noc_code,
@@ -224,6 +224,7 @@ export default function OnboardingModal() {
   const [step, setStep] = useState(1);
   const [message, setMessage] = useState("");
   const [form, setForm] = useState(DEFAULT_FORM);
+  const originalProfile = useRef(null);
   const [nocSuggestions, setNocSuggestions] = useState([]);
   const [nocLoading, setNocLoading] = useState(false);
   const [nocStatus, setNocStatus] = useState("");
@@ -307,7 +308,7 @@ export default function OnboardingModal() {
 
         if (!mounted) return;
 
-        setForm({
+        const hydrated = {
           first_name: profile.first_name || "",
           last_name: profile.last_name || "",
           nationality: profile.nationality || "",
@@ -328,10 +329,7 @@ export default function OnboardingModal() {
           english_language_score:
             profile.english_language_score === null ||
             typeof profile.english_language_score === "undefined"
-              ? profile.language_score === null ||
-                typeof profile.language_score === "undefined"
-                ? ""
-                : String(profile.language_score)
+              ? ""
               : String(profile.english_language_score),
           french_language_score:
             profile.french_language_score === null ||
@@ -346,7 +344,11 @@ export default function OnboardingModal() {
           occupation: profile.occupation || "",
           noc_code: profile.noc_code || "",
           preferred_province: profile.preferred_province || "",
-        });
+        };
+        if (originalProfile.current === null) {
+          originalProfile.current = hydrated;
+          setForm(hydrated);
+        }
 
         const completion = computeProfileCompletion(profile);
 
@@ -502,7 +504,6 @@ export default function OnboardingModal() {
       form.preferred_language &&
         form.age !== "" &&
         form.education &&
-        (form.english_language_score !== "" || form.french_language_score !== "") &&
         form.experience_years !== ""
     );
   }
@@ -521,7 +522,7 @@ export default function OnboardingModal() {
     setMessage("");
 
     try {
-      const payload = {
+      const payload = profileLanguagePayload({
         first_name: form.first_name.trim() || null,
         last_name: form.last_name.trim() || null,
         nationality: form.nationality || null,
@@ -531,17 +532,11 @@ export default function OnboardingModal() {
         preferred_language: form.preferred_language || language,
         age: normalizeNumber(form.age),
         education: form.education || null,
-        english_language_score: normalizeNumber(form.english_language_score),
-        french_language_score: normalizeNumber(form.french_language_score),
-        language_score: Math.max(
-          normalizeNumber(form.english_language_score) || 0,
-          normalizeNumber(form.french_language_score) || 0
-        ) || null,
         experience_years: normalizeNumber(form.experience_years),
         occupation: form.occupation.trim() || null,
         noc_code: form.noc_code.trim() || null,
         preferred_province: form.preferred_province || null,
-      };
+      }, form, originalProfile.current || {});
 
       await updateMyProfile(payload);
       await refreshCurrentUser();
@@ -708,20 +703,7 @@ export default function OnboardingModal() {
                   options={translatedEducation}
                   placeholder={language === "fr" ? "Choisissez" : "Choose"}
                 />
-                <Input
-                  name="english_language_score"
-                  type="number"
-                  label={language === "fr" ? "Score anglais CLB" : "English CLB score"}
-                  value={form.english_language_score}
-                  onChange={handleChange}
-                />
-                <Input
-                  name="french_language_score"
-                  type="number"
-                  label={language === "fr" ? "Score francais NCLC" : "French NCLC score"}
-                  value={form.french_language_score}
-                  onChange={handleChange}
-                />
+                <LanguageBenchmarks form={form} onChange={handleChange} />
                 <Input
                   name="experience_years"
                   type="number"

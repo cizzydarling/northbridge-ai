@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProfileBase(BaseModel):
@@ -32,12 +32,29 @@ class ProfileBase(BaseModel):
     preferred_province: Optional[str] = None
 
 
-class ProfileCreate(ProfileBase):
+Benchmark = Annotated[int, Field(strict=True, ge=1, le=12)]
+
+
+class ProfileWrite(ProfileBase):
+    # Read responses deliberately retain legacy integer values unchanged.
+    language_score: Optional[Benchmark] = None
+    english_language_score: Optional[Benchmark] = None
+    french_language_score: Optional[Benchmark] = None
+
+
+class ProfileCreate(ProfileWrite):
     pass
 
 
-class ProfileUpdate(ProfileBase):
+class ProfileUpdate(ProfileWrite):
     pass
+
+
+class LegacyProfilePut(ProfileBase):
+    # Transport only: owner-aware route validation must precede assignment.
+    language_score: Optional[Annotated[int, Field(strict=True)]] = None
+    english_language_score: Optional[Annotated[int, Field(strict=True)]] = None
+    french_language_score: Optional[Annotated[int, Field(strict=True)]] = None
 
 
 class ProfileResponse(ProfileBase):

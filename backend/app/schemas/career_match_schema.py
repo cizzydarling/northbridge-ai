@@ -9,7 +9,7 @@ class CareerMatchRequest(BaseModel):
     noc_code: Optional[str] = None
     education: Optional[str] = None
     years_of_experience: Optional[int] = Field(default=None, ge=0, le=60)
-    language_level: Optional[int] = Field(default=None, ge=0, le=10)
+    language_level: Optional[int] = Field(default=None, strict=True, ge=1, le=12)
     preferred_provinces: list[str] = []
     current_location: Optional[str] = None
     work_authorization_status: Optional[str] = None

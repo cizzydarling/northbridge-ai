@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 
 from app.models.profile_model import Profile
 from app.schemas.career_match_schema import CareerMatchRequest
+from app.services.language_evidence import reported_language_level, valid_benchmark
 from app.services.noc_service import lookup_noc_by_code, suggest_noc_matches
 
 
@@ -142,7 +143,8 @@ class NormalizedCareerInput:
     noc_code: str
     education: str
     years_of_experience: int
-    language_level: int
+    language_level: Optional[int]
+    french_language_level: Optional[int]
     preferred_provinces: list[str]
     current_location: str
     work_authorization_status: str
@@ -180,7 +182,7 @@ def _profile_defaults(profile: Optional[Profile]) -> dict[str, Any]:
         "noc_code": profile.noc_code,
         "education": profile.education,
         "years_of_experience": profile.experience_years,
-        "language_level": profile.language_score,
+        "language_level": reported_language_level(profile),
         "preferred_provinces": preferred,
         "current_location": " ".join(
             part for part in [profile.current_city, profile.current_country] if part
@@ -206,7 +208,8 @@ def normalize_input(
         noc_code=_clean(payload.noc_code or defaults.get("noc_code") or ""),
         education=_clean(payload.education or defaults.get("education") or ""),
         years_of_experience=int(payload.years_of_experience if payload.years_of_experience is not None else defaults.get("years_of_experience") or 0),
-        language_level=int(payload.language_level if payload.language_level is not None else defaults.get("language_level") or 0),
+        language_level=valid_benchmark(payload.language_level if payload.language_level is not None else defaults.get("language_level")),
+        french_language_level=valid_benchmark(getattr(profile, "french_language_score", None)) if payload.use_profile_defaults else None,
         preferred_provinces=preferred_codes,
         current_location=_clean(payload.current_location or defaults.get("current_location") or ""),
         work_authorization_status=_clean(payload.work_authorization_status or defaults.get("work_authorization_status") or ""),
@@ -418,12 +421,12 @@ def _score_province(
         score += 8
         why.append("This province is in your preferred locations.")
 
-    if career_input.language_level >= 7:
+    if career_input.language_level is not None and career_input.language_level >= 7:
         score += 6
-        why.append("Your language score strengthens employability and pathway fit.")
-    elif career_input.language_level >= 4:
+        why.append("Votre niveau déclaré sert à cette comparaison exploratoire; il ne confirme pas votre admissibilité." if career_input.language == "fr" else "Your user-reported benchmark informs this exploratory career comparison; it is not verified eligibility.")
+    elif career_input.language_level is not None and career_input.language_level >= 4:
         score += 3
-        why.append("Your language level gives a workable baseline for many roles.")
+        why.append("Votre niveau déclaré est inclus dans cette comparaison exploratoire." if career_input.language == "fr" else "Your user-reported benchmark is included in this exploratory career comparison.")
 
     if career_input.years_of_experience >= 5:
         score += 6
@@ -432,9 +435,9 @@ def _score_province(
         score += 3
         why.append("Your experience is relevant for entry-to-intermediate opportunities.")
 
-    if province["code"] in {"QC", "NB"} and career_input.language_level >= 7:
+    if province["code"] in {"QC", "NB"} and career_input.french_language_level is not None and career_input.french_language_level >= 7:
         score += 4
-        why.append("French or bilingual capacity can be especially useful here.")
+        why.append("Votre niveau de français déclaré sert à cette comparaison; il n’est pas vérifié indépendamment." if career_input.language == "fr" else "Your user-reported French benchmark informs this comparison; proficiency is not independently verified.")
 
     auth = career_input.work_authorization_status.lower()
     if any(term in auth for term in ["citizen", "pr", "permanent", "work permit", "authorized"]):

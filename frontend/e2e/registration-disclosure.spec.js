@@ -68,7 +68,7 @@ test("new user registers, accepts disclosures, and completes onboarding", async 
 
   await page.locator('input[name="age"]').fill("28");
   await page.locator('select[name="education"]').selectOption("bachelor");
-  await page.locator('input[name="english_language_score"]').fill("9");
+  await page.locator('select[name="english_language_score"]').selectOption("9");
   await page.locator('input[name="experience_years"]').fill("3");
   await page.locator('input[name="occupation"]').fill("Administrative officer");
   await page.locator('input[name="noc_code"]').fill("13100");

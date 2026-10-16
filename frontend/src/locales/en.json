@@ -800,5 +800,27 @@
       "feature": "Feature request",
       "general": "General feedback"
     }
+  },
+  "languageIntelligence": {
+    "title": "Language Intelligence",
+    "intro": "CLB describes English proficiency; NCLC describes French proficiency. Both have 12 benchmark levels.",
+    "more": "Learn more about CLB / NCLC",
+    "detail": "CLB means Canadian Language Benchmarks. NCLC means Niveaux de compétence linguistique canadiens. Listening, speaking, reading and writing are assessed separately. Exam scores and benchmark levels are different. Requirements depend on the immigration program and skill. A user-reported level is not independently verified and does not describe all four skills. You can continue without test results.",
+    "english": "English CLB — user-reported benchmark level",
+    "french": "French NCLC — user-reported benchmark level",
+    "unknown": "Not tested / Unknown",
+    "notTested": "I haven't taken a language test yet.",
+    "clearHint": "This action clears recorded language benchmarks. Leave existing values unchanged unless you intend to correct or clear them.",
+    "review": "Needs review",
+    "legacy": "A legacy combined benchmark has unknown language provenance. It has not been assigned to English or French.",
+    "invalid": "Choose an integer benchmark from 1 to 12, or Not tested / Unknown.",
+    "reported": "User-reported; not independently verified",
+    "raw": "Have raw exam scores? Use official information to find the benchmark; do not guess. Conversion is not available here.",
+    "official": "Official language-test information",
+    "finders": "Schools & Test Centres (Premium)",
+    "practice": "Language Practice (Premium)",
+    "strategy": "Planning Strategy",
+    "status": "Language results",
+    "noResults": "Unknown / Not tested"
   }
 }

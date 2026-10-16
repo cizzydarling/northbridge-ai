@@ -800,5 +800,27 @@
       "feature": "Suggestion de fonctionnalité",
       "general": "Commentaire général"
     }
+  },
+  "languageIntelligence": {
+    "title": "Intelligence linguistique",
+    "intro": "Les CLB décrivent la maîtrise de l’anglais; les NCLC décrivent celle du français. Les deux échelles comportent 12 niveaux.",
+    "more": "En savoir plus sur les CLB / NCLC",
+    "detail": "CLB signifie Canadian Language Benchmarks. NCLC signifie Niveaux de compétence linguistique canadiens. La compréhension orale, l’expression orale, la compréhension écrite et l’expression écrite sont évaluées séparément. Les résultats d’examen et les niveaux de référence sont différents. Les exigences dépendent du programme d’immigration et de la compétence. Un niveau déclaré n’est pas vérifié indépendamment et ne décrit pas les quatre compétences. Vous pouvez continuer sans résultats.",
+    "english": "Anglais CLB — niveau de référence déclaré",
+    "french": "Français NCLC — niveau de référence déclaré",
+    "unknown": "Pas encore testé / Inconnu",
+    "notTested": "Je n'ai pas encore passé de test de langue.",
+    "clearHint": "Cette action efface les niveaux linguistiques enregistrés. Conservez les valeurs existantes sauf si vous souhaitez les corriger ou les effacer.",
+    "review": "À vérifier",
+    "legacy": "La langue du niveau combiné historique est inconnue. Il n’a pas été attribué à l’anglais ou au français.",
+    "invalid": "Choisissez un niveau entier de 1 à 12, ou Pas encore testé / Inconnu.",
+    "reported": "Déclaré par vous; non vérifié indépendamment",
+    "raw": "Vous avez des résultats d’examen bruts? Consultez les informations officielles pour trouver le niveau; ne le devinez pas. La conversion n’est pas disponible ici.",
+    "official": "Informations officielles sur les tests de langue",
+    "finders": "Établissements et centres de tests (Premium)",
+    "practice": "Pratique linguistique (Premium)",
+    "strategy": "Préparer votre démarche",
+    "status": "Résultats linguistiques",
+    "noResults": "Inconnu / Pas encore testé"
   }
 }

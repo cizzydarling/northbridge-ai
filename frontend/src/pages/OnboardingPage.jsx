@@ -1,3 +1,5 @@
+import LanguageBenchmarks from "../components/LanguageBenchmarks";
+import { benchmarkState, profileLanguagePayload } from "../utils/languageBenchmarks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { NocMatchQualification } from "../components/NocMatchPresentation";
@@ -92,9 +94,6 @@ function hydrateProfileForm(data) {
     }
   });
 
-  if (!merged.english_language_score && merged.language_score) {
-    merged.english_language_score = merged.language_score;
-  }
 
   return merged;
 }
@@ -161,8 +160,6 @@ function getProfileReadinessScore(form) {
     form.preferred_language,
     form.age,
     form.education,
-    form.english_language_score || form.language_score,
-    form.french_language_score,
     form.experience_years,
     form.occupation,
     form.noc_code,
@@ -202,6 +199,7 @@ export default function OnboardingPage() {
   const language = i18n.language === "fr" ? "fr" : "en";
 
   const [form, setForm] = useState(defaultForm);
+  const originalProfile = useRef(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -268,6 +266,7 @@ export default function OnboardingPage() {
   useEffect(() => {
     let mounted = true;
 
+    if (originalProfile.current !== null) return;
     async function loadProfile() {
       try {
         const res = await getMyProfile();
@@ -275,6 +274,7 @@ export default function OnboardingPage() {
 
         const merged = hydrateProfileForm(res.data);
 
+        originalProfile.current = merged;
         setForm(merged);
         setNationalityQuery(merged.nationality || "");
         setCountryQuery(merged.current_country || "");
@@ -763,25 +763,16 @@ export default function OnboardingPage() {
     }
 
     const age = Number(form.age);
-    const englishLanguageScore = Number(form.english_language_score || 0);
-    const frenchLanguageScore = Number(form.french_language_score || 0);
     const experienceYears = Number(form.experience_years);
 
     if (!Number.isFinite(age) || age <= 0) {
       errors.age = pageText.invalidAge;
     }
 
-    if (!isFilled(form.english_language_score) && !isFilled(form.french_language_score)) {
-      errors.english_language_score = pageText.missingLanguageScore;
-      errors.french_language_score = pageText.missingLanguageScore;
-    }
-
-    if (!Number.isFinite(englishLanguageScore) || englishLanguageScore < 0) {
-      errors.english_language_score = pageText.invalidLanguageScore;
-    }
-
-    if (!Number.isFinite(frenchLanguageScore) || frenchLanguageScore < 0) {
-      errors.french_language_score = pageText.invalidLanguageScore;
+    for (const field of ["english_language_score", "french_language_score"]) {
+      if (form[field] !== originalProfile.current?.[field] && benchmarkState(form[field]) === "review") {
+        errors[field] = pageText.invalidLanguageScore;
+      }
     }
 
     if (!Number.isFinite(experienceYears) || experienceYears < 0) {
@@ -908,23 +899,9 @@ export default function OnboardingPage() {
     }
 
     try {
-      const payload = {
+      const payload = profileLanguagePayload({
         ...form,
         age: Number(form.age),
-        english_language_score: isFilled(form.english_language_score)
-          ? Number(form.english_language_score)
-          : null,
-        french_language_score: isFilled(form.french_language_score)
-          ? Number(form.french_language_score)
-          : null,
-        language_score: Math.max(
-          isFilled(form.english_language_score)
-            ? Number(form.english_language_score)
-            : 0,
-          isFilled(form.french_language_score)
-            ? Number(form.french_language_score)
-            : 0
-        ) || null,
         experience_years: Number(form.experience_years),
         occupation: normalizeText(form.occupation) || null,
         noc_code: normalizeText(form.noc_code) || null,
@@ -938,9 +915,10 @@ export default function OnboardingPage() {
         date_of_birth: form.date_of_birth || null,
         marital_status: form.marital_status || null,
         preferred_language: form.preferred_language || "en",
-      };
+      }, form, originalProfile.current || {});
 
       await updateMyProfile(payload);
+      originalProfile.current = { ...form };
       localStorage.setItem("nbai_force_refresh", "true");
       window.dispatchEvent(new Event("nbai-bootstrap-refresh"));
       setCompleted(true);
@@ -1400,31 +1378,7 @@ Explain:
                     </FieldHint>
                   </div>
 
-                  <div>
-                    <Input
-                      label={pageText.englishLanguageScore}
-                      name="english_language_score"
-                      type="number"
-                      value={form.english_language_score}
-                      onChange={handleChange}
-                    />
-                    <FieldHint error={Boolean(fieldErrors.english_language_score)}>
-                      {fieldErrors.english_language_score}
-                    </FieldHint>
-                  </div>
-
-                  <div>
-                    <Input
-                      label={pageText.frenchLanguageScore}
-                      name="french_language_score"
-                      type="number"
-                      value={form.french_language_score}
-                      onChange={handleChange}
-                    />
-                    <FieldHint error={Boolean(fieldErrors.french_language_score)}>
-                      {fieldErrors.french_language_score}
-                    </FieldHint>
-                  </div>
+                  <LanguageBenchmarks form={form} onChange={handleChange} errors={fieldErrors} />
 
                   <div>
                     <Input

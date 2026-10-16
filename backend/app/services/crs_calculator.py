@@ -8,13 +8,9 @@ def _safe_int(value, default: int = 0) -> int:
         return default
 
 
-def get_effective_language_score(profile: Profile) -> int:
-    scores = [
-        _safe_int(getattr(profile, "english_language_score", None)),
-        _safe_int(getattr(profile, "french_language_score", None)),
-        _safe_int(getattr(profile, "language_score", None)),
-    ]
-    return max(scores)
+def get_effective_language_score(profile: Profile):
+    from app.services.language_evidence import reported_language_level
+    return reported_language_level(profile)
 
 
 def calculate_crs_breakdown(profile: Profile) -> dict:
@@ -29,6 +25,12 @@ def calculate_crs_breakdown(profile: Profile) -> dict:
     age = _safe_int(profile.age)
     experience_years = _safe_int(profile.experience_years)
     language_score = get_effective_language_score(profile)
+    if language_score is None:
+        # No numerical result from unknown, invalid or ambiguous legacy evidence.
+        return {"total_crs": None, "status": "unavailable",
+                "breakdown": {key: (0 if key == "job_offer" else None) for key in
+                              ("age", "education", "language", "experience", "job_offer",
+                               "canadian_experience", "canadian_study")}}
     education = (profile.education or "").lower()
 
     if 20 <= age <= 29:
@@ -83,11 +85,18 @@ def calculate_crs_breakdown(profile: Profile) -> dict:
     }
 
 
-def calculate_crs(profile: Profile) -> int:
-    return int(calculate_crs_breakdown(profile)["total_crs"])
+def calculate_crs(profile: Profile) -> int | None:
+    return calculate_crs_breakdown(profile)["total_crs"]
 
 
 def build_recommendation_result(profile: Profile, crs_score: int) -> dict:
+    language_score = get_effective_language_score(profile)
+    if language_score is None:
+        return {"crs_score": None, "status": "unavailable", "eligible_pathways": [],
+                "borderline_pathways": [], "strengths": [], "weaknesses": [],
+                "next_steps": [], "strategy": {"improve_language": False, "gain_experience": False,
+                                                "seek_job_offer": False, "target_pnp": False},
+                "advisor_summary": "Language evidence is unknown or needs review."}
     if str(profile.preferred_province or "").strip().casefold() in {"quebec", "québec"}:
         reason = (
             "Quebec selects immigrants through its own programs and does not participate "
@@ -139,7 +148,6 @@ def build_recommendation_result(profile: Profile, crs_score: int) -> dict:
         })
         weaknesses.append("No preferred province selected for targeted PNP strategy")
 
-    language_score = get_effective_language_score(profile)
     experience_years = _safe_int(profile.experience_years)
 
     if language_score >= 9:

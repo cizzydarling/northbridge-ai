@@ -1,3 +1,4 @@
+import { benchmarkState } from "../utils/languageBenchmarks";
 import useBillingAccess from "../hooks/useBillingAccess";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -98,7 +99,7 @@ function buildLocalCareerMatch(form, language, access = {}) {
   const occupation = form.occupation || "Project Coordinator";
   const nocCode = form.noc_code || "";
   const experience = Number(form.years_of_experience || 0);
-  const languageLevel = Number(form.language_level || 0);
+  const languageLevel = benchmarkState(form.language_level) === "reported" ? Number(form.language_level) : null;
   const preferred = new Set(form.preferred_provinces || []);
   const categories = occupationCategories(occupation);
   const ordered = [
@@ -122,10 +123,10 @@ function buildLocalCareerMatch(form, language, access = {}) {
       }
       if (languageLevel >= 7) {
         score += 6;
-        why.push("Your language score strengthens employability and pathway fit.");
+        why.push(language === "fr" ? "Votre niveau déclaré sert à cette comparaison exploratoire; il ne confirme pas votre admissibilité." : "Your user-reported benchmark informs this exploratory comparison; it is not verified eligibility.");
       } else if (languageLevel >= 4) {
         score += 3;
-        why.push("Your language level gives a workable baseline for many roles.");
+        why.push(language === "fr" ? "Votre niveau déclaré est inclus dans cette comparaison exploratoire." : "Your user-reported benchmark is included in this exploratory comparison.");
       }
       if (experience >= 5) {
         score += 6;
@@ -232,7 +233,7 @@ function normalizeProfile(profile = {}) {
     noc_code: profile.noc_code || "",
     education: profile.education || "",
     years_of_experience: profile.experience_years ?? "",
-    language_level: profile.language_score ?? "",
+    language_level: benchmarkState(profile.english_language_score) === "reported" ? profile.english_language_score : "",
     preferred_provinces: profile.preferred_province ? [profile.preferred_province] : [],
     current_location: [profile.current_city, profile.current_country].filter(Boolean).join(", "),
     work_authorization_status: profile.has_job_offer ? "job offer or work pathway in progress" : "",
@@ -283,7 +284,7 @@ export default function CareerMatchPage() {
             noc: "Code CNP",
             education: "Éducation",
             experience: "Années d'expérience",
-            language: "Niveau linguistique",
+            language: "Niveau de référence déclaré",
             location: "Localisation actuelle",
             workAuth: "Autorisation de travail",
             provinces: "Provinces préférées",
@@ -313,7 +314,7 @@ export default function CareerMatchPage() {
             noc: "NOC code",
             education: "Education",
             experience: "Years of experience",
-            language: "Language level",
+            language: "User-reported benchmark level",
             location: "Current location",
             workAuth: "Work authorization",
             provinces: "Preferred provinces",
@@ -523,14 +524,10 @@ export default function CareerMatchPage() {
           </label>
           <label className="block">
             <span className="text-sm font-medium text-slate-700">{text.language}</span>
-            <input
-              className="input mt-2"
-              type="number"
-              min="0"
-              max="10"
-              value={form.language_level}
-              onChange={(event) => updateField("language_level", event.target.value)}
-            />
+            <select className="input mt-2" value={form.language_level} onChange={(event) => updateField("language_level", event.target.value)}>
+              <option value="">{language === "fr" ? "Pas encore testé / Inconnu" : "Not tested / Unknown"}</option>
+              {Array.from({length:12}, (_, index) => <option key={index+1} value={index+1}>{index+1}</option>)}
+            </select>
           </label>
           <label className="block xl:col-span-2">
             <span className="text-sm font-medium text-slate-700">{text.education}</span>

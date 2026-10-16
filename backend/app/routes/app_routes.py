@@ -36,11 +36,8 @@ def is_profile_complete(profile: Profile | None) -> bool:
     fields_complete = all(
         getattr(profile, field, None) not in (None, "") for field in required_fields
     )
-    has_language_score = any(
-        getattr(profile, field, None) not in (None, "")
-        for field in ("english_language_score", "french_language_score")
-    )
-    return fields_complete and has_language_score
+    # Language results are optional: not tested is a valid onboarding state.
+    return fields_complete
 
 
 @router.get("/bootstrap")
