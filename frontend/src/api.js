@@ -695,12 +695,12 @@ export const buildPremiumPricingPath = (
 ========================= */
 
 export const getSelfDocuments = (matterType) =>
-  api.get("/self-documents", {
+  api.get("/self-documents/", {
     params: matterType ? { matter_type: matterType } : {},
   });
 
 export const createSelfDocument = (payload) =>
-  api.post("/self-documents", payload);
+  api.post("/self-documents/", payload);
 
 export const updateSelfDocument = (documentId, payload) =>
   api.put(`/self-documents/${documentId}`, payload);
@@ -1167,4 +1167,4 @@ export const archiveHouseholdMember = (id) => api.delete(`/households/members/${
 export const archiveApplicationCase = (id) => api.delete(`/application-cases/${id}`);
 export const activateApplicationCase = (id) => api.post(`/application-cases/${id}/activate`);
 export const getApplicationContext = () => api.get("/application-cases/context");
-export const getFamilyDocuments = () => api.get("/self-documents/family-context");
+export const getFamilyDocuments = (caseId) => api.get("/self-documents/family-context", { params: caseId ? { case_id: caseId } : {} });

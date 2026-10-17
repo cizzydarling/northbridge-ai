@@ -11,11 +11,11 @@ export default function Card({
   const isInteractive = interactive || Boolean(onClick);
 
   const base =
-    "rounded-2xl border text-left transition-all duration-200";
+    "nb-card rounded-xl border text-left transition-colors";
 
   const variants = {
     default:
-      "border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]",
+      "border-slate-200 bg-white",
     elevated:
       "border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.10)]",
     soft:
@@ -46,7 +46,7 @@ export default function Card({
       : "";
 
   const interactiveStyles = isInteractive
-    ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-200 focus:ring-offset-2 active:scale-[0.995]"
+    ? "cursor-pointer focus:ring-2 focus:ring-blue-700 focus:ring-offset-2"
     : "";
 
   const Element = isInteractive && Component === "div" ? "button" : Component;

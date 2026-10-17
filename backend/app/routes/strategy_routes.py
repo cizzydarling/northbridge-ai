@@ -626,11 +626,18 @@ def run_self_workspace(
     db: Session = Depends(get_db),
     current_user=Depends(require_self_user),
 ):
-    context = resolve_application_context(db, current_user, payload.case_id)
+    if payload.preserve_omitted_intake and payload.case_id is None:
+        raise HTTPException(422, "An explicit case is required for an intake patch.")
+    # Keep the existing owner-row lock through a patch's read/merge/write transaction.
+    context = resolve_application_context(db, current_user, payload.case_id, commit=not payload.preserve_omitted_intake)
     matter_type = context.case.application_type
     if payload.matter_type != matter_type:
         raise HTTPException(409, "Update the application case type before running this workspace.")
-    intake = contextual_intake(context, payload.intake)
+    submitted_intake = payload.intake or {}
+    if payload.preserve_omitted_intake:
+        stored_intake = context.application.intake_payload if context.application else {}
+        submitted_intake = {**(stored_intake or {}), **submitted_intake}
+    intake = contextual_intake(context, submitted_intake)
     language = normalize_language(language)
 
     is_pro = has_individual_pro(current_user)

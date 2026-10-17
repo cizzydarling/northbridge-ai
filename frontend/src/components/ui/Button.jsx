@@ -15,19 +15,19 @@ export default function Button({
   const isDisabled = disabled || loading;
 
   const base =
-    "inline-flex items-center justify-center whitespace-nowrap rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60";
+    "nb-button inline-flex items-center justify-center whitespace-normal rounded-lg font-medium transition-colors focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
   const widthClass = fullWidth ? "w-full" : "";
 
   const sizes = {
-    sm: "h-9 px-4 text-sm",
-    md: "h-11 px-5 text-sm",
-    lg: "h-12 px-6 text-base",
+    sm: "min-h-11 px-4 py-2 text-sm",
+    md: "min-h-11 px-5 py-2 text-sm",
+    lg: "min-h-12 px-6 py-3 text-base",
   };
 
   const variants = {
     primary:
-      "bg-slate-950 text-white shadow-sm shadow-slate-950/10 hover:bg-slate-800 hover:shadow-md active:scale-[0.99]",
+      "nb-button-primary text-white",
 
     secondary:
       "border border-slate-300 bg-white text-slate-900 shadow-sm hover:border-slate-400 hover:bg-slate-50 active:scale-[0.99]",

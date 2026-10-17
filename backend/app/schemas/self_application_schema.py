@@ -42,6 +42,8 @@ class SelfApplicationUpsertRequest(BaseModel):
     case_id: int | None = Field(default=None, gt=0)
     matter_type: str
     intake: Optional[Dict[str, Any]] = {}
+    # Forms edits are a shallow field patch; other workspace callers retain replacement.
+    preserve_omitted_intake: bool = Field(default=False, strict=True)
 
 
 # -----------------------------

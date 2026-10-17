@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import Layout from "../components/Layout";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import OfficialCrsHandoff from "../components/OfficialCrsHandoff";
+import PreparationJourney from "../components/PreparationJourney";
 
 export default function PlanningStrategyPage() {
   const { i18n } = useTranslation();
@@ -15,6 +16,7 @@ export default function PlanningStrategyPage() {
     [fr ? "Délais de traitement officiels" : "Official processing times", "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html"],
   ];
   return <Layout><main className="mx-auto max-w-4xl space-y-6 p-6">
+    <PreparationJourney />
     <h1 className="text-3xl font-semibold">{simulator ? (fr ? "Simulateur temporairement indisponible" : "Simulator temporarily unavailable") : (fr ? "Préparer votre démarche" : "Plan your next steps")}</h1>
     <p>{fr ? "Organisez vos renseignements et consultez les sources officielles. Les évaluations d’admissibilité, prévisions et rapports analytiques sont indisponibles pendant la vérification des règles." : "Organize your information and consult official sources. Eligibility assessments, forecasts and analytical reports are unavailable while rules are verified."}</p>
     <ApplicationContextBanner />

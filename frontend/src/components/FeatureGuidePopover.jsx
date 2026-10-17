@@ -36,16 +36,16 @@ function guideCopy(language) {
   return {
     strategy: isFrench
       ? {
-          eyebrow: "Guide strategie",
-          title: "Commencez par votre meilleur parcours",
-          body: "Utilisez les onglets pour comparer vos priorites, les risques et les actions. Dans Intelligence IRCC Premium, lisez les sources officielles avant de modifier votre plan.",
-          steps: ["Verifiez votre parcours recommande.", "Choisissez une prochaine action realiste.", "Gardez les donnees de profil et les documents a jour."],
+          eyebrow: "Guide de préparation",
+          title: "Organisez les faits avant de comparer les options",
+          body: "Consultez votre profil, vos renseignements linguistiques et votre ménage. Les évaluations d’admissibilité restent indisponibles pendant la vérification des règles.",
+          steps: ["Révisez vos renseignements.", "Repérez les faits inconnus.", "Consultez les sources officielles."],
         }
       : {
           eyebrow: "Strategy guide",
-          title: "Start with your best-fit pathway",
-          body: "Use the tabs to compare priorities, risks, and actions. In Premium IRCC Intelligence, read the official sources before changing your plan.",
-          steps: ["Review the recommended pathway.", "Choose one realistic next action.", "Keep profile data and documents current."],
+          title: "Organize facts before comparing options",
+          body: "Review your profile, language information and household. Eligibility assessments remain unavailable while rules are verified.",
+          steps: ["Review your information.", "Identify unknown facts.", "Consult official sources."],
         },
     documents: isFrench
       ? {
@@ -140,7 +140,9 @@ export default function FeatureGuidePopover() {
   }
 
   return (
-    <div className="fixed bottom-4 right-3 z-[105] w-[calc(100%-1.5rem)] max-w-md sm:bottom-6 sm:right-6 sm:w-full">
+    <aside className="mx-auto my-5 w-full max-w-7xl px-4">
+      <details className="rounded-xl border border-blue-200 bg-white p-4">
+        <summary className="cursor-pointer font-semibold text-blue-800">{guide.eyebrow}</summary>
       <Card className="rounded-2xl border border-blue-200 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">
           {guide.eyebrow}
@@ -168,6 +170,7 @@ export default function FeatureGuidePopover() {
           </Button>
         </div>
       </Card>
-    </div>
+      </details>
+    </aside>
   );
 }

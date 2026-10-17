@@ -9,6 +9,34 @@
 ====================== */
 
 :root {
+  --nb-navy: #0B1F3A;
+  --nb-action: #1D4ED8;
+  --nb-action-hover: #1E40AF;
+  --nb-red: #C62828;
+  --nb-page: #F8FAFC;
+  --nb-surface: #FFFFFF;
+  --nb-text: #0F172A;
+  --nb-muted: #475569;
+  --nb-border: #CBD5E1;
+  --nb-control: #64748B;
+  --nb-success: #166534;
+  --nb-success-surface: #F0FDF4;
+  --nb-warning: #92400E;
+  --nb-warning-surface: #FFFBEB;
+  --nb-error: #B91C1C;
+  --nb-error-surface: #FEF2F2;
+  --nb-radius: 8px;
+  --nb-card-radius: 12px;
+  --nb-shadow: 0 8px 24px rgb(11 31 58 / 12%);
+  --nb-space-1: 4px;
+  --nb-space-2: 8px;
+  --nb-space-3: 12px;
+  --nb-space-4: 16px;
+  --nb-space-6: 24px;
+  --nb-space-8: 32px;
+  --nb-body-size: 1rem;
+  --nb-body-leading: 1.5;
+  --nb-title-size: clamp(1.75rem, 4vw, 2.25rem);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   line-height: 1.5;
@@ -35,8 +63,8 @@ body,
 
 body {
   min-height: 100vh;
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--nb-page);
+  color: var(--nb-text);
 }
 
 a {
@@ -52,12 +80,32 @@ textarea {
 }
 
 ::selection {
-  background: rgba(245, 158, 11, 0.18);
+  background: rgb(29 78 216 / 18%);
 }
 
 :focus-visible {
-  outline-color: #fbbf24;
+  outline: 2px solid var(--nb-action);
+  outline-offset: 3px;
 }
+
+.nb-button { border-radius: var(--nb-radius); max-width: 100%; }
+.nb-button-primary, .btn-primary { background: var(--nb-action); color: white; }
+.nb-button-primary:hover, .btn-primary:hover { background: var(--nb-action-hover); }
+.nb-card { border-radius: var(--nb-card-radius); }
+.nb-workspace { color: var(--nb-text); min-width: 0; }
+.nb-workspace h1 { font-size: var(--nb-title-size); }
+.nb-workspace input:not([type=checkbox]):not([type=radio]):not([type=file]), .nb-workspace textarea, .nb-workspace select { border-color: var(--nb-control); }
+.nb-alert { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--nb-space-3); padding: var(--nb-space-4); border: 1px solid currentColor; border-radius: var(--nb-radius); }
+.nb-alert-error { color: var(--nb-error); background: var(--nb-error-surface); }
+.nb-alert-success { color: var(--nb-success); background: var(--nb-success-surface); }
+.nb-alert-warning { color: var(--nb-warning); background: var(--nb-warning-surface); }
+.nb-empty { padding: var(--nb-space-6); border: 1px dashed var(--nb-control); border-radius: var(--nb-card-radius); background: var(--nb-page); color: var(--nb-muted); }
+.nb-loading { display: flex; align-items: center; gap: var(--nb-space-2); color: var(--nb-muted); }
+.nb-loading-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--nb-action); }
+.nb-progress { width: 100%; height: 8px; accent-color: var(--nb-action); }
+.nb-landing { background: var(--nb-page); }
+.nb-hero { background: var(--nb-navy); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 /* ======================
    GLOBAL DESIGN SYSTEM
@@ -78,3 +126,12 @@ textarea {
 .card {
   @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
 }
+
+.nb-journey { display:flex; flex-wrap:wrap; gap:var(--nb-space-2); margin-bottom:var(--nb-space-6); }
+.nb-journey-link { padding:10px 14px; border:1px solid var(--nb-border); border-radius:var(--nb-radius); background:var(--nb-surface); color:var(--nb-navy); min-height:44px; }
+.nb-journey-current { border-color:var(--nb-action); color:var(--nb-action); font-weight:600; }
+.nb-workspace :is(a, button, input, select, textarea) { scroll-margin-top: 9rem; }
+.nb-skip-link { position:fixed; top:8px; left:8px; z-index:100; transform:translateY(-200%); background:white; color:var(--nb-navy); padding:12px; }
+.nb-skip-link:focus { transform:none; }
+.btn-primary { background:var(--nb-action); }
+.btn-primary:hover { background:var(--nb-action-hover); }

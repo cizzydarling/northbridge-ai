@@ -17,6 +17,7 @@ export default function Input({
   const hasError = Boolean(error);
   const generatedId = useId();
   const inputId = id || name || generatedId;
+  const describedBy = [props["aria-describedby"], hint && !hasError ? `${inputId}-hint` : null, hasError ? `${inputId}-error` : null].filter(Boolean).join(" ") || undefined;
 
   return (
     <div className="space-y-1.5">
@@ -46,7 +47,7 @@ export default function Input({
           ${
             hasError
               ? "border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-100"
-              : "border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+              : "border-slate-500 focus:border-blue-700 focus:ring-4 focus:ring-blue-100"
           }
 
           hover:border-slate-400
@@ -55,14 +56,15 @@ export default function Input({
           ${className}
         `}
         {...props}
+        aria-describedby={describedBy}
       />
 
       {hint && !hasError && (
-        <p className="text-xs text-slate-500">{hint}</p>
+        <p id={`${inputId}-hint`} className="text-sm text-slate-600">{hint}</p>
       )}
 
       {hasError && (
-        <p className="text-xs font-medium text-red-600">{error}</p>
+        <p id={`${inputId}-error`} className="text-sm font-medium text-red-700">{error}</p>
       )}
     </div>
   );

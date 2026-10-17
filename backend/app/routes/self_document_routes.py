@@ -66,10 +66,10 @@ def get_owned_self_document_or_404(
 
 
 @router.get("/family-context")
-def family_documents(db: Session = Depends(get_db), current_user=Depends(require_self_user)):
+def family_documents(case_id: int | None = Query(default=None, gt=0), db: Session = Depends(get_db), current_user=Depends(require_self_user)):
     from app.services.household_service import resolve_application_context, context_snapshot
     from app.services.strategy_service import build_household_strategy_context
-    context = resolve_application_context(db, current_user)
+    context = resolve_application_context(db, current_user, case_id)
     family = build_household_strategy_context(context.members, application_case=context.case)
     documents = db.query(SelfDocument).filter_by(user_id=current_user.id, matter_type=f"case_{context.case.id}").all()
     saved = {d.document_key: d for d in documents}

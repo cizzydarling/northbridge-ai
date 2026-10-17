@@ -1,3 +1,4 @@
+import PreparationJourney from "../components/PreparationJourney";
 import LanguageBenchmarks from "../components/LanguageBenchmarks";
 import { profileLanguagePayload } from "../utils/languageBenchmarks";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -655,6 +656,7 @@ export default function ProfilePage() {
 
   return (
     <Layout>
+      <PreparationJourney />
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-10">
         {isOnboarding && (
           <div className="rounded-[24px] border border-indigo-200 bg-indigo-50 px-5 py-4 text-sm text-indigo-800">

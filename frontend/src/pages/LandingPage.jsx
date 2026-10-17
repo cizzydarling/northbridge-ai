@@ -21,7 +21,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 text-slate-900">
+    <div className="nb-landing min-h-screen text-slate-900">
       <header className="sticky top-0 z-40 border-b border-stone-200/80 bg-stone-50/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
           <Link to="/" className="flex items-center gap-3">
@@ -36,10 +36,10 @@ export default function LandingPage() {
             </div>
           </Link>
 
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Link
               to="/blog"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              className="hidden rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 md:block"
             >
               Blog
             </Link>
@@ -80,8 +80,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <section className="relative overflow-hidden bg-[#172033]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,0.14),transparent_30%),radial-gradient(circle_at_80%_30%,rgba(16,185,129,0.10),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(255,255,255,0.08),transparent_32%)]" />
+      <section className="nb-hero relative overflow-hidden">
 
         <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 md:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:py-24">
           <div className="max-w-3xl">

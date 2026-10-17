@@ -1,5 +1,6 @@
 import { LanguageResultsSummary } from "../components/LanguageBenchmarks";
 import OfficialCrsHandoff from "../components/OfficialCrsHandoff";
+import PreparationJourney from "../components/PreparationJourney";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -440,19 +441,11 @@ export default function SelfDashboardPage() {
 
   const heroSummary = !profile
     ? language === "fr"
-      ? "Commencez par compléter votre profil pour personnaliser les scores, les voies et les documents."
-      : "Start by completing your profile so scores, pathways, and documents can be personalized."
-    : !strategy
-    ? language === "fr"
-      ? "Votre espace rassemble le profil, la stratégie et les prochaines actions à préparer."
-      : "Your workspace brings profile, strategy, and next actions into one place."
-    : paidAccess
-    ? language === "fr"
-      ? "Votre dossier est prêt à avancer vers la stratégie, les documents et les formulaires prioritaires."
-      : "Your case is ready to move into priority strategy, documents, and forms."
+      ? "Complétez votre profil avec les faits connus. Les renseignements inconnus peuvent le rester."
+      : "Complete your profile with known facts. Unknown information can remain unknown."
     : language === "fr"
-    ? "Votre stratégie est prête; passez à Pro pour débloquer les outils d'exécution."
-    : "Your strategy is ready; upgrade to Pro to unlock execution tools.";
+    ? "Continuez à organiser votre dossier et vos documents. Les évaluations restent indisponibles pendant la vérification des règles."
+    : "Continue organizing your case and documents. Assessments remain unavailable while rules are verified.";
 
   const planLabel =
     normalizedPlan === "premium"
@@ -556,6 +549,7 @@ export default function SelfDashboardPage() {
 
   return (
     <Layout>
+      <PreparationJourney />
       {message ? (
         <div className="mb-5 rounded-[22px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {message}

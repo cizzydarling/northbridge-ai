@@ -436,8 +436,23 @@ function ResolvedLayout({ children, feedbackEnabled }) {
 
   useEffect(() => {
     document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
+    const previousFocus = document.activeElement;
+    const panel = mobileMenuPanelRef.current;
+    const focusable = () => [...(panel?.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex="0"]') || [])].filter(node => node.getClientRects().length);
+    if (mobileMenuOpen) focusable()[0]?.focus();
+    function trapFocus(event) {
+      if (!mobileMenuOpen || event.key !== "Tab") return;
+      const nodes = focusable();
+      const first = nodes[0]; const last = nodes[nodes.length - 1];
+      if (!first) return;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+    document.addEventListener("keydown", trapFocus);
     return () => {
       document.body.style.overflow = "";
+      document.removeEventListener("keydown", trapFocus);
+      if (mobileMenuOpen && previousFocus?.isConnected) previousFocus.focus();
     };
   }, [mobileMenuOpen]);
 
@@ -600,9 +615,10 @@ function ResolvedLayout({ children, feedbackEnabled }) {
       : "Upgrade";
 
   return (
-    <div className="min-h-screen bg-[#f5f7fb] text-slate-950">
+    <div className="nb-workspace min-h-screen bg-[var(--nb-page)] text-slate-950">
+      <a href="#workspace-content" className="nb-skip-link">{language === "fr" ? "Aller au contenu" : "Skip to content"}</a>
       <div className="min-h-screen lg:flex">
-        <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-white/10 bg-[#172033] text-white lg:flex">
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-white/10 bg-[var(--nb-navy)] text-white lg:flex">
           <div className="flex h-full flex-col p-5">
             <Link
               to="/dashboard"
@@ -643,7 +659,7 @@ function ResolvedLayout({ children, feedbackEnabled }) {
               </div>
             </div>
 
-            <nav className="mt-7 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <nav aria-label={language === "fr" ? "Navigation principale" : "Primary navigation"} className="mt-7 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <div className="space-y-2">
                 <SectionLabel dark>
                   {language === "fr" ? "Espace de travail" : "Workspace"}
@@ -704,6 +720,8 @@ function ResolvedLayout({ children, feedbackEnabled }) {
                 onClick={() => setMobileMenuOpen(true)}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 lg:hidden"
                 aria-label={language === "fr" ? "Ouvrir le menu" : "Open menu"}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-navigation"
               >
                 <MenuGlyph />
               </button>
@@ -861,7 +879,7 @@ function ResolvedLayout({ children, feedbackEnabled }) {
             </>
           )}
 
-          <main className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:py-8">
+          <main id="workspace-content" tabIndex={-1} className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:py-8">
             {showEmailConfirmationBanner && (
               <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-950 shadow-sm sm:px-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -873,8 +891,8 @@ function ResolvedLayout({ children, feedbackEnabled }) {
                     </p>
                     <p className="mt-1 text-sm leading-6 text-amber-900/80">
                       {language === "fr"
-                        ? "Vous pouvez continuer a explorer NorthBridgeAI. La facturation et les telechargements seront disponibles apres confirmation."
-                        : "You can keep exploring NorthBridgeAI. Billing and downloads unlock after confirmation."}
+                        ? "Vous pouvez continuer à explorer NorthBridgeAI. La confirmation du courriel est requise pour la facturation et certaines actions protégées."
+                        : "You can keep exploring NorthBridgeAI. Email confirmation is required for billing and some protected actions."}
                     </p>
                     {confirmationMessage && (
                       <p className="mt-2 text-sm font-medium text-amber-950">
@@ -912,6 +930,7 @@ function ResolvedLayout({ children, feedbackEnabled }) {
           <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm" />
           <div
             ref={mobileMenuPanelRef}
+            id="mobile-navigation"
             role="dialog"
             aria-modal="true"
             aria-label={language === "fr" ? "Menu principal" : "Main menu"}

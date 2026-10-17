@@ -1,9 +1,12 @@
 import PreparationNotice from "../components/PreparationNotice";
+import PreparationJourney from "../components/PreparationJourney";
+import { Alert } from "../components/ui/Feedback";
+import { documentError } from "../utils/documentErrors";
 import useBillingAccess from "../hooks/useBillingAccess";
 import FamilyDocuments from "../components/FamilyDocuments";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
@@ -1068,7 +1071,7 @@ export default function SelfDocumentsPage() {
   const [strategy, setStrategy] = useState(null);
 
   const [activeCaseId, setActiveCaseId] = useState(null);
-  useEffect(() => { getApplicationContext().then(r => setActiveCaseId(r.data.case_id)).catch(() => setUploadMessage(language === "fr" ? "Contexte indisponible" : "Application context unavailable")); }, [language]);
+  useEffect(() => { getApplicationContext().then(r => setActiveCaseId(r.data.case_id)).catch(error => { if (error?.response?.status === 401) setListError(error); setUploadMessage(language === "fr" ? "Contexte indisponible" : "Application context unavailable"); }); }, [language]);
   const [fixingCase, setFixingCase] = useState(false);
   const [fixCaseResult, setFixCaseResult] = useState("");
   const [fixCaseAction, setFixCaseAction] = useState(null);
@@ -1085,6 +1088,7 @@ export default function SelfDocumentsPage() {
   const [activeCategory, setActiveCategory] = useState(getCategoryOrder()[0]);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState({});
+  const [listError, setListError] = useState(null);
   const [uploadingDocumentId, setUploadingDocumentId] = useState(null);
   const [uploadMessage, setUploadMessage] = useState("");
 
@@ -1131,6 +1135,7 @@ export default function SelfDocumentsPage() {
   const loadUploadedDocuments = useCallback(async () => {
     try {
       if (!activeCaseId) return;
+      setListError(null);
       const response = await getSelfDocuments(`case_${activeCaseId}`);
       const byKey = {};
 
@@ -1142,7 +1147,8 @@ export default function SelfDocumentsPage() {
 
       setUploadedDocuments(byKey);
     } catch (err) {
-      console.error("Self documents load failed:", err);
+      setUploadedDocuments({});
+      setListError(err);
     }
   }, [activeCaseId]);
 
@@ -1690,12 +1696,15 @@ export default function SelfDocumentsPage() {
     };
   }, [language]);
 
+  if (listError?.response?.status === 401) return <Navigate to="/auth" replace />;
   return (
     <Layout>
-      <PreparationNotice />
-      <ApplicationContextBanner />
-      <FamilyDocuments />
       <PageHeader brand={text.brand} title={text.title} subtitle={text.subtitle} />
+      <PreparationNotice />
+      <PreparationJourney />
+      <ApplicationContextBanner />
+      {activeCaseId && <FamilyDocuments key={activeCaseId} caseId={activeCaseId} />}
+      {listError && <Alert onRetry={loadUploadedDocuments} retryLabel={language === "fr" ? "Réessayer" : "Retry"}>{documentError(listError, "list", language === "fr")}</Alert>}
 
       {!isPremium && (
         <PathwayBanner

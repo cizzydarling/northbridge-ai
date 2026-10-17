@@ -1,4 +1,5 @@
 import PreparationNotice from "../components/PreparationNotice";
+import { Alert, Progress } from "../components/ui/Feedback";
 import useBillingAccess from "../hooks/useBillingAccess";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -118,7 +119,6 @@ function ProgressBadge({ score }) {
 }
 
 function draftKey(caseId) { return `${LOCAL_FORMS_DRAFT_KEY}:${getCurrentUserLocal()?.id}:${caseId}`; }
-function readLocalDraft(caseId) { try { return caseId ? JSON.parse(localStorage.getItem(draftKey(caseId)) || "{}") : {}; } catch { return {}; } }
 
 function writeLocalDraft(value, caseId) {
   if (caseId) localStorage.setItem(draftKey(caseId), JSON.stringify(value || {}));
@@ -141,8 +141,9 @@ function FieldInput({ field, value, onChange }) {
   if (field.type === "textarea") {
     return (
       <textarea
+        id={`forms-${field.name}`}
         rows={4}
-        value={value || ""}
+        value={value ?? ""}
         onChange={(e) => onChange(field.name, e.target.value)}
         className={commonClassName}
         placeholder={field.placeholder || ""}
@@ -165,8 +166,9 @@ function FieldInput({ field, value, onChange }) {
 
   return (
     <input
+      id={`forms-${field.name}`}
       type={field.type || "text"}
-      value={value || ""}
+      value={value ?? ""}
       onChange={(e) => onChange(field.name, e.target.value)}
       className={commonClassName}
       placeholder={field.placeholder || ""}
@@ -278,14 +280,8 @@ function SummaryMetric({ label, value, accent = "default" }) {
 }
 
 function CompletionBar({ score }) {
-  return (
-    <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
-      <div
-        className="h-2 rounded-full bg-blue-600 transition-all duration-300"
-        style={{ width: `${score || 0}%` }}
-      />
-    </div>
-  );
+  const { i18n } = useTranslation();
+  return <Progress value={score || 0} max={100} label={i18n.language.startsWith("fr") ? "Champs de préparation remplis" : "Preparation fields completed"} />;
 }
 
 function StudioMetric({ label, value, detail }) {
@@ -552,19 +548,6 @@ function buildApplicationFields(language) {
   };
 }
 
-function mapMatterTypeToApplicationType(savedApplication) {
-  const intake = savedApplication?.intake_payload || {};
-  if (intake?.application_type) return intake.application_type;
-
-  const matterType = savedApplication?.matter_type || "";
-
-  if (matterType === "permanent_residence") {
-    return "pr_pathway";
-  }
-
-  return matterType || "";
-}
-
 function mapApplicationTypeToMatterType(applicationType) {
   if (applicationType === "express_entry" || applicationType === "pr_pathway") {
     return "permanent_residence";
@@ -591,13 +574,19 @@ export default function FormsPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [savingInline, setSavingInline] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("idle");
   const [accessLoading, setAccessLoading] = useState(true);
   const { access } = useBillingAccess();
   const [activeCase, setActiveCase] = useState(null);
   const [activeStudioTab, setActiveStudioTab] = useState("setup");
   const [activeResultTab, setActiveResultTab] = useState("summary");
 
+  const [loadState, setLoadState] = useState("LOADING");
+  const [dirtyFields, setDirtyFields] = useState({});
+  const loadScopeRef = useRef(null);
   const saveTimerRef = useRef(null);
+  const saveRevisionRef = useRef(0);
+  const saveQueueRef = useRef(Promise.resolve());
 
   const fieldMap = useMemo(() => buildApplicationFields(language), [language]);
   const activeFields = fieldMap[selectedApplicationType] || [];
@@ -618,9 +607,24 @@ export default function FormsPage() {
 
   useEffect(() => {
     loadApplicationTypes();
-    loadSavedSelfApplication();
     loadAccess();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
+  useEffect(() => {
+    loadSavedSelfApplication();
+    const invalidate = () => {
+      loadScopeRef.current = null;
+      saveRevisionRef.current++;
+      clearTimeout(saveTimerRef.current);
+    };
+    const refresh = () => { invalidate(); loadSavedSelfApplication(); };
+    window.addEventListener("nbai-bootstrap-refresh", refresh);
+    return () => {
+      invalidate();
+      window.removeEventListener("nbai-bootstrap-refresh", refresh);
+    };
+    // The verified-session gate unmounts the route on account changes.
   }, [language]);
 
   useEffect(() => {
@@ -631,21 +635,27 @@ export default function FormsPage() {
   }, [preview]);
 
   useEffect(() => {
-    if (!selectedApplicationType) return;
+    if (!selectedApplicationType || loadingSavedApp || !activeCase ||
+        !["LOADED_EXISTING", "CONFIRMED_ABSENT"].includes(loadState) ||
+        !Object.keys(dirtyFields).length) return;
+    const revision = ++saveRevisionRef.current;
+    const revisionCounter = saveRevisionRef;
+    setSaveStatus("pending");
 
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
     }
 
     saveTimerRef.current = setTimeout(() => {
-      handleAutoSave();
+      handleAutoSave(revision);
     }, 900);
 
     return () => {
+      revisionCounter.current++;
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inlineApplicationData, representativeUsed, selectedApplicationType]);
+  }, [dirtyFields, selectedApplicationType, loadingSavedApp, activeCase, loadState]);
 
   async function loadAccess() {
     try {
@@ -668,23 +678,13 @@ export default function FormsPage() {
 
       setApplicationTypes(normalized);
 
-      setSelectedApplicationType((current) => {
-        if (current && normalized.some((item) => item.value === current)) {
-          return current;
-        }
-        return normalized[0]?.value || "";
-      });
+
     } catch (err) {
       console.error(err);
 
       const fallback = getFallbackApplicationTypes(language);
       setApplicationTypes(fallback);
-      setSelectedApplicationType((current) => {
-        if (current && fallback.some((item) => item.value === current)) {
-          return current;
-        }
-        return fallback[0]?.value || "";
-      });
+
 
       setMessage(
         err?.response?.data?.detail ||
@@ -698,121 +698,103 @@ export default function FormsPage() {
   }
 
   async function loadSavedSelfApplication() {
+    const scope = { token: localStorage.getItem("token"), userId: getCurrentUserLocal()?.id, caseId: null };
+    loadScopeRef.current = scope;
+    saveRevisionRef.current++;
+    clearTimeout(saveTimerRef.current);
+    setLoadingSavedApp(true); setLoadState("LOADING"); setDirtyFields({});
+    setSaveStatus("idle"); setSavingInline(false); setActiveCase(null);
+    setSavedApplicationData({}); setInlineApplicationData({}); setRepresentativeUsed(false);
+    const current = () => loadScopeRef.current === scope && scope.token &&
+      scope.token === localStorage.getItem("token") && scope.userId === getCurrentUserLocal()?.id;
     try {
-      setLoadingSavedApp(true);
-
       const context = (await getApplicationContext()).data;
+      if (!current()) return;
+      if (!context?.case_id || context.case?.id !== context.case_id) throw new Error("Invalid case context");
+      scope.caseId = context.case_id;
+      let intake;
+      let state = "LOADED_EXISTING";
+      try {
+        const response = (await getSavedSelfApplication(scope.caseId)).data;
+        if (!response || response.application_case_id !== scope.caseId ||
+            !response.intake_payload || typeof response.intake_payload !== "object" || Array.isArray(response.intake_payload)) {
+          throw new Error("Incomplete saved application");
+        }
+        intake = response.intake_payload;
+      } catch (error) {
+        if (error?.response?.status !== 404 || error.response.data?.detail !== "No saved self application found.") throw error;
+        intake = {}; state = "CONFIRMED_ABSENT";
+      }
+      let defaults = {};
+      try { defaults = getProfileApplicationData((await getMyProfile()).data || {}); } catch { /* optional defaults */ }
+      const latest = (await getApplicationContext()).data;
+      if (!current()) return;
+      if (latest.case_id !== scope.caseId) throw new Error("Application changed during loading");
       setActiveCase(context.case);
       setSelectedApplicationType(context.case.application_type === "permanent_residence" ? "pr_pathway" : context.case.application_type);
-      const localDraft = readLocalDraft(context.case_id);
-      let profileApplicationData = {};
-
-      try {
-        const profileRes = await getMyProfile();
-        profileApplicationData = getProfileApplicationData(profileRes?.data || {});
-      } catch {
-        profileApplicationData = {};
-      }
-
-      try {
-        const res = await getSavedSelfApplication(context.case_id);
-        const savedApplication = res?.data || {};
-        const intake = savedApplication?.intake_payload || {};
-        const mergedDraft = {
-          ...intake,
-          ...localDraft,
-          ...profileApplicationData,
-          application_type:
-            localDraft?.application_type ||
-            intake?.application_type ||
-            profileApplicationData?.application_type,
-        };
-
-        setSavedApplicationData(intake);
-        setInlineApplicationData(mergedDraft);
-
-        const inferredApplicationType =
-          mergedDraft.application_type || mapMatterTypeToApplicationType(savedApplication);
-        if (inferredApplicationType) {
-          setSelectedApplicationType(context.case.application_type === "permanent_residence" ? "pr_pathway" : context.case.application_type);
-        }
-
-        setRepresentativeUsed(
-          Boolean(
-            intake?.representative_used ||
-              intake?.uses_representative ||
-              intake?.has_representative ||
-              localDraft?.representative_used
-          )
-        );
-      } catch {
-        const mergedDraft = {
-          ...(localDraft || {}),
-          ...profileApplicationData,
-          application_type: localDraft?.application_type,
-        };
-        setSavedApplicationData(mergedDraft || {});
-        setInlineApplicationData(mergedDraft || {});
-        setRepresentativeUsed(
-          Boolean(
-            localDraft?.representative_used ||
-              localDraft?.uses_representative ||
-              localDraft?.has_representative
-          )
-        );
-      }
-    } catch (err) {
-      console.error(err);
-      const localDraft = readLocalDraft();
-      setSavedApplicationData(localDraft || {});
-      setInlineApplicationData(localDraft || {});
+      // Retrieved server fields are authoritative, never silently replaced by browser drafts.
+      setSavedApplicationData(intake);
+      setInlineApplicationData({ ...defaults, ...intake });
+      setRepresentativeUsed(Boolean(intake.representative_used ?? intake.uses_representative ?? intake.has_representative ?? false));
+      setLoadState(state);
+    } catch {
+      if (current()) setLoadState("FAILED");
     } finally {
-      setLoadingSavedApp(false);
+      if (current()) setLoadingSavedApp(false);
     }
   }
 
-  async function handleAutoSave() {
-    if (!activeCase || loadingSavedApp) return;
-    try {
+  async function handleAutoSave(revision = saveRevisionRef.current) {
+    const scope = loadScopeRef.current;
+    const current = () => scope && loadScopeRef.current === scope &&
+      scope.token === localStorage.getItem("token") && scope.userId === getCurrentUserLocal()?.id &&
+      scope.caseId === activeCase?.id && revision === saveRevisionRef.current;
+    if (!current() || loadingSavedApp ||
+        !["LOADED_EXISTING", "CONFIRMED_ABSENT"].includes(loadState) || !Object.keys(dirtyFields).length) return;
+    const intake = { ...dirtyFields };
+    const save = async () => {
+      if (!current()) return;
       setSavingInline(true);
-
-      const intakePayload = {
-        ...(savedApplicationData || {}),
-        ...(inlineApplicationData || {}),
-        application_type: selectedApplicationType,
-        representative_used: representativeUsed,
-      };
-
-      writeLocalDraft(intakePayload, activeCase?.id);
-
       try {
-        await runSelfWorkspace(
-          {
-            case_id: activeCase.id,
-            matter_type: mapApplicationTypeToMatterType(selectedApplicationType),
-            intake: intakePayload,
-          },
-          language
-        );
-
-        setSavedApplicationData(intakePayload);
+        // A case changed in another tab must not receive a queued edit from this page.
+        const context = (await getApplicationContext()).data;
+        if (!current()) return;
+        if (context.case_id !== scope.caseId) {
+          setLoadState("FAILED"); setSaveStatus("idle");
+          saveRevisionRef.current++;
+          return;
+        }
+        const result = await runSelfWorkspace({
+          case_id: scope.caseId,
+          matter_type: mapApplicationTypeToMatterType(selectedApplicationType),
+          intake,
+          preserve_omitted_intake: true,
+        }, language);
+        if (current()) {
+          const stored = result.data?.application?.intake_payload;
+          if (!stored || typeof stored !== "object" || Array.isArray(stored)) throw new Error("Incomplete save response");
+          setSavedApplicationData(stored);
+          setDirtyFields({}); setSaveStatus("saved");
+          try { writeLocalDraft(stored, scope.caseId); } catch { /* server save succeeded */ }
+        }
       } catch {
-        // keep local draft even if backend sync fails
+        if (current()) setSaveStatus("failed");
+      } finally {
+        if (loadScopeRef.current === scope) setSavingInline(false);
       }
-    } finally {
-      setSavingInline(false);
-    }
+    };
+    saveQueueRef.current = saveQueueRef.current.then(save, save);
+    await saveQueueRef.current;
   }
 
   function handleInlineFieldChange(name, value) {
-    setInlineApplicationData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    if (!["LOADED_EXISTING", "CONFIRMED_ABSENT"].includes(loadState)) return;
+    setDirtyFields(prev => ({ ...prev, [name]: value }));
+    setInlineApplicationData(prev => ({ ...prev, [name]: value }));
   }
 
   async function handlePreviewPackage() {
-    if (!selectedApplicationType) return;
+    if (!selectedApplicationType || !["LOADED_EXISTING", "CONFIRMED_ABSENT"].includes(loadState)) return;
 
     try {
       setPreviewLoading(true);
@@ -847,7 +829,7 @@ export default function FormsPage() {
   }
 
   async function handleDownloadPackage() {
-    if (!selectedApplicationType) return;
+    if (!selectedApplicationType || !["LOADED_EXISTING", "CONFIRMED_ABSENT"].includes(loadState)) return;
 
     try {
       setDownloadLoading(true);
@@ -1267,7 +1249,8 @@ export default function FormsPage() {
                 <input
                   type="checkbox"
                   checked={representativeUsed}
-                  onChange={(e) => setRepresentativeUsed(e.target.checked)}
+                  disabled={!["LOADED_EXISTING", "CONFIRMED_ABSENT"].includes(loadState)}
+                  onChange={(e) => { setRepresentativeUsed(e.target.checked); setDirtyFields(prev => ({ ...prev, representative_used: e.target.checked })); }}
                 />
                 {pageText.representative}
               </label>
@@ -1329,7 +1312,11 @@ export default function FormsPage() {
               body={pageText.inlineBody}
             />
 
-            {loadingSavedApp ? (
+            {loadState === "FAILED" ? (
+              <Alert onRetry={loadSavedSelfApplication} retryLabel={language === "fr" ? "Réessayer le chargement" : "Retry loading"}>
+                {language === "fr" ? "Chargement incomplet. Aucun enregistrement automatique n’est autorisé. Réessayez pour retrouver les données du serveur." : "Application loading failed. Automatic saving is blocked. Retry to retrieve the saved server data."}
+              </Alert>
+            ) : loadingSavedApp ? (
               <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm text-slate-500">
                 {pageText.loadingSaved}
               </div>
@@ -1341,7 +1328,7 @@ export default function FormsPage() {
                     className={field.type === "textarea" ? "md:col-span-2" : ""}
                   >
                     {field.type !== "checkbox" && (
-                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                      <label htmlFor={`forms-${field.name}`} className="mb-2 block text-sm font-medium text-slate-700">
                         {field.label}
                       </label>
                     )}
@@ -1374,9 +1361,11 @@ export default function FormsPage() {
                 </Button>
               </div>
 
-              <p className="mt-3 text-xs text-amber-700">
-                {savingInline ? pageText.autosaving : pageText.autosave}
-              </p>
+              <div className="mt-3" data-testid="forms-save-status">
+                {loadState === "CONFIRMED_ABSENT" && <p>{language === "fr" ? "Aucun renseignement enregistré. Modifiez un champ pour commencer l’enregistrement." : "No saved information. Edit a field to start saving."}</p>}
+                {saveStatus === "failed" ? <Alert onRetry={() => handleAutoSave()} retryLabel={language === "fr" ? "Réessayer l’enregistrement" : "Retry save"}>{language === "fr" ? "Non enregistré sur le serveur. Gardez cette page ouverte et réessayez." : "Not saved to the server. Keep this page open and retry."}</Alert>
+                  : <p role="status">{saveStatus === "saved" ? (language === "fr" ? "Enregistré sur le serveur" : "Saved to server") : savingInline || saveStatus === "pending" ? pageText.autosaving : pageText.autosave}</p>}
+              </div>
             </div>
           </Card>
           )}
