@@ -15,6 +15,8 @@ class GeneratedDocument(Base):
     language = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     tone = Column(String, nullable=True)
+    application_case_id = Column(Integer, ForeignKey("application_cases.id"), nullable=True, index=True)
+    revision = Column(Integer, nullable=False, default=1, server_default="1")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(

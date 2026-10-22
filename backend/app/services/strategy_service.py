@@ -628,7 +628,9 @@ def _rank_provinces_for_profile(profile, crs_score: int = 0, language: str = "en
         "crs_score": crs_score or calculate_crs(profile),
     }
 
-    matches = province_targeting_service.match_pnp_programs(normalized_profile)
+    # Retained unmounted development engine: preserve historical parity only.
+    # Public build_strategy never calls this engine or its heuristic matcher.
+    matches = province_targeting_service._match_unverified_pnp_programs(normalized_profile)
 
     preferred_province = _get_preferred_province(profile)
     if preferred_province:
@@ -1985,6 +1987,7 @@ def build_strategy(profile, language="en", household_members=None, application_c
                    include_immigration_intelligence=False):
     """Public planning output. Never execute the retained analytical engines."""
     from app.services.content_scope import SCOPE, CRS_URL, notice
+    from app.rules.program_registry import reference_context
     members = household_members or []
     context = SimpleNamespace(case=application_case, members=members)
     family = context_snapshot(context) if application_case else {"members": [], "status": "unknown"}
@@ -1996,6 +1999,7 @@ def build_strategy(profile, language="en", household_members=None, application_c
         "household_context": {key: household[key] for key in
             ("family_size", "has_spouse", "participation_counts", "calculation_status")},
         "case_context": {"case_id": getattr(application_case, "id", None)},
+        "program_registry": reference_context(_safe_get(profile, "preferred_province")),
         "family_document_requirements": household["required_family_documents"],
         "recommended_programs": [], "strengths": [], "weaknesses": [], "next_steps": [],
         "ai_status": "not_requested", "can_export_pdf": False,

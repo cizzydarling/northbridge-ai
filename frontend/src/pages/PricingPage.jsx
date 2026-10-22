@@ -1430,6 +1430,11 @@ export default function PricingPage() {
     <CheckoutContext.Provider value={{ available: checkoutAvailable, label: betaLabel }}>
     <Layout>
       {!checkoutAvailable && <p role="status" className="mb-5 rounded-lg bg-blue-50 p-4 text-blue-900">{language === "fr" ? "Accès bêta sur invitation. Le paiement est indisponible pendant la bêta; les tarifs affichés restent les tarifs prévus." : "Beta access by invitation. Paid checkout is unavailable during beta; displayed prices remain the planned prices."}</p>}
+      <section className="nb-card mb-5 space-y-2 p-4" aria-label={language === "fr" ? "Conditions de paiement" : "Payment terms"}>
+        <p>{language === "fr" ? "Les tarifs prévus sont des abonnements récurrents : Pro 39 CAD tous les 30 jours, Premium 99 CAD tous les 90 jours. Ce ne sont pas des laissez-passer à paiement unique. L’annulation arrête le renouvellement ; l’accès dépend de la période payée confirmée." : "Planned prices are recurring subscriptions: Pro CAD 39 every 30 days, Premium CAD 99 every 90 days. They are not one-time access passes. Cancellation stops renewal; access depends on the verified paid period."}</p>
+        <p>{language === "fr" ? "Les événements de remboursement sont signalés pour examen humain. Les conditions commerciales de remboursement et leurs effets sur l’accès restent à approuver avant le lancement payant. Le paiement reste désactivé pendant la bêta." : "Refund events are flagged for operator review. Commercial refund terms and their effect on access still require approval before paid launch. Checkout remains disabled during beta."}</p>
+        <p>{language === "fr" ? "Pour une question de facturation bêta, utilisez le bouton Commentaires bêta de votre compte, sans données de carte. La politique de remboursement doit être finalisée avant le lancement payant." : "For beta billing questions, use Beta Feedback inside your account, without card details. Refund policy must be finalized before paid launch."} <Link to="/dashboard" className="underline">{language === "fr" ? "Ouvrir mon espace" : "Open my workspace"}</Link></p>
+      </section>
       {message ? (
         <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
           {message}

@@ -1299,7 +1299,17 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 transaction = _safe_record_invoice_transaction(db, user=user, invoice=data)
                 _safe_send_payment_confirmation_email(db, user=user, transaction=transaction)
 
+    elif event_type in {"charge.refunded", "refund.updated"}:
+        from app.services.billing_reconciliation import record_refund_review
+        record_refund_review(db, event, retrieve_charge=stripe.Charge.retrieve)
+
     return JSONResponse({"received": True})
+
+
+@router.get("/admin/reconciliation")
+def billing_reconciliation(db: Session = Depends(get_db), _admin=Depends(require_admin)):
+    from app.services.billing_reconciliation import reconciliation_summary
+    return reconciliation_summary(db)
 
 
 @router.post("/dev/set-plan")

@@ -39,6 +39,7 @@ const CitizenshipProgressPage = lazy(() => import("./pages/CitizenshipProgressPa
 const LanguagePracticePage = lazy(() => import("./pages/LanguagePracticePage"));
 const OfficialFindersPage = lazy(() => import("./pages/OfficialFindersPage"));
 const AdminPromoCodesPage = lazy(() => import("./pages/AdminPromoCodesPage"));
+const RulesReviewPage = lazy(() => import("./pages/RulesReviewPage"));
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
 
 let appRoutePrefetchStarted = false;
@@ -428,6 +429,7 @@ export default function App() {
           </ProtectedAppRoute>
         }
       />
+      <Route path="/admin/rules-review" element={<ProtectedAppRoute><RulesReviewPage /></ProtectedAppRoute>} />
 
       <Route
         path="/self/application"

@@ -138,6 +138,16 @@ def register_routers(app: FastAPI) -> None:
 
 
     from app.routes.feedback_routes import router as feedback_router
+    from app.routes.language_assessment_routes import router as language_router
+    from app.routes.preparation_routes import router as preparation_router
+    from app.routes.crs_assessment_routes import router as crs_assessment_router
+    from app.routes.rule_review_routes import router as rule_review_router
+    from app.routes.program_registry_routes import router as program_registry_router
+    app.include_router(language_router)
+    app.include_router(preparation_router)
+    app.include_router(crs_assessment_router)
+    app.include_router(rule_review_router)
+    app.include_router(program_registry_router)
     app.include_router(feedback_router)
     app.include_router(auth_routes.router)
     app.include_router(app_routes.router)

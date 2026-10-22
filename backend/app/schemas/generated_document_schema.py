@@ -27,6 +27,7 @@ class GeneratedDocumentListItem(BaseModel):
         return guard_generated_text(value, self.language)
 
     id: int
+    application_case_id: int | None = None
     document_type: str
     title: str
     language: str
@@ -37,6 +38,8 @@ class GeneratedDocumentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    application_case_id: int | None = None
+    revision: int = 1
     document_type: str
     title: str
     language: str

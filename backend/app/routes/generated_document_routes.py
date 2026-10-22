@@ -121,6 +121,8 @@ def update_document(
 
     doc = _get_owned_document_or_404(db, doc_id, current_user.id)
 
+    if doc.application_case_id is not None:
+        raise HTTPException(409, "Use the case preparation editor with its revision to save this draft.")
     doc.content = payload.content
 
     if payload.title is not None:
@@ -147,6 +149,7 @@ def duplicate_document(
 
     duplicate = GeneratedDocument(
         user_id=current_user.id,
+        application_case_id=original.application_case_id,
         document_type=original.document_type,
         title=f"{original.title} (Copy)",
         language=original.language,

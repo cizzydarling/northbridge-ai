@@ -48,7 +48,7 @@ def _chance_label(score: int) -> str:
     return "Low"
 
 
-def match_pnp_programs(profile) -> List[Dict[str, Any]]:
+def _match_unverified_pnp_programs(profile) -> List[Dict[str, Any]]:
     province_matches = []
 
     occupation = _normalize_text(_safe_get(profile, "occupation", ""))
@@ -179,3 +179,11 @@ def match_pnp_programs(profile) -> List[Dict[str, Any]]:
     )
 
     return province_matches
+
+
+def match_pnp_programs(profile):
+    """Public adapter: reviewed current streams only; no heuristic verdict."""
+    from datetime import date
+    from app.rules.program_registry import active_streams
+    target = profile.get("preferred_province") if isinstance(profile, dict) else getattr(profile, "preferred_province", None)
+    return active_streams(target, as_of=date.today())

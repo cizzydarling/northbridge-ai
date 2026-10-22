@@ -110,9 +110,11 @@ def build_user_context(
 ) -> Dict[str, Any]:
     application_snapshot = _build_application_snapshot(application)
     forms_result = application_snapshot.get("forms_result") or {}
+    from app.rules.program_registry import reference_context
 
     return {
         "profile": _build_profile_snapshot(profile),
+        "program_registry": reference_context(getattr(profile, "preferred_province", None)),
         "strategy": strategy or {},
         "decision": decision or {},
         "features": features or {},

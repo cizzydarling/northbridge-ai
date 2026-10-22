@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 export default function PreparationJourney() {
   const { i18n } = useTranslation();
   const fr = i18n.language.startsWith("fr");
-  const steps = [["/profile", "Profile", "Profil"], ["/household", "Household", "Ménage"], ["/applications", "Application", "Demande"], ["/documents", "Documents", "Documents"], ["/forms", "Draft information", "Renseignements de préparation"]];
+  const steps = [["/profile", "Profile", "Profil"], ["/profile?section=language", "Language", "Langues"], ["/strategy", "CRS / Strategy", "SCG / Stratégie"], ["/household", "Household", "Ménage"], ["/applications", "Application", "Demande"], ["/documents", "Documents", "Documents"], ["/forms", "Draft information", "Renseignements de préparation"], ["/documents/generator", "Saved drafts", "Brouillons enregistrés"]];
   return <nav className="nb-journey" aria-label={fr ? "Parcours de préparation" : "Preparation journey"}>
     {steps.map(([to, en, french]) => <NavLink key={to} to={to} className={({ isActive }) => `nb-journey-link${isActive ? " nb-journey-current" : ""}`}>{fr ? french : en}</NavLink>)}
   </nav>;

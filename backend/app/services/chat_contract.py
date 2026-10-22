@@ -85,6 +85,8 @@ def boundary_intent(message):
     t = folded(message)
     has = lambda pattern: bool(re.search(pattern, t))
     personal = has(r'\b(my|me|mine|i|our|we|mon|ma|mes|moi|je|notre|nos)\b')
+    if has(r'quebec|nunavut') and has(r'pnp|pcp|nomine|candidat|express entry|entree express'):
+        return 'jurisdiction'
     if has(r'lawyer|legal representative|avocat|representant') and has(r'act as|pretend|represent me|agis|represente.moi|fais comme|comporte'):
         return 'representation'
     if has(r'\b(crs|scg)\b') and (personal or has(r'calcul|estimat|estim|rough|approxim|reveal|revel|cache|hidden')):
@@ -148,6 +150,10 @@ BOUNDARIES = {
     'pnp_concept': (
         'Provincial nominee programs involve provincial or territorial nomination and a separate federal immigration process. Streams and their requirements differ. Check the chosen stream’s official criteria, availability and evidence instructions; a job title or preferred province does not establish a suitable stream or nomination likelihood. I can help organize the facts and questions for that review without recommending a personal pathway.',
         'Les programmes des candidats des provinces comportent une désignation provinciale ou territoriale et une démarche fédérale distincte. Les volets et leurs exigences diffèrent. Vérifiez les critères, l’ouverture et les preuves demandées dans les instructions officielles du volet. Un titre d’emploi ou une province préférée ne suffit pas à établir un parcours adapté ni des chances de désignation. Je peux organiser les faits et les questions à vérifier sans recommander un parcours personnel.',
+        ['ircc', 'profile']),
+    'jurisdiction': (
+        'Quebec and Nunavut have no Provincial Nominee Program. Quebec skilled-worker selection is separate from federal Express Entry. French-language pathways must respect their settlement and jurisdiction requirements. Current stream availability and personal eligibility must be verified separately with the responsible government.',
+        'Le Québec et le Nunavut n’ont pas de programme des candidats des provinces. La sélection québécoise des travailleurs qualifiés est distincte d’Entrée express fédéral. Les voies francophones doivent respecter leurs exigences de résidence et de compétence territoriale. L’ouverture des volets et l’admissibilité personnelle doivent être vérifiées séparément auprès du gouvernement responsable.',
         ['ircc', 'profile']),
     'funds_concept': (
         'Proof of funds concerns evidence of financial resources under the applicable program. Whether it is required, whose situation is relevant, acceptable evidence and the amount must be checked in current official instructions. Missing funds information is unknown, not zero. I can help organize questions and evidence without calculating a personal amount.',

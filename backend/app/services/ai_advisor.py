@@ -997,8 +997,10 @@ def generate_ai_chat_reply(*, message, language="en", profile=None, strategy=Non
         'job_description': {'value': _safe_get(profile, 'job_description'), 'source': 'user_provided_description', 'verified': False},
         'job_duties': {'value': _safe_get(profile, 'job_duties'), 'source': 'user_provided_duties', 'verified': False},
     })
+    from app.rules.program_registry import reference_context
     context = {
         'profile': facts,
+        'program_registry': reference_context(_safe_get(profile, 'preferred_province')),
         "application": {"matter_type": snapshot.get("matter_type"),
                         "household_organizational_facts": family_facts,
                         "separate_user_entered_intake_facts": intake},

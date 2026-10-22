@@ -1,4 +1,5 @@
 import PreparationNotice from "../components/PreparationNotice";
+import CaseDraftWorkspace from "../components/CaseDraftWorkspace";
 import useBillingAccess from "../hooks/useBillingAccess";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -896,7 +897,7 @@ export default function DocumentGeneratorPage() {
   const loadDrafts = useCallback(async () => {
     try {
       const res = await getSavedDocuments();
-      setDrafts(res.data || []);
+      setDrafts((res.data || []).filter(doc => doc.application_case_id == null));
     } catch (err) {
       console.error(err);
     }
@@ -1625,9 +1626,9 @@ export default function DocumentGeneratorPage() {
         brand: "NorthBridgeAI",
         title: "Générateur de documents",
         subtitle:
-          "Générez un brouillon personnalisé à partir de votre profil, de votre stratégie et de votre contexte de demande.",
+          "Les brouillons liés au dossier sont gérés ci-dessus. Cette section permet de rédiger des brouillons distincts, non liés à un dossier.",
         settings: "Paramètres",
-        myDrafts: "Mes brouillons",
+        myDrafts: "Brouillons hors dossier",
         documentType: "Type de document",
         tone: "Ton",
         professional: "Professionnel",
@@ -1650,7 +1651,7 @@ export default function DocumentGeneratorPage() {
         duplicating: "Duplication...",
         delete: "Supprimer",
         deleting: "Suppression...",
-        noDrafts: "Aucun brouillon enregistré pour le moment.",
+        noDrafts: "Aucun brouillon hors dossier enregistré. Les brouillons du dossier sont gérés ci-dessus.",
         documentWillAppear: "Le document apparaîtra ici après génération.",
         upgradeToPro: "Passer à Pro",
         upgradeToPremium: "Passer à Premium",
@@ -1725,9 +1726,9 @@ export default function DocumentGeneratorPage() {
       brand: "NorthBridgeAI",
       title: "Document Generator",
       subtitle:
-        "Generate a personalized draft from your profile, strategy, and application context.",
+        "Case-linked drafts are managed above. This section creates separate standalone drafts that are not linked to a case.",
       settings: "Settings",
-      myDrafts: "My Drafts",
+      myDrafts: "Standalone drafts",
       documentType: "Document type",
       tone: "Tone",
       professional: "Professional",
@@ -1750,7 +1751,7 @@ export default function DocumentGeneratorPage() {
       duplicating: "Duplicating...",
       delete: "Delete",
       deleting: "Deleting...",
-      noDrafts: "No saved drafts yet.",
+      noDrafts: "No standalone drafts saved. Your case drafts are managed above.",
       documentWillAppear: "Your document will appear here after generation.",
       upgradeToPro: "Upgrade to Pro",
       upgradeToPremium: "Upgrade to Premium",
@@ -1835,6 +1836,7 @@ export default function DocumentGeneratorPage() {
   return (
     <Layout>
       <PreparationNotice />
+      <CaseDraftWorkspace />
       {message && (
         <div className="mb-6 rounded-[24px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           {message}

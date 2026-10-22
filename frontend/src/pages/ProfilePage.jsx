@@ -3,7 +3,7 @@ import LanguageBenchmarks from "../components/LanguageBenchmarks";
 import { profileLanguagePayload } from "../utils/languageBenchmarks";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import NocMatchPresentation, { NocMatchSignal, NocMatchQualification } from "../components/NocMatchPresentation";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Layout from "../components/Layout";
 import {
@@ -101,6 +101,7 @@ function normalizeNumber(value) {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { i18n } = useTranslation();
   const language = i18n.language === "fr" ? "fr" : "en";
 
@@ -109,7 +110,10 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState("personal");
+  const [activeSection, setActiveSection] = useState(() => new URLSearchParams(window.location.search).get("section") === "language" ? "immigration" : "personal");
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("section") === "language") setActiveSection("immigration");
+  }, [location.search]);
 
   const [nocDescription, setNocDescription] = useState("");
   const [nocDutyInput, setNocDutyInput] = useState("");

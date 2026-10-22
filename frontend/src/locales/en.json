@@ -815,7 +815,7 @@
     "legacy": "A legacy combined benchmark has unknown language provenance. It has not been assigned to English or French.",
     "invalid": "Choose an integer benchmark from 1 to 12, or Not tested / Unknown.",
     "reported": "User-reported; not independently verified",
-    "raw": "Have raw exam scores? Use official information to find the benchmark; do not guess. Conversion is not available here.",
+    "raw": "Have exam results? Record all four skills below using the exact supported test edition; do not guess missing scores. These self-reported records stay separate from the manual benchmarks above.",
     "official": "Official language-test information",
     "finders": "Schools & Test Centres (Premium)",
     "practice": "Language Practice (Premium)",

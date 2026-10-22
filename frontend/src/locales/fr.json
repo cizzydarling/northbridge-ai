@@ -815,7 +815,7 @@
     "legacy": "La langue du niveau combiné historique est inconnue. Il n’a pas été attribué à l’anglais ou au français.",
     "invalid": "Choisissez un niveau entier de 1 à 12, ou Pas encore testé / Inconnu.",
     "reported": "Déclaré par vous; non vérifié indépendamment",
-    "raw": "Vous avez des résultats d’examen bruts? Consultez les informations officielles pour trouver le niveau; ne le devinez pas. La conversion n’est pas disponible ici.",
+    "raw": "Vous avez des résultats d’examen? Enregistrez les quatre compétences ci-dessous avec l’édition prise en charge. Si un niveau est inconnu, ne le devinez pas. Ces résultats déclarés restent distincts des niveaux manuels ci-dessus.",
     "official": "Informations officielles sur les tests de langue",
     "finders": "Établissements et centres de tests (Premium)",
     "practice": "Pratique linguistique (Premium)",

@@ -22,6 +22,11 @@ legal family size. Drafts and intake progress do not establish official form or
 checklist completeness. Never guarantee outcomes, invent facts, or claim to be
 a lawyer/licensed representative. Identify uncertainty and refer to current
 official sources or qualified professional advice when appropriate.
+Quebec and Nunavut have no PNP. Quebec skilled-worker selection is separate
+from federal Express Entry. French language does not override settlement or
+jurisdiction rules. Never assert that a provincial stream is open or recommend
+it as active without current verified registry evidence. NOC high-wage levels
+come from the official effective-dated list, never the user's salary.
 """
 
 
@@ -41,6 +46,10 @@ def safe_strategy_context(value):
     # Never forward historical narrative, scores, rankings or arbitrary nested fields.
     result = {key: value[key] for key in ("family_context", "case_context") if key in value} | {
         "content_scope": SCOPE, "instruction": AI_SCOPE}
+    # Rebuild trusted registry metadata; never trust saved/provider program objects.
+    from app.rules.program_registry import reference_context
+    target = (value.get("program_registry") or {}).get("jurisdiction")
+    result["program_registry"] = reference_context(target)
     household = value.get("household_context") or {}
     if household:
         result["household_context"] = {key: household[key] for key in

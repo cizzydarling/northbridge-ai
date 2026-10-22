@@ -4,6 +4,9 @@ import Layout from "../components/Layout";
 import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import OfficialCrsHandoff from "../components/OfficialCrsHandoff";
 import PreparationJourney from "../components/PreparationJourney";
+import StructuredLanguageEvidence from "../components/StructuredLanguageEvidence";
+import CrsReadiness from "../components/CrsReadiness";
+import ProgramReferences from "../components/ProgramReferences";
 
 export default function PlanningStrategyPage() {
   const { i18n } = useTranslation();
@@ -21,6 +24,9 @@ export default function PlanningStrategyPage() {
     <p>{fr ? "Organisez vos renseignements et consultez les sources officielles. Les évaluations d’admissibilité, prévisions et rapports analytiques sont indisponibles pendant la vérification des règles." : "Organize your information and consult official sources. Eligibility assessments, forecasts and analytical reports are unavailable while rules are verified."}</p>
     <ApplicationContextBanner />
     <OfficialCrsHandoff />
+    <StructuredLanguageEvidence summary />
+    <CrsReadiness />
+    <ProgramReferences />
     <nav className="flex flex-wrap gap-5">
       <Link to="/profile">{fr ? "Profil et suggestion CNP" : "Profile and NOC suggestion"}</Link>
       <Link to="/household">{fr ? "Ménage" : "Household"}</Link>

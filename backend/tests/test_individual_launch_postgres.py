@@ -25,24 +25,26 @@ from app.routes import auth_routes as auth
 from app.services import security_controls
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "ad2f6801c947"
+HEAD = "b7e214c9a602"
 DEFERRED = set()
-TABLES = {"users", "profiles", "clients", "client_documents", "matters", "saved_simulation_scenarios",
+TABLES = {"language_assessments", "language_selections", "billing_review_events", "rule_source_checks", "rule_source_snapshots", "rule_source_changes", "rule_review_decisions", "users", "profiles", "clients", "client_documents", "matters", "saved_simulation_scenarios",
           "recommendations", "self_applications", "self_documents", "disclosure_acceptances",
           "generated_documents", "billing_transactions", "promo_codes", "promo_code_redemptions",
           "citizenship_questions", "citizenship_quiz_attempts", "citizenship_answers",
           "language_practice_sessions", "saved_career_jobs", "alembic_version", "households", "household_members", "application_cases", "application_case_members", "beta_feedback"}
 
 
-def test_revision_graph_from_repository_root():
-    result = subprocess.run([sys.executable, "-m", "alembic", "-c", "backend/alembic.ini", "heads"],
-                            cwd=ROOT, capture_output=True, text=True, timeout=30)
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == HEAD + " (head)"
-    from alembic.config import Config
+def test_revision_graph_from_repository_root(monkeypatch, capsys):
+    # Exercise the actual CLI/config resolution without an unrelated Windows
+    # interpreter/pipe startup race. Migration execution below still uses a
+    # separate process and a guarded disposable PostgreSQL database.
+    from alembic.config import Config, CommandLine
+    monkeypatch.chdir(ROOT)
+    CommandLine(prog="alembic").main(argv=["-c", "backend/alembic.ini", "heads"])
+    assert capsys.readouterr().out.strip() == HEAD + " (head)"
     from alembic.script import ScriptDirectory
     revisions = list(ScriptDirectory.from_config(Config(str(ROOT / "backend/alembic.ini"))).walk_revisions())
-    assert len(revisions) == 21
+    assert len(revisions) == 22
     assert all(not revision.is_branch_point and not revision.is_merge_point for revision in revisions)
 
 
@@ -142,6 +144,8 @@ def rows(engine):
             for row in result[table]:
                 row.pop("token_version", None)
                 row.pop("application_case_id", None)
+                if table == "generated_documents":
+                    assert row.pop("revision", 1) == 1  # Additive default, original content unchanged.
         return result
 
 
@@ -178,8 +182,12 @@ def assert_contract(engine):
     assert "first_name" not in users and "last_name" not in users
     assert "updated_at" not in {c["name"] for c in inspector.get_columns("saved_simulation_scenarios")}
     from migration_contract import disclosure_table, generated_table, profile_table, validate_table
+    generated = generated_table()  # Extend the test expectation, never the frozen historical migration helper.
+    generated.append_column(sa.Column("application_case_id", sa.Integer, sa.ForeignKey("application_cases.id")))
+    generated.append_column(sa.Column("revision", sa.Integer, nullable=False, server_default="1"))
+    sa.Index("ix_generated_documents_application_case_id", generated.c.application_case_id)
     with engine.connect() as conn:
-        for table in (disclosure_table(), generated_table(), profile_table()):
+        for table in (disclosure_table(), generated, profile_table()):
             validate_table(conn, table)
         assert conn.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == HEAD
 

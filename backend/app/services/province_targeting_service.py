@@ -95,7 +95,7 @@ def _resolve_noc(profile) -> Dict[str, Any]:
     }
 
 
-def match_pnp_programs(profile) -> List[Dict[str, Any]]:
+def _match_unverified_pnp_programs(profile) -> List[Dict[str, Any]]:
     province_matches: List[Dict[str, Any]] = []
 
     occupation = _normalize_text(_safe_get(profile, "occupation", ""))
@@ -232,3 +232,11 @@ def match_pnp_programs(profile) -> List[Dict[str, Any]]:
         })
 
     return sorted(province_matches, key=lambda x: x["score"], reverse=True)
+
+
+def match_pnp_programs(profile):
+    """Public adapter: reviewed current streams only; no heuristic verdict."""
+    from datetime import date
+    from app.rules.program_registry import active_streams
+    target = profile.get("preferred_province") if isinstance(profile, dict) else getattr(profile, "preferred_province", None)
+    return active_streams(target, as_of=date.today())

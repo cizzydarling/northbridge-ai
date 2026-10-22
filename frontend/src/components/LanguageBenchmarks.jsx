@@ -2,6 +2,7 @@ import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { benchmarkState } from "../utils/languageBenchmarks";
+import StructuredLanguageEvidence from "./StructuredLanguageEvidence";
 
 export default function LanguageBenchmarks({ form, onChange, errors = {} }) {
   const { t, i18n } = useTranslation();
@@ -42,6 +43,7 @@ export default function LanguageBenchmarks({ form, onChange, errors = {} }) {
     <nav aria-label={copy("title")} className="flex flex-wrap gap-4 text-sm underline">
       <Link to="/official-finders">{copy("finders")}</Link><Link to="/language-practice">{copy("practice")}</Link><Link to="/strategy">{copy("strategy")}</Link>
     </nav>
+    <StructuredLanguageEvidence />
   </section>;
 }
 

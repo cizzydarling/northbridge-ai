@@ -1166,5 +1166,19 @@ export const updateApplicationCase = (caseId, payload) =>
 export const archiveHouseholdMember = (id) => api.delete(`/households/members/${id}`);
 export const archiveApplicationCase = (id) => api.delete(`/application-cases/${id}`);
 export const activateApplicationCase = (id) => api.post(`/application-cases/${id}/activate`);
-export const getApplicationContext = () => api.get("/application-cases/context");
+export const getApplicationContext = (caseId) => api.get("/application-cases/context", { params: caseId ? { case_id: caseId } : {} });
 export const getFamilyDocuments = (caseId) => api.get("/self-documents/family-context", { params: caseId ? { case_id: caseId } : {} });
+
+// Sprint 2 uses the existing authenticated client; no separate token/cache owner.
+export const getLanguageAssessments = () => api.get("/language-assessments");
+export const createLanguageAssessment = body => api.post("/language-assessments", body);
+export const selectLanguageAssessment = (language, assessmentId) => api.put(`/language-assessments/current/${language}`, { assessment_id: assessmentId });
+export const getCaseDrafts = caseId => api.get(`/preparation/cases/${caseId}/drafts`);
+export const createCaseDraft = (caseId, language) => api.post(`/preparation/cases/${caseId}/drafts`, { language });
+export const saveCaseDraft = (id, body) => api.patch(`/preparation/drafts/${id}`, body);
+export const reviewCaseDraft = id => api.post(`/preparation/drafts/${id}/review`);
+export const exportCaseDraft = id => api.get(`/preparation/drafts/${id}/export.docx`, { responseType: "blob" });
+export const reviewCrsInputs = body => api.post("/assessments/crs", body);
+export const getRulesReviewQueue = () => api.get("/admin/rules-review");
+export const getProgramReferences = () => api.get("/program-registry");
+export const recordRulesReview = (id, data) => api.post(`/admin/rules-review/${id}/decisions`, data);
