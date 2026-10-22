@@ -121,7 +121,7 @@ def production_shape(engine, url):
                 VALUES (:email,:password,'individual','free') RETURNING id"""),
                 {"email": f"fixture{i}@example.invalid", "password": password}).scalar_one()
             conn.execute(sa.text("""INSERT INTO profiles(user_id,job_description,job_duties)
-                VALUES (:id,:job,NULL)"""), {"id": user_id, "job": "é Long existing job " * 2000 if i == 0 else None})
+                VALUES (:id,:job,NULL)"""), {"id": user_id, "job": "ÃƒÂ© Long existing job " * 2000 if i == 0 else None})
             for version in ("v1", "v2"):
                 conn.execute(sa.text("""INSERT INTO disclosure_acceptances
                     (user_id,disclosure_type,disclosure_version,accepted_text_snapshot)
@@ -133,7 +133,7 @@ def production_shape(engine, url):
                 (user_id,matter_type,document_key,document_name,priority,required,completed)
                 VALUES (1,'case_777',:key,'Existing document','Required',true,false)"""), {"key": f"document-{i}"})
         conn.exec_driver_sql("""INSERT INTO generated_documents(user_id,document_type,title,language,content)
-            VALUES (1,'letter','Existing letter','fr','Contenu à conserver')""")
+            VALUES (1,'letter','Existing letter','fr','Contenu ÃƒÂ  conserver')""")
 
 
 def rows(engine):
@@ -163,6 +163,49 @@ def schema(engine):
     return result
 
 
+def current_generated_contract():
+    from migration_contract import generated_table
+    generated = generated_table()  # Keep the frozen historical migration helper unchanged.
+    generated.append_column(sa.Column("application_case_id", sa.Integer, sa.ForeignKey("application_cases.id")))
+    generated.append_column(sa.Column("revision", sa.Integer, nullable=False, server_default=sa.text("1")))
+    sa.Index("ix_generated_documents_application_case_id", generated.c.application_case_id)
+    return generated
+
+
+@pytest.mark.parametrize("reflected_default", ["1", "0", "2", None])
+def test_revision_default_contract_matches_postgres_without_accepting_drift(monkeypatch, reflected_default):
+    from types import SimpleNamespace
+    from sqlalchemy.dialects.postgresql import dialect
+    from migration_contract import validate_table
+    expected = current_generated_contract()
+    # Synthetic PostgreSQL reflection: isolate the default while running the real
+    # strict validator, including its remaining column/ownership/index checks.
+    defaults = {"id": "nextval('generated_documents_id_seq'::regclass)",
+                "created_at": "now()", "updated_at": "now()", "revision": reflected_default}
+    inspector = SimpleNamespace(
+        has_table=lambda _name: True,
+        get_columns=lambda _name: [
+            {"name": c.name, "type": c.type, "nullable": c.nullable, "default": defaults.get(c.name)}
+            for c in expected.columns],
+        get_pk_constraint=lambda _name: {"constrained_columns": ["id"]},
+        get_foreign_keys=lambda _name: [
+            {"constrained_columns": [column], "referred_table": table, "referred_columns": ["id"]}
+            for column, table in [("user_id", "users"), ("application_case_id", "application_cases")]],
+        get_unique_constraints=lambda _name: [],
+        get_check_constraints=lambda _name: [],
+        get_indexes=lambda _name: [
+            {"name": i.name, "column_names": [c.name for c in i.columns], "unique": i.unique}
+            for i in expected.indexes],
+    )
+    monkeypatch.setattr(sa, "inspect", lambda _bind: inspector)
+    bind = SimpleNamespace(dialect=dialect(), execute=lambda *_args: SimpleNamespace(scalar=lambda: False))
+    if reflected_default == "1":
+        validate_table(bind, expected)
+    else:
+        with pytest.raises(RuntimeError, match=r"generated_documents\.revision default"):
+            validate_table(bind, expected)
+
+
 def assert_contract(engine):
     inspector = sa.inspect(engine)
     assert set(inspector.get_table_names()) == TABLES
@@ -181,11 +224,8 @@ def assert_contract(engine):
     assert not users["token_version"]["nullable"]
     assert "first_name" not in users and "last_name" not in users
     assert "updated_at" not in {c["name"] for c in inspector.get_columns("saved_simulation_scenarios")}
-    from migration_contract import disclosure_table, generated_table, profile_table, validate_table
-    generated = generated_table()  # Extend the test expectation, never the frozen historical migration helper.
-    generated.append_column(sa.Column("application_case_id", sa.Integer, sa.ForeignKey("application_cases.id")))
-    generated.append_column(sa.Column("revision", sa.Integer, nullable=False, server_default="1"))
-    sa.Index("ix_generated_documents_application_case_id", generated.c.application_case_id)
+    from migration_contract import disclosure_table, profile_table, validate_table
+    generated = current_generated_contract()
     with engine.connect() as conn:
         for table in (disclosure_table(), generated, profile_table()):
             validate_table(conn, table)
