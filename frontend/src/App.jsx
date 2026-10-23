@@ -133,7 +133,11 @@ function BootstrapGate({ children }) {
     async function loadBootstrap() {
       const request = ++latestRequest;
       if (!getCurrentUserLocal()) {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setBootstrap(null);
+          setVerifiedBootstrapKey(null);
+          setLoading(false);
+        }
         return;
       }
 
@@ -173,6 +177,10 @@ function BootstrapGate({ children }) {
       window.removeEventListener("nbai-disclosures-accepted", loadBootstrap);
     };
   }, [user?.email, location.pathname]);
+
+  if (!user) {
+    return <Navigate to="/auth" replace state={{ from: location }} />;
+  }
 
   if (loading || (bootstrap && verifiedBootstrapKey !== bootstrapKey)) {
     return <LoadingScreen />;

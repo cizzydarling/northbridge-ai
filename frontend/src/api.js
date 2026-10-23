@@ -129,6 +129,8 @@ export const removeCurrentUserLocal = () => {
 export const logoutUser = () => {
   removeToken();
   removeCurrentUserLocal();
+  // Mounted route gates must observe invalidation even without navigation.
+  window.dispatchEvent(new Event("nbai-bootstrap-refresh"));
 };
 
 // A different tab can switch accounts without calling this tab's API helpers.
@@ -176,9 +178,11 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
 
-    if (status === 401) {
-      removeToken();
-      removeCurrentUserLocal();
+    const token = getToken();
+    if (status === 401 && token &&
+        error.config?.headers?.Authorization === `Bearer ${token}`) {
+      // A response from a previous account must not clear the current session.
+      logoutUser();
     }
 
     return Promise.reject(error);

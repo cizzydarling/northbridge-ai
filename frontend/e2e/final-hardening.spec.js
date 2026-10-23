@@ -153,3 +153,101 @@ test("a superseded bootstrap cannot erase the latest verified free access", asyn
   await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(upgrade).toBeVisible();
 });
+
+for (const endpoint of ['bootstrap', 'billing']) {
+  test(`rejected ${endpoint} session returns to sign-in instead of trapping Retry`, async ({page, request}) => {
+    const bootstrap = await prepare(page, request, 'en', false);
+    await page.route('**/app/bootstrap', route => route.fulfill(endpoint === 'bootstrap'
+      ? {status:401, json:{detail:'Session expired'}} : {json:bootstrap}));
+    if (endpoint === 'billing') {
+      await page.route('**/billing/access', route => route.fulfill({status:401, json:{detail:'Session expired'}}));
+    }
+    await page.goto('/documents/review');
+    await expect(page).toHaveURL(/\/auth$/, {timeout:5000});
+    await expect(page.getByTestId('entitlement-status')).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('current_user'))).toBeNull();
+  });
+
+  test(`interrupted ${endpoint} request retries with a fresh request after recovery`, async ({page, request}) => {
+    const bootstrap = await prepare(page, request, 'en', false);
+    let interrupted = true;
+    let attempts = 0;
+    await page.route('**/app/bootstrap', route => {
+      if (endpoint === 'bootstrap') {
+        attempts++;
+        if (interrupted) return route.abort('failed');
+      }
+      return route.fulfill({json:bootstrap});
+    });
+    if (endpoint === 'billing') {
+      await page.route('**/billing/access', route => {
+        attempts++;
+        return interrupted ? route.abort('failed') : route.fulfill({json:bootstrap.access});
+      });
+    }
+    await page.goto('/documents/review');
+    await expect(page.getByRole('alert')).toContainText('Your account access is temporarily unavailable');
+    const failedAttempts = attempts;
+    interrupted = false;
+    await page.getByRole('button', {name:'Try again', exact:true}).click();
+    await expect(page.getByRole('button', {name:'Upgrade', exact:true}).first()).toBeVisible();
+    expect(attempts).toBeGreaterThan(failedAttempts);
+  });
+}
+
+test('profile read failure does not become an account-access gate', async ({page, request}) => {
+  const bootstrap = await prepare(page, request, 'en', false);
+  await page.route('**/app/bootstrap', route => route.fulfill({json:bootstrap}));
+  let profileReads = 0;
+  await page.route('**/profiles/me', route => {
+    profileReads++;
+    return route.fulfill({status:503,json:{detail:'Synthetic profile outage'}});
+  });
+  await page.goto('/profile');
+  await expect(page.locator('h1').first()).toBeVisible();
+  await expect.poll(() => profileReads).toBeGreaterThan(0);
+  await expect(page.getByTestId('entitlement-status')).toHaveCount(0);
+});
+
+test('late 401 from a previous account cannot log out the new verified account', async ({page, context, request}) => {
+  const oldBootstrap = await prepare(page, request, 'en', true);
+  await page.route('**/app/bootstrap', route => route.fulfill({json:oldBootstrap}));
+  await page.goto('/documents/review');
+  await expect(page.locator('h1').first()).toBeVisible();
+  let releaseOld;
+  let signalOld;
+  const oldHeld = new Promise(resolve => {releaseOld = resolve;});
+  const oldStarted = new Promise(resolve => {signalOld = resolve;});
+  let latest = oldBootstrap;
+  let holdOld = true;
+  await page.route('**/app/bootstrap', async route => {
+    if (holdOld) {
+      holdOld = false;
+      signalOld();
+      await oldHeld;
+      return route.fulfill({status:401,json:{detail:'Old session expired'}});
+    }
+    return route.fulfill({json:latest});
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event('nbai-bootstrap-refresh')));
+  await oldStarted;
+  latest = await prepare(page, request, 'en', false);
+  const newSession = sessions.get(latest);
+  const other = await context.newPage();
+  await other.goto('/auth');
+  await other.evaluate(({session}) => {
+    localStorage.setItem('current_user',JSON.stringify(session.user));
+    localStorage.setItem('user',JSON.stringify(session.user));
+    localStorage.setItem('token',session.access_token);
+  }, {session:newSession});
+  await other.close();
+  const upgrade = page.getByRole('button', {name:'Upgrade',exact:true}).first();
+  await expect(upgrade).toBeVisible();
+  const rejected = page.waitForResponse(response => response.url().endsWith('/app/bootstrap') && response.status() === 401);
+  releaseOld();
+  await (await rejected).finished();
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  expect(await page.evaluate(token => localStorage.getItem('token') === token, newSession.access_token)).toBe(true);
+  await expect(upgrade).toBeVisible();
+});
