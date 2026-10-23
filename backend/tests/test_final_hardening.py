@@ -58,8 +58,9 @@ def test_readiness_dependency_failure_redacted(monkeypatch):
     monkeypatch.setattr(main,'document_storage_healthcheck',Mock(side_effect=RuntimeError('secret bucket credential')))
     with TestClient(app) as client:
         response=client.get('/health/ready')
-        assert response.status_code==503
+        assert response.status_code==200
         assert response.json()['components']['document_storage']=='unavailable'
+        assert response.json()['features']['document_storage']['status'] in {'checking', 'degraded'}
         assert 'secret' not in response.text
         assert client.get('/health/live').status_code==200
 
@@ -72,7 +73,7 @@ def test_readiness_slow_probe_bounded_and_not_duplicated(monkeypatch):
     monkeypatch.setattr(main,'document_storage_healthcheck',slow)
     with TestClient(app) as client:
         start=time.monotonic();response=client.get('/health/ready')
-        assert response.status_code==503 and time.monotonic()-start<4.5
+        assert response.status_code==200 and time.monotonic()-start<1.5
         response=client.get('/health/ready')
         assert response.status_code==200
         assert slow.call_count==1

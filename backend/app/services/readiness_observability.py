@@ -34,6 +34,9 @@ class ProbeTiming:
             safe = cls.__name__ in SAFE_EXCEPTION_CLASSES.get(cls.__module__, ())
             self.exception_type = cls.__name__ if safe else "Exception"
             self.failure_type = "component_timeout" if safe and cls.__name__ in TIMEOUT_CLASSES else "exception"
+            if isinstance(exc, PermissionError) or (safe and cls.__name__ == "ClientError"
+                    and getattr(exc, "response", {}).get("ResponseMetadata", {}).get("HTTPStatusCode") in {401, 403}):
+                self.failure_type = "permission_denied"
             raise
         finally:
             self.finished = time.perf_counter()
@@ -65,6 +68,11 @@ def log_readiness_failure(request_id, started, noc_duration_ms, components, task
             },
         }
         diagnostics.update({name: timings[name].diagnostic(task, components[name], now) for name, task in tasks.items()})
+        for name, detail in diagnostics.items():
+            detail["required_for_readiness"] = name != "document_storage"
+        if "document_storage" in tasks and not tasks["document_storage"].done():
+            diagnostics["document_storage"]["failure_type"] = (
+                "diagnostic_deadline_exhausted" if now - timings["document_storage"].enqueued >= 1.5 else "probe_pending")
         logger.warning(json.dumps({
             "event": "readiness_failed",
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -72,6 +80,21 @@ def log_readiness_failure(request_id, started, noc_duration_ms, components, task
             "status_code": 503,
             "duration_ms": round((now - started) * 1000, 3),
             "components": diagnostics,
+        }, sort_keys=True))
+    except Exception:
+        pass
+
+
+def log_storage_transition(request_id, degraded, diagnostic):
+    """Only allowlisted diagnostic fields; never provider messages or locators."""
+    try:
+        log = logger.warning if degraded else logger.info
+        log(json.dumps({
+            "event": "storage_degraded" if degraded else "storage_recovered",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "request_id": request_id,
+            "affected_feature": "document_upload_download",
+            **diagnostic,
         }, sort_keys=True))
     except Exception:
         pass

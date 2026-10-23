@@ -38,7 +38,7 @@ def _s3_settings() -> tuple[str, str]:
     return bucket, region
 
 
-def _s3_client():
+def _s3_client(*, diagnostic=False):
     try:
         import boto3
     except ImportError as exc:
@@ -48,7 +48,12 @@ def _s3_client():
 
     _bucket, region = _s3_settings()
     endpoint_url = os.getenv("DOCUMENT_STORAGE_ENDPOINT_URL", "").strip() or None
-    return boto3.client("s3", region_name=region, endpoint_url=endpoint_url)
+    from botocore.config import Config
+    # Only the non-gating HEAD diagnostic uses this short, single-attempt budget.
+    # Real document operations retain their existing SDK timeout/retry policy.
+    config = Config(connect_timeout=0.5, read_timeout=0.5,
+                    retries={"total_max_attempts": 1}, max_pool_connections=1) if diagnostic else None
+    return boto3.client("s3", region_name=region, endpoint_url=endpoint_url, config=config)
 
 
 def _s3_locator(bucket: str, key: str) -> str:
@@ -88,7 +93,10 @@ def store_document(
             "ContentType": content_type or "application/octet-stream",
             "ServerSideEncryption": "AES256",
         }
-        _s3_client().put_object(**extra)
+        try:
+            _s3_client().put_object(**extra)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Document storage is temporarily unavailable.") from exc
         return _s3_locator(bucket, key)
 
     upload_dir = LOCAL_UPLOAD_ROOT / safe_namespace
@@ -106,12 +114,16 @@ def read_document(locator: str | None, *, legacy_upload_dir: Path) -> bytes:
         bucket, key = _parse_s3_locator(locator)
         try:
             response = _s3_client().get_object(Bucket=bucket, Key=key)
-            return response["Body"].read()
+            body = response["Body"]
+            try:
+                return body.read()
+            finally:
+                body.close()
         except Exception as exc:
-            error_code = getattr(exc, "response", {}).get("Error", {}).get("Code")
+            error_code = (getattr(exc, "response", None) or {}).get("Error", {}).get("Code")
             if error_code in {"NoSuchKey", "404", "NotFound"}:
                 raise HTTPException(status_code=404, detail="Uploaded file not found.") from exc
-            raise
+            raise HTTPException(status_code=503, detail="Document storage is temporarily unavailable.") from exc
 
     path = _resolve_local_or_legacy_path(locator, legacy_upload_dir)
     return path.read_bytes()
@@ -123,7 +135,10 @@ def delete_document(locator: str | None, *, legacy_upload_dir: Path) -> None:
 
     if locator.startswith(S3_SCHEME):
         bucket, key = _parse_s3_locator(locator)
-        _s3_client().delete_object(Bucket=bucket, Key=key)
+        try:
+            _s3_client().delete_object(Bucket=bucket, Key=key)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Document storage is temporarily unavailable.") from exc
         return
 
     try:
@@ -167,7 +182,11 @@ def document_download_response(
 def document_storage_healthcheck() -> None:
     if get_storage_backend() == "s3":
         bucket, _region = _s3_settings()
-        _s3_client().head_bucket(Bucket=bucket)
+        client = _s3_client(diagnostic=True)
+        try:
+            client.head_bucket(Bucket=bucket)
+        finally:
+            client.close()
         return
 
     LOCAL_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)

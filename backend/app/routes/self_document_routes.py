@@ -4,6 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.data.db import get_db
@@ -210,14 +211,14 @@ async def upload_self_document_file(
 
     content = await file.read()
     validate_upload_content(file, content, extension)
-    stored_locator = store_document(
+    stored_locator = await run_in_threadpool(store_document,
         content,
         namespace=f"self_documents/{current_user.id}/{document_id}",
         filename_extension=extension,
         content_type=file.content_type,
     )
 
-    delete_document(document.file_path, legacy_upload_dir=UPLOAD_DIR)
+    await run_in_threadpool(delete_document, document.file_path, legacy_upload_dir=UPLOAD_DIR)
 
     document.file_name = file.filename
     document.file_path = stored_locator

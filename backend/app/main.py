@@ -1,6 +1,7 @@
 import asyncio
 import os
 import time
+import anyio
 from contextlib import asynccontextmanager
 from starlette.concurrency import run_in_threadpool
 from pathlib import Path
@@ -14,7 +15,7 @@ from sqlalchemy import text
 from app.data.db import engine
 from app.services.document_storage import document_storage_healthcheck
 from app.services.observability import configure_error_monitoring, observe_request
-from app.services.readiness_observability import ProbeTiming, log_readiness_failure
+from app.services.readiness_observability import ProbeTiming, log_readiness_failure, log_storage_transition
 from app.services.security_controls import rate_limiter_healthcheck
 from app.services.noc_service import prepare_noc_data
 
@@ -238,10 +239,34 @@ def create_app() -> FastAPI:
     def liveness():
         return {"status": "ok"}
 
-    # Keep at most one in-flight probe per dependency. A slow dependency cannot
-    # accumulate threads on repeated health checks or exceed Render's 5s budget.
+    # One in-flight probe per dependency. Storage has its own single token so
+    # a diagnostic cannot consume the application's default worker capacity.
     readiness_tasks = {}
     readiness_timings = {}
+    storage_limiter = anyio.CapacityLimiter(1)
+    storage_degraded = False
+
+    async def storage_probe(timing, check):
+        await anyio.to_thread.run_sync(timing.run, check, limiter=storage_limiter)
+
+    def report_storage(task, timing, request_id):
+        nonlocal storage_degraded
+        if readiness_tasks.get("document_storage") is not task:
+            return
+        if task.cancelled():
+            return  # Worker/event-loop shutdown is not a storage incident.
+        now = time.perf_counter()
+        if not task.done() and now - timing.enqueued < 1.5:
+            return  # Checking is not yet evidence of degradation.
+        healthy = task.done() and not task.cancelled() and task.exception() is None
+        degraded = not healthy
+        if degraded != storage_degraded:
+            detail = timing.diagnostic(task, "ok" if healthy else "unavailable", now)
+            if not task.done():
+                detail["failure_type"] = "diagnostic_deadline_exhausted"
+            log_storage_transition(request_id, degraded, detail)
+            storage_degraded = degraded
+
     def database_probe():
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
@@ -260,20 +285,35 @@ def create_app() -> FastAPI:
                 if task is not None and not task.cancelled():
                     task.exception()  # consume any previous failed probe
                 timing = ProbeTiming()
-                readiness_tasks[name] = asyncio.create_task(run_in_threadpool(timing.run, check))
+                if name == "document_storage":
+                    task = asyncio.create_task(storage_probe(timing, check))
+                    task.add_done_callback(lambda completed, timing=timing, request_id=request.state.request_id:
+                                           report_storage(completed, timing, request_id))
+                else:
+                    task = asyncio.create_task(run_in_threadpool(timing.run, check))
+                readiness_tasks[name] = task
                 readiness_timings[name] = timing
-        await asyncio.wait(list(readiness_tasks.values()), timeout=2.5)
-        for name, task in readiness_tasks.items():
+        # Capture generations before yielding. Another request may replace a
+        # completed probe while this request is still waiting on a different one.
+        tasks = dict(readiness_tasks)
+        timings = dict(readiness_timings)
+        await asyncio.wait([tasks["database"], tasks["rate_limiter"]], timeout=2.5)
+        for name, task in tasks.items():
             components[name] = "ok" if task.done() and not task.cancelled() and task.exception() is None else "unavailable"
-
-        ready = all(value == "ok" for value in components.values())
+        storage_task = tasks["document_storage"]
+        report_storage(storage_task, timings["document_storage"], request.state.request_id)
+        storage_status = "healthy" if components["document_storage"] == "ok" else (
+            "degraded" if storage_degraded or storage_task.done()
+            or time.perf_counter() - timings["document_storage"].enqueued >= 1.5 else "checking")
+        ready = all(components[name] == "ok" for name in ("noc", "database", "rate_limiter"))
         payload = {
             "status": "ready" if ready else "not_ready",
             "components": components,
+            "features": {"document_storage": {"status": storage_status, "required_for_readiness": False}},
         }
         if not ready:
             log_readiness_failure(request.state.request_id, started, noc_duration_ms,
-                                  components, readiness_tasks, readiness_timings)
+                                  components, tasks, timings)
             return JSONResponse(status_code=503, content=payload)
         return payload
 

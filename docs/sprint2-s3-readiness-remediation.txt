@@ -1,0 +1,44 @@
+Sprint 2 targeted S3 readiness remediation — LOCAL, UNCOMMITTED
+Baseline approved release: d3e78c53115472d63be61757b420f93a1af585a5
+This document supersedes the readiness decision policy described in the historical docs/readiness-diagnostic-observability.txt. It does not claim a production fix or deployment.
+
+Failure reproduced
+An isolated executable comparison loaded backend/app/main.py from the exact approved Git revision and compared it with the local correction. Synthetic slow HEAD (2.7s), ReadTimeoutError, AccessDenied, recovery, eight concurrent readiness calls, and a slow required database were exercised. External network access was blocked by backend.testing.isolation.
+Old storage-only slow/timeout/permission cases returned503. Local correction returned200 while explicitly reporting storage unavailable. Slow-HEAD sample: old2503.928ms/503; local8.617ms/200. Eight concurrent slow-HEAD requests: old all503 at about2495–2497ms, local all200 at about14.6–15.1ms. Required database delay still returned503 after about2515ms. These synthetic local timings are not production latency guarantees.
+Classification: an optional storage diagnostic was included in the global all-components health reduction and shared critical deadline. A shared mutable task dictionary also allowed a request to evaluate a newer task generation than the one it awaited. Underlying production S3/provider/network stall cause and historical Loading cause remain unknown.
+
+Core policy
+/health/ready still requires the original NOC startup invariant, SELECT1 PostgreSQL check, and existing configured security-critical limiter check. Failure, cancellation or shared2.5s deadline exhaustion of these required probes still returns503. Startup configuration checks and authentication/authorization are unchanged. /health/live is unchanged; no Render health-check setting is changed.
+Storage does not gate core readiness and is not included in its await set. components.document_storage remains ok or unavailable; pending/error is never reported as ok. features.document_storage adds status healthy/checking/degraded and required_for_readiness=false. A previously observed incident remains degraded until a successful completion; initial pending state is checking, and pending age>=1.5s becomes degraded. Clients must not interpret top-level ready as confirmation that document storage works.
+
+Probe resources and concurrency
+Each request captures its own task and timing dictionaries before yielding. Completed probes may be replaced for a later request without changing an earlier request's generation. At most one in-flight task per dependency is retained; pending work is reused, not canceled/replaced on a readiness timeout or caller cancellation. There are no per-request queues of storage jobs or timers.
+Storage runs with a separate AnyIO CapacityLimiter(1), so its single diagnostic does not consume the default worker tokens used by the core checks. This is shared AnyIO worker infrastructure with independent capacity accounting, not a separate operating-system process. A hung diagnostic occupies at most one storage worker per application instance and does not gate core readiness.
+Only the diagnostic S3 client uses connect_timeout0.5s/read_timeout0.5s, total_max_attempts1 (no retry), max_pool_connections1; it is closed after HEAD. These socket limits do not forcibly kill Python threads or bound DNS/credential-provider/OS stalls. A permanently stuck operation remains one bounded diagnostic until it finishes or the worker is restarted. No global readiness timeout was increased. The regression tests release synthetic blockers and verify worker exit; caller cancellation does not duplicate work.
+
+Document safety
+Self and client upload routes offload storage PUT and old-object deletion instead of blocking the event loop. Ownership/auth checks remain before storage access. Metadata is assigned/committed only after storage operations return successfully.
+S3 PUT/GET/DELETE failures return a fixed503 message without provider details. Missing objects retain404; invalid/cross-bucket/traversal locators retain403. Download bodies close even on read failure. The timeout path now tolerates an exception with response=None rather than throwing an AttributeError while handling it.
+Tests assert failed uploads leave file_path/file_url/uploaded_at/completion unchanged, failed downloads leave metadata unchanged, cross-user and anonymous reads never reach S3, invalid locators do not reach S3, replacement-delete failure preserves published metadata, and the event loop remains responsive during blocked PUT.
+Existing distributed-write limitation remains: S3 and SQL are not a transaction. A successful PUT followed by old-object deletion or SQL failure can leave an unreferenced object; a timed-out provider request can have an uncertain server-side outcome. This correction never publishes the new locator or returns successful upload metadata on the tested failure paths; it does not introduce a storage reconciliation subsystem.
+
+Observability
+northbridge.readiness emits storage_degraded(WARNING) and storage_recovered(INFO) on transitions, with server-generated readiness request_id, timestamp, affected_feature=document_upload_download, safe failure classification, duration/queue/task-age, execution state and allowlisted exception class. Collect INFO for this logger to retain recovery events. Request IDs identify the triggering probe/request; a later recovery callback retains the request ID which launched that probe.
+Core readiness_failed events explicitly label required_for_readiness on each component. Pending storage is labeled probe_pending or diagnostic_deadline_exhausted, not a critical shared-deadline cause. Storage classifications cover component_timeout, permission_denied, exception and diagnostic_deadline_exhausted. Unknown exception names become Exception. No exception message, object key, bucket, endpoint, credentials, headers or document body is copied into diagnostic events. Logging exceptions are contained. Logging still depends on the configured sink; a blocked synchronous handler can add latency, as before.
+
+Validation
+Before correction:31 focused baseline tests passed, including original storage503 behavior.
+Final focused readiness/storage/documents/warning-policy run:50 passed,0 failed/skipped in29.45seconds. This includes18 readiness tests and the caller-cancellation/worker-exit regression.
+Final complete backend run:1309 passed,0 failed/skipped in179.46seconds. Uses a new disposable loopback PostgreSQL18.3 cluster, synthetic databases only, warnings-as-errors and only the existing scoped passlib crypt exemption. No production database or migration is touched.
+Frontend contracts:13 passed; no frontend source changes. Initial sandbox worker creation was denied(EPERM); authorized out-of-sandbox local retry passed.
+Launch smoke: launch smoke OK. git diff --check passed. Hosted CI/E2E for a new release have not run because commit/push is forbidden.
+
+Release hygiene and scope
+Runtime changes: backend/app/main.py; backend/app/services/document_storage.py; backend/app/services/readiness_observability.py; backend/app/routes/self_document_routes.py; backend/app/routes/client_document_routes.py.
+Tests: backend/tests/test_readiness_observability.py; backend/tests/test_final_hardening.py; backend/tests/test_s3_readiness_storage.py. This document is the only added repository documentation.
+No models, migrations, database configuration, frontend source, dependencies, auth, billing, CRS or rule activation changed. All15 private evidence file hashes match their saved manifest; files remain ignored and untracked. Index must remain empty. No commit/push/deployment or production modification is authorized or performed.
+
+Release-review limit
+This is ready for code/release review only after final local checks pass. It does not authorize production deployment or resolve the provider incident. Any future published artifact requires fresh hosted CI (including PostgreSQL and60 E2E), then separately authorized production validation/observation of the new policy and storage-degraded/recovered alerts. The previous hosted acceptance applies only to the baseline SHA.
+
+Local PostgreSQL18.3 test cluster stopped and its guarded disposable data directory removed. Final decision: SPRINT2 S3 READINESS REMEDIATION READY FOR RELEASE REVIEW: YES. No commit/push/deployment.
