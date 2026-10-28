@@ -81,3 +81,28 @@ def active_streams(destination, *, as_of, programs=PROGRAMS):
             if p.family == "pnp" and p.jurisdiction == target and not p.identifier.endswith(".reference")
             and p.review_status == "CURRENT_VERIFIED" and p.availability == "open"
             and p.effective_from <= as_of <= p.availability_verified_until]
+
+
+def catalog(query='', destination=None):
+    target='CA' if str(destination or '').strip().upper()=='CA' else jurisdiction(destination)
+    if destination and target is None:
+        return {'records':[],'jurisdiction':None,'eligibility':'not_assessed','automatic_activation':False,'status':'unsupported_jurisdiction'}
+    def norm(value):
+        return ''.join(c for c in unicodedata.normalize('NFKD',str(value).casefold()) if not unicodedata.combining(c))
+    terms=norm(query or '')
+    records=[]
+    for p in PROGRAMS:
+        if target and p.jurisdiction!=target and not (p.jurisdiction=='CA' and target!='QC'): continue
+        title={'express_entry':'Federal Express Entry / Entrée express fédéral','quebec_selection':'Quebec skilled-worker selection / Sélection québécoise','pnp':'Provincial nominee reference / Référence du programme provincial'}[p.family]
+        records.append(asdict(p)|{'title':title,'description_status':'reference_only','description_en':{
+ 'express_entry':'Federal online system for managing applications under participating economic immigration programs. This description does not confirm personal eligibility or that an invitation round is open.',
+ 'quebec_selection':'Quebec has a separate selection process for skilled workers intending to settle in Quebec. Quebec selection and the federal permanent-residence decision are separate stages; this is not a PNP or Express Entry pathway.',
+ 'pnp':'Provincial or territorial nomination reference for intended settlement in the nominating jurisdiction. Stream requirements and intake availability require separate official verification. Nomination is not a federal permanent-residence decision.'}[p.family],
+ 'description_fr':{
+ 'express_entry':'Système fédéral en ligne de gestion des demandes de programmes d’immigration économique participants. Cette description ne confirme ni votre admissibilité ni l’ouverture d’une ronde d’invitations.',
+ 'quebec_selection':'Le Québec dispose d’un processus distinct de sélection des travailleurs qualifiés qui souhaitent s’y établir. La sélection québécoise et la décision fédérale de résidence permanente sont des étapes distinctes ; il ne s’agit ni d’un PCP ni d’Entrée express.',
+ 'pnp':'Référence à la désignation provinciale ou territoriale pour l’établissement dans le territoire concerné. Les critères des volets et leur ouverture exigent une vérification officielle distincte. Une désignation n’est pas une décision fédérale de résidence permanente.'}[p.family],
+ 'eligibility':'not_assessed','intake_status':p.availability})
+    if terms:
+        records=[r for r in records if terms in norm(' '.join([r['title'],r['identifier'],r['description_en'],r['description_fr'],* [name for name,code in ALIASES.items() if code==r['jurisdiction']]]))]
+    return {'records':records,'jurisdiction':target,'eligibility':'not_assessed','automatic_activation':False,'constraints':['QC and NU have no PNP','Reference existence is not intake availability','Unsupported streams remain under review']}

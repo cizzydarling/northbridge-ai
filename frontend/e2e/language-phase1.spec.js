@@ -1,4 +1,6 @@
 import { test, expect } from "./fixtures";
+// Initialize the worker browser outside the first application's 90-second budget.
+test.beforeAll(async ({browser}) => { await browser.version(); });
 const api = "http://127.0.0.1:8010";
 async function owner(page, request, language) {
   const email = `language-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
@@ -40,7 +42,14 @@ for (const language of ["en","fr"]) {
     await expect(page.getByText(language === "fr" ? "Inconnu / Pas encore testé" : "Unknown / Not tested",{exact:false}).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.goto("/official-finders");
-    await expect(page.getByRole("heading",{name:language === "fr" ? "Débloquez les centres de tests et les établissements désignés" : "Unlock test centres and designated schools"})).toBeVisible();
+    await expect(page.getByRole("heading",{name:language === "fr" ? "Centres de tests et établissements désignés" : "Test centres and designated schools"})).toBeVisible();
+    await page.getByRole("button",{name:language === "fr" ? "Compris" : "Got it",exact:true}).click();
+    await expect(page.getByRole("button",{name:language === "fr" ? "Voir les centres officiels" : "View official centres",exact:true})).toHaveCount(5);
+    await page.getByRole("button",{name:language === "fr" ? "Établissements d’enseignement désignés" : "DLI schools",exact:true}).click();
+    await expect(page).toHaveURL(/official-finders\?tab=schools$/);
+    await page.evaluate(() => { window.open = url => { window.__dliHandoff = url; return null; }; });
+    await page.getByRole("button",{name:language === "fr" ? "Ouvrir la liste officielle des EED" : "Open official DLI list",exact:true}).click();
+    expect(await page.evaluate(() => window.__dliHandoff)).toBe(language === "fr" ? "https://www.canada.ca/fr/immigration-refugies-citoyennete/services/etudier-canada/permis-etudes/preparer/liste-etablissements-enseignement-designes.html" : "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit/prepare/designated-learning-institutions-list.html");
     await page.goto("/language-practice");
     await expect(page.getByRole("heading",{name:language === "fr" ? "La pratique linguistique est Premium" : "Language practice is Premium"})).toBeVisible();
     await page.goto("/strategy/simulator");

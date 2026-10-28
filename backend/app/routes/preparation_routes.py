@@ -132,3 +132,55 @@ def export_draft(draft_id: int, db: Session = Depends(get_db), user=Depends(requ
     emit_product_event(user.id, "export_used", plan=user.plan)
     return StreamingResponse(BytesIO(data), media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="preparation-draft-{draft.id}.docx"', "Cache-Control": "no-store"})
+
+
+# Public resource bookmarks are distinct from generated drafts and Forms answers.
+from sqlalchemy.exc import IntegrityError
+from app.core.access_control import ensure_individual_pro
+from app.models.resource_shortlist_model import ResourceShortlist
+from app.schemas.official_resource_schema import ShortlistCreate
+from app.services.official_resources import find_record
+from app.services.security_controls import enforce_rate_limit
+from app.services.household_service import lock_owner
+
+
+def shortlist_payload(row):
+ return {'id':row.id,'case_id':row.application_case_id,'resource':row.source_snapshot,'created_at':row.created_at,'current_status':'saved_snapshot_not_current_verification'}
+
+
+@router.get('/cases/{case_id}/resource-shortlist')
+def resource_shortlist(case_id:int,db:Session=Depends(get_db),user=Depends(require_self_user)):
+ owned_case(db,user,case_id,include_archived=True)
+ return [shortlist_payload(r) for r in db.query(ResourceShortlist).filter_by(application_case_id=case_id,owner_user_id=user.id).order_by(ResourceShortlist.id).all()]
+
+
+@router.post('/cases/{case_id}/resource-shortlist')
+def save_resource(case_id:int,body:ShortlistCreate,db:Session=Depends(get_db),user=Depends(require_self_user)):
+ owned_case(db,user,case_id)
+ ensure_individual_pro(user)
+ enforce_rate_limit('resource_saves',identifiers=[str(user.id)],limit=30,window_seconds=60)
+ lock_owner(db,user)
+ existing=db.query(ResourceShortlist).filter_by(application_case_id=case_id,owner_user_id=user.id,kind=body.kind,resource_id=body.resource_id).first()
+ if existing: return shortlist_payload(existing)
+ if db.query(ResourceShortlist).filter_by(application_case_id=case_id,owner_user_id=user.id).count()>=100:
+  raise HTTPException(409,'Case resource shortlist limit reached')
+ item=find_record(body.kind,body.resource_id,body.provider)
+ if item is None: raise HTTPException(409,'Refresh the official resource before saving; no save was made')
+ row=ResourceShortlist(application_case_id=case_id,owner_user_id=user.id,kind=body.kind,resource_id=body.resource_id,source_snapshot=item)
+ db.add(row)
+ try: db.commit()
+ except IntegrityError:
+  db.rollback()
+  row=db.query(ResourceShortlist).filter_by(application_case_id=case_id,owner_user_id=user.id,kind=body.kind,resource_id=body.resource_id).first()
+  if row is None: raise HTTPException(409,'Resource was not saved')
+ db.refresh(row)
+ return shortlist_payload(row)
+
+
+@router.delete('/cases/{case_id}/resource-shortlist/{bookmark_id}')
+def remove_resource(case_id:int,bookmark_id:int,db:Session=Depends(get_db),user=Depends(require_self_user)):
+ owned_case(db,user,case_id,include_archived=True)
+ row=db.query(ResourceShortlist).filter_by(id=bookmark_id,application_case_id=case_id,owner_user_id=user.id).first()
+ if row is None: raise HTTPException(404,'Saved resource not found')
+ db.delete(row);db.commit()
+ return {'removed':True}

@@ -68,6 +68,8 @@ def synthetic_rules(db=Depends(get_db), user=Depends(get_current_user)):
 def unavailable_source(_url):
     raise ConnectionError("Synthetic test provider unavailable")
 intelligence._retrieve_json = unavailable_source
+from testing.official_resource_fixtures import install as install_resource_fixtures
+install_resource_fixtures()
 
 @app.get("/_test/isolation")
 def isolation_status():

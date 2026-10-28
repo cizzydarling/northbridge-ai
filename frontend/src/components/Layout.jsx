@@ -260,6 +260,7 @@ function MobileNavButton({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
+      aria-current={active ? "page" : undefined}
       className={`block w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
         active
           ? "bg-slate-950 text-white"
@@ -289,6 +290,18 @@ export default function Layout(props) {
 function ResolvedLayout({ children, feedbackEnabled }) {
   const location = useLocation();
   const navigate = useNavigate();
+  useEffect(() => {
+    const targets = ["#processing-times", "#official-resources", "#study-preparation", "#saved-preparation", "#language-evidence", "#resource-shortlist", "#program-references"];
+    if (!targets.includes(location.hash)) return;
+    const frame = requestAnimationFrame(() => {
+      const target = document.getElementById(location.hash.slice(1));
+      if (!target) return;
+      target.setAttribute("tabindex", "-1");
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [location.key, location.hash]);
   const { t, i18n } = useTranslation();
 
   const [currentUser, setCurrentUser] = useState(getCurrentUserLocal());
@@ -496,56 +509,38 @@ function ResolvedLayout({ children, feedbackEnabled }) {
 
   const roleLabel = translateRoleLabel(currentUser?.role, language);
 
-  const primaryNavItems = [
-        { label: t("nav.dashboard"), path: "/dashboard", icon: "dashboard" },
-        { label: t("nav.strategy"), path: "/strategy", icon: "strategy" },
-        {
-          label: language === "fr" ? "Documents" : "Documents",
-          path: "/documents",
-          icon: "documents",
-          exact: true,
-        },
-        { label: language === "fr" ? "Ménage" : "Household", path: "/household", icon: "household" },
-        { label: language === "fr" ? "Demandes" : "Applications", path: "/applications", icon: "application" },
-        { label: t("layout.myApplication"), path: "/self/application", icon: "application" },
-      ];
-
-  const toolsItems = [
-        {
-          label: language === "fr" ? "Générateur" : "Generator",
-          path: "/documents/generator",
-          icon: "generator",
-        },
-        {
-          label: language === "fr" ? "Révision IA" : "AI Review",
-          path: "/documents/review",
-          icon: "review",
-        },
-        { label: language === "fr" ? "Studio formulaires" : "Forms Studio", path: "/forms", icon: "forms" },
-        { label: language === "fr" ? "Carrière" : "Career Match", path: "/career-match", icon: "career" },
-        {
-          label:
-            language === "fr"
-              ? "Centres et écoles"
-              : "Centres & schools",
-          path:
-            effectivePlan === "premium"
-              ? "/official-finders"
-              : "/pricing?plan=premium&source=official_finders&intent=unlock",
-          icon: "finder",
-        },
-        { label: language === "fr" ? "Citoyenneté" : "Citizenship", path: "/citizenship", icon: "citizenship" },
-        { label: t("nav.profile"), path: "/profile", icon: "profile" },
-        ...(isAdmin
-          ? [
-              {
-                label: language === "fr" ? "Codes promo" : "Promo Codes",
-                path: "/admin/promo-codes",
-                icon: "pricing",
-              },
-            ]
-          : []),
-      ];
+  const fr = language === "fr";
+  const navGroups = [
+    { label: null, items: [{ label: t("nav.dashboard"), path: "/dashboard", icon: "dashboard" }] },
+    { label: fr ? "Explorer l’immigration" : "Explore Immigration", items: [
+      { label: t("nav.strategy"), path: "/strategy", icon: "strategy", exact: true },
+      { label: fr ? "Délais de traitement" : "Processing times", path: "/strategy#processing-times", icon: "finder" },
+      { label: fr ? "Ressources officielles" : "Official resources", path: "/strategy#official-resources", icon: "finder" },
+      { label: fr ? "Carrière" : "Career Match", path: "/career-match", icon: "career" },
+    ] },
+    { label: fr ? "Langues et études" : "Language & Education", items: [
+      { label: fr ? "Résultats linguistiques" : "Language evidence", path: "/profile?section=language#language-evidence", icon: "profile" },
+      { label: fr ? "Centres de tests" : "Test centres", path: "/official-finders?tab=tests", icon: "finder" },
+      { label: fr ? "Établissements et EED" : "Schools & DLI", path: "/official-finders?tab=schools", icon: "finder" },
+      { label: fr ? "Pratique linguistique (Premium)" : "Language practice (Premium)", path: "/language-practice", icon: "career" },
+      { label: fr ? "Citoyenneté" : "Citizenship", path: "/citizenship", icon: "citizenship" },
+    ] },
+    { label: fr ? "Ma demande" : "My Application", items: [
+      { label: t("nav.profile"), path: "/profile", icon: "profile", exact: true },
+      { label: fr ? "Ménage" : "Household", path: "/household", icon: "household" },
+      { label: fr ? "Demandes" : "Applications", path: "/applications", icon: "application" },
+      { label: t("layout.myApplication"), path: "/self/application", icon: "application" },
+      { label: "Documents", path: "/documents", icon: "documents", exact: true },
+      { label: fr ? "Studio formulaires" : "Forms Studio", path: "/forms", icon: "forms" },
+      { label: fr ? "Préparation enregistrée" : "Saved preparation", path: "/strategy#saved-preparation", icon: "documents" },
+      { label: fr ? "Générateur" : "Generator", path: "/documents/generator", icon: "generator" },
+      { label: fr ? "Révision IA" : "AI Review", path: "/documents/review", icon: "review" },
+      ...(isAdmin ? [{ label: fr ? "Codes promo" : "Promo Codes", path: "/admin/promo-codes", icon: "pricing" }] : []),
+    ] },
+    { label: fr ? "Assistant IA" : "AI Assistant", items: [
+      { label: fr ? "Ouvrir l’assistant" : "Open assistant", path: "/chat", icon: "generator" },
+    ] },
+  ];
 
   function handleLogout() {
     logoutUser();
@@ -583,13 +578,12 @@ function ResolvedLayout({ children, feedbackEnabled }) {
   }
 
   function isActive(path, exact = false) {
-    if (path === "/dashboard") {
-      return location.pathname === "/dashboard" || location.pathname === "/";
-    }
-    if (exact) {
-      return location.pathname === path;
-    }
-    return location.pathname === path || location.pathname.startsWith(path + "/");
+    const target = new URL(path, "https://northbridge.invalid");
+    if (target.pathname === "/dashboard") return location.pathname === "/dashboard" || location.pathname === "/";
+    if (target.hash) return location.pathname === target.pathname && location.hash === target.hash;
+    if (target.search) return location.pathname === target.pathname && [...target.searchParams].every(([key, value]) => new URLSearchParams(location.search).get(key) === value);
+    if (exact) return location.pathname === target.pathname && !location.hash;
+    return location.pathname === target.pathname || location.pathname.startsWith(target.pathname + "/");
   }
 
   function goTo(path) {
@@ -660,37 +654,10 @@ function ResolvedLayout({ children, feedbackEnabled }) {
             </div>
 
             <nav aria-label={language === "fr" ? "Navigation principale" : "Primary navigation"} className="mt-7 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="space-y-2">
-                <SectionLabel dark>
-                  {language === "fr" ? "Espace de travail" : "Workspace"}
-                </SectionLabel>
-                <div className="mt-2 space-y-1.5">
-                  {primaryNavItems.map((item) => (
-                    <SidebarLink
-                      key={item.path}
-                      item={item}
-                      active={isActive(item.path, item.exact)}
-                      onClick={() => goTo(item.path)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-7 space-y-2">
-                <SectionLabel dark>
-                  {language === "fr" ? "Exécution" : "Execution"}
-                </SectionLabel>
-                <div className="mt-2 space-y-1.5">
-                  {toolsItems.map((item) => (
-                    <SidebarLink
-                      key={item.path}
-                      item={item}
-                      active={isActive(item.path, item.exact)}
-                      onClick={() => goTo(item.path)}
-                    />
-                  ))}
-                </div>
-              </div>
+              {navGroups.map((group, index) => <div key={group.label || "dashboard"} className={index ? "mt-7 space-y-2" : "space-y-2"}>
+                {group.label && <SectionLabel dark>{group.label}</SectionLabel>}
+                <div className="mt-2 space-y-1.5">{group.items.map(item => <SidebarLink key={item.path} item={item} active={isActive(item.path, item.exact)} onClick={() => goTo(item.path)} />)}</div>
+              </div>)}
             </nav>
 
             <div className="mt-6 space-y-3">
@@ -974,35 +941,10 @@ function ResolvedLayout({ children, feedbackEnabled }) {
                 </Button>
               </div>
 
-              <div className="mb-6 space-y-2">
-                <SectionLabel>{language === "fr" ? "Espace de travail" : "Workspace"}</SectionLabel>
-                <div className="mt-2 space-y-2">
-                  {primaryNavItems.map((item) => (
-                    <MobileNavButton
-                      key={item.path}
-                      active={isActive(item.path, item.exact)}
-                      onClick={() => goTo(item.path)}
-                    >
-                      {item.label}
-                    </MobileNavButton>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-6 space-y-2">
-                <SectionLabel>{language === "fr" ? "Exécution" : "Execution"}</SectionLabel>
-                <div className="mt-2 space-y-2">
-                  {toolsItems.map((item) => (
-                    <MobileNavButton
-                      key={item.path}
-                      active={isActive(item.path, item.exact)}
-                      onClick={() => goTo(item.path)}
-                    >
-                      {item.label}
-                    </MobileNavButton>
-                  ))}
-                </div>
-              </div>
+              {navGroups.map(group => <div key={group.label || "dashboard"} className="mb-6 space-y-2">
+                {group.label && <SectionLabel>{group.label}</SectionLabel>}
+                <div className="mt-2 space-y-2">{group.items.map(item => <MobileNavButton key={item.path} active={isActive(item.path, item.exact)} onClick={() => goTo(item.path)}>{item.label}</MobileNavButton>)}</div>
+              </div>)}
 
               <div className="mb-6">
                 <SectionLabel>{language === "fr" ? "Langue" : "Language"}</SectionLabel>

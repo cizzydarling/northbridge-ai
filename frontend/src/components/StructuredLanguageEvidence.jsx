@@ -19,6 +19,15 @@ export default function StructuredLanguageEvidence({ summary = false }) {
   const fr = i18n.language.startsWith("fr");
   const tr = (en, french) => fr ? french : en;
   const userId = getCurrentUserLocal()?.id;
+  const evidenceRef = useRef(null);
+  useEffect(() => {
+    if (summary || window.location.hash !== "#language-evidence") return;
+    const frame = requestAnimationFrame(() => {
+      evidenceRef.current?.focus({ preventScroll: true });
+      evidenceRef.current?.scrollIntoView({ block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [summary]);
   const epoch = useRef(0);
   const invalidate = useCallback(() => { ++epoch.current; }, []);
   const [data, setData] = useState(null);
@@ -52,7 +61,7 @@ export default function StructuredLanguageEvidence({ summary = false }) {
   }
   const selectedExam = exams.find(x => x[0] === exam);
   const statusLabel = value => ({ current: tr("Current date", "Date valide"), expired: tr("Expired", "Expiré"), below_published_range: tr("Below published range", "Sous la plage publiée"), unsupported_mapping: tr("Mapping unavailable", "Conversion indisponible") }[value] || tr("Unknown", "Inconnu"));
-  return <section className="col-span-full space-y-4 rounded-xl border border-slate-200 bg-white p-4" aria-label={tr("Test evidence", "Résultats d’examen")} onKeyDown={e => {
+  return <section ref={evidenceRef} tabIndex={-1} id={summary ? undefined : "language-evidence"} className="scroll-mt-32 col-span-full space-y-4 rounded-xl border border-slate-200 bg-white p-4" aria-label={tr("Test evidence", "Résultats d’examen")} onKeyDown={e => {
     // This section sits inside the legacy Profile form. Enter in an assessment
     // input must not silently submit unrelated Profile fields.
     if (e.key === "Enter" && ["INPUT", "SELECT"].includes(e.target.tagName)) e.preventDefault();
@@ -86,7 +95,13 @@ export default function StructuredLanguageEvidence({ summary = false }) {
         </li>)}</ul>
         <div className="flex flex-wrap gap-3">{["en", "fr"].map(lang => <Button variant="secondary" key={lang} type="button" disabled={busy || !data.selected[lang]} onClick={() => change(() => selectLanguageAssessment(lang, null))}>{tr("Set unknown", "Définir inconnu")} — {lang.toUpperCase()}</Button>)}</div>
       </>}
-      <nav className="flex flex-wrap gap-3 underline"><Link to="/profile">{tr("Profile and language", "Profil et langues")}</Link><Link to="/strategy">{tr("CRS / Strategy context", "Contexte SCG / stratégie")}</Link><Link to="/official-finders">{tr("Schools & Test Centres (Premium)", "Établissements et centres de tests (Premium)")}</Link><Link to="/language-practice">{tr("Practice (not test evidence)", "Pratique (pas un résultat d’examen)")}</Link></nav>
     </>}
+    <nav aria-label={tr("Language resources", "Ressources linguistiques")} className="flex flex-wrap gap-3 underline">
+      <Link to="/profile">{tr("Profile and language", "Profil et langues")}</Link>
+      <Link to="/strategy">{tr("CRS / Strategy context", "Contexte SCG / stratégie")}</Link>
+      <Link to="/official-finders?tab=tests">{tr("Official test centres", "Centres de tests officiels")}</Link>
+      <Link to="/official-finders?tab=schools">{tr("Schools and DLI", "Établissements et EED")}</Link>
+      <Link to="/language-practice">{tr("Language practice (Premium; not test evidence)", "Pratique linguistique (Premium ; pas un résultat d’examen)")}</Link>
+    </nav>
   </section>;
 }

@@ -1190,3 +1190,13 @@ export const recordRulesReview = (id, data) => api.post(`/admin/rules-review/${i
 export const getCrsPreparation = caseId => api.get(`/preparation/cases/${caseId}/crs-inputs`);
 export const saveCrsPreparation = (caseId, body) => api.put(`/preparation/cases/${caseId}/crs-inputs`, body);
 export const recordProductActivity = (event, surface) => api.post("/product/activity", { event, surface }).catch(() => null);
+
+
+// Explicit official-reference mode never requests Premium analytical summaries.
+export const getOfficialProcessingTimes = params => api.get('/immigration-intelligence/processing-times', {params:{...params,scope:'official_reference',language:getLanguage()}});
+export const searchOfficialSchools = params => api.get('/immigration-intelligence/schools',{params});
+export const searchOfficialTestCentres = params => api.get('/immigration-intelligence/test-centres',{params});
+export const browseProgramReferences = params => api.get('/program-registry',{params:{...params,browse:true}});
+export const getResourceShortlist = caseId => api.get('/preparation/cases/'+caseId+'/resource-shortlist');
+export const saveResourceShortlist = (caseId,payload) => api.post('/preparation/cases/'+caseId+'/resource-shortlist',payload);
+export const removeResourceShortlist = (caseId,id) => api.delete('/preparation/cases/'+caseId+'/resource-shortlist/'+id);

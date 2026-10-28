@@ -1,4 +1,9 @@
+from app.services.security_controls import enforce_rate_limit
 from fastapi import APIRouter, Depends, Query
+from typing import Literal
+from app.routes.self_document_routes import require_self_user
+from app.services.official_resources import search as search_official
+from app.services.immigration_intelligence_service import official_processing_reference
 from sqlalchemy.orm import Session
 
 from app.core.access_control import get_current_user, has_premium_access
@@ -79,12 +84,18 @@ def get_immigration_intelligence_draws(
 
 @router.get("/processing-times")
 def get_immigration_intelligence_processing_times(
-    application_type: str | None = Query(default=None),
-    country: str | None = Query(default=None),
+    scope: Literal["premium_tracker", "official_reference"] = Query(default="premium_tracker"),
+    application_type: str | None = Query(default=None, max_length=80),
+    country: str | None = Query(default=None, max_length=80),
     language: str = Query(default="en"),
     current_user=Depends(get_current_user),
 ):
     language = normalize_language(language)
+
+    if scope == "official_reference":
+        require_self_user(current_user)
+        resource_read_limit(current_user)
+        return official_processing_reference(application_type, country, language)
 
     if not has_premium_access(current_user):
         return build_locked_immigration_intelligence_preview(language)
@@ -97,3 +108,18 @@ def get_immigration_intelligence_processing_times(
         )
 
     return get_processing_time_catalog(language=language)
+
+
+@router.get('/schools')
+def schools(query:str=Query('',max_length=100),province:str=Query('',max_length=80),city:str=Query('',max_length=80),offset:int=Query(0,ge=0,le=10000),limit:int=Query(25,ge=1,le=50),user=Depends(require_self_user)):
+    resource_read_limit(user)
+    return search_official('dli',query,province,city,offset,limit)
+
+@router.get('/test-centres')
+def test_centres(provider:Literal['celpip','ielts','pte','tef','tcf']='celpip',query:str=Query('',max_length=100),province:str=Query('',max_length=80),city:str=Query('',max_length=80),offset:int=Query(0,ge=0,le=10000),limit:int=Query(25,ge=1,le=50),user=Depends(require_self_user)):
+    resource_read_limit(user)
+    return search_official(provider,query,province,city,offset,limit)
+
+
+def resource_read_limit(user):
+    enforce_rate_limit('official_resources',identifiers=[str(user.id)],limit=60,window_seconds=60)

@@ -1181,3 +1181,74 @@ def build_immigration_intelligence(*, profile=None, crs_score=None, province_rec
             "disclaimer": notice(language),
             "sources": [{"label": "IRCC", "url": EXPRESS_ENTRY_ROUNDS_URL},
                         {"label": "PNP / PCP", "url": PNP_URL}]}
+
+
+# Explicit informational mode: independent of configurable Premium analysis feeds.
+def normalize_official_processing(feeds, language):
+    country=feeds['country']; other=feeds['non_country']; names=feeds['names'].get('country-name')
+    if not all(isinstance(x,dict) and x for x in (country,other,names)):
+        raise ValueError('official_processing_schema')
+    updated=other.get('default-update',{}).get('lastupdated')
+    country_updated=country.get('default-update',{}).get('lastupdated')
+    rows=[]
+    for app in _processing_applications(language):
+        key=app['key']
+        if key in COUNTRY_PROCESSING_APPLICATIONS:
+            section=country.get(COUNTRY_PROCESSING_APPLICATIONS[key],{})
+            if not isinstance(section,dict): raise ValueError('official_country_schema')
+            for code,name in names.items():
+                value=section.get(code)
+                rows.append({'application_type':key,'country_code':code,'country_name':html.unescape(str(name)),
+                             'processing_time':value if isinstance(value,str) and len(value)<160 and '<' not in value else None,
+                             'source_updated_at':country_updated})
+        elif key in NON_COUNTRY_PROCESSING_APPLICATIONS:
+            section_key,value_key=NON_COUNTRY_PROCESSING_APPLICATIONS[key]
+            section=other.get(section_key,{})
+            value=section.get(value_key) if isinstance(section,dict) else None
+            rows.append({'application_type':key,'country_code':None,'country_name':None,
+                         'processing_time':value if isinstance(value,str) and len(value)<160 and '<' not in value else None,
+                         'source_updated_at':updated})
+    return rows
+
+
+def official_processing_reference(application_type=None, country=None, language='en'):
+    from app.services.official_resources import resource_data
+    language=_normalize_language(language)
+    applications=_processing_applications(language)
+    if application_type and application_type not in {a['key'] for a in applications}:
+        from fastapi import HTTPException
+        raise HTTPException(422,'Unsupported application category')
+    data=resource_data('processing_'+language)
+    records=data.pop('records')
+    countries={r['country_code']:r['country_name'] for r in records if r['country_code']}
+    result={**data,'applications':applications,'countries':[{'code':k,'name':v} for k,v in sorted(countries.items(),key=lambda x:x[1])],
+            'official_page_url':PROCESSING_TIMES_URL if language=='en' else 'https://www.canada.ca/fr/immigration-refugies-citoyennete/services/demande/verifier-delais-traitement.html',
+            'processing_time':None,'personal_prediction':False,'application_type':application_type,
+            'source_updated_at':next((r['source_updated_at'] for r in records if r['source_updated_at']),None)}
+    if application_type in COUNTRY_PROCESSING_APPLICATIONS:
+        result['source_url']=PROCESSING_TIMES_COUNTRY_JSON_URLS[language]
+        result['source_updated_at']=next((r['source_updated_at'] for r in records if r['application_type']==application_type),None)
+    result['source_references']=[PROCESSING_TIMES_COUNTRY_JSON_URLS[language],PROCESSING_TIMES_NON_COUNTRY_JSON_URLS[language],COUNTRY_NAMES_JSON_URLS[language]]
+    published_date=None
+    raw_date=result['source_updated_at']
+    if isinstance(raw_date,str):
+        # IRCC's French feed uses localized month names; avoid host-locale dependence.
+        french_months={'janvier':1,'février':2,'mars':3,'avril':4,'mai':5,'juin':6,
+                       'juillet':7,'août':8,'septembre':9,'octobre':10,'novembre':11,'décembre':12}
+        localized=re.fullmatch(r'(\d{1,2})\s+([^\s]+)\s+(\d{4})',raw_date.strip().lower())
+        if localized and localized[2] in french_months:
+            try: published_date=datetime(int(localized[3]),french_months[localized[2]],int(localized[1]),tzinfo=timezone.utc)
+            except ValueError: pass
+        for pattern in ('%B %d, %Y','%Y-%m-%d'):
+            try: published_date=datetime.strptime(raw_date,pattern).replace(tzinfo=timezone.utc);break
+            except ValueError: pass
+    if published_date and (datetime.now(timezone.utc)-published_date).total_seconds()>14*86400:
+        result['status']='stale'
+    if not application_type: return result
+    if application_type in COUNTRY_PROCESSING_APPLICATIONS and not country:
+        return {**result,'selection_status':'country_required'}
+    row=next((r for r in records if r['application_type']==application_type and (r['country_code']==(country or '').upper() if r['country_code'] else True)),None)
+    value=row.get('processing_time') if row else None
+    published=isinstance(value,str) and bool(re.search(r'\d.*\b(?:days?|weeks?|months?|minutes?|hours?|years?|jours?|semaines?|mois|heures?|ans?|années?)\b',value,re.I))
+    return {**result,'processing_time':value if published else None,'published_message':value,
+            'selection_status':'published_estimate' if published else 'unavailable','country_code':country}
