@@ -86,8 +86,8 @@ export default function LandingPage() {
           <div className="max-w-3xl">
             <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-200 backdrop-blur-sm">
               {isFrench
-                ? "Planification d’immigration assistée par IA"
-                : "AI-assisted immigration planning"}
+                ? "Préparation à l’immigration assistée par IA"
+                : "AI-assisted immigration preparation"}
             </div>
 
             <h1 className="mt-6 text-4xl font-bold leading-tight text-white md:text-6xl">
@@ -122,7 +122,7 @@ export default function LandingPage() {
 
             <div className="mt-8 flex flex-wrap gap-2">
               <TrustPill>
-                {isFrench ? "Stratégie personnalisée" : "Personalized strategy"}
+                {isFrench ? "Préparation enregistrée" : "Saved preparation"}
               </TrustPill>
               <TrustPill>
                 {isFrench ? "Guidance étape par étape" : "Step-by-step guidance"}
@@ -138,13 +138,13 @@ export default function LandingPage() {
               eyebrow={isFrench ? "Vue produit" : "Product view"}
               title={
                 isFrench
-                  ? "De la stratégie à l’exécution"
-                  : "From strategy to execution"
+                  ? "Des renseignements à la préparation"
+                  : "From information to preparation"
               }
               body={
                 isFrench
-                  ? "NorthBridgeAI vous aide à comprendre votre position, identifier vos meilleures voies et passer à l’action avec les bons documents."
-                  : "NorthBridgeAI helps you understand where you stand, identify your best pathways, and move into action with the right documents."
+                  ? "NorthBridgeAI vous aide à organiser les renseignements enregistrés, consulter les sources officielles et préparer des brouillons modifiables. Pro est nécessaire pour créer des brouillons de dossier et exporter en DOCX. L’assistance IA dépend du fournisseur; elle ne détermine pas votre admissibilité et ne garantit aucune approbation."
+                  : "NorthBridgeAI helps you organize your recorded information, consult official sources, and prepare editable document drafts. Pro is required to create case drafts and export DOCX. AI assistance depends on provider availability; it does not determine your eligibility or guarantee approval."
               }
             />
 
@@ -158,8 +158,8 @@ export default function LandingPage() {
                 label={isFrench ? "Expérience moderne" : "Modern UX"}
               />
               <HeroStat
-                value={isFrench ? "Fiable" : "Focused"}
-                label={isFrench ? "Décisions éclairées" : "Better decisions"}
+                value={isFrench ? "Ciblé" : "Focused"}
+                label={isFrench ? "Préparation structurée" : "Structured preparation"}
               />
             </div>
           </div>
@@ -178,14 +178,14 @@ export default function LandingPage() {
           </h2>
           <p className="mt-4 text-base leading-7 text-slate-600">
             {isFrench
-              ? "Passez d’une simple exploration à une vraie exécution, avec une expérience qui vous aide à voir vos options, vos priorités et vos prochaines étapes."
-              : "Move from basic exploration to real execution, with an experience that helps you see your options, priorities, and next steps."}
+              ? "Passez de l’exploration à une préparation organisée : consultez les sources officielles, enregistrez vos renseignements et retrouvez votre travail sauvegardé."
+              : "Move from exploration to organized preparation: consult official sources, record your information, and return to your saved work."}
           </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           <FeatureCard
-            title={isFrench ? "Analyse intelligente" : "Smart analysis"}
+            title={isFrench ? "Renseignements organisés" : "Organized information"}
             desc={
               isFrench
                 ? "Organisez vos renseignements et consultez les critères officiels."
@@ -193,15 +193,15 @@ export default function LandingPage() {
             }
           />
           <FeatureCard
-            title={isFrench ? "Stratégie personnalisée" : "Personal strategy"}
+            title={isFrench ? "Préparation enregistrée" : "Saved preparation"}
             desc={
               isFrench
-                ? "Recevez un plan structuré adapté à votre profil, vos objectifs et votre progression."
-                : "Get a structured plan tailored to your profile, goals, and progress."
+                ? "Organisez votre profil, vos objectifs, vos réponses enregistrées et vos tâches de préparation dans un même espace."
+                : "Organize your profile, goals, saved answers and preparation tasks in one workspace."
             }
           />
           <FeatureCard
-            title={isFrench ? "Exécution guidée" : "Guided execution"}
+            title={isFrench ? "Préparation guidée" : "Guided preparation"}
             desc={
               isFrench
                 ? "Préparez vos documents, suivez vos prochaines étapes et avancez avec plus de confiance."
@@ -222,20 +222,20 @@ export default function LandingPage() {
             }
             body={
               isFrench
-                ? "NorthBridgeAI combine stratégie, guidance, IA et exécution documentaire dans une seule expérience cohérente."
-                : "NorthBridgeAI combines strategy, guidance, AI, and document execution in one coherent experience."
+                ? "NorthBridgeAI relie votre profil, vos dossiers, vos réponses enregistrées et votre préparation documentaire dans un même espace."
+                : "NorthBridgeAI connects your profile, cases, saved answers and document preparation in one workspace."
             }
             items={
               isFrench
                 ? [
-                    "Vue claire de votre profil et de vos options",
-                    "Recommandations prioritaires faciles à suivre",
-                    "Aide IA pour comprendre quoi faire ensuite",
+                    "Votre profil enregistré et vos réponses sauvegardées",
+                    "Sources officielles et tâches de préparation à examiner",
+                    "Aide IA à la préparation, selon sa disponibilité",
                   ]
                 : [
-                    "A clear view of your profile and options",
-                    "Priority recommendations that are easy to follow",
-                    "AI help to understand what to do next",
+                    "Your recorded profile and saved answers",
+                    "Official references and preparation tasks to review",
+                    "AI preparation assistance, when available",
                   ]
             }
           />
@@ -256,13 +256,13 @@ export default function LandingPage() {
               isFrench
                 ? [
                     "Consulter les critères officiels",
-                    "Construire une stratégie personnalisée",
-                    "Passer à l’exécution avec les bons documents",
+                    "Organiser votre dossier et vos réponses enregistrées",
+                    "Préparer des brouillons de documents modifiables",
                   ]
                 : [
                     "Explore official criteria",
-                    "Build a personalized strategy",
-                    "Move into execution with the right documents",
+                    "Organize your case and saved answers",
+                    "Prepare editable document drafts",
                   ]
             }
           />
@@ -321,10 +321,10 @@ export default function LandingPage() {
               {isFrench ? "Tarifs" : "Pricing"}
             </Link>
             <Link className="rounded-md px-2 py-1 hover:bg-slate-100" to="/legal">
-              Legal
+              {isFrench ? "Mentions légales" : "Legal"}
             </Link>
             <Link className="rounded-md px-2 py-1 hover:bg-slate-100" to="/privacy">
-              Privacy
+              {isFrench ? "Confidentialité" : "Privacy"}
             </Link>
             <button
               type="button"

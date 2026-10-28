@@ -5,6 +5,7 @@ import ApplicationContextBanner from "../components/ApplicationContextBanner";
 import OfficialCrsHandoff from "../components/OfficialCrsHandoff";
 import PreparationJourney from "../components/PreparationJourney";
 import StructuredLanguageEvidence from "../components/StructuredLanguageEvidence";
+import CommercialCrsWorkspace from "../components/CommercialCrsWorkspace";
 import CrsReadiness from "../components/CrsReadiness";
 import ProgramReferences from "../components/ProgramReferences";
 
@@ -25,6 +26,7 @@ export default function PlanningStrategyPage() {
     <ApplicationContextBanner />
     <OfficialCrsHandoff />
     <StructuredLanguageEvidence summary />
+    <CommercialCrsWorkspace />
     <CrsReadiness />
     <ProgramReferences />
     <nav className="flex flex-wrap gap-5">

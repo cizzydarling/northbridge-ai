@@ -1,3 +1,4 @@
+from app.services.product_analytics import emit as emit_product_event
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -106,6 +107,7 @@ def create_document(
     db.add(doc)
     db.commit()
     db.refresh(doc)
+    emit_product_event(current_user.id, "document_created", plan=current_user.plan, idempotency_key=f"generated:{doc.id}")
 
     return _build_document_response(doc, current_user)
 
@@ -160,6 +162,7 @@ def duplicate_document(
     db.add(duplicate)
     db.commit()
     db.refresh(duplicate)
+    emit_product_event(current_user.id, "document_created", plan=current_user.plan, idempotency_key=f"generated:{duplicate.id}")
 
     return _build_document_response(duplicate, current_user)
 

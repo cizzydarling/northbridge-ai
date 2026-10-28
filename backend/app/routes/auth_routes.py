@@ -1,3 +1,4 @@
+from app.services.product_analytics import emit as emit_product_event
 import hashlib
 import os
 import secrets
@@ -279,6 +280,7 @@ def register(
             account_identifier=data.email,
         )
 
+        emit_product_event(new_user.id, "registration", idempotency_key=new_user.id)
         return serialize_user(new_user)
 
     except ValueError as e:

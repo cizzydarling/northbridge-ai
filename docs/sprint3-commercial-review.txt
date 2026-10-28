@@ -1,0 +1,378 @@
+SPRINT 3 LOCAL COMMERCIAL IMPLEMENTATION — 2026-10-26
+
+Scope and activation
+Numerical arithmetic is an offline review candidate. No HTTP route activates it.
+Owned preparation saves incomplete facts in the existing case intake JSON, with
+owner-row locking and revision conflict detection; other Forms facts are preserved.
+No model, migration, production setting, entitlement or release change is included.
+
+Official references checked 2026-10-26
+IRCC CRS criteria:
+https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/check-score/crs-criteria.html
+Controlling Instructions, sections 8–30:
+https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/policies-operational-instructions-agreements/ministerial-instructions/express-entry-application-management-system/current.html
+November changes:
+https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/changes.html
+Occupation list:
+https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/check-score/high-wage.html
+
+Pre-November candidate includes all core, accompanying spouse, transferability
+and additional factors. Qualified/current evidence must be explicitly declared.
+A personal declaration is not independent legal verification. Itemized totals,
+caps, missing facts, source/version/date and provenance are returned offline.
+Literal fixtures use separately calculated expected totals, not the engine output.
+Independent human rule/fixture approval remains PENDING. No AI arithmetic.
+Ranking is separate from program eligibility and invitation eligibility.
+
+November 3 transition
+The announcement establishes a higher-of work/offer Labour Market Integration
+factor (maximum 140 accompanying / 150 otherwise), occupation-level wage tiers,
+qualifying hours and revised job-offer treatment. Personal salary is not the tier.
+A date match cannot authorize activation. Complete amended controlling clauses,
+overall cap reconciliation, qualifying offers, transitional invitation-date locks
+and FSW/FST implications remain release blockers. November 3 and later return
+REVIEW_REQUIRED with no score or guessed maximum. November 2 is tested separately.
+
+Pathways and monitoring
+Existing jurisdiction registry remains fail-closed: Quebec and Nunavut have no
+PNP; Quebec selection is separate; unverified stream availability does not imply
+eligibility. Strategy displays official references and source-check dates.
+No new stream is claimed eligible/open. Existing NOC occupational matching does
+not establish immigration eligibility. Existing bounded source monitor, append-only
+admin history and digest-based explicit release approval remain the foundation.
+New fixture validation reports and inactive decisions cannot activate a rule.
+A passing current fixture baseline does not validate arbitrary changed source prose.
+
+Local Stripe test boundary
+TEST_CHECKOUT_ENABLED requires test/local/development environment, sk_test key,
+loopback frontend and disposable local database, plus webhook signing secret.
+Mixed production/live settings fail closed. Live checkout stays disabled.
+Initial tests used signed synthetic events and mocked Stripe transport with real
+application authentication, ownership and entitlement guards. Targeted closure
+subsequently passed real Stripe TEST hosted Checkout, genuine signed webhook
+delivery and replay, entitlement isolation, refund audit and cancellation/Free
+restoration; prior real test clocks passed renewal, collection failure/recovery
+and paid-period expiration. No live charge or production write occurred.
+Refund events remain audited for human policy reconciliation, without inventing
+a refund access-revocation policy. Renewals are CAD39 every 30 days or CAD99 every
+90 days, not one-time passes. Cancellation ends renewal, not a paid current period.
+
+Analytics
+Opt-in existing structured log sink, PRODUCT_ANALYTICS_ENABLED plus >=32-character
+secret HMAC key. Configure access and retention before enabling. No names, email,
+IP, immigration answers, document locators, prompts or free text are recorded.
+Success-only server hooks: registration, completed onboarding observed at
+bootstrap, daily workspace return, upload, DOCX export, checkout and conversion.
+Client engagement/upgrade-intent uses authenticated allowlisted rate-limited API.
+AI provider token counts are attributed through a resettable request scope;
+missing usage/cost stays unknown. Cost is never guessed from response length.
+Offline aggregate deduplicates provider references and reports distinct actors
+and return days. It is not an exactly-once durable financial ledger.
+Actual costs, payment fees, retention configuration and reconciliation are required
+before contribution margin or launch conversion claims.
+
+Commercial milestones (gross CAD, before fees/refunds/AI/other variable costs)
+5 Pro initial charges: 195, below approximate 200/month infrastructure alone.
+6 Pro: 234. 13 Pro: 507 collected. 10 Pro: 390.
+Premium: 99 collected per 90-day cycle, 33 per 30-day equivalent.
+6 Premium initial charges: 594 collected, not 594 monthly recurring revenue.
+Positive contribution margin cannot be established from customer count alone.
+
+Release conditions (updated by targeted closure)
+Numerical CRS requires independent human approval; future rules and any active
+stream claims require complete authoritative review. These are NOT prerequisites
+for the preparation-only Pro offer, which excludes those claims. Real Stripe
+TEST provider acceptance passed. Before a first payment: owner-approved offer,
+refund terms and monitored public billing contact, separately authorized release
+and checkout activation. Keep analytics disabled unless deployed access, retention
+and deletion evidence is verified. Costs remain estimates until reconciled.
+No paid checkout, numerical CRS or automatic rule activation is authorized here.
+
+
+TARGETED COMMERCIAL ACCEPTANCE — 2026-10-27 (DRAFT, NOT PUBLISHED TERMS)
+
+Independent numerical review
+217 new source-row reference cases cover age, both education columns, both
+language columns/caps, Canadian work, spouse factors, transfer combinations,
+trade certificate thresholds, nomination, Canadian education, sibling, French
+additional factors and combined maxima. Each contains source URL, effective
+dates, expected itemization and reviewer result. Expected values do not import
+engine constants. Page date is not falsely called a publication date; unknown
+publication dates remain null. Reviewer is automated source-based Codex review,
+not a claimed human sign-off or authorization to activate.
+A concrete defect was found: mixed English abilities below/above CLB5 with
+French >=7 previously lost the base French bonus. MI section32(1)(a) grants25;
+section32(1)(b) adds25 only with all English abilities>=5. The branch is corrected.
+Criteria-page English wording does not explicitly address that mixed case; the
+controlling instruction supplies the authoritative distinction. All scoring
+remains offline and unactivated. Qualified evidence is still an explicit review
+assumption; a score never establishes EE or invitation eligibility.
+
+November follow-up task (prepared only; not scheduled or activated)
+On/after 2026-11-03, one pass, maximum30minutes: retrieve the IRCC Instructions
+index, linked controlling package, changes page and high-wage list; one focused
+Canada Gazette search if the index does not identify the new package. Record
+retrieval time, publication/effective dates and document hashes privately. Map
+LMI exclusivity/caps, qualifying periods, job-offer criteria, spouse treatment,
+ITA occupation-list locking and FSW/FST rules to specific operative clauses.
+Reconcile the new overall maximum and superseded Canadian-work sections.
+Stop with REVIEW_REQUIRED on absent/conflicting operative text. Test Nov2/3
+boundaries against independently transcribed examples; seek explicit release
+approval. Do not infer legal eligibility from a ranking announcement.
+No complete amended controlling package was located in the bounded Oct27
+retrieval. The index still links the March25,2025 package. This is a retrieval
+blocker, not proof that no other publication exists. Announcement facts alone
+are insufficient to release the future numerical ruleset.
+
+Jurisdiction review
+Fresh IRCC EN/FR PNP pages explicitly exclude Quebec and Nunavut. Quebec's
+own skilled-worker selection page separates provincial selection/CSQ from the
+subsequent federal permanent-residence application. No supported active stream
+exists in the current registry: all are references UNDER_REVIEW with unknown
+intake. Empty active recommendations are intentional. No open/eligible claim is
+made from existence, NOC, French language or a province name. The prior source
+check date remains honest; no unreviewed stream is silently promoted.
+Sources: https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/provincial-nominees/non-express-entry/eligibility.html
+https://www.quebec.ca/en/immigration/permanent/choose-quebec
+
+Offer comparison and recommendation (requires owner approval)
+Fixed-duration pass: clear expiration, no renewal surprise, support mostly
+refund/expiration. Requires changing the current subscription checkout, paid
+period reconciliation and grant lifecycle; repeat test-provider acceptance.
+Recurring subscription: predictable renewal receipts, more cancellation/refund
+support, requires unmistakable renewal consent. Existing implementation already
+uses mode=subscription and verified paid periods. Lowest-change initial model:
+Pro CAD39 recurring every30days with explicit consent and easy cancellation.
+Defer selling Premium until incremental delivered benefits are separately proved.
+Do not implement or activate a model/policy change in this mission.
+
+Truthful EN copy proposal
+Free: organize your profile, four-skill language evidence, household/cases and
+incomplete preparation; preserve saved Forms answers.
+Pro: saved preparation drafts and DOCX exports with verified current paid access.
+AI assistance depends on provider availability and is not legal advice.
+Numerical CRS and active-stream eligibility recommendations are not included
+while their release review is incomplete. No guarantee of an invitation,
+application completeness, approval or submission readiness.
+Pro CAD39 every30days, automatically renewed until cancelled. This is not a
+one-time pass or a calendar-month price. Cancellation stops future renewal;
+current verified paid access lasts until its displayed end date.
+Premium CAD99 every90days is a hypothesis, not a recommendation to buy; do not
+sell unsupported extra intelligence or guaranteed priority AI.
+
+Proposition FR
+Gratuit : organisez votre profil, vos preuves linguistiques, votre ménage et
+vos dossiers; conservez les réponses et la préparation incomplète.
+Pro : brouillons de préparation enregistrés et exportations DOCX, sous réserve
+d'un accès payé actuel confirmé. L'IA dépend du fournisseur et ne constitue
+pas un avis juridique. Aucun calcul SCG ni recommandation d'admissibilité à un
+volet actif pendant la révision; aucune garantie d'invitation ou d'approbation.
+Pro39CAD tous les30jours, renouvelé automatiquement jusqu'à annulation.
+Ce n'est ni un laissez-passer unique ni un tarif par mois civil. L'annulation
+arrête les renouvellements; l'accès payé confirmé demeure jusqu'à la date
+affichée. Premium99CAD tous les90jours reste une hypothèse commerciale.
+
+Refund/support proposal, NOT approved legal terms
+Propose a7-day first-purchase refund on request; investigate duplicate or
+unauthorized charges and service outages promptly. Mandatory consumer rights
+must remain intact; legal/owner review must settle applicability before sale.
+Renewal refunds require an explicit approved policy. No automatic revocation
+is introduced; only a verified refund plus approved access policy may change
+entitlement. Existing refund events remain audit-only/operator review.
+Use in-app Beta Feedback for the existing beta; verify and publish a durable
+billing-support contact before first payment. Do not invent an email address.
+Proposed acknowledgment: one business day, subject to owner capacity approval.
+Collect only account reference, approximate payment time and request ID. Never
+request card details, passwords, immigration documents or credentials by email.
+Cancellation: sign in, open Pricing/billing management, cancel renewal, confirm
+the paid-period end date; verify in provider and local access on refresh.
+Do not promise an untested portal or SLA. No terms were published.
+
+Economics, illustrative only
+Published Canada standard domestic processing:2.9%+CAD0.30. Recurring Billing
+pay-as-you-go assumption adds0.7%; actual merchant contract is unverified.
+Source: https://stripe.com/en-ca/pricing (checked2026-10-27).
+At39CAD, estimated rounded fees1.70, AI1, support5 and refund reserve1.95 leave
+29.35 per30-day period before fixed infrastructure.5Pro contributes146.75 and
+is53.25 below200 infrastructure.10Pro contributes293.50, leaving93.50 after
+infrastructure. Estimated infrastructure break-even:7Pro.
+Stress: AI5, support10, refund reserve10% gives18.40 contribution;10Pro leaves
+-16 after infrastructure; break-even11Pro. These are estimates, not measured
+margins. Acquisition, taxes, FX, international/manual card surcharges and
+disputes are excluded. First CAD500 gross:13Pro initial charges=507;5Pro=195.
+Premium99 every90days is33 per30-day equivalent, not99 monthly revenue.
+
+Analytics remediation and limits
+Added content-free saved-draft/document creation events after successful commits.
+Offline cohort exports now bound retention to at most30days and exclude future
+and expired events. Access is authenticated/rate-limited for event intake; there
+is no public cohort export endpoint. HMAC pseudonyms, no raw identifiers/answers.
+Actual log-sink deletion/retention and operator access controls remain unverified
+and must be evidenced before analytics enablement. A filtering function is not
+proof of deletion from a log provider. AI tokens may be measured; costs remain
+unknown without authoritative rates/invoice reconciliation. Unit economics
+explicitly estimates AI, support and refunds; it never calls them measured.
+
+Additional acceptance findings
+Fresh language review added35 independent source rows, covering280 lower-bound
+and immediately-below assertions across IELTS General, CELPIP General, PTE Core,
+TEF previous-score equivalency and TCF Canada. FSW selection-grid points are
+not CRS language points; only the CLB/NCLC equivalence is reused. Top published
+bands remain at-least10, never inferred11/12.
+The full browser run exposed a deterministic pricing feedback-draft loss during
+billing completion: the loading branch returned Layout while the loaded branch
+introduced a Context.Provider above it. React remounted Layout and its feedback
+widget. Both branches now share the same Provider/Layout shape. The existing
+regression waits for the loaded pricing heading before asserting draft retention.
+No entitlement or checkout boundary is changed.
+Illustrative economics additionally exclude unmeasured storage, transfers and
+email costs. No measured contribution margin or guaranteed profit is claimed.
+
+Real Stripe TEST lifecycle established a refund audit mismatch on the SDK current invoice shape: payment_intent and subscription moved into payments/parent, and stored CAD compared case-sensitively to provider cad. The narrow local correction resolves a single fully paid, identity-checked invoice payment, preserves legacy shape, uses the existing subscription-parent helper, and normalizes currency only for matching. Ambiguous/partial payments remain human reconciliation; no automatic refund entitlement policy. Regression coverage uses provider-observed field structure and negative identity cases.
+
+Real-provider correction verification: actual Stripe TEST API initial payment, 30-day renewal, collection decline, fail-closed entitlement, successful retry/recovery, refund, matched pending-human-review audit, scheduled cancellation, period-end cancellation/expiration and account isolation passed. Events were genuinely provider-signed and forwarded by the verified Stripe CLI to a loopback-only receiver. No webhook processing errors. Both synthetic test clocks were deleted and their four tagged test products/prices archived. Hosted Checkout UI success and signed checkout-event replay are separate checks and remain pending until completed; API payments do not replace those checks.
+
+Final backend validation after the provider-observed audit correction: 1,636 passed, zero failed/skipped; actual synthetic PostgreSQL 18.3 executed and stopped afterward. Focused billing/entitlement/commercial 490 passed. Frontend contracts 13 passed; lint/build/launch smoke/diff check passed. Final 68-case browser run: 67 passed, one account-switch in-flight Forms test timed out at the unchanged 90-second limit. Its two unchanged variants are being isolated for diagnosis; the full-run timeout must remain reported.
+Hosted test Checkout did not complete within its bounded 20-minute human interaction window. No hosted success or checkout-event replay is claimed. Both open sessions expired, their two synthetic customers deleted and two tagged products/prices archived. Real test-clock lifecycle independently passed and its disposable resources were cleaned. No real charges or production writes.
+
+Isolated Forms account-switch rerun completed: both pending-debounce and in-flight-response tests passed unchanged (25.0s and 15.8s; 3.1m including startup). All 68 unique cases passed across runs, but the single full-run timeout is retained and not called a wholly green full run. Its cause is not conclusively established; observed local memory pressure is not proof of causation. A terminating local test-server file lock delayed the rerun, then released naturally; no process was force-stopped. No timeouts or assertions changed.
+
+
+SPRINT 3 TARGETED CLOSURE — OWNER REVIEW DRAFT — 2026-10-27
+This section supersedes earlier draft offer wording for review only. Nothing is
+published, accepted on behalf of a customer, or enabled by this document.
+
+Selected recommendation and implementation fit
+Recommend recurring Pro, CAD 39 every 30 days, for the initial preparation-only
+offer. Existing Checkout uses mode=subscription, CAD 3900 cents and a recurring
+day interval_count=30. Premium is configured CAD 9900 cents / 90 days using the
+same subscription lifecycle. Fixed-duration passes would require different
+Checkout/grant semantics and a new provider review; do not describe current
+subscriptions as passes. Premium incremental benefits remain unproved: retain
+it as a review proposal and do not sell it as better immigration intelligence.
+November 3 numerical activation is NOT a prerequisite for this preparation-only
+Pro offer. Numerical CRS and all automatic rule activation remain disabled.
+
+EN — proposed customer-facing price and renewal disclosures
+Pro: CAD 39 every 30 days, automatically renewed until you cancel. It is not a
+one-time purchase and not a calendar-month subscription. Your first charge is
+CAD 39; subsequent charges are CAD 39 every 30 days, subject to any applicable
+tax clearly shown before payment. No tax treatment or collection setup has been
+verified by this draft. Do not add a tax charge without separate configuration
+and acceptance. The checkout total and next renewal date must be visible before
+consent. Saved preparation drafts and DOCX exports require verified current paid
+access. AI-assisted text depends on provider availability; no unlimited usage,
+priority service or guaranteed output is promised.
+Premium proposal: CAD 99 every 90 days, automatically renewed until cancelled;
+not CAD 99 monthly and not a one-time 90-day pass. Its incremental benefits must
+be approved and demonstrated before sale. Do not infer benefits from the price.
+The service organizes information and supports preparation; it does not provide
+legal representation, verify immigration eligibility, guarantee an invitation,
+calculate an activated numerical CRS, or certify an application ready to submit.
+Existing Free saved information is preserved; cancellation does not delete it.
+
+FR — proposition de prix et de renouvellement
+Pro : 39 CAD tous les 30 jours, renouvelé automatiquement jusqu'à l'annulation.
+Il ne s'agit ni d'un paiement unique ni d'un abonnement par mois civil. Le premier
+paiement est de 39 CAD; les suivants sont de 39 CAD tous les 30 jours, sous réserve
+des taxes applicables clairement indiquées avant le paiement. Ce document ne
+valide pas le traitement ni la perception des taxes. Le total et la prochaine
+date de renouvellement doivent être visibles avant le consentement. Les
+brouillons enregistrés et les exportations DOCX nécessitent un accès payé actuel
+confirmé. L'assistance IA dépend du fournisseur; aucun usage illimité, traitement
+prioritaire ou résultat garanti n'est promis.
+Proposition Premium : 99 CAD tous les 90 jours, renouvelé automatiquement jusqu'à
+annulation; ni 99 CAD par mois ni un laissez-passer à paiement unique. Les
+avantages supplémentaires doivent être validés et approuvés avant toute vente.
+La plateforme aide à organiser et à préparer l'information. Elle ne représente
+pas le client, ne confirme pas son admissibilité, ne garantit pas d'invitation,
+n'active aucun calcul numérique SCG et ne certifie pas un dossier prêt à déposer.
+L'annulation ne supprime pas les renseignements gratuits déjà enregistrés.
+
+Proposed refund policy — owner/legal review required; not operative
+1. Full refund of the first subscription charge when requested within seven
+   calendar days of that charge. The request does not require immigration
+   documents, explanations of eligibility or disclosure of draft contents.
+2. Proposed renewal courtesy window: full refund requested within 48 hours of a
+   renewal charge. Outside that window, support reviews duplicate/unauthorized
+   charges, a material inability to access the paid service and mandatory rights.
+   No blanket exclusion of statutory rights is proposed.
+3. Cancellation and refund are separate actions. Cancellation alone does not
+   issue a refund. A refund event currently creates an audit item for human
+   review; it does not automatically revoke, extend or restore paid entitlement.
+   Support must state the verified remaining access date and whether renewals
+   are cancelled. Do not promise automated refund entitlement adjustments.
+4. Approved refunds return through Stripe to the original payment method.
+   Do not promise a bank settlement time; provider/bank processing varies.
+5. Log only the account/request reference, charge reference privately, decision,
+   amount and time. Never request card data, passwords or immigration answers.
+
+Proposition de remboursement — validation propriétaire/juridique requise
+Remboursement intégral du premier paiement demandé dans les sept jours civils;
+proposition de courtoisie pour un renouvellement demandé dans les 48 heures.
+Les paiements en double ou non autorisés, les défaillances importantes d'accès
+et les droits impératifs restent soumis à une révision humaine. L'annulation
+n'émet pas un remboursement. Un événement de remboursement crée actuellement
+une entrée d'audit, sans modification automatique des droits d'accès. Le soutien
+confirme séparément la date d'accès et l'arrêt éventuel des renouvellements.
+Le retour s'effectue vers le moyen de paiement initial; aucun délai bancaire
+n'est garanti. Ne fournissez jamais de données de carte ni de documents
+personnels d'immigration pour demander un remboursement.
+
+Support and cancellation procedure — reviewable operating proposal
+Existing beta: use the in-account Beta Feedback control. Public billing-support
+email/contact URL: OWNER CONFIRMATION REQUIRED before taking a first payment.
+A customer locked out needs that public alternative; do not rely solely on an
+authenticated feedback widget. Do not invent an address or promise staffed hours.
+Proposed acknowledgement target: one business day, subject to owner capacity
+approval; distinguish it from a resolution guarantee.
+Triage: verify account ownership through the normal account-recovery process;
+never request passwords/OTPs/card credentials. Check the private provider payment
+and current entitlement, avoid duplicate refunds, record the decision, and
+confirm renewal/access status without exposing another account.
+Cancellation EN: sign in, open Pricing, select "Cancel subscription", confirm
+cancellation at the end of the paid period, then verify the displayed paid-period
+end and scheduled cancellation. Refresh to confirm the state. If locked out,
+use the owner-confirmed public support channel. Do not promise portal behavior
+or email delivery when its provider is unconfigured.
+Annulation FR : connectez-vous, ouvrez la tarification, choisissez "Annuler
+l'abonnement", confirmez la fin de la période payée, puis vérifiez la date de fin
+et l'annulation programmée. Actualisez pour confirmer. En cas d'accès impossible,
+utilisez le contact public confirmé par le propriétaire. Aucun courriel ni portail
+non vérifié n'est promis. L'annulation arrête le renouvellement futur et conserve
+seulement la période payée confirmée; elle n'est pas une demande de remboursement.
+
+Analytics closure: local proof versus deployed proof
+Local intake is authenticated, self-user scoped and rate-limited; clients cannot
+supply another actor/user ID or immigration/payment fields. No cohort, event-list
+or other-user analytics read endpoint is exposed. HMAC pseudonyms are still
+pseudonymous personal data, not a claim of anonymization. Default-disabled intake
+emits no new event. Offline reporting excludes dates outside a maximum 30-day
+window but DOES NOT delete supplied rows or raw sink logs; a regression enforces
+that distinction. Conversion aggregation deduplicates HMAC provider references;
+it is not a financial ledger or universal exactly-once client activity store.
+Deployed log-sink retention settings, role membership, deletion and backups are
+NOT locally verifiable. No production setting is changed or presumed verified.
+Do not enable PRODUCT_ANALYTICS_ENABLED before operator evidence shows: selected
+sink/region; least-privilege operator roles and no customer access; at most 30-day
+raw-event retention; expiry/deletion receipts including archive/backup lifecycle;
+and a successful synthetic expiry/erasure rehearsal without private user data.
+User erasure requires an approved operator process for the pseudonymous actor;
+no product erasure API is claimed. No deletion was performed on production logs.
+The initial preparation-only offer may exclude analytics entirely. Keep it
+explicitly disabled and verify that flag during separately authorized release
+preflight. Missing telemetry deployment evidence does not justify inventing a
+new analytics store or enabling it, and November numerical rules are independent
+of offering paid preparation.
+
+Historical timeout trace inspection: synthetic setup/navigation reached about 40 seconds; the first-use dismissal click then took 36.84 seconds. This consumed most of the unchanged 90-second overall test budget before the eventual fill failure. It supports budget exhaustion during setup/interaction, not proof of an account-isolation defect or a proven underlying resource cause. No test assertions, retries or application timeouts were changed.
+
+Targeted closure final validation: 501 affected backend/billing/privacy/PostgreSQL/warning-policy tests passed, zero failed/skipped; baseline complete backend 1,636 retained. Fresh frontend contracts 13 passed, lint/build/launch smoke/diff check passed. One fresh complete browser suite passed all 68 tests, zero failed/skipped, in 17.3 minutes, with unchanged 90-second test and 30-second assertion budgets and zero retries. Both historical account-switch variants passed in that full run (11.2s pending debounce; 14.0s in-flight). Real hosted Stripe TEST acceptance and genuine signed replay passed; new test resources cleaned.
+Review scope: preparation-only Pro with analytics, numerical CRS and automatic rule activation disabled; Premium sale deferred. Analytics local disabled-mode/minimization/access tests pass; deployed log retention/deletion/access evidence remains unverified and blocks analytics enablement, not an analytics-free preparation offer. Owner approval of terms and a monitored public billing contact remain first-payment prerequisites. No commit, push, deployment, production migration or production write occurred. No legal terms were published.
+SPRINT 3 COMMERCIAL ACCEPTANCE PASS — READY FOR RELEASE REVIEW
+
+SPRINT 3 RELEASE REVIEW — 2026-10-27
+Owner expanded the exact manifest from 32 to 33 for preparation-only landing copy, then to 35 for the approved document-review API/page copy patch. The two copy paths preserve status codes, response structure, entitlement decisions, layout and navigation. Pricing/generic upgrade copy avoids unverified Premium sales, unsupported social proof and queued-email promises. New Premium Checkout is rejected while existing verified Premium access remains supported. A synthetic probe reproduced that an active/past-due binding could create a second Checkout; the existing billing path now verifies subscription identity and terminal status before another potentially chargeable session. Verified terminal subscriptions can restart; provider or identity failure blocks creation; existing grants are unchanged.
+Final EN/FR A–F terms are private in Sprint3-Commercial-Terms-Owner-Review.txt and require owner/legal review; no publication occurred. billing@northbridgeia.com has Google MX routing but remains UNVERIFIED at mailbox/reachability/monitoring level. No message was sent or mailbox contents read. Live Stripe activation is BLOCKED pending live configuration and commercial approval. Analytics stays disabled pending deployed access, retention, deletion and owner evidence; a report filter is not deletion.
+
+Release review final validation (2026-10-27): 1,648 complete backend tests passed, zero failed/skipped, including actual isolated PostgreSQL 18.3 execution; 510 focused billing/commercial/PostgreSQL/warning-policy checks are included. Frontend contracts 13 passed; lint, production build, launch smoke and diff check passed. Fresh complete browser suite: 70 passed, zero failed/skipped, in 13.7 minutes; retries remained zero and test/assertion budgets were unchanged. The four focused EN/FR commercial/landing checks also passed. The two approved document-review paths change only copy; API AST and frontend layout/navigation checks passed. All validation is local/synthetic, not new production acceptance.

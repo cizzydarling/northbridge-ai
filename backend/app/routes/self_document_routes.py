@@ -1,3 +1,4 @@
+from app.services.product_analytics import emit as emit_product_event
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
@@ -228,6 +229,7 @@ async def upload_self_document_file(
 
     db.commit()
     db.refresh(document)
+    emit_product_event(current_user.id, "document_used", plan=getattr(current_user, "plan", "other"))
     return document
 
 

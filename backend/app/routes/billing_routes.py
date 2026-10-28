@@ -1,3 +1,4 @@
+from app.services.product_analytics import emit as emit_product_event
 import os
 import logging
 from datetime import datetime, timezone
@@ -183,6 +184,8 @@ def _stripe_ready() -> bool:
 
 
 def ensure_stripe_configured() -> None:
+    if os.getenv("TEST_CHECKOUT_ENABLED") == "true" and not test_checkout_enabled():
+        raise HTTPException(403, "Isolated test payment configuration required")
     if not _stripe_ready():
         raise HTTPException(status_code=500, detail="Stripe secret key is not configured.")
 
@@ -339,6 +342,33 @@ def _upsert_billing_transaction(
     return transaction
 
 
+def _invoice_payment_intent(invoice: Any) -> str | None:
+    """Resolve one paid invoice payment across legacy and current Stripe APIs."""
+    legacy = _stripe_id(_stripe_get(invoice, "payment_intent"))
+    if legacy:
+        return legacy
+    invoice_id = _stripe_id(invoice)
+    payments = _stripe_get(invoice, "payments")
+    if payments is None and invoice_id:
+        expanded = stripe.Invoice.retrieve(invoice_id, expand=["payments"])
+        if (_stripe_id(expanded) != invoice_id
+                or _stripe_id(_stripe_get(expanded, "customer")) != _stripe_id(_stripe_get(invoice, "customer"))):
+            return None
+        payments = _stripe_get(expanded, "payments")
+    rows = _stripe_get(payments, "data", []) or []
+    if _stripe_get(payments, "has_more", False) or len(rows) != 1:
+        return None  # Multiple/partial payments require human reconciliation.
+    row = rows[0]
+    payment = _stripe_get(row, "payment", {}) or {}
+    if (_stripe_get(row, "status") != "paid"
+            or _stripe_id(_stripe_get(row, "invoice")) != invoice_id
+            or _stripe_get(row, "amount_paid") != _stripe_get(invoice, "amount_paid")
+            or str(_stripe_get(row, "currency") or "").lower() != str(_stripe_get(invoice, "currency") or "").lower()
+            or _stripe_get(payment, "type") != "payment_intent"):
+        return None
+    return _stripe_id(_stripe_get(payment, "payment_intent"))
+
+
 def _record_checkout_transaction(
     db: Session,
     *,
@@ -384,7 +414,7 @@ def _record_checkout_transaction(
         ),
         stripe_customer_id=_stripe_get(session, "customer"),
         stripe_subscription_id=_stripe_get(session, "subscription"),
-        stripe_payment_intent_id=_stripe_get(session, "payment_intent"),
+        stripe_payment_intent_id=_stripe_id(_stripe_get(session, "payment_intent")) or (_invoice_payment_intent(invoice) if invoice else None),
         receipt_url=_stripe_get(invoice, "hosted_invoice_url") if invoice else None,
         invoice_pdf=_stripe_get(invoice, "invoice_pdf") if invoice else None,
         paid_at=_stripe_datetime(
@@ -435,8 +465,8 @@ def _record_invoice_transaction(
         billing_email=_first_present(_stripe_get(invoice, "customer_email"), user.email),
         customer_name=_stripe_get(invoice, "customer_name"),
         stripe_customer_id=_stripe_get(invoice, "customer"),
-        stripe_subscription_id=_stripe_get(invoice, "subscription"),
-        stripe_payment_intent_id=_stripe_get(invoice, "payment_intent"),
+        stripe_subscription_id=_invoice_subscription_id(invoice),
+        stripe_payment_intent_id=_invoice_payment_intent(invoice),
         receipt_url=_stripe_get(invoice, "hosted_invoice_url"),
         invoice_pdf=_stripe_get(invoice, "invoice_pdf"),
         paid_at=_stripe_datetime(_stripe_get(invoice, "created")),
@@ -913,6 +943,7 @@ def _apply_checkout_session(
         raise HTTPException(status_code=409, detail="Subscription payment is not verified.")
     transaction = _safe_record_checkout_transaction(db, user=updated_user, session=session, plan=updated_user.plan)
     _safe_send_payment_confirmation_email(db, user=updated_user, transaction=transaction)
+    emit_product_event(updated_user.id, "checkout_conversion", plan=updated_user.plan, idempotency_key=_stripe_id(session))
     return updated_user
 
 
@@ -932,8 +963,30 @@ def _user_payload(user: User) -> dict:
     }
 
 
+def test_checkout_enabled() -> bool:
+    """Explicit Stripe test mode only on a disposable local database and origin."""
+    from sqlalchemy.engine import make_url
+    from urllib.parse import urlsplit
+    from app.rules.monitor_cli import safe_local_database
+    from pathlib import Path
+    if os.getenv("TEST_CHECKOUT_ENABLED") != "true":
+        return False
+    environment = os.getenv("APP_ENV", "").strip().lower()
+    if environment not in {"test", "local", "development"} or not str(stripe.api_key or "").startswith("sk_test_"):
+        return False
+    try:
+        url = make_url(os.getenv("DATABASE_URL", ""))
+        local_db = (url.get_backend_name() == "sqlite" and url.database in (None, "", ":memory:") and not url.query) or safe_local_database(url, Path(__file__).resolve().parents[3])
+        origin = urlsplit(FRONTEND_URL)
+        return bool(local_db and origin.scheme == "http" and origin.hostname in {"localhost", "127.0.0.1", "::1"} and not origin.username and not origin.password and STRIPE_WEBHOOK_SECRET)
+    except (ValueError, TypeError):
+        return False
+
+
 def paid_checkout_enabled() -> bool:
-    """Only an explicit true enables new checkout creation, in every environment."""
+    """Live checkout retains its explicit gate; test mode never enables production."""
+    if os.getenv("TEST_CHECKOUT_ENABLED") == "true":
+        return test_checkout_enabled()
     return os.getenv("PAID_CHECKOUT_ENABLED", "").strip().lower() == "true"
 
 
@@ -941,6 +994,8 @@ def paid_checkout_enabled() -> bool:
 def list_billing_plans():
     return {
         "checkout_available": paid_checkout_enabled(),
+        "payment_mode": "test" if test_checkout_enabled() else "live_disabled" if not paid_checkout_enabled() else "live",
+        "offers": [{"plan": p, "amount_cad_cents": STRIPE_PLAN_CONFIG[p]["unit_amount"], "period_days": STRIPE_PLAN_CONFIG[p]["interval_count"], "recurring": True, "available_for_purchase": paid_checkout_enabled() and p == "individual_pro"} for p in ("individual_pro", "individual_premium")],
         "reason": None if paid_checkout_enabled() else "beta_checkout_disabled",
         "available_plans": ["free", "pro", "premium"],
         "stripe_configured": {
@@ -1102,12 +1157,30 @@ def create_checkout_session(
     selected_plan = _normalize_plan(payload.get("plan"))
     if selected_plan == "agent_pro":
         raise HTTPException(status_code=403, detail="Agent checkout is not available during the individual soft launch.")
+    if selected_plan == "individual_premium":
+        raise HTTPException(status_code=403, detail={"code": "premium_offer_unavailable",
+            "message": "Premium is not offered for sale."})
     ensure_stripe_configured()
     ensure_confirmed_email(current_user)
     require_global_disclosures_accepted(db, current_user)
 
     if selected_plan == "free":
         raise HTTPException(status_code=400, detail="Free plan does not require checkout.")
+
+    # A new Checkout cannot replace a nonterminal binding during synchronization.
+    # Verify that binding before creating another potentially chargeable session.
+    if current_user.stripe_subscription_id:
+        try:
+            existing = stripe.Subscription.retrieve(current_user.stripe_subscription_id)
+        except Exception as exc:
+            raise HTTPException(503, "Unable to verify existing subscription.") from exc
+        if (_stripe_id(existing) != current_user.stripe_subscription_id
+                or not current_user.stripe_customer_id
+                or _stripe_id(_stripe_get(existing, "customer")) != current_user.stripe_customer_id):
+            raise HTTPException(409, "Existing subscription identity could not be verified.")
+        if _stripe_get(existing, "status") not in {"canceled", "incomplete_expired"}:
+            raise HTTPException(409, detail={"code": "existing_subscription",
+                "message": "Manage your existing subscription before starting another checkout."})
 
     customer_id = get_or_create_stripe_customer(current_user, db)
     line_item = get_checkout_line_item_for_plan(selected_plan)
@@ -1134,6 +1207,9 @@ def create_checkout_session(
         },
     )
 
+    if test_checkout_enabled() and _stripe_get(session, "livemode") is not False:
+        raise HTTPException(502, "Test-mode checkout response was not verified")
+    emit_product_event(current_user.id, "checkout_started", plan=current_user.plan, idempotency_key=session.id)
     return {"id": session.id, "url": session.url}
 
 
@@ -1151,6 +1227,8 @@ def sync_checkout_session(
 
     session = stripe.checkout.Session.retrieve(session_id)
 
+    if os.getenv("TEST_CHECKOUT_ENABLED") == "true" and (not test_checkout_enabled() or _stripe_get(session, "livemode") is not False):
+        raise HTTPException(409, "Test-mode session was not verified")
     if _stripe_id(session) != session_id:
         raise HTTPException(status_code=409, detail="Checkout session identity mismatch.")
     user = _apply_checkout_session(db, session, current_user=current_user)
@@ -1255,6 +1333,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    if os.getenv("TEST_CHECKOUT_ENABLED") == "true" and (not test_checkout_enabled() or event.get("livemode") is not False):
+        raise HTTPException(400, "Test webhook mode mismatch")
     event_type = event["type"]
     data = event["data"]["object"]
 

@@ -573,7 +573,7 @@ export default function DocumentReviewPage() {
         unlockProBody:
           "Débloquez l’analyse complète, les actions d’amélioration détaillées et la boucle complète de révision.",
         upgradeToPro: "Passer à Pro",
-        upgradeToPremium: "Passer à Premium",
+        upgradeToPremium: "Voir la disponibilité de l’export",
         strengths: "Points forts",
         concerns: "Risques / faiblesses",
         missingSupport: "Éléments potentiellement manquants",
@@ -614,12 +614,12 @@ export default function DocumentReviewPage() {
         applyImprovements: "Appliquer les améliorations au générateur",
         markReviewed: "Marquer comme révisé",
         premiumBar:
-          "Pro débloque l’analyse complète et la boucle d’amélioration. Premium s’intègre au flux avancé global.",
+          "Pro permet la révision et la modification de préparation. La révision ne confirme ni l’admissibilité ni la préparation au dépôt.",
         finalizeDocument: "Finaliser le document",
         improveFurther: "Améliorer encore",
         premiumReadyTitle: "Votre brouillon est disponible",
         premiumReadyBody:
-          "Passez à Premium pour exporter un brouillon PDF à vérifier.",
+          "L’export PDF n’est pas inclus dans l’offre Pro. Premium n’est pas proposé à la vente.",
       };
     }
 
@@ -645,7 +645,7 @@ export default function DocumentReviewPage() {
       unlockProBody:
         "Unlock full analysis, detailed improvement actions, and the complete review loop.",
       upgradeToPro: "Upgrade to Pro",
-      upgradeToPremium: "Upgrade to Premium",
+      upgradeToPremium: "View export availability",
       strengths: "Strengths",
       concerns: "Concerns / risks",
       missingSupport: "Potentially missing support",
@@ -685,12 +685,12 @@ export default function DocumentReviewPage() {
       applyImprovements: "Apply improvements in generator",
       markReviewed: "Mark as reviewed",
       premiumBar:
-        "Pro unlocks full analysis and the improvement loop. Premium fits into the broader advanced workflow.",
+        "Pro supports preparation review and editing. The review does not establish eligibility or submission readiness.",
       finalizeDocument: "Finalize document",
       improveFurther: "Improve further",
       premiumReadyTitle: "Your draft is available",
       premiumReadyBody:
-        "Upgrade to Premium to export a draft PDF for review.",
+        "PDF export is not included in the Pro offer. Premium is not offered for sale.",
     };
   }, [language, reviewUsage]);
 
@@ -996,8 +996,8 @@ export default function DocumentReviewPage() {
         }
         premiumBody={
           language === "fr"
-            ? "Passez à Pro ou Premium pour des recommandations plus profondes."
-            : "Upgrade to Pro or Premium for deeper recommendations."
+            ? "Pro permet une assistance de préparation encadrée selon la disponibilité du fournisseur."
+            : "Pro supports bounded preparation assistance when the provider is available."
         }
         className="mb-6"
       />

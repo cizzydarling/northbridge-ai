@@ -20,7 +20,7 @@ def check_address(address):
 def configure_environment():
     # Never read production dotenv values, even to discover variable names.
     for key in list(os.environ):
-        if key.startswith(("STRIPE_", "SMTP_", "AWS_", "RESEND_", "OPENAI_", "DOCUMENT_STORAGE_")) or key in {"DATABASE_URL", "REDIS_URL", "SENTRY_DSN"}:
+        if key.startswith(("STRIPE_", "SMTP_", "AWS_", "RESEND_", "OPENAI_", "DOCUMENT_STORAGE_", "PRODUCT_ANALYTICS_")) or key in {"DATABASE_URL", "REDIS_URL", "SENTRY_DSN"}:
             os.environ.pop(key, None)
     admin = os.environ.get("TEST_POSTGRES_ADMIN_URL")
     if admin:

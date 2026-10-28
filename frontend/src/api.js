@@ -1186,3 +1186,7 @@ export const reviewCrsInputs = body => api.post("/assessments/crs", body);
 export const getRulesReviewQueue = () => api.get("/admin/rules-review");
 export const getProgramReferences = () => api.get("/program-registry");
 export const recordRulesReview = (id, data) => api.post(`/admin/rules-review/${id}/decisions`, data);
+
+export const getCrsPreparation = caseId => api.get(`/preparation/cases/${caseId}/crs-inputs`);
+export const saveCrsPreparation = (caseId, body) => api.put(`/preparation/cases/${caseId}/crs-inputs`, body);
+export const recordProductActivity = (event, surface) => api.post("/product/activity", { event, surface }).catch(() => null);

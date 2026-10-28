@@ -32,7 +32,7 @@ def record_refund_review(db, event, *, retrieve_charge):
         return
     payment = charge.get("payment_intent")
     rows = db.query(BillingTransaction).filter_by(stripe_payment_intent_id=payment).all() if isinstance(payment, str) else []
-    matched = [r for r in rows if r.stripe_customer_id == charge.get("customer") and r.currency == currency]
+    matched = [r for r in rows if r.stripe_customer_id == charge.get("customer") and str(r.currency or "").lower() == currency]
     transaction = matched[0] if len(matched) == 1 else None
     db.add(BillingReviewEvent(provider_event_id=event_id, event_type=kind,
         transaction_id=transaction.id if transaction else None, refunded_amount=amount,

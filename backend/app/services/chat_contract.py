@@ -422,6 +422,8 @@ def generate(*, message, language, context, client_factory):
                       {'role': 'user', 'content': json.dumps({'unverified_recorded_context': provider_context(context),
                                                             'request': message}, ensure_ascii=False)}],
         )
+        from app.services.product_analytics import record_provider_usage
+        record_provider_usage(getattr(completion, "usage", None))
         choice = completion.choices[0]
         if choice.finish_reason != 'stop' or choice.message.refusal:
             return fallback(language)

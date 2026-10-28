@@ -20,10 +20,14 @@ import {
 
 const CheckoutContext = createContext({ available: false, label: "Beta access by invitation" });
 
-function CheckoutButton({ paid = true, children, ...props }) {
+function CheckoutButton({ paid = true, plan = "pro", children, ...props }) {
+  const { i18n } = useTranslation();
   const { available, label } = useContext(CheckoutContext);
   if (paid && !available) {
     return <p data-testid="beta-checkout-disabled" className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">{label}</p>;
+  }
+  if (paid && plan === "premium") {
+    return <p data-testid="premium-offer-unavailable" className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">{i18n.language === "fr" ? "Premium n’est pas proposé à la vente." : "Premium is not offered for sale."}</p>;
   }
   return <Button {...props}>{children}</Button>;
 }
@@ -402,6 +406,7 @@ function PricingHero({
                 </CheckoutButton>
                 <CheckoutButton
                   variant="secondary"
+                  plan="premium"
                   onClick={onPremium}
                   loading={checkoutLoadingPlan === "premium"}
                   disabled={checkoutLoadingPlan === "premium"}
@@ -605,6 +610,7 @@ function PlanCard({
         ) : (
           <CheckoutButton
             paid={plan.key !== "free"}
+            plan={plan.key}
             onClick={onSelect}
             disabled={loading}
             loading={loading}
@@ -759,6 +765,10 @@ export default function PricingPage() {
   }, [cancelledFlag, language, searchParams, setSearchParams]);
 
   async function handleCheckout(plan) {
+    if (plan === "premium") {
+      setMessage(language === "fr" ? "Premium n’est pas proposé à la vente." : "Premium is not offered for sale.");
+      return;
+    }
     if (!checkoutAvailable) {
       setMessage(betaLabel);
       return;
@@ -993,7 +1003,7 @@ export default function PricingPage() {
         brand: "NorthBridgeAI",
         title: "Choisissez le plan qui fait avancer votre dossier",
         subtitle:
-          "Commencez gratuitement, passez à Pro pour exécuter votre stratégie, puis choisissez Premium pour plus de temps et l’export final.",
+          "Commencez gratuitement. Pro ajoute les brouillons enregistrés et les exportations DOCX. Premium, proposé à 99 CAD pour 90 jours, n’est pas en vente.",
         currentPlan: "Plan actuel",
         billingStatus: "Statut",
         manageBilling: "Gérer ma facturation",
@@ -1009,13 +1019,13 @@ export default function PricingPage() {
         cancelSuccessEmail:
           "Annulation programmée. Un courriel de confirmation a été envoyé.",
         cancelSuccessNoEmail:
-          "Annulation programmée. Le courriel de confirmation sera envoyé lorsque la configuration SMTP sera active.",
+          "Annulation programmée. Le courriel de confirmation est indisponible. Vérifiez la date de fin d’accès affichée.",
         cancellationScheduled: "Annulation programmée",
         cancellationBody:
           "Votre accès reste actif jusqu’à la fin de la période payée. Aucun renouvellement ne sera facturé.",
         accessUntil: "Accès jusqu’au",
         includedFeatures: "Inclus",
-        mostPopular: "Le plus populaire",
+        mostPopular: "Outils de préparation",
         startFree: "Commencer gratuitement",
         upgradeToPro: "Choisir Pro",
         upgradeToPremium: "Choisir Premium",
@@ -1038,18 +1048,18 @@ export default function PricingPage() {
         freeDesc:
           "Pour structurer votre profil, voir les premiers signaux et comprendre ce qui manque.",
         proDesc:
-          "Pour avancer maintenant avec stratégie complète, formulaires, documents et révision IA.",
+          "Pour avancer maintenant avec préparation enregistrée, formulaires, documents et révision IA.",
         premiumDesc:
-          "Pour préparer un dossier plus complet avec plus de temps et l’export PDF.",
+          "Pour une période de facturation proposée plus longue; les avantages supplémentaires restent à vérifier.",
         comparisonTitle: "Ce que chaque plan débloque",
-        strategy: "Stratégie complète",
+        strategy: "Préparation enregistrée",
         strategyPreview: "Aperçu de stratégie",
         formsPreview: "Aperçu des formulaires",
         formsDownload: "Téléchargement des formulaires",
         documents: "Génération de documents",
         review: "Révision IA",
         irccIntel: "Sources officielles IRCC et provinciales",
-        exports: "Export PDF",
+        exports: "Export DOCX de brouillon",
         citizenshipPractice: "Pratique de la citoyenneté et des langues",
         citizenshipProgress: "Progression citoyenneté sauvegardée",
         citizenshipPremiumPractice: "Examens blancs et pratique linguistique",
@@ -1085,7 +1095,7 @@ export default function PricingPage() {
         valueCards: [
           {
             title: "Clarté",
-            body: "Voyez ce qui manque, ce qui bloque et quelles actions comptent le plus.",
+            body: "Regroupez vos réponses et vos notes de préparation dans votre dossier.",
           },
           {
             title: "Vitesse",
@@ -1093,14 +1103,14 @@ export default function PricingPage() {
           },
           {
             title: "Contrôle",
-            body: "Choisissez Pro pour agir vite ou Premium pour finaliser avec plus de marge.",
+            body: "Pro ajoute les brouillons enregistrés et les exportations DOCX. Premium reste une proposition et n’est pas en vente.",
           },
         ],
         ctaTitle: "Quel plan choisir",
         ctaBody:
-          "Gratuit sert à explorer. Pro sert à exécuter. Premium sert à finaliser avec plus de temps et l’export PDF.",
+          "Gratuit conserve le profil, les dossiers et les réponses. Pro ajoute les brouillons et DOCX; Premium n’est pas en vente.",
         summaryTitle: "Abonnement",
-        premiumBadge: "Meilleure valeur",
+        premiumBadge: "Offre proposée",
         paymentConfirmed: "Accès débloqué",
         paymentConfirmedBody:
           "Votre abonnement est actif. Vous pouvez revenir au tableau de bord ou ouvrir votre stratégie.",
@@ -1109,24 +1119,24 @@ export default function PricingPage() {
         bestFitLabel: "Idéal si",
         freeFit: "vous voulez explorer avant de payer.",
         proFit: "vous êtes prêt à agir maintenant.",
-        premiumFit: "vous voulez finaliser un dossier plus complet.",
+        premiumFit: "l’offre proposée de 90 jours; les avantages supplémentaires restent à vérifier.",
         recommendedPlanLabel: "Recommandation",
         recommendedPro:
-          "Pro est le meilleur point de départ pour débloquer la stratégie complète et commencer l’exécution.",
+          "Pro ajoute les brouillons de préparation enregistrés et les exportations DOCX.",
         recommendedPremium:
-          "Premium est le meilleur choix pour l’export PDF et une préparation plus complète.",
+          "Premium reste une offre proposée de 90 jours et n’est pas en vente.",
         recommendationPill: "Recommandé",
         targetedTitle: "Parcours recommandé",
         targetedPro:
-          "Vous êtes arrivé ici pour débloquer la stratégie complète. Pro est le meilleur choix pour cette étape.",
+          "Pro inclut les brouillons de dossier enregistrés et les exportations DOCX pour cette préparation.",
         targetedPremium:
-          "Vous êtes arrivé ici pour l’export PDF ou une préparation plus complète. Premium est le meilleur choix.",
+          "Pro inclut les brouillons enregistrés et les exportations DOCX. Premium n’est pas en vente.",
         quickDecision: "Décision rapide",
         quickDecisionTitle: "Prêt à avancer ? Commencez avec Pro",
         quickDecisionBody:
-          "La plupart des utilisateurs choisissent Pro pour débloquer leur stratégie complète et commencer l’exécution.",
+          "Pro permet de créer des brouillons enregistrés et d’exporter en DOCX pendant la période payée confirmée.",
         quickDecisionCta: "Commencer avec Pro",
-        bottomCtaTitle: "Débloquez votre stratégie aujourd’hui",
+        bottomCtaTitle: "Enregistrez et exportez votre préparation",
         bottomCtaBody: "Passez à Pro pour commencer à avancer immédiatement.",
         bottomCtaPrimary: "Choisir Pro",
         bottomCtaSecondary: "Voir Premium",
@@ -1139,7 +1149,7 @@ export default function PricingPage() {
       brand: "NorthBridgeAI",
       title: "Choose the plan that moves your case forward",
       subtitle:
-        "Start free, move to Pro when you are ready to execute, then choose Premium when you want more time and final PDF export.",
+        "Start free. Pro adds saved preparation drafts and DOCX exports. Premium is a CAD 99 per 90-day proposal and is not offered for sale.",
       currentPlan: "Current plan",
       billingStatus: "Status",
       manageBilling: "Manage billing",
@@ -1155,13 +1165,13 @@ export default function PricingPage() {
       cancelSuccessEmail:
         "Cancellation scheduled. A confirmation email has been sent.",
       cancelSuccessNoEmail:
-        "Cancellation scheduled. The confirmation email will send when SMTP is configured.",
+        "Cancellation scheduled. Email confirmation is unavailable. Check the access end date shown here.",
       cancellationScheduled: "Cancellation scheduled",
       cancellationBody:
         "Your access remains active until the end of the paid billing period. No renewal will be charged.",
       accessUntil: "Access until",
       includedFeatures: "Included",
-      mostPopular: "Most popular",
+      mostPopular: "Preparation tools",
       startFree: "Start free",
       upgradeToPro: "Choose Pro",
       upgradeToPremium: "Choose Premium",
@@ -1184,18 +1194,18 @@ export default function PricingPage() {
       freeDesc:
         "For structuring your profile, seeing the first signals, and understanding what is missing.",
       proDesc:
-        "For moving now with full strategy, forms, documents, and AI review.",
+        "For moving now with saved preparation, forms, documents, and AI review.",
       premiumDesc:
-        "For preparing a fuller case with more time and final PDF export.",
+        "For a longer proposed billing period; additional benefits remain under review.",
       comparisonTitle: "What each plan unlocks",
-      strategy: "Full strategy",
+      strategy: "Saved preparation",
       strategyPreview: "Strategy preview",
       formsPreview: "Forms preview",
       formsDownload: "Forms download",
       documents: "Document generation",
       review: "AI review",
       irccIntel: "Official IRCC and provincial information",
-      exports: "PDF export",
+      exports: "Draft DOCX export",
       citizenshipPractice: "Unlimited citizenship quizzes",
       citizenshipProgress: "Saved citizenship progress",
       citizenshipPremiumPractice: "20-question mock exams and language practice",
@@ -1230,7 +1240,7 @@ export default function PricingPage() {
       valueCards: [
         {
           title: "Clarity",
-          body: "See what is missing, what is blocking you, and which actions matter most.",
+          body: "Keep your answers and preparation notes together in your case.",
         },
         {
           title: "Speed",
@@ -1238,14 +1248,14 @@ export default function PricingPage() {
         },
         {
           title: "Control",
-          body: "Choose Pro to move fast or Premium to finish with more room.",
+          body: "Pro adds saved preparation drafts and DOCX exports. Premium remains a proposal and is not offered for sale.",
         },
       ],
       ctaTitle: "Which plan should you choose",
       ctaBody:
-        "Free is for exploring. Pro is for execution. Premium is for finalizing with more time and PDF export.",
+        "Free preserves profile, case and Forms information. Pro adds saved preparation drafts and DOCX exports; Premium is not offered for sale.",
       summaryTitle: "Subscription",
-      premiumBadge: "Best value",
+      premiumBadge: "Proposed offer",
       paymentConfirmed: "Access unlocked",
       paymentConfirmedBody:
         "Your subscription is active. You can return to the dashboard or open your strategy.",
@@ -1254,24 +1264,24 @@ export default function PricingPage() {
       bestFitLabel: "Best when",
       freeFit: "you want to explore before paying.",
       proFit: "you are ready to act now.",
-      premiumFit: "you want to finish a fuller case.",
+      premiumFit: "the proposed 90-day offer; additional benefits remain under review.",
       recommendedPlanLabel: "Recommendation",
       recommendedPro:
-        "Pro is the best starting point to unlock the full strategy and begin execution.",
+        "Pro adds saved preparation drafts and DOCX exports.",
       recommendedPremium:
-        "Premium is the best choice for PDF export and fuller preparation.",
+        "Premium remains a proposed 90-day offer and is not offered for sale.",
       recommendationPill: "Recommended",
       targetedTitle: "Suggested path",
       targetedPro:
-        "You came here to unlock the full strategy. Pro is the best fit for this step.",
+        "Pro includes saved case drafts and DOCX exports for this preparation task.",
       targetedPremium:
-        "You came here for PDF export or fuller preparation. Premium is the best fit.",
+        "Pro includes saved preparation drafts and DOCX exports. Premium is not offered for sale.",
       quickDecision: "Quick decision",
       quickDecisionTitle: "Ready to move forward? Start with Pro",
       quickDecisionBody:
-        "Most users choose Pro to unlock the full strategy and begin execution.",
+        "Pro supports saved drafts and DOCX exports while verified paid access is current.",
       quickDecisionCta: "Start with Pro",
-      bottomCtaTitle: "Unlock your strategy today",
+      bottomCtaTitle: "Save and export your preparation",
       bottomCtaBody: "Upgrade to Pro and start moving forward immediately.",
       bottomCtaPrimary: "Choose Pro",
       bottomCtaSecondary: "See Premium",
@@ -1286,70 +1296,9 @@ export default function PricingPage() {
     );
 
     const planList = [
-      {
-        key: "free",
-        title: text.freeTitle,
-        price: text.freePrice,
-        description: text.freeDesc,
-        audience: text.explore,
-        cta: text.startFree,
-        fitNote: text.freeFit,
-        features: [
-          language === "fr" ? "Profil et orientation de base" : "Profile and basic direction",
-          language === "fr" ? "Aperçu de stratégie" : "Strategy preview",
-          language === "fr" ? "Choix du type de demande" : "Application type selection",
-          text.citizenshipPractice,
-          language === "fr" ? "Quiz de pratique illimités" : "Unlimited practice quizzes",
-          text.careerPreview,
-          language === "fr" ? "Prévisualisation des formulaires" : "Forms preview",
-        ],
-      },
-      {
-        key: "pro",
-        title: text.proTitle,
-        price: text.proPrice,
-        subprice: text.proSubprice,
-        description: text.proDesc,
-        audience: text.build,
-        featured: true,
-        cta: text.upgradeToPro,
-        fitNote: text.proFit,
-        features: [
-          text.strategy,
-          text.careerFull,
-          text.citizenshipProgress,
-          language === "fr" ? "Scores et thèmes faibles sauvegardés" : "Saved scores and weak-theme tracking",
-          text.formsDownload,
-          text.documents,
-          text.review,
-        ],
-      },
-      {
-        key: "premium",
-        title: text.premiumTitle,
-        price: text.premiumPrice,
-        subprice: text.premiumSubprice,
-        description: text.premiumDesc,
-        audience: text.accelerate,
-        cta: text.upgradeToPremium,
-        fitNote: text.premiumFit,
-        badge: text.premiumBadge,
-        features: [
-          language === "fr" ? "Tout dans Pro" : "Everything in Pro",
-          language === "fr" ? "Fenêtre de préparation plus longue" : "Longer preparation window",
-          language === "fr"
-            ? "Veille IRCC : rondes, délais et catégories"
-            : "IRCC intelligence: draws, times, and categories",
-          language === "fr"
-            ? "Liens Job Bank et sources provinciales"
-            : "Job Bank links and provincial sources",
-          text.citizenshipPremiumPractice,
-          language === "fr" ? "Examens blancs complets de 20 questions, sans limite d’essais" : "Full 20-question mock exams with no attempt cap",
-          text.careerAdvanced,
-          text.officialFinders,
-          text.exports,
-        ],
-      },
+      {key:"free",title:text.freeTitle,price:text.freePrice,description:text.freeDesc,audience:text.explore,cta:text.startFree,fitNote:text.freeFit,features:language === "fr" ? ["Profil et preuves linguistiques", "Ménage et dossiers", "Réponses de formulaires enregistrées", "Références officielles sans décision d’admissibilité"] : ["Profile and language evidence", "Household and cases", "Saved Forms answers", "Official references without eligibility findings"]},
+      {key:"pro",title:text.proTitle,price:text.proPrice,subprice:text.proSubprice,description:language === "fr" ? "Brouillons de préparation enregistrés et exportations DOCX avec un accès payé actuel confirmé." : "Saved preparation drafts and DOCX exports with verified current paid access.",audience:text.build,featured:true,cta:text.upgradeToPro,fitNote:text.proFit,features:language === "fr" ? ["Fonctions gratuites incluses", "Brouillons de dossier enregistrés", "Export DOCX de brouillon", "IA selon la disponibilité du fournisseur; aucun avis juridique"] : ["Free features included", "Saved case drafts", "Draft DOCX export", "AI depends on provider availability; no legal advice"]},
+      {key:"premium",title:text.premiumTitle,price:text.premiumPrice,subprice:language === "fr" ? "Hypothèse commerciale; avantages à vérifier" : "Pricing hypothesis; benefits under review",description:language === "fr" ? "Aucune promesse de SCG numérique, de volet admissible ou de dossier prêt à soumettre." : "No numerical CRS, eligible-stream or submission-readiness promise.",audience:text.accelerate,cta:text.upgradeToPremium,fitNote:text.premiumFit,badge:text.premiumBadge,features:language === "fr" ? ["Fonctions Pro incluses", "Période proposée de 90 jours", "Avantages supplémentaires à confirmer avant vente"] : ["Pro features included", "Proposed 90-day period", "Additional benefits must be confirmed before sale"]},
     ];
 
     return planList.filter((plan) => {
@@ -1359,42 +1308,18 @@ export default function PricingPage() {
     });
   }, [availablePlans, language, text]);
 
-  const comparisonRows = useMemo(
-    () => [
-      { label: text.strategy, free: text.limited, pro: text.yes, premium: text.yes },
-      { label: text.formsPreview, free: text.yes, pro: text.yes, premium: text.yes },
-      { label: text.formsDownload, free: text.no, pro: text.yes, premium: text.yes },
-      { label: text.documents, free: text.limitedUsage, pro: text.yes, premium: text.yes },
-      { label: text.review, free: text.limitedUsage, pro: text.yes, premium: text.yes },
-      { label: text.careerPreview, free: text.yes, pro: text.yes, premium: text.yes },
-      { label: text.careerFull, free: text.no, pro: text.yes, premium: text.yes },
-      { label: text.careerAdvanced, free: text.no, pro: text.no, premium: text.yes },
-      { label: text.citizenshipPractice, free: text.yes, pro: text.yes, premium: text.yes },
-      { label: text.citizenshipProgress, free: text.no, pro: text.yes, premium: text.yes },
-      { label: text.citizenshipPremiumPractice, free: text.no, pro: text.no, premium: text.yes },
-      { label: text.officialFinders, free: text.no, pro: text.no, premium: text.yes },
-      {
-        label:
-          language === "fr"
-            ? "Limite d’essais pour les examens blancs"
-            : "Mock exam attempt limit",
-        free: text.no,
-        pro: text.no,
-        premium: language === "fr" ? "Aucune" : "None",
-      },
-      { label: text.irccIntel, free: text.no, pro: text.limited, premium: text.yes },
-      { label: text.exports, free: text.no, pro: text.no, premium: text.yes },
-    ],
-    [language, text]
-  );
+  const comparisonRows = useMemo(() => [
+    {label:language === "fr" ? "Profil, ménage et dossiers" : "Profile, household and cases",free:text.yes,pro:text.yes,premium:text.yes},
+    {label:language === "fr" ? "Réponses de formulaires enregistrées" : "Saved Forms answers",free:text.yes,pro:text.yes,premium:text.yes},
+    {label:language === "fr" ? "Brouillons de dossier et DOCX" : "Case drafts and DOCX",free:text.no,pro:text.yes,premium:text.yes},
+    {label:language === "fr" ? "SCG numérique" : "Numerical CRS",free:text.notAvailable,pro:text.notAvailable,premium:text.notAvailable},
+    {label:language === "fr" ? "Décision d’admissibilité à un volet" : "Stream eligibility finding",free:text.notAvailable,pro:text.notAvailable,premium:text.notAvailable},
+  ], [language,text]);
 
   const recommendedPlan = useMemo(() => {
-    if (currentPlan === "premium") return null;
-    if (requestedPlan === "premium" && currentPlan !== "premium") return "premium";
-    if (requestedPlan === "pro" && currentPlan === "free") return "pro";
-    if (currentPlan === "pro") return "premium";
-    return "pro";
-  }, [currentPlan, requestedPlan]);
+    if (!checkoutAvailable) return null;
+    return currentPlan === "free" ? "pro" : null;
+  }, [currentPlan, checkoutAvailable]);
 
   const recommendedPlanMessage =
     recommendedPlan === "premium"
@@ -1414,7 +1339,7 @@ export default function PricingPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <CheckoutContext.Provider value={{ available: false, label: betaLabel }}><Layout>
         <div className="flex justify-center py-24">
           <div className="rounded-lg border border-slate-200 bg-white px-10 py-8 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
             <p className="text-lg font-medium text-slate-700">
@@ -1422,7 +1347,7 @@ export default function PricingPage() {
             </p>
           </div>
         </div>
-      </Layout>
+      </Layout></CheckoutContext.Provider>
     );
   }
 
@@ -1721,6 +1646,7 @@ export default function PricingPage() {
           </CheckoutButton>
           <CheckoutButton
             variant="secondary"
+            plan="premium"
             onClick={() => handleCheckout("premium")}
             disabled={checkoutLoadingPlan === "premium"}
             loading={checkoutLoadingPlan === "premium"}

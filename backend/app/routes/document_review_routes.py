@@ -37,8 +37,8 @@ def _build_preview(review_result: dict, language: str) -> dict:
         "is_premium": False,
         "locked": True,
         "upgrade_reason": _t(
-            "Upgrade to Premium to unlock the full AI review, deeper risk analysis, and fuller improvement guidance.",
-            "Passez à Premium pour débloquer la révision IA complète, une analyse de risque plus poussée et des conseils d’amélioration plus complets.",
+            "Pro provides the full preparation review for clarity and organization; it does not establish eligibility or submission readiness.",
+            "Pro donne accès à la révision de préparation complète pour la clarté et l’organisation; elle ne confirme ni l’admissibilité ni la préparation au dépôt.",
             language,
         ),
     }

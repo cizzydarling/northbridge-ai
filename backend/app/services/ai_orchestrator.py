@@ -697,11 +697,13 @@ def ask_self_user_copilot(
                 "profile_found": False, "strategy_loaded": False}
     try:
         context = build_self_user_ai_context(db=db, current_user=current_user, language=language)
-        result = ai_advisor.generate_ai_chat_reply(
-            message=message.strip(), language=language, profile=context["profile"],
-            application_context=(context.get("ai_context") or {}).get("application", {}),
-            plan=context.get("ai_plan", "free"),
-        )
+        from app.services.product_analytics import usage_scope
+        with usage_scope(current_user.id, context.get("ai_plan", "free")):
+            result = ai_advisor.generate_ai_chat_reply(
+                message=message.strip(), language=language, profile=context["profile"],
+                application_context=(context.get("ai_context") or {}).get("application", {}),
+                plan=context.get("ai_plan", "free"),
+            )
         # Do not add legacy strategic insights, upsells, pathways, or fallback prose.
         return {**result, "profile_found": context["profile_found"],
                 "strategy_loaded": False, "language": language}

@@ -1,3 +1,5 @@
+from app.services.product_analytics import emit as emit_product_event
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -54,6 +56,10 @@ def get_app_bootstrap(
     profile_complete = is_agent or is_profile_complete(profile)
 
     missing_disclosures = get_missing_required_disclosures(db, current_user)
+    emit_product_event(current_user.id, "workspace_return", plan=current_user.plan,
+                       idempotency_key=f"bootstrap:{current_user.id}:" + datetime.now(timezone.utc).date().isoformat())
+    if not is_agent and profile_complete and not missing_disclosures:
+        emit_product_event(current_user.id, "onboarding_completed", plan=current_user.plan, idempotency_key=current_user.id)
 
     return {
         "user": serialize_user(current_user),

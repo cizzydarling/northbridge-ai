@@ -164,7 +164,7 @@ def run_due(db, *, now=None, fetch=retrieve, limit=MAX_SOURCES_PER_RUN, cadence_
                 changed = next((b for b in blocks if b[0] != "equal"), ("insert", 0, 0, 0, len(text)))
                 _, a, b, c, d = changed
                 effective, extraction = effective_date_candidate(text)
-                classification = {"ircc.ee": "CRS_numerical_rule", "ircc.crs": "CRS_numerical_rule", "ircc.language": "language_requirement", "ircc.noc_levels": "NOC_requirement", "ircc.forms": "document_form_update", "ircc.rounds": "invitation_draw"}.get(source.identifier, "provincial_stream_change" if source.jurisdiction != "CA" else "REVIEW_REQUIRED")
+                classification = {"ircc.ee": "CRS_numerical_rule", "ircc.crs": "CRS_numerical_rule", "ircc.instructions": "CRS_numerical_rule", "ircc.language": "language_requirement", "ircc.noc_levels": "NOC_requirement", "ircc.forms": "document_form_update", "ircc.rounds": "invitation_draw"}.get(source.identifier, "provincial_stream_change" if source.jurisdiction != "CA" else "REVIEW_REQUIRED")
                 db.add(RuleSourceChange(source_id=source.identifier, previous_fingerprint=previous.fingerprint if previous else None,
                     new_fingerprint=digest, detected_at=now, effective_date=effective, classification=classification,
                     before_excerpt=old[max(0, a-60):min(len(old), b+60)][:400], after_excerpt=text[max(0, c-60):min(len(text), d+60)][:400],

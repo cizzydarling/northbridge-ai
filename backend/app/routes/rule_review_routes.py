@@ -15,7 +15,7 @@ router = APIRouter(prefix="/admin/rules-review", tags=["Inactive rules review"])
 
 class Decision(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    decision: Literal["UNDER_REVIEW", "MORE_EVIDENCE", "REJECTED", "WITHDRAWN"]
+    decision: Literal["UNDER_REVIEW", "MORE_EVIDENCE", "REJECTED", "WITHDRAWN", "VALIDATED_INACTIVE"]
     note: str = Field(min_length=1, max_length=1000)
 
 
@@ -30,7 +30,7 @@ def queue(db: Session = Depends(get_db), admin=Depends(require_admin)):
             "classification": change.classification, "extraction_status": change.extraction_status,
             "before_excerpt": change.before_excerpt, "after_excerpt": change.after_excerpt,
             "modules": change.modules, "status": decisions[-1].decision if decisions else "DETECTED",
-            "validation": "NOT_VALIDATED", "activation": "DISABLED",
+            "validation": "FIXTURE_BASELINE_PASS_PROPOSAL_REVIEW_PENDING" if decisions and decisions[-1].decision == "VALIDATED_INACTIVE" else "NOT_VALIDATED", "activation": "DISABLED",
             "history": [{"id": d.id, "reviewer_id": d.reviewer_id, "decision": d.decision,
                          "note": d.note, "created_at": d.created_at} for d in decisions]})
     return {"sources": source_status(db), "changes": rows, "activation_available": False,
@@ -46,8 +46,21 @@ def decide(change_id: int, body: Decision, db: Session = Depends(get_db), admin=
         raise HTTPException(422, "Review note required")
     if not db.get(RuleSourceChange, change_id):
         raise HTTPException(404, "Source change not found")
+    if body.decision == "VALIDATED_INACTIVE":
+        from app.rules.deterministic_validation import validation_report
+        report = validation_report()
+        if report["status"] != "FIXTURES_PASS":
+            raise HTTPException(409, "Deterministic validation failed; activation remains disabled")
+        body.note = "fixtures=" + report["fixture_digest"] + "; tables=" + report["table_digest"] + "; " + body.note[:800]
     decision = RuleReviewDecision(change_id=change_id, reviewer_id=admin.id, decision=body.decision, note=body.note)
     db.add(decision)
     db.commit()
     db.refresh(decision)
-    return {"id": decision.id, "decision": decision.decision, "activation": "DISABLED"}
+    return {"id": decision.id, "decision": decision.decision, "activation": "DISABLED",
+            "validation_scope": "current_fixture_baseline_only_not_proposed_source_semantics"}
+
+
+@router.get("/validation-report")
+def deterministic_report(_admin=Depends(require_admin)):
+    from app.rules.deterministic_validation import validation_report
+    return validation_report()

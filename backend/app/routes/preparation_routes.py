@@ -1,4 +1,5 @@
 """Durable, owned preparation work. No generated official forms or legal findings."""
+from app.services.product_analytics import emit as emit_product_event
 from io import BytesIO
 from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
@@ -87,6 +88,7 @@ def draft_from_saved_answers(case_id: int, body: DraftCreate, db: Session = Depe
     db.add(draft)
     db.commit()
     db.refresh(draft)
+    emit_product_event(user.id, "document_created", plan=user.plan, idempotency_key=f"case-draft:{draft.id}")
     return payload(draft)
 
 
@@ -127,5 +129,6 @@ def export_draft(draft_id: int, db: Session = Depends(get_db), user=Depends(requ
     ensure_document_generator_full(user)
     data = build_generated_document_docx(title=("BROUILLON — " if draft.language == "fr" else "DRAFT — ") + draft.title,
         content=draft.content, language=draft.language, disclaimer=NOTICE.get(draft.language, NOTICE["en"]))
+    emit_product_event(user.id, "export_used", plan=user.plan)
     return StreamingResponse(BytesIO(data), media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="preparation-draft-{draft.id}.docx"', "Cache-Control": "no-store"})

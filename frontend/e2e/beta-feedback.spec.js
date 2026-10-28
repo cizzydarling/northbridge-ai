@@ -118,6 +118,7 @@ test('feedback remains usable during entitlement loading and never fetches feedb
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.locator('#feedback-message').fill('Draft remains while entitlement resolves.');
   release();
+  await expect(page.getByRole('heading', {name:'Choose the plan that moves your case forward',exact:true})).toBeVisible();
   await expect(page.locator('#feedback-message')).toHaveValue('Draft remains while entitlement resolves.');
   expect(requests).toEqual([]);
 });

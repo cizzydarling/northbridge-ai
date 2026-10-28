@@ -144,6 +144,10 @@ def register_routers(app: FastAPI) -> None:
     from app.routes.crs_assessment_routes import router as crs_assessment_router
     from app.routes.rule_review_routes import router as rule_review_router
     from app.routes.program_registry_routes import router as program_registry_router
+    from app.routes.commercial_workspace_routes import router as commercial_workspace_router
+    from app.routes.product_analytics_routes import router as product_analytics_router
+    app.include_router(commercial_workspace_router)
+    app.include_router(product_analytics_router)
     app.include_router(language_router)
     app.include_router(preparation_router)
     app.include_router(crs_assessment_router)

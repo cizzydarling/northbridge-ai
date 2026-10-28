@@ -629,15 +629,21 @@ def run_self_workspace(
     if payload.preserve_omitted_intake and payload.case_id is None:
         raise HTTPException(422, "An explicit case is required for an intake patch.")
     # Keep the existing owner-row lock through a patch's read/merge/write transaction.
-    context = resolve_application_context(db, current_user, payload.case_id, commit=not payload.preserve_omitted_intake)
+    context = resolve_application_context(db, current_user, payload.case_id, commit=False)
     matter_type = context.case.application_type
     if payload.matter_type != matter_type:
         raise HTTPException(409, "Update the application case type before running this workspace.")
-    submitted_intake = payload.intake or {}
+    stored_preparation = (context.application.intake_payload or {}).get("crs_preparation") if context.application else None
+    # CRS preparation has its own revisioned endpoint. Forms cannot replace it.
+    submitted_intake = {key: value for key, value in (payload.intake or {}).items() if key != "crs_preparation"}
     if payload.preserve_omitted_intake:
         stored_intake = context.application.intake_payload if context.application else {}
         submitted_intake = {**(stored_intake or {}), **submitted_intake}
     intake = contextual_intake(context, submitted_intake)
+    if stored_preparation is not None:
+        intake["crs_preparation"] = stored_preparation
+    else:
+        intake.pop("crs_preparation", None)
     language = normalize_language(language)
 
     is_pro = has_individual_pro(current_user)

@@ -23,7 +23,7 @@ export default function ProgramReferences() {
     <p>{tr("Quebec and Nunavut have no PNP. Quebec selection is separate from federal Express Entry. French-speaking pathways must meet their settlement rules. Program existence does not establish an open stream or your eligibility.", "Le Québec et le Nunavut n’ont pas de PCP. La sélection québécoise est distincte d’Entrée express fédéral. Les voies francophones doivent respecter les règles d’établissement. L’existence d’un programme ne signifie ni qu’un volet est ouvert ni que vous êtes admissible.")}</p>
     {failed ? <p role="alert">{tr("References unavailable. No active stream is recommended.", "Références indisponibles. Aucun volet actif n’est recommandé.")}</p> : !data ? <p role="status">{tr("Loading references…", "Chargement des références…")}</p> : <>
       <p>{tr("Recorded destination", "Destination enregistrée")}: {data.jurisdiction || tr("Unknown", "Inconnue")}</p>
-      {data.references.map(p => <div key={p.identifier}><p>{label(p)} · {tr("Availability unverified", "Ouverture non vérifiée")}</p><RuleTrust source={p.official_source} effectiveDate={p.effective_from} status={p.review_status} /></div>)}
+      {data.references.map(p => <div key={p.identifier}><p>{label(p)} · {tr("Availability unverified", "Ouverture non vérifiée")}</p><p className="text-sm text-slate-600">{tr("Source checked", "Source consultée")}: {p.checked_on || tr("Unknown", "Inconnue")} · {tr("Eligibility not assessed", "Admissibilité non évaluée")}</p><RuleTrust source={p.official_source} effectiveDate={p.effective_from} status={p.review_status} /></div>)}
     </>}
   </section>;
 }

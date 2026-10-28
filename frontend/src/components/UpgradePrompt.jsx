@@ -1,3 +1,4 @@
+import { recordProductActivity } from "../api";
 import useBillingAccess from "../hooks/useBillingAccess";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,20 +29,20 @@ export default function UpgradePrompt({
   const copy = useMemo(() => {
     if (language === "fr") {
       return {
-        eyebrow: "Premium",
+        eyebrow: "Préparation",
         chip: "Accès étendu",
         defaultButtonLabel: "Voir les tarifs",
         helper:
-          "Débloquez plus de profondeur, plus d’exécution et une meilleure finition.",
+          "Consultez les fonctions disponibles, les tarifs et les limites avant de choisir un plan.",
       };
     }
 
     return {
-      eyebrow: "Premium",
+      eyebrow: "Preparation",
       chip: "Extended access",
       defaultButtonLabel: "View pricing",
       helper:
-        "Unlock more depth, more execution, and stronger finishing value.",
+        "Review available features, prices and limits before choosing a plan.",
     };
   }, [language]);
 
@@ -86,7 +87,7 @@ export default function UpgradePrompt({
           <div className="flex shrink-0 items-center gap-3">
             <Button
               variant="premium"
-              onClick={() => navigate(pricingPath)}
+              onClick={() => { recordProductActivity("upgrade_interest", "pricing"); navigate(pricingPath); }}
             >
               {defaultButtonLabel}
             </Button>
