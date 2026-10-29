@@ -25,9 +25,9 @@ from app.routes import auth_routes as auth
 from app.services import security_controls
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "c4f8a2d6e901"
+HEAD = "d9a7e3b2f610"
 DEFERRED = set()
-TABLES = {"resource_shortlists", "language_assessments", "language_selections", "billing_review_events", "rule_source_checks", "rule_source_snapshots", "rule_source_changes", "rule_review_decisions", "users", "profiles", "clients", "client_documents", "matters", "saved_simulation_scenarios",
+TABLES = {"official_resource_snapshots", "official_resource_heads", "resource_shortlists", "language_assessments", "language_selections", "billing_review_events", "rule_source_checks", "rule_source_snapshots", "rule_source_changes", "rule_review_decisions", "users", "profiles", "clients", "client_documents", "matters", "saved_simulation_scenarios",
           "recommendations", "self_applications", "self_documents", "disclosure_acceptances",
           "generated_documents", "billing_transactions", "promo_codes", "promo_code_redemptions",
           "citizenship_questions", "citizenship_quiz_attempts", "citizenship_answers",
@@ -44,7 +44,7 @@ def test_revision_graph_from_repository_root(monkeypatch, capsys):
     assert capsys.readouterr().out.strip() == HEAD + " (head)"
     from alembic.script import ScriptDirectory
     revisions = list(ScriptDirectory.from_config(Config(str(ROOT / "backend/alembic.ini"))).walk_revisions())
-    assert len(revisions) == 23
+    assert len(revisions) == 24
     assert all(not revision.is_branch_point and not revision.is_merge_point for revision in revisions)
 
 

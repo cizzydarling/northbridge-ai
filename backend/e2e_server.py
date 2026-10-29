@@ -81,6 +81,79 @@ def reset_test_limits():
     VIOLATIONS.clear()
     return {"environment": "TEST"}
 
+def seed_resource_snapshots(test_engine):
+    """Test entry point only: deterministic, idempotent public fixtures.
+
+    Identity checks precede *any* query/write. No production startup imports this
+    module; snapshot APIs keep their normal database read/validation path.
+    """
+    import re
+    from sqlalchemy import inspect, select
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.orm import sessionmaker
+    from app.models.official_resource_snapshot_model import OfficialResourceSnapshot, OfficialResourceHead
+    from app.services import official_resource_snapshots as snapshots
+    from app.services import official_resources
+    from testing.official_resource_fixtures import synthetic_source
+
+    url = test_engine.url
+    if os.environ.get('APP_ENV') != 'test' or url.query:
+        raise RuntimeError('Explicit disposable test database required')
+    if url.get_backend_name() == 'sqlite':
+        safe = bool(url.database) and Path(url.database).resolve() == Path(__file__).resolve().parent / 'e2e-test.sqlite3'
+    elif url.get_backend_name() == 'postgresql':
+        raw = os.environ.get('TEST_POSTGRES_ADMIN_URL', '')
+        admin = make_url(raw) if raw else None
+        safe = bool(admin and not admin.query and admin.get_backend_name() == 'postgresql'
+                    and admin.database == 'postgres' and admin.host in {'127.0.0.1','localhost','::1'}
+                    and url.host == admin.host and url.port == admin.port
+                    and re.fullmatch(r'nbai_rehearsal_[a-f0-9]{32}', url.database or ''))
+    else:
+        safe = False
+    if not safe:
+        raise RuntimeError('Explicit disposable test database required')
+    if not {'official_resource_snapshots','official_resource_heads'} <= set(inspect(test_engine).get_table_names()):
+        raise RuntimeError('Initialize disposable snapshot schema first')
+
+    seed_at = datetime(2026, 10, 29, tzinfo=timezone.utc)
+    keys = ('dli','processing_en','processing_fr')
+    bundles = {key:snapshots.build_bundle(key, {part:synthetic_source(part) for part in snapshots.component_keys(key)}, observed_at=seed_at) for key in keys}
+    result = {}
+    with test_engine.begin() as connection:
+        if url.get_backend_name() == 'sqlite':
+            connection.exec_driver_sql('BEGIN')  # physical outer transaction before SAVEPOINTs
+        sessions = sessionmaker(bind=connection, join_transaction_mode='create_savepoint')
+        with sessions() as db:
+            heads = {h.source_id:h.snapshot_id for h in db.scalars(select(OfficialResourceHead))}
+            existing = {v.id:v for v in db.scalars(select(OfficialResourceSnapshot))}
+            if set(heads) not in (set(),set(keys)) or len(existing) != len(heads):
+                raise RuntimeError('Unexpected disposable fixture state')
+            for key, identity in heads.items():
+                candidate = existing.get(identity)
+                manifest, rows = snapshots.validate_bundle(bundles[key], observed_at=seed_at)
+                if candidate is None or candidate.envelope != manifest or candidate.records != rows:
+                    raise RuntimeError('Unexpected disposable fixture state')
+                result[key] = identity
+        for key in keys:
+            if key not in result:
+                with sessions() as db:
+                    result[key] = snapshots.promote(db, bundles[key], expected_head=None, observed_at=seed_at)
+    # Freeze only the isolated fixture acquisition clock. Real DB reads and
+    # snapshot checks still run. Production clocks and source adapters unchanged.
+    read_sessions = sessionmaker(bind=test_engine)
+    official_resources._snapshot_reader = lambda key:snapshots.read_snapshot(key, session_factory=read_sessions, observed_at=seed_at)
+    provider_reader = official_resources._read_source
+    def provider_only(key):
+        if key in keys or key.startswith('json_'):
+            raise RuntimeError('E2E DLI/processing requests must read snapshots')
+        return provider_reader(key)
+    provider_only.snapshot_fixture_guard = True
+    if not getattr(provider_reader, 'snapshot_fixture_guard', False):
+        official_resources._read_source = provider_only
+    return result
+
+
 if __name__ == "__main__":
     Base.metadata.create_all(bind=engine)
+    seed_resource_snapshots(engine)
     uvicorn.run(app, host="127.0.0.1", port=8010)

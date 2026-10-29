@@ -221,8 +221,14 @@ def _finished(key, future):
   if _PENDING.get(key) is future: _PENDING.pop(key,None)
 
 
+def _snapshot_reader(key):
+ from app.services.official_resource_snapshots import read_snapshot
+ return read_snapshot(key)
+
+
 def resource_data(key):
  if key not in {'dli',*PROVIDERS,'processing_en','processing_fr'}: raise ValueError('unsupported_source')
+ if key in {'dli','processing_en','processing_fr'}: return _snapshot_reader(key)
  with _LOCK:
   cached=_CACHE.get(key); age=(now()-cached[0]).total_seconds() if cached else None
   if cached and age<FRESH_SECONDS: return deepcopy(cached[1])

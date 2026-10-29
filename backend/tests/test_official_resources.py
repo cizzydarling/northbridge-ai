@@ -9,6 +9,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 import backend.launch_smoke_test  # model and SQLite JSON compilation registration
 from app.services import official_resources as resources
+from app.services import official_resource_snapshots as snapshots
+from app.models.official_resource_snapshot_model import OfficialResourceHead
 ORIGINAL_READER=resources._read_source
 from backend.testing.official_resource_fixtures import synthetic_source,DLI_HTML,CENTRE_HTML
 from app.services.immigration_intelligence_service import official_processing_reference
@@ -24,7 +26,21 @@ def sources(monkeypatch):
  for future in list(resources._PENDING.values()): future.result(timeout=2)
  resources._CACHE.clear();resources._FAILED.clear();resources._PENDING.clear()
  monkeypatch.setattr(resources,'_read_source',synthetic_source)
- yield
+ engine=create_engine('sqlite://',connect_args={'check_same_thread':False},poolclass=StaticPool)
+ Base.metadata.create_all(engine);sessions=sessionmaker(bind=engine)
+ original_refresh=resources._refresh
+ def refresh(key):
+  value=original_refresh(key)
+  if key in snapshots.SOURCE_IDS:
+   bundle=snapshots.build_bundle(key,{part:resources._read_source(part) for part in snapshots.component_keys(key)})
+   with sessions() as db:
+    head=db.get(OfficialResourceHead,key);expected=head.snapshot_id if head else None
+   with sessions() as db:snapshots.promote(db,bundle,expected_head=expected)
+  return snapshots.read_snapshot(key,session_factory=sessions) if key in snapshots.SOURCE_IDS else value
+ monkeypatch.setattr(resources,'_refresh',refresh)
+ monkeypatch.setattr(resources,'_snapshot_reader',lambda key:snapshots.read_snapshot(key,session_factory=sessions,observed_at=resources.now()))
+ yield sessions
+ engine.dispose()
  for future in list(resources._PENDING.values()):
   try: future.result(timeout=2)
   except ValueError: pass
@@ -57,10 +73,10 @@ def test_source_and_search_preserve_acquisition():
  assert found['review_status']!='CURRENT_VERIFIED'
 
 def test_stale_and_expired_records_never_claim_current(monkeypatch):
- original=resources._refresh('dli'); old=resources.now()-timedelta(hours=2)
- resources._CACHE['dli']=(old,original);resources._FAILED['dli']=resources.now()
+ resources._refresh('dli');clock=resources.now()
+ monkeypatch.setattr(resources,'now',lambda:clock+timedelta(hours=2))
  assert resources.resource_data('dli')['status']=='stale'
- resources._CACHE['dli']=(resources.now()-timedelta(days=2),original)
+ monkeypatch.setattr(resources,'now',lambda:clock+timedelta(days=2))
  assert resources.resource_data('dli')['records']==[]
 
 def test_restricted_tcf_no_fabricated_fallback():
@@ -71,15 +87,15 @@ def test_restricted_tcf_no_fabricated_fallback():
 def test_one_pending_probe_per_fixed_source(monkeypatch):
  entered=Event();release=Event();calls=[]
  def blocked(key):
-  calls.append(key);entered.set();assert release.wait(2);return DLI_HTML
+  calls.append(key);entered.set();assert release.wait(2);return CENTRE_HTML
  monkeypatch.setattr(resources,'_read_source',blocked)
  with ThreadPoolExecutor(max_workers=5) as pool:
-  requests=[pool.submit(resources.resource_data,'dli') for _ in range(5)]
+  requests=[pool.submit(resources.resource_data,'celpip') for _ in range(5)]
   assert entered.wait(1)
   assert len(resources._PENDING)==1
   release.set()
   assert all(r.result(timeout=2)['status']=='available' for r in requests)
- assert calls==['dli']
+ assert calls==['celpip']
  assert resources._POOL._max_workers==2
 
 def test_sources_fixed_and_unknown_rejected():
@@ -190,11 +206,16 @@ def test_same_owner_case_isolation(api):
 
 @pytest.mark.parametrize('language,published',[('en','January 1, 2020'),('fr','1 février 2020'),('fr','1 août 2020'),('fr','2020-01-01')])
 def test_old_processing_publication_is_explicitly_stale(monkeypatch,language,published):
+ import json
  from app.services import immigration_intelligence_service as service
  key='processing_'+language
+ def dated_source(part):
+  raw=synthetic_source(part)
+  if part=='json_non_country_'+language or part=='processing_'+language:
+   value=json.loads(raw);value['default-update']['lastupdated']=published;return json.dumps(value)
+  return raw
+ monkeypatch.setattr(resources,'_read_source',dated_source)
  original=resources._refresh(key)
- old=resources._CACHE[key][1]
- for row in old['records']:row['source_updated_at']=published
  result=service.official_processing_reference('visitor_visa_inside_canada',language=language)
  assert result['source_updated_at']==published
  assert result['retrieved_at']==original['retrieved_at']
@@ -240,10 +261,15 @@ def test_resource_identity_separates_test_providers():
  assert a['id']!=b['id']
 
 
-def test_numeric_source_text_without_time_units_is_not_an_estimate():
+def test_numeric_source_text_without_time_units_is_not_an_estimate(monkeypatch):
+ import json
+ def no_estimate(key):
+  value=json.loads(synthetic_source(key))
+  if key=='json_country_en':value['visitor-outside-canada']['FR']='Reference updated in 2026'
+  return json.dumps(value)
+ monkeypatch.setattr(resources,'_read_source',no_estimate)
  resources._refresh('processing_en')
- for row in resources._CACHE['processing_en'][1]['records']:row['processing_time']='Reference updated in 2026'
- assert official_processing_reference('visitor_visa_inside_canada')['processing_time'] is None
+ assert official_processing_reference('visitor_visa_outside_canada','FR')['processing_time'] is None
 
 
 def test_centre_identity_and_province_do_not_cross_countries():
@@ -253,3 +279,28 @@ def test_centre_identity_and_province_do_not_cross_countries():
  assert a['id']!=b['id']
  rows=resources.parse_centres('pte',json.dumps({'Brazil':{'test_centers':[{'center_name':'SYNTHETIC School ON','city':'Example City','address':'1 Example'}]}}))
  assert rows[0]['province'] is None
+
+
+def test_dli_and_processing_requests_do_not_probe_remote_sources(monkeypatch):
+ def forbidden(*args):pytest.fail('DLI/processing reads must use active snapshots')
+ monkeypatch.setattr(resources,'_read_source',forbidden)
+ for key in ('dli','processing_en','processing_fr'):
+  assert resources.resource_data(key)['status']=='unavailable'
+ assert not resources._PENDING
+
+
+
+@pytest.mark.parametrize('language',['en','fr'])
+@pytest.mark.parametrize('case',['country_schema','non_country_schema','country_name_object'])
+def test_processing_api_keeps_previous_snapshot_after_malformed_import(api,sources,language,case):
+ from backend.tests.test_official_resource_snapshots import malformed_processing_bundle
+ client,db,free,pro,cases,active=api
+ key='processing_'+language;resources._refresh(key)
+ url='/immigration-intelligence/processing-times?scope=official_reference&application_type=visitor_visa_outside_canada&country=FR&language='+language
+ before=client.get(url);assert before.status_code==200 and before.json()['processing_time']=='37 days'
+ with sources() as session:head=session.get(OfficialResourceHead,key).snapshot_id
+ candidate=malformed_processing_bundle(language,case)
+ with sources() as session,pytest.raises(snapshots.SnapshotRejected):snapshots.promote(session,candidate,expected_head=head)
+ after=client.get(url)
+ assert after.status_code==200 and after.json()==before.json()
+ assert after.json()['status']=='available' and after.json()['personal_prediction'] is False
