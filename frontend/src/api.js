@@ -482,7 +482,9 @@ export const loginUser = async ({ email, password }) => {
 export const getMe = () => api.get("/auth/me");
 
 export const refreshCurrentUser = async () => {
+  const token = getToken();
   const response = await getMe();
+  if (getToken() !== token) throw new Error("Session changed");
   const user = response.data;
   saveCurrentUser(user);
   return response;

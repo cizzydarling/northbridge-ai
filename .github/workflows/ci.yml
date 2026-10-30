@@ -83,6 +83,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Verify next-action selector
+        run: node scripts/check-preparation-next-action.mjs
+
+      - name: Run frontend contracts
+        run: npm test
+
       - name: Lint
         run: npm run lint
 

@@ -1,3 +1,5 @@
+import '../styles/premium-workspace.css';
+import { workspaceText } from '../content/premiumWorkspaceCopy';
 import useBillingAccess from "../hooks/useBillingAccess";
 import EntitlementStatus from "./EntitlementStatus";
 import BetaFeedback from "./BetaFeedback";
@@ -510,9 +512,10 @@ function ResolvedLayout({ children, feedbackEnabled }) {
   const roleLabel = translateRoleLabel(currentUser?.role, language);
 
   const fr = language === "fr";
+  const premium = workspaceText(language);
   const navGroups = [
-    { label: null, items: [{ label: t("nav.dashboard"), path: "/dashboard", icon: "dashboard" }] },
-    { label: fr ? "Explorer l’immigration" : "Explore Immigration", items: [
+    { label: null, items: [{ label: premium.overview, path: "/dashboard", icon: "dashboard" }] },
+    { label: premium.explore, items: [
       { label: t("nav.strategy"), path: "/strategy", icon: "strategy", exact: true },
       { label: fr ? "Délais de traitement" : "Processing times", path: "/strategy#processing-times", icon: "finder" },
       { label: fr ? "Ressources officielles" : "Official resources", path: "/strategy#official-resources", icon: "finder" },
@@ -525,11 +528,11 @@ function ResolvedLayout({ children, feedbackEnabled }) {
       { label: fr ? "Pratique linguistique (Premium)" : "Language practice (Premium)", path: "/language-practice", icon: "career" },
       { label: fr ? "Citoyenneté" : "Citizenship", path: "/citizenship", icon: "citizenship" },
     ] },
-    { label: fr ? "Ma demande" : "My Application", items: [
+    { label: premium.preparation, items: [
       { label: t("nav.profile"), path: "/profile", icon: "profile", exact: true },
       { label: fr ? "Ménage" : "Household", path: "/household", icon: "household" },
       { label: fr ? "Demandes" : "Applications", path: "/applications", icon: "application" },
-      { label: t("layout.myApplication"), path: "/self/application", icon: "application" },
+      { label: premium.preparation, path: "/self/application", icon: "application" },
       { label: "Documents", path: "/documents", icon: "documents", exact: true },
       { label: fr ? "Studio formulaires" : "Forms Studio", path: "/forms", icon: "forms" },
       { label: fr ? "Préparation enregistrée" : "Saved preparation", path: "/strategy#saved-preparation", icon: "documents" },
@@ -609,7 +612,7 @@ function ResolvedLayout({ children, feedbackEnabled }) {
       : "Upgrade";
 
   return (
-    <div className="nb-workspace min-h-screen bg-[var(--nb-page)] text-slate-950">
+    <div className="nb-workspace nb-premium-shell min-h-screen bg-[var(--nb-page)] text-slate-950">
       <a href="#workspace-content" className="nb-skip-link">{language === "fr" ? "Aller au contenu" : "Skip to content"}</a>
       <div className="min-h-screen lg:flex">
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-white/10 bg-[var(--nb-navy)] text-white lg:flex">
@@ -700,9 +703,9 @@ function ResolvedLayout({ children, feedbackEnabled }) {
                 <p className="mt-0.5 truncate text-sm font-medium text-slate-600">
                   {location.pathname === "/dashboard"
                     ? language === "fr"
-                      ? "Tableau de bord"
-                      : "Dashboard"
-                    : location.pathname}
+                      ? premium.overview
+                      : premium.overview
+                    : ({"/strategy":premium.explore,"/self/application":premium.preparation,"/chat":premium.assistant,"/official-finders":premium.language}[location.pathname] || location.pathname)}
                 </p>
               </div>
 

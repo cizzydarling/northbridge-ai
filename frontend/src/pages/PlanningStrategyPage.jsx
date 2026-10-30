@@ -1,3 +1,5 @@
+import { WorkspaceHeading, WorkflowLinks } from '../components/PremiumWorkspacePrimitives';
+import { workspaceText } from '../content/premiumWorkspaceCopy';
 import ProcessingTimesExplorer from "../components/ProcessingTimesExplorer";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
@@ -13,6 +15,7 @@ import ProgramReferences from "../components/ProgramReferences";
 export default function PlanningStrategyPage() {
   const { i18n } = useTranslation();
   const fr = i18n.language.startsWith("fr");
+  const copy = workspaceText(i18n.language);
   const simulator = useLocation().pathname.endsWith("/simulator");
   const sources = [
     [fr ? "Entrée express : critères officiels" : "Express Entry: official criteria", "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry.html"],
@@ -20,11 +23,13 @@ export default function PlanningStrategyPage() {
     [fr ? "Rondes d’invitations publiées" : "Published invitation rounds", "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/rounds-invitations.html"],
     [fr ? "Délais de traitement officiels" : "Official processing times", "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html"],
   ];
-  return <Layout><main className="mx-auto max-w-4xl space-y-6 p-6">
+  return <Layout><div className="premium-core premium-explore space-y-6">
     <PreparationJourney />
-    <h1 className="text-3xl font-semibold">{simulator ? (fr ? "Simulateur temporairement indisponible" : "Simulator temporarily unavailable") : (fr ? "Préparer votre démarche" : "Plan your next steps")}</h1>
+    <WorkspaceHeading title={simulator ? (fr ? "Simulateur temporairement indisponible" : "Simulator temporarily unavailable") : copy.explore}>{copy.exploreIntro}</WorkspaceHeading>
     <p>{fr ? "Organisez vos renseignements et consultez les sources officielles. Les évaluations d’admissibilité, prévisions et rapports analytiques sont indisponibles pendant la vérification des règles." : "Organize your information and consult official sources. Eligibility assessments, forecasts and analytical reports are unavailable while rules are verified."}</p>
     <ApplicationContextBanner />
+    <WorkflowLinks />
+    <section className="premium-notice"><h2>{copy.directory}</h2><nav className="flex flex-wrap gap-4"><Link to="/official-finders?tab=schools">{fr ? "Établissements et EED" : "Schools & DLI"}</Link><Link to="/official-finders?tab=tests">{fr ? "Répertoire des centres de tests" : "Test-centre directory"}</Link></nav></section>
     <section id="processing-times" className="scroll-mt-32 rounded-xl border border-blue-200 bg-blue-50 p-5">
       <h2 className="text-xl font-semibold">{fr ? "Délais de traitement officiels" : "Official processing times"}</h2>
       <p className="my-3">{fr ? "Source : IRCC. Les délais sont des estimations officielles qui peuvent changer, pas une prévision personnelle. Consultez le vérificateur pour les renseignements actuels." : "Source: IRCC. Processing times are official estimates that can change, not a personal prediction. Consult the checker for current information."}</p>
@@ -57,5 +62,5 @@ export default function PlanningStrategyPage() {
       <p className="my-3">{fr ? "Consignez vos renseignements existants dans votre dossier. Vérifiez séparément la désignation EED, le programme et les exigences du permis d’études auprès d’IRCC ; aucune admissibilité n’est déterminée ici." : "Organize existing information in your case. Check DLI designation, the programme and study-permit requirements separately with IRCC; no eligibility is determined here."}</p>
       <nav className="flex flex-wrap gap-5 underline"><Link to="/official-finders?tab=schools">{fr ? "Répertoires EED et PTPD" : "DLI and PGWP resources"}</Link><Link to="/applications">{fr ? "Dossiers" : "Cases"}</Link><Link to="/forms">{fr ? "Préparer les formulaires" : "Prepare Forms"}</Link></nav>
     </section>
-  </main></Layout>;
+  </div></Layout>;
 }

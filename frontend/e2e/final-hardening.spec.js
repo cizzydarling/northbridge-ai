@@ -251,3 +251,8 @@ test('late 401 from a previous account cannot log out the new verified account',
   expect(await page.evaluate(token => localStorage.getItem('token') === token, newSession.access_token)).toBe(true);
   await expect(upgrade).toBeVisible();
 });
+
+// Integration regression: the premium Overview must keep its facts behind the existing bootstrap gate.
+test('premium Overview stays hidden until verified bootstrap',async({page,request})=>{
+ const bootstrap=await prepare(page,request,'en',false);let release;const gate=new Promise(resolve=>{release=resolve;});await page.route('**/app/bootstrap',async r=>{await gate;await r.fulfill({json:bootstrap});});await page.goto('/dashboard');await expect(page.getByTestId('premium-overview')).toHaveCount(0);await expect(page.locator('.premium-case-hero')).toHaveCount(0);release();await expect(page.getByTestId('premium-overview')).toHaveAttribute('data-state','ready');await expect(page.locator('.premium-case-hero')).toBeVisible();
+});

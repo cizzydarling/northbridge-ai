@@ -36,10 +36,13 @@ test("individual routes ignore stale cases and deferred routes never load", asyn
   page.on("request", (req) => { if (req.url().startsWith(api)) requests.push(req.url()); });
   page.on("pageerror", (error) => errors.push(error.message));
   const failures = [];
+  let verifiedContext;
   let verifiedStrategy;
+  let overviewRequests = [];
+  const documentStrategy = page.waitForResponse(res => res.url().startsWith(`${api}/self/strategy?`) && res.status() === 200);
   page.on("response", (res) => { if (res.url().startsWith(api) && res.status() >= 500) failures.push(res.url()); });
-  const dashboardStrategy = page.waitForResponse(res =>
-    res.url().startsWith(`${api}/self/strategy?`) && res.status() === 200);
+  const dashboardContext = page.waitForResponse(res =>
+    new URL(res.url()).pathname === "/application-cases/context" && res.status() === 200);
   for (const path of ["/dashboard", "/strategy", "/strategy/simulator", "/forms", "/self/application", "/documents"]) {
     await page.goto(path);
     await expect(page).toHaveURL(new RegExp(`${path}$`));
@@ -48,12 +51,23 @@ test("individual routes ignore stale cases and deferred routes never load", asyn
     await expect(page.locator('a[href^="/clients"]')).toHaveCount(0);
     // Read the real body before navigation can discard its CDP resource. A
     // detached async listener must not outlive the request it is verifying.
-    if (path === "/dashboard") verifiedStrategy = await (await dashboardStrategy).json();
+    if (path === "/dashboard") {
+      verifiedContext = await (await dashboardContext).json();
+      overviewRequests = requests.slice();
+      expect(overviewRequests.some(url => url.includes("/self/strategy"))).toBe(false);
+      await expect(page.locator('.premium-case-hero')).toContainText('Selected case #' + verifiedContext.case_id);
+      await expect(page.locator('.premium-case-hero h2')).toHaveText(verifiedContext.case.case_title || 'Permanent residence');
+      await expect(page.getByText('Best pathway', {exact:true})).toHaveCount(0);
+      await expect(page.getByText('pathways detected', {exact:false})).toHaveCount(0);
+    }
+    if (path === "/documents") verifiedStrategy = await (await documentStrategy).json();
   }
   expect(verifiedStrategy).toBeTruthy();
-  // The following assertions test route isolation. Reuse the real response already
-  // verified above, avoiding nine redundant expensive strategy recalculations.
-  await page.route("**/self/strategy?**", (route) => route.fulfill({ json: verifiedStrategy }));
+  // Preserve the real contained Documents response; Overview never needs it.
+  await page.route("**/self/strategy?**", route => route.fulfill({json:verifiedStrategy}));
+  expect(verifiedContext.case.owner_user_id).toBe(session.user.id);
+  expect(verifiedContext.case_id).toBe(verifiedContext.case.id);
+  expect(verifiedContext.case_id).not.toBe(777);
   for (const path of ["/clients", "/clients/1", "/clients/1/profile", "/clients/1/strategy",
     "/clients/1/simulations", "/clients/1/documents", "/clients/1/matters"]) {
     await page.goto(path);
@@ -64,6 +78,8 @@ test("individual routes ignore stale cases and deferred routes never load", asyn
   // Owned server-resolved case IDs are valid; the stale browser ID must never be used.
   expect(requests.some((url) => new URL(url).searchParams.get("case_id") === "777")).toBe(false);
   expect(requests.some((url) => url.includes("/self/strategy"))).toBe(true);
+  expect(overviewRequests.some(url => url.includes("/self/strategy"))).toBe(false);
+  expect(requests.some((url) => new URL(url).pathname === "/application-cases/context")).toBe(true);
   expect(failures).toEqual([]);
   expect(errors).toEqual([]);
 
