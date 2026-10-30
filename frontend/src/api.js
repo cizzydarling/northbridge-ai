@@ -1191,11 +1191,15 @@ export const recordRulesReview = (id, data) => api.post(`/admin/rules-review/${i
 
 export const getCrsPreparation = caseId => api.get(`/preparation/cases/${caseId}/crs-inputs`);
 export const saveCrsPreparation = (caseId, body) => api.put(`/preparation/cases/${caseId}/crs-inputs`, body);
+// Prepared contracts only; server release gates preserve current paid access.
+export const getCrsScenarios = caseId => api.get(`/preparation/cases/${caseId}/crs-scenarios`);
+export const saveCrsScenarios = (caseId, body) => api.put(`/preparation/cases/${caseId}/crs-scenarios`, body);
 export const recordProductActivity = (event, surface) => api.post("/product/activity", { event, surface }).catch(() => null);
 
 
 // Explicit official-reference mode never requests Premium analytical summaries.
 export const getOfficialProcessingTimes = params => api.get('/immigration-intelligence/processing-times', {params:{...params,scope:'official_reference',language:getLanguage()}});
+export const getOfficialDrawHistory = (params = {}) => api.get('/immigration-intelligence/draws', { params: { language: getLanguage(), ...params, scope: 'official_reference' } });
 export const searchOfficialSchools = params => api.get('/immigration-intelligence/schools',{params});
 export const searchOfficialTestCentres = params => api.get('/immigration-intelligence/test-centres',{params});
 export const browseProgramReferences = params => api.get('/program-registry',{params:{...params,browse:true}});

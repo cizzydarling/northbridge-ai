@@ -35,6 +35,7 @@ SOURCES.update({
  'pte':'https://www.pearsonpte.com/bin/pearson/azure-blob-access',
 })
 for _language in ('en','fr'):
+ SOURCES['draws_'+_language]='https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_'+_language+'.json'
  SOURCES['processing_'+_language]='https://www.canada.ca/content/dam/ircc/documents/json/data-ptime-non-country-'+_language+'.json'
  for _part,_file in [('country','data-ptime-'),('non_country','data-ptime-non-country-'),('names','data-country-name-')]:
   SOURCES['json_'+_part+'_'+_language]='https://www.canada.ca/content/dam/ircc/documents/json/'+_file+_language+'.json'
@@ -207,7 +208,9 @@ def _refresh(key):
  value={'status':'available','records':rows,'retrieved_at':observed.isoformat(),
         'expires_at':(observed+timedelta(seconds=FRESH_SECONDS)).isoformat(),
         'source_updated_at':None,'source_url':SOURCES[key],
-        'review_status':'SOURCE_RECORD_NOT_ELIGIBILITY_REVIEW','coverage':'supported_source_subset','content_sha256':hashlib.sha256(text.encode()).hexdigest()}
+        'review_status':'SOURCE_RECORD_NOT_ELIGIBILITY_REVIEW','coverage':'supported_source_subset','content_sha256':hashlib.sha256(text.encode()).hexdigest(),
+        'partial_provider_coverage':key in {'ielts','tef'},
+        'appointments_verified':False,'prices_verified':False}
  with _LOCK:
   _CACHE[key]=(observed,value); _CACHE.move_to_end(key)
   while len(_CACHE)>len(SOURCES): _CACHE.popitem(last=False)
@@ -227,8 +230,8 @@ def _snapshot_reader(key):
 
 
 def resource_data(key):
- if key not in {'dli',*PROVIDERS,'processing_en','processing_fr'}: raise ValueError('unsupported_source')
- if key in {'dli','processing_en','processing_fr'}: return _snapshot_reader(key)
+ if key not in {'dli',*PROVIDERS,'processing_en','processing_fr','draws_en','draws_fr'}: raise ValueError('unsupported_source')
+ if key in {'dli','processing_en','processing_fr','draws_en','draws_fr'}: return _snapshot_reader(key)
  with _LOCK:
   cached=_CACHE.get(key); age=(now()-cached[0]).total_seconds() if cached else None
   if cached and age<FRESH_SECONDS: return deepcopy(cached[1])
@@ -245,7 +248,8 @@ def resource_data(key):
  if cached and age<STALE_SECONDS: return {**deepcopy(cached[1]),'status':'stale'}
  return {'status':'loading' if future and not future.done() else 'unavailable','records':[],
          'retrieved_at':None,'expires_at':None,'source_updated_at':None,
-         'source_url':SOURCES[key],'reason':'source_not_reliably_available','review_status':'NOT_VERIFIED'}
+         'source_url':SOURCES[key],'reason':'source_not_reliably_available','review_status':'NOT_VERIFIED',
+         'coverage':'no_supported_records','appointments_verified':False,'prices_verified':False}
 
 
 def search(key, query='', province='', city='', offset=0, limit=25):

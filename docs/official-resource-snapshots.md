@@ -162,3 +162,38 @@ reads. These hooks never run in production startup or public routes.
 
 PostgreSQL 16 hosted execution and production imports remain separate from local
 PostgreSQL 18 evidence.
+# Historical draw extension (local implementation)
+
+The proposed `e6b4c1d8a203` migration follows `d9a7e3b2f610`. It widens only
+the source-ID checks on the existing snapshot/head tables for `draws_en` and
+`draws_fr`; no new tables, backfill, user-record write or automatic import.
+PostgreSQL lock/statement budgets remain 2s/10s. Narrowing refuses if either draw
+source has retained records or an active head; data is never deleted to make a
+downgrade succeed.
+
+The source is the fixed official `ee_rounds_123_en.json` / `_fr.json`. The full
+`rounds` structure is typed before normalization: identifiers, ISO event dates,
+category strings, positive invitation/cutoff values, bounded official metadata,
+and Canada.ca detail links agreeing with the round ID. Unknown structural
+substitutions, duplicates, invalid timestamps and mixed date values fail closed.
+Historical timestamps lacking an explicit UTC suffix remain timezone-unknown.
+Draw dates never renew feed publication/freshness. Cutoffs are historical context,
+not eligibility or an invitation prediction; comparisons across rules/categories
+are not presented as equivalent.
+
+`collect --source draws_en` and `draws_fr` use the existing guarded CLI. Candidate
+validation, checksum/CAS, prior-good retention and transactional promotion are
+unchanged. Production import additionally requires `--ack-source-reuse-rights`
+after documented permission for the exact artefact; the acknowledgement does not
+grant a licence or deployment/import authorization. Rights remain unresolved.
+
+The existing draws endpoint retains its default Premium contract. Its new
+`scope=official_reference` is inactive by default and always unavailable in
+production in this package. Only explicit nonproduction environment plus
+`NBAI_TEST_OFFICIAL_DRAWS=true` exposes the local/test reference path. No paid
+entitlement boundary or production feature activation is authorized here.
+
+The disposable E2E initializer seeds exactly the existing three resource bundles
+plus two synthetic draw bundles, after identity/schema verification, through the
+same validator/promoter. It freezes only the disposable fixture clock, is
+idempotent, and rejects remote/unknown databases before any query or write.

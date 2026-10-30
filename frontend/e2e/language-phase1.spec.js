@@ -110,3 +110,21 @@ test("interface language toggle preserves unsaved benchmark selections", async (
   await english.focus();
   await expect(english).toBeFocused();
 });
+
+for(const language of ['en','fr']){
+ test('selected evidence connects to its official provider '+language,async({page,request})=>{
+  const {headers}=await owner(page,request,language);
+  const created=await request.post(api+'/language-assessments',{headers,data:{language:'en',exam:'ielts_general',edition:'general_training_original',test_date:new Date().toISOString().slice(0,10),raw_scores:{listening:7,reading:7,writing:7,speaking:7}}});
+  expect(created.ok()).toBeTruthy();
+  const assessment=await created.json();
+  expect((await request.put(api+'/language-assessments/current/en',{headers,data:{assessment_id:assessment.id}})).ok()).toBeTruthy();
+  await page.goto('/profile?section=language#language-evidence');
+  await page.getByRole('button',{name:language==='fr'?'Compris':'Got it',exact:true}).click();
+  const link=page.getByRole('link',{name:language==='fr'?'Trouver les centres du test sélectionné — ielts_general':'Find centres for selected test — ielts_general',exact:true});
+  await expect(link).toHaveAttribute('href','/official-finders?tab=tests&provider=ielts');
+  await link.click();
+  await expect(page.getByRole('combobox',{name:language==='fr'?'Fournisseur du test':'Test provider',exact:true})).toHaveValue('ielts');
+  await expect(page.getByRole('heading',{name:'SYNTHETIC ielts Centre',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:language==='fr'?'Enregistrer dans la liste du dossier (Pro)':'Save to case shortlist (Pro)',exact:true}).first()).toBeDisabled();
+ });
+}

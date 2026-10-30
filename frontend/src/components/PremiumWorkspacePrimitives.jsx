@@ -41,7 +41,8 @@ export function WorkflowLinks({
     i18n
   } = useTranslation();
   const c = workspaceText(i18n.language);
-  return <nav className="premium-workflow" aria-label={c.workflow}><Link to={'/forms' + (caseId ? '?case_id=' + caseId : '')}>{c.forms}</Link><span aria-hidden="true">→</span><Link to="/documents">{c.documents}</Link><span aria-hidden="true">→</span><Link to="/documents/review">{c.review}</Link><span aria-hidden="true">→</span><Link to={'/documents/generator' + (caseId ? '?case_id=' + caseId : '')}>{c.export}</Link></nav>;
+  const ownedCaseId = Number.isInteger(caseId) && caseId > 0 ? caseId : null;
+  return <nav className="premium-workflow" aria-label={c.workflow}><Link to={'/forms' + (ownedCaseId ? '?case_id=' + ownedCaseId : '')}>{c.forms}</Link><span aria-hidden="true">→</span><Link to="/documents">{c.documents}</Link><span aria-hidden="true">→</span><Link to="/documents/review">{c.review}</Link><span aria-hidden="true">→</span><Link to={'/documents/generator' + (ownedCaseId ? '?case_id=' + ownedCaseId : '')}>{c.export}</Link></nav>;
 }
 export function NextActionPanel({
   facts

@@ -1,7 +1,7 @@
 import Button from "./ui/Button";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getCurrentUserLocal, reviewCrsInputs } from "../api";
+import { getCurrentUserLocal, getToken, getApplicationContext, getCrsPreparation, reviewCrsInputs } from "../api";
 import RuleTrust from "./RuleTrust";
 
 export default function CrsReadiness() {
@@ -14,7 +14,19 @@ export default function CrsReadiness() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const active = useRef(true);
-  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  const generation = useRef(0);
+  useEffect(() => { active.current = true; return () => { active.current = false; generation.current += 1; }; }, []);
+  useEffect(() => {
+    const invalidate = () => { generation.current += 1; setResult(null); setBusy(false); setError(false); setAge(""); setScenarioAge(""); };
+    window.addEventListener('nbai-active-case-updated', invalidate);
+    window.addEventListener('nbai-bootstrap-refresh', invalidate);
+    window.addEventListener('userUpdated', invalidate);
+    return () => {
+      window.removeEventListener('nbai-active-case-updated', invalidate);
+      window.removeEventListener('nbai-bootstrap-refresh', invalidate);
+      window.removeEventListener('userUpdated', invalidate);
+    };
+  }, []);
   const labels = {
     age: tr("Age", "Âge"), education: tr("Education and credential evidence", "Études et preuves du diplôme"),
     accompanying_spouse: tr("Accompanying spouse status", "Statut du conjoint accompagnant"),
@@ -28,16 +40,27 @@ export default function CrsReadiness() {
   };
   async function check() {
     const owner = getCurrentUserLocal()?.id;
-    setBusy(true); setError(false);
+    const token = getToken();
+    const version = ++generation.current;
+    const current = () => active.current && generation.current === version && getCurrentUserLocal()?.id === owner && getToken() === token;
+    setBusy(true); setError(false); setResult(null);
     try {
-      const response = await reviewCrsInputs({ baseline: { age: age === "" ? null : Number(age) }, scenario: scenarioAge === "" ? null : { age: Number(scenarioAge) } });
-      if (active.current && getCurrentUserLocal()?.id === owner) setResult(response.data);
-    } catch { if (active.current && getCurrentUserLocal()?.id === owner) { setError(true); setResult(null); } }
-    finally { if (active.current && getCurrentUserLocal()?.id === owner) setBusy(false); }
+      const context = (await getApplicationContext()).data;
+      const saved = (await getCrsPreparation(context.case_id)).data;
+      if (saved.case_id !== context.case_id) throw new Error("Case context changed");
+      const facts = { ...saved.facts };
+      if (age !== "") facts.age = Number(age);
+      const response = await reviewCrsInputs({ baseline: { ranking_facts: facts }, scenario: scenarioAge === "" ? null : { ranking_facts: { ...facts, age: Number(scenarioAge) } } });
+      const latest = (await getApplicationContext()).data;
+      if (latest.case_id !== context.case_id) throw new Error("Case context changed");
+      if (current()) setResult(response.data);
+    } catch { if (current()) { setError(true); setResult(null); } }
+    finally { if (current()) setBusy(false); }
   }
   return <section className="nb-card border border-slate-200 bg-white space-y-3 p-4" aria-label={tr("CRS input readiness", "Préparation des données SCG")}>
     <h2 className="text-xl font-semibold">{tr("CRS input readiness — not a score", "Préparation des données SCG — pas un score")}</h2>
     <p>{tr("Numerical CRS remains unavailable pending complete rules verification. This tool lists missing evidence and keeps scenarios separate from your actual profile. No profile or assessment is changed.", "Le SCG numérique reste indisponible pendant la vérification complète des règles. Cet outil indique les preuves manquantes et sépare les scénarios du profil réel. Aucun profil ni résultat d’examen n’est modifié.")}</p>
+    <p>{tr("Uses saved preparation from your current owned case and your selected language evidence. Optional age values below are detached what-if inputs. The November ruleset remains under review; no total cap or invitation outcome is inferred.", "Utilise la préparation enregistrée du dossier actif et vos preuves linguistiques sélectionnées. Les âges facultatifs ci-dessous sont des hypothèses distinctes. Les règles de novembre restent à l’étude ; aucun plafond global ni résultat d’invitation n’est déduit.")}</p>
     <div className="grid gap-3 sm:grid-cols-2"><label>{tr("Baseline age (optional)", "Âge de référence (facultatif)")}<input className="block rounded border p-2" type="number" min="0" max="120" value={age} onChange={e => setAge(e.target.value)} /></label><label>{tr("Scenario age (optional)", "Âge du scénario (facultatif)")}<input className="block rounded border p-2" type="number" min="0" max="120" value={scenarioAge} onChange={e => setScenarioAge(e.target.value)} /></label></div>
     <Button variant="secondary" type="button" className="nb-button-secondary" disabled={busy} onClick={check}>{tr("Check missing evidence", "Vérifier les preuves manquantes")}</Button>
     {error && <p role="alert">{tr("Could not check inputs. No data changed.", "Vérification impossible. Aucune donnée modifiée.")}</p>}

@@ -1,9 +1,10 @@
 from app.services.security_controls import enforce_rate_limit
+import os
 from fastapi import APIRouter, Depends, Query
 from typing import Literal
 from app.routes.self_document_routes import require_self_user
 from app.services.official_resources import search as search_official
-from app.services.immigration_intelligence_service import official_processing_reference
+from app.services.immigration_intelligence_service import official_processing_reference, official_draw_reference
 from sqlalchemy.orm import Session
 
 from app.core.access_control import get_current_user, has_premium_access
@@ -70,11 +71,26 @@ def get_immigration_intelligence_summary(
 
 @router.get("/draws")
 def get_immigration_intelligence_draws(
+    scope: Literal['premium_tracker', 'official_reference'] = Query(default='premium_tracker'),
     limit: int = Query(default=6, ge=1, le=12),
+    offset: int = Query(default=0, ge=0, le=10000),
+    category: str = Query(default='', max_length=100),
     language: str = Query(default="en"),
     current_user=Depends(get_current_user),
 ):
     language = normalize_language(language)
+
+    if scope == 'official_reference':
+        require_self_user(current_user)
+        resource_read_limit(current_user)
+        # Local/test proof only. This implementation does not authorize changing
+        # the existing paid boundary or commercially activating source datasets.
+        if os.environ.get('APP_ENV') not in {'test', 'local', 'development'} or os.environ.get('NBAI_TEST_OFFICIAL_DRAWS') != 'true':
+            return {'available': False, 'status': 'unavailable', 'draws': [], 'total': 0,
+                    'offset': offset, 'limit': limit, 'historical_only': True,
+                    'reason': 'reference_release_not_authorized',
+                    'source_url': 'https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/policies-operational-instructions-agreements/ministerial-instructions/express-entry-rounds.html'}
+        return official_draw_reference(limit, language, offset, category)
 
     if not has_premium_access(current_user):
         return build_locked_immigration_intelligence_preview(language)

@@ -6,15 +6,19 @@ import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
 import OfficialResourceCard from '../components/OfficialResourceCard';
 import useBillingAccess from '../hooks/useBillingAccess';
-import {getCurrentUserLocal,getMyProfile,getApplicationContext,searchOfficialSchools,searchOfficialTestCentres,getResourceShortlist,saveResourceShortlist,removeResourceShortlist} from '../api';
+import {getCurrentUserLocal,getMyProfile,getLanguageAssessments,getApplicationContext,searchOfficialSchools,searchOfficialTestCentres,getResourceShortlist,saveResourceShortlist,removeResourceShortlist} from '../api';
 const providers=[['celpip','CELPIP-General','https://www.celpip.ca/take-celpip/find-a-test-date/'],['ielts','IELTS General Training','https://ielts.org/test-centres'],['pte','PTE Core','https://www.pearsonpte.com/pte-core/'],['tef','TEF Canada','https://www.lefrancaisdesaffaires.fr/candidat/trouver-un-centre-agree/'],['tcf','TCF Canada','https://www.france-education-international.fr/centres-d-examen/carte']];
 const links={en:{dli:'https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/study-permit/prepare/designated-learning-institutions-list.html',pgwp:'https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/eligibility.html'},fr:{dli:'https://www.canada.ca/fr/immigration-refugies-citoyennete/services/etudier-canada/permis-etudes/preparer/liste-etablissements-enseignement-designes.html',pgwp:'https://www.canada.ca/fr/immigration-refugies-citoyennete/services/etudier-canada/travail/apres-obtention-diplome/admissibilite.html'}};
 export default function OfficialFindersPage(){
  const {i18n}=useTranslation();const fr=i18n.language.startsWith('fr'),language=fr?'fr':'en';const tr=(en,french)=>fr?french:en;
  const [params,setParams]=useSearchParams();const tab=params.get('tab')==='schools'?'schools':'tests';
- const [provider,setProvider]=useState('celpip'),[query,setQuery]=useState(''),[province,setProvince]=useState(''),[city,setCity]=useState(''),[offset,setOffset]=useState(0),[submitted,setSubmitted]=useState({query:'',province:'',city:'',offset:0}),[refresh,setRefresh]=useState(0);
+ const provider=providers.some(p=>p[0]===params.get('provider'))?params.get('provider'):'celpip';
+ const setProvider=value=>setParams(previous=>{const next=new URLSearchParams(previous);next.set('provider',value);return next;});
+ const [evidence,setEvidence]=useState(null);
+ const [query,setQuery]=useState(''),[province,setProvince]=useState(''),[city,setCity]=useState(''),[offset,setOffset]=useState(0),[submitted,setSubmitted]=useState({query:'',province:'',city:'',offset:0}),[refresh,setRefresh]=useState(0);
  const [result,setResult]=useState(null),[error,setError]=useState(false),[profile,setProfile]=useState(null),[context,setContext]=useState(null),[saved,setSaved]=useState([]),[savedReady,setSavedReady]=useState(false),[workspaceOwner,setWorkspaceOwner]=useState(null),[message,setMessage]=useState(''),[saving,setSaving]=useState(false);
  const owner=getCurrentUserLocal()?.id;const {access}=useBillingAccess();const canSave=Boolean(access?.is_pro||access?.is_premium);
+ const ownedProfile=profile?.owner===owner?profile.data:null;
  const reportedLevel=value=>benchmarkState(value)==='reported'?String(Number(value)):benchmarkState(value)==='review'?tr('Needs review','À vérifier'):tr('Unknown','Inconnu');
  const ownedReady=savedReady&&workspaceOwner===owner;const ownedSaved=workspaceOwner===owner?saved:[];
  const key=JSON.stringify([owner,tab,provider,submitted,refresh]);const data=result?.key===key?result.data:null;
@@ -24,7 +28,8 @@ export default function OfficialFindersPage(){
   return()=>{active=false;};
  },[owner,key,tab,provider,submitted]);
  useEffect(()=>{let active=true;const expected=owner;
-  getMyProfile().then(r=>{if(active&&getCurrentUserLocal()?.id===expected)setProfile(r.data);}).catch(()=>{});
+  getLanguageAssessments().then(r=>{if(active&&getCurrentUserLocal()?.id===expected)setEvidence({owner:expected,data:r.data});}).catch(()=>{if(active)setEvidence(null);});
+  getMyProfile().then(r=>{if(active&&getCurrentUserLocal()?.id===expected)setProfile({owner:expected,data:r.data});}).catch(()=>{});
   getApplicationContext().then(async r=>{if(!active||getCurrentUserLocal()?.id!==expected)return;const rows=await getResourceShortlist(r.data.case_id);if(active&&getCurrentUserLocal()?.id===expected){setContext(r.data);setSaved(rows.data);setSavedReady(true);setWorkspaceOwner(expected);}}).catch(()=>{if(active)setSavedReady(false);});
   return()=>{active=false;};
  },[owner]);
@@ -46,9 +51,10 @@ export default function OfficialFindersPage(){
  return <Layout><main className="mx-auto max-w-5xl space-y-6">
   <header><p className="text-sm text-slate-600">{tr('Official resources','Ressources officielles')}</p><h1 className="text-3xl font-semibold text-slate-950">{tr('Test centres and designated schools','Centres de tests et établissements désignés')}</h1><p>{tr('Search published source records here. No live appointment, seat or price availability is verified.','Consultez ici les fiches publiées. Aucun rendez-vous, place ou tarif en direct n’est vérifié.')}</p></header>
   <div className="flex max-w-full gap-2 overflow-x-auto">{[['tests',tr('Language tests','Tests de langue')],['schools',tr('DLI schools','Établissements d’enseignement désignés')]].map(([value,label])=><button key={value} type="button" aria-pressed={tab===value} className={tab===value?'rounded-xl bg-slate-950 px-4 py-3 text-white':'rounded-xl border px-4 py-3'} onClick={()=>changeTab(value)}>{label}</button>)}</div>
-  <p>{tr('Recorded profile location','Lieu déclaré dans le profil')}: {[profile?.current_city,profile?.current_country].filter(Boolean).join(', ')||tr('Unknown','Inconnu')}</p>
+  <p>{tr('Recorded profile location','Lieu déclaré dans le profil')}: {[ownedProfile?.current_city,ownedProfile?.current_country].filter(Boolean).join(', ')||tr('Unknown','Inconnu')}</p>
+  {evidence?.owner===owner&&<p>{tr('Selected language evidence','Résultats linguistiques sélectionnés')}: {Object.entries(evidence.data.selected||{}).map(([lang,id])=>{const result=evidence.data.assessments.find(a=>a.id===id);return result?<span className="mr-3" key={lang}>{result.exam} · {result.status}</span>:null;})}</p>}
   <nav className="flex flex-wrap gap-4 underline"><Link to="/profile?section=language#language-evidence">{tr('Review my language evidence','Consulter mes résultats linguistiques')}</Link><Link to="/language-practice">{tr('Language practice (Premium)','Pratique linguistique (Premium)')}</Link><Link to="/strategy#study-preparation">{tr('Continue study preparation','Continuer la préparation aux études')}</Link><Link to="/strategy#saved-preparation">{tr('Saved preparation','Préparation enregistrée')}</Link></nav>
-  {(access?.can_use_official_finders||access?.is_premium)&&<aside className="rounded border p-4">{tr('Recorded profile context (Premium)','Contexte déclaré du profil (Premium)')}<p>{tr('Reported language levels are not independently verified.','Les niveaux linguistiques déclarés ne sont pas vérifiés indépendamment.')}</p><p>{tr('English reported benchmark','Niveau déclaré en anglais')}: {reportedLevel(profile?.english_language_score)}</p><p>{tr('French reported benchmark','Niveau déclaré en français')}: {reportedLevel(profile?.french_language_score)}</p></aside>}
+  {(access?.can_use_official_finders||access?.is_premium)&&<aside className="rounded border p-4">{tr('Recorded profile context (Premium)','Contexte déclaré du profil (Premium)')}<p>{tr('Reported language levels are not independently verified.','Les niveaux linguistiques déclarés ne sont pas vérifiés indépendamment.')}</p><p>{tr('English reported benchmark','Niveau déclaré en anglais')}: {reportedLevel(ownedProfile?.english_language_score)}</p><p>{tr('French reported benchmark','Niveau déclaré en français')}: {reportedLevel(ownedProfile?.french_language_score)}</p></aside>}
   <form className="grid gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-2" onSubmit={e=>{e.preventDefault();setResult(null);setError(false);setOffset(0);setSubmitted({query,province,city,offset:0});setRefresh(n=>n+1);}}>
    {tab==='tests'&&<label>{tr('Test provider','Fournisseur du test')}<select className="mt-1 block w-full rounded border p-2" value={provider} onChange={e=>{setProvider(e.target.value);setOffset(0);setSubmitted(current=>({...current,offset:0}));setResult(null);}}>{providers.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>}
    <label>{tr('Search official records','Rechercher les fiches officielles')}<input className="mt-1 block w-full rounded border p-2" value={query} maxLength={100} onChange={e=>setQuery(e.target.value)}/></label>

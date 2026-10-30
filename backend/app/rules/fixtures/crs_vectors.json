@@ -116,6 +116,49 @@
       }
     }
   ],
+  "acceleration_validation": {
+    "status": "LITERAL_ARITHMETIC_CROSSCHECK_NOT_PRODUCTION_APPROVAL",
+    "source_checked_on": "2026-10-30",
+    "source_urls": [
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/check-score/crs-criteria.html",
+      "https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/policies-operational-instructions-agreements/ministerial-instructions/express-entry-application-management-system/current.html"
+    ],
+    "effective_from": "2025-03-25",
+    "effective_to_exclusive": "2026-11-03",
+    "vectors": [
+      {
+        "id": "qualified-one-year-no-foreign",
+        "base_vector": "single-master-clb9-foreign3",
+        "patch": {
+          "canadian_work_years": null,
+          "canadian_work_qualified": true,
+          "foreign_work_years": 0,
+          "work_periods": [
+            {"country":"CA","start_date":"2025-01-01","end_date":"2026-01-01","weekly_hours":30.0,"noc_code":"21231","paid":true,"authorized":true,"full_time_student":false,"self_employed":false,"duties_match":true}
+          ]
+        },
+        "expected_score": 459,
+        "expected_sections": {"core":409,"spouse":0,"transferability":50,"additional":0},
+        "literal_derivation": "110 age +135 education +124 first language +40 Canadian work +50 education transferability; foreign work/additional/spouse zero."
+      },
+      {
+        "id": "qualified-canadian-and-prior-foreign-nonoverlap",
+        "base_vector": "single-master-clb9-foreign3",
+        "patch": {
+          "canadian_work_years": null,
+          "canadian_work_qualified": true,
+          "foreign_work_years": null,
+          "work_periods": [
+            {"country":"FR","start_date":"2022-01-01","end_date":"2025-01-01","weekly_hours":30.0,"noc_code":"21231","paid":true,"duties_match":true},
+            {"country":"CA","start_date":"2025-01-01","end_date":"2026-01-01","weekly_hours":30.0,"noc_code":"21231","paid":true,"authorized":true,"full_time_student":false,"self_employed":false,"duties_match":true}
+          ]
+        },
+        "expected_score": 509,
+        "expected_sections": {"core":409,"spouse":0,"transferability":100,"additional":0},
+        "literal_derivation": "110 age +135 education +124 first language +40 Canadian work +50 education transferability +50 foreign transferability; all additional/spouse zero."
+      }
+    ]
+  },
   "independent_validation": {
     "checked_on": "2026-10-27",
     "method": "Fresh official row transcription; no implementation imports or constants used for expected values",

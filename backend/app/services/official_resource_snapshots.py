@@ -15,7 +15,7 @@ from sqlalchemy import select, delete, text
 
 SCHEMA_VERSION = 1
 PARSER_VERSION = 'official-resources-v2'
-SOURCE_IDS = frozenset(('dli', 'processing_en', 'processing_fr'))
+SOURCE_IDS = frozenset(('dli', 'processing_en', 'processing_fr', 'draws_en', 'draws_fr'))
 MAX_BYTES = 2_000_000
 MAX_RECORDS = 10_000
 MAX_BUNDLE_BYTES = 6_100_000
@@ -81,6 +81,8 @@ def loads(raw):
 def component_keys(source_id):
     if source_id == 'dli':
         return ('dli',)
+    if source_id in {'draws_en', 'draws_fr'}:
+        return (source_id,)
     if source_id in SOURCE_IDS:
         return tuple('json_' + part + '_' + source_id[-2:] for part in ('country', 'non_country', 'names'))
     raise SnapshotRejected('unsupported_source')
@@ -246,6 +248,11 @@ def _parse(source_id, payloads, acquired_at=None):
         # above still fail; normalized snapshot identities must remain unique.
         normalization = {'source_record_count':len(valid), 'collapsed_source_variants':len(valid)-len(rows)}
         dates['dli'] = None  # Do not infer publication dates from retrieval or footer dates.
+    elif source_id in {'draws_en', 'draws_fr'}:
+        from app.services.immigration_intelligence_service import normalize_official_draws
+        rows = normalize_official_draws(loads(payloads[source_id]), source_id[-2:], acquired_at=acquired_at)
+        dates[source_id] = None  # Draw dates are event dates, never feed publication dates.
+        normalization = {'source_record_count': len(rows), 'collapsed_source_variants': 0}
     else:
         from app.services.immigration_intelligence_service import normalize_official_processing
         feeds = {}
@@ -263,7 +270,9 @@ def _parse(source_id, payloads, acquired_at=None):
             raise SnapshotRejected('empty_processing_estimates')
     if not rows or len(rows) > MAX_RECORDS or len(canonical(rows).encode()) > MAX_BYTES:
         raise SnapshotRejected('record_count_or_size')
-    identities = [r['id'] for r in rows] if source_id == 'dli' else [(r['application_type'], r['country_code']) for r in rows]
+    identities = ([r['id'] for r in rows] if source_id == 'dli' else
+                  [r['round'] for r in rows] if source_id.startswith('draws_') else
+                  [(r['application_type'], r['country_code']) for r in rows])
     if len(set(identities)) != len(identities):
         raise SnapshotRejected('duplicate_source_record')
     return rows, dates, normalization
@@ -283,7 +292,7 @@ def build_bundle(source_id, payloads, *, observed_at=None, content_types=None, c
     acquired = min(date_value(times[k]) for k in keys)
     rows, dates, normalization = _parse(source_id, payloads, acquired)
     manifest = {
-        'source_id': source_id, 'official_url': SOURCES['dli' if source_id == 'dli' else 'processing_' + source_id[-2:]],
+        'source_id': source_id, 'official_url': SOURCES[source_id],
         'source_language': 'en' if source_id == 'dli' else source_id[-2:],
         'retrieved_at': stamp(acquired), 'published_at': dates,
         'schema_version': SCHEMA_VERSION, 'parser_version': PARSER_VERSION,
@@ -313,7 +322,7 @@ def validate_bundle(bundle, *, observed_at=None):
             raise SnapshotRejected('missing_or_extra_components')
         if type(m['schema_version']) is not int or m['schema_version'] != SCHEMA_VERSION or m['parser_version'] != PARSER_VERSION:
             raise SnapshotRejected('unsupported_schema')
-        if m['official_url'] != SOURCES['dli' if key == 'dli' else 'processing_' + key[-2:]] or m['source_language'] != ('en' if key == 'dli' else key[-2:]):
+        if m['official_url'] != SOURCES[key] or m['source_language'] != ('en' if key == 'dli' else key[-2:]):
             raise SnapshotRejected('source_identity')
         acquired = date_value(m['retrieved_at']); times = []
         if acquired > observed_at or observed_at >= acquired + timedelta(seconds=STALE_SECONDS):
@@ -401,7 +410,7 @@ def read_snapshot(source_id, *, session_factory=None, observed_at=None):
         raise SnapshotRejected('unsupported_source')
     from app.services.official_resources import SOURCES
     result = {'status':'unavailable', 'records':[], 'retrieved_at':None, 'expires_at':None,
-              'source_updated_at':None, 'source_url':SOURCES['dli' if source_id == 'dli' else 'processing_' + source_id[-2:]],
+              'source_updated_at':None, 'source_url':SOURCES[source_id],
               'reason':'source_not_reliably_available', 'review_status':'NOT_VERIFIED'}
     try:
         from app.models.official_resource_snapshot_model import OfficialResourceSnapshot as Snapshot, OfficialResourceHead as Head

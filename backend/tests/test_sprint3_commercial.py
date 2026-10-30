@@ -1,6 +1,6 @@
 """Synthetic commercial release review. No provider or production connections."""
 import copy
-from datetime import date
+from datetime import date, timedelta
 import json
 import logging
 from pathlib import Path
@@ -188,6 +188,272 @@ def test_tables_are_immutable():
     from app.services.official_crs import TABLES
     with pytest.raises(TypeError):
         TABLES['education'][0][0]=99
+
+
+def work_period(**changes):
+    return dict(country='CA', start_date='2025-01-01', end_date='2026-01-01',
+                weekly_hours=30.0, noc_code='21231', paid=True, authorized=True,
+                full_time_student=False, self_employed=False, duties_match=True) | changes
+
+
+def equivalence_period(*, years=1, country='CA'):
+    start = date(2022, 1, 1)
+    # Independent hours: 20 hours/week * 78 weeks = 1560, spanning >12 months.
+    return work_period(country=country, start_date=start.isoformat(),
+                       end_date=(start + timedelta(weeks=78 * years)).isoformat(), weekly_hours=20.0)
+
+
+@pytest.mark.parametrize('country', ['CA', 'FR'])
+@pytest.mark.parametrize('years', [1, 2])
+def test_equivalence_exact_part_time_years(country, years):
+    from app.services.official_crs import normalize_work_periods
+    result = normalize_work_periods([equivalence_period(years=years, country=country)], as_of=date(2026, 11, 2))
+    key = 'canadian' if country == 'CA' else 'foreign'
+    assert result['blockers'] == []
+    assert result['work'][key] == {'credited_hours': 1560 * years, 'completed_years': years}
+
+
+@pytest.mark.parametrize('years,score,core', [(1, 459, 409), (2, 472, 422)])
+def test_equivalence_part_time_candidate_breakdown(years, score, core):
+    result = evaluate_candidate(BASE | {'canadian_work_years': None, 'foreign_work_years': 0,
+        'canadian_work_qualified': True, 'work_periods': [equivalence_period(years=years)]}, as_of=date(2026, 11, 2))
+    # 110 age +135 education +124 language +40/53 work +50 transferability.
+    assert result['missing_inputs'] == []
+    assert result['score'] == score
+    assert result['section_totals'] == {'core': core, 'spouse': 0, 'transferability': 50, 'additional': 0}
+    assert sum(row['points'] for row in result['breakdown']) == score
+    assert result['production_activation'] is False
+
+
+def test_equivalence_preparation_has_no_false_conflict_or_numerical_output():
+    from app.services.crs_assessment_service import review_crs_inputs
+    facts = copy.deepcopy(BASE | {'canadian_work_years': 1, 'foreign_work_years': 0,
+        'canadian_work_qualified': True, 'work_periods': [equivalence_period()]})
+    original = copy.deepcopy(facts)
+    language = {'en': {'usable': True, 'skills': {k: {'benchmark': v} for k, v in facts['english'].items()}}, 'fr': None}
+    result = review_crs_inputs({'ranking_facts': facts}, language, as_of=date(2026, 11, 2))
+    assert result['missing_inputs'] == []
+    assert result['status'] == 'verification_required'
+    assert result['work_normalization']['work']['canadian']['completed_years'] == 1
+    assert result['score'] is None and result['numerical_activation'] is False
+    assert all(row['points'] is None for row in result['breakdown'])
+    assert facts == original
+
+
+@pytest.mark.parametrize('country', ['CA', 'FR'])
+@pytest.mark.parametrize('years', [1, 2])
+def test_equivalence_hours_do_not_replace_calendar_anniversaries(country, years):
+    from app.services.official_crs import normalize_work_periods
+    start = date(2022, 1, 1)
+    period = work_period(country=country, start_date=start.isoformat(),
+                         end_date=(start + timedelta(weeks=52 * years)).isoformat())
+    result = normalize_work_periods([period], as_of=date(2026, 11, 2))
+    key = 'canadian' if country == 'CA' else 'foreign'
+    assert result['work'][key] == {'credited_hours': 1560 * years, 'completed_years': years - 1}
+
+
+def test_equivalence_weekly_cap_prevents_compressed_year():
+    from app.services.official_crs import normalize_work_periods
+    start = date(2022, 1, 1)
+    period = work_period(start_date=start.isoformat(), end_date=(start + timedelta(weeks=26)).isoformat(), weekly_hours=60.0)
+    result = normalize_work_periods([period], as_of=date(2026, 11, 2))
+    assert result['hours_per_week_cap'] == 30
+    assert result['work']['canadian'] == {'credited_hours': 780, 'completed_years': 0}
+
+
+def test_equivalence_overlapping_hours_do_not_create_second_year():
+    from app.services.official_crs import normalize_work_periods
+    period = equivalence_period()
+    result = normalize_work_periods([period, copy.deepcopy(period)], as_of=date(2026, 11, 2))
+    # Two concurrent 20h/week jobs are capped at30, not40: 78*30=2340, not3120.
+    assert result['work']['canadian'] == {'credited_hours': 2340, 'completed_years': 1}
+
+
+@pytest.mark.parametrize('changes', [
+    {'paid': False}, {'authorized': False}, {'full_time_student': True},
+    {'self_employed': True}, {'duties_match': False}, {'noc_code': '65201'},
+])
+def test_equivalence_unqualified_hours_remain_excluded(changes):
+    from app.services.official_crs import normalize_work_periods
+    result = normalize_work_periods([equivalence_period() | changes], as_of=date(2026, 11, 2))
+    assert result['work']['canadian'] == {'credited_hours': 0, 'completed_years': 0}
+
+
+@pytest.mark.parametrize('country', ['CA', 'FR'])
+def test_equivalence_mixed_full_time_and_part_time(country):
+    from app.services.official_crs import normalize_work_periods
+    start = date(2022, 1, 1)
+    split = start + timedelta(weeks=26)
+    periods = [work_period(country=country, start_date=start.isoformat(), end_date=split.isoformat()),
+               work_period(country=country, start_date=split.isoformat(),
+                           end_date=(split + timedelta(weeks=52)).isoformat(), weekly_hours=15.0)]
+    result = normalize_work_periods(periods, as_of=date(2026, 11, 2))
+    key = 'canadian' if country == 'CA' else 'foreign'
+    # Nonoverlapping 26*30 +52*15 =1560, with >12 calendar months elapsed.
+    assert result['blockers'] == []
+    assert result['work'][key] == {'credited_hours': 1560, 'completed_years': 1}
+
+
+@pytest.mark.parametrize('changes,missing', [
+    ({'canadian_work_qualified': None}, 'canadian_work_qualification'),
+    ({'work_periods': [equivalence_period() | {'paid': None}]}, 'work_qualification_incomplete'),
+])
+def test_equivalence_hours_do_not_replace_missing_evidence(changes, missing):
+    result = evaluate_candidate(BASE | {'canadian_work_years': None, 'foreign_work_years': 0,
+        'canadian_work_qualified': True, 'work_periods': [equivalence_period()]} | changes, as_of=date(2026, 11, 2))
+    assert result['score'] is None and missing in result['missing_inputs']
+
+
+@pytest.mark.parametrize('periods,years', [
+    ([work_period()], 1),
+    ([work_period(), work_period()], 1),
+    ([work_period(weekly_hours=15.0), work_period(weekly_hours=15.0)], 1),
+    ([work_period(weekly_hours=15.0)], 0),
+    ([work_period(end_date='2025-12-31')], 0),
+    ([work_period(start_date='2024-01-01', end_date='2024-12-31')], 0),
+    ([work_period(start_date='2024-01-01', end_date='2025-01-01')], 1),
+    ([work_period(paid=False)], 0),
+    ([work_period(authorized=False)], 0),
+    ([work_period(full_time_student=True)], 0),
+    ([work_period(self_employed=True)], 0),
+    ([work_period(noc_code='65201')], 0),
+    ([work_period(start_date='2010-01-01', end_date='2011-01-01')], 0),
+])
+def test_work_period_literal_boundaries(periods, years):
+    from app.services.official_crs import normalize_work_periods
+    result = normalize_work_periods(periods, as_of=date(2026, 11, 2))
+    assert result['work']['canadian']['completed_years'] == years
+    assert result['work']['foreign']['completed_years'] == 0
+    assert result['hours_per_week_cap'] == 30
+    assert result['blockers'] == []
+
+
+@pytest.mark.parametrize('changes,blocker', [
+    ({'paid': None}, 'work_qualification_incomplete'),
+    ({'duties_match': None}, 'work_qualification_incomplete'),
+    ({'authorized': None}, 'work_qualification_incomplete'),
+    ({'exception_claimed': True}, 'work_exception_requires_review'),
+    ({'noc_code': '99999'}, 'unknown_work_noc'),
+    ({'country': 'ZZ'}, 'unsupported_work_country'),
+    ({'end_date': '2027-01-01'}, 'work_period_after_evaluation_date'),
+])
+def test_unsupported_work_period_withholds_offline_score(changes, blocker):
+    result = evaluate_candidate(BASE | {'canadian_work_years': None, 'foreign_work_years': 0,
+        'canadian_work_qualified': True, 'work_periods': [work_period(**changes)]}, as_of=date(2026,11,2))
+    assert result['score'] is None and blocker in result['missing_inputs']
+
+
+def test_work_evidence_is_detached_and_cannot_overwrite_declared_years():
+    facts = copy.deepcopy(BASE | {'canadian_work_years': 5, 'foreign_work_years': 0,
+        'canadian_work_qualified': True, 'work_periods': [work_period()]})
+    original = copy.deepcopy(facts)
+    result = evaluate_candidate(facts, as_of=date(2026,11,2))
+    assert result['score'] is None and 'canadian_work_years_period_conflict' in result['missing_inputs']
+    assert facts == original
+    result = evaluate_candidate(facts | {'canadian_work_years': None}, as_of=date(2026,11,2))
+    # Independent arithmetic: 110 age +135 education +124 language +40 work
+    # +50 education transferability =459; no foreign/offer/additional points.
+    assert result['score'] == 459
+    assert result['section_totals'] == {'core':409, 'spouse':0, 'transferability':50, 'additional':0}
+
+
+@pytest.mark.parametrize('vector', json.loads((Path(__file__).parents[1]/"app/rules/fixtures/crs_vectors.json").read_text(encoding='utf-8'))['acceleration_validation']['vectors'], ids=lambda v:v['id'])
+def test_acceleration_hand_derived_period_vectors(vector):
+    base=next(v['facts'] for v in VECTORS if v['id']==vector['base_vector'])
+    result=evaluate_candidate(base | vector['patch'],as_of=date(2026,11,2))
+    assert result['score']==vector['expected_score']
+    assert result['section_totals']==vector['expected_sections']
+    assert sum(v['points'] for v in result['breakdown'])==vector['expected_score']
+    assert result['production_activation'] is False
+
+
+def test_simultaneous_cross_country_periods_are_not_favourably_guessed():
+    from app.services.official_crs import normalize_work_periods
+    result = normalize_work_periods([work_period(), work_period(country='FR')], as_of=date(2026,11,2))
+    assert result['blockers'] == ['simultaneous_cross_country_work_requires_review']
+
+
+@pytest.mark.parametrize('field', ['canadian_work_years','foreign_work_years'])
+def test_declared_work_cannot_exceed_ten_year_crs_window(field):
+    result=evaluate_candidate(BASE | {field:11},as_of=date(2026,11,2))
+    assert result['score'] is None
+    assert field.replace('_years','')+'_exceeds_supported_window' in result['missing_inputs']
+
+
+@pytest.mark.parametrize('changes', [
+    {'weekly_hours': True}, {'weekly_hours': float('nan')}, {'weekly_hours': 0},
+    {'start_date':'2025-02-30'}, {'end_date':'2024-12-31'},
+    {'noc_code':'２１２３１'}, {'country':'Canada'}, {'salary':200000},
+])
+def test_work_period_types_are_strict(changes):
+    from app.services.official_crs import WorkPeriod
+    with pytest.raises(ValidationError):
+        WorkPeriod.model_validate(work_period(**changes))
+
+
+def test_public_review_uses_owned_selected_language_not_client_benchmarks(sprint_api):
+    from app.models.language_assessment_model import LanguageAssessment, LanguageSelection
+    from app.services.language_assessment_service import VERSION, today
+    client, sessions = sprint_api
+    with sessions() as db:
+        record = LanguageAssessment(user_id=1, language='en', exam='celpip_general',
+            edition='celpip_general', test_date=today(), raw_scores=dict.fromkeys(['listening','reading','writing','speaking'],7), mapping_version=VERSION)
+        db.add(record); db.flush()
+        db.add(LanguageSelection(user_id=1, language='en', assessment_id=record.id)); db.commit()
+        selected_id=record.id
+    facts=BASE | {'english':dict.fromkeys(['listening','reading','writing','speaking'],12)}
+    result=client.post('/assessments/crs',headers={'x-test-user':'1'},json={'baseline':{'ranking_facts':facts},'as_of':'2026-11-02'}).json()['baseline']
+    assert result['score'] is None and all(x['points'] is None for x in result['breakdown'])
+    assert result['selected_language_evidence']['en']['id'] == selected_id
+    assert result['numerical_activation'] is False
+    foreign=client.post('/assessments/crs',headers={'x-test-user':'2'},json={'baseline':{'ranking_facts':facts}}).json()['baseline']
+    assert foreign['selected_language_evidence'] == {}
+    assert 'first_language_four_skills' in foreign['missing_inputs']
+
+
+def test_scenario_implementation_is_inert_and_free_facts_stay_available(sprint_api):
+    from app.routes.commercial_workspace_routes import router
+    client, _ = sprint_api
+    client.app.include_router(router)
+    for user in ('1','2'):
+        headers={'x-test-user':user}
+        case_id=client.get('/application-cases/context',headers=headers).json()['case_id']
+        url=f'/preparation/cases/{case_id}'
+        assert client.get(url+'/crs-scenarios',headers=headers).status_code == 403
+        assert client.put(url+'/crs-scenarios',headers=headers,json={'revision':0,'items':[]}).status_code == 403
+        assert client.put(url+'/crs-inputs',headers=headers,json={'revision':0,'facts':{'age':29}}).status_code == 200
+
+
+@pytest.mark.parametrize('patch_mode', [False, True])
+def test_owned_scenario_service_preserves_forms_and_fact_revisions(sprint_api, patch_mode):
+    from fastapi import HTTPException
+    from app.models.user_models import User
+    from app.models.self_application_model import SelfApplication
+    from app.routes.commercial_workspace_routes import router, SavedScenarios, save_scenario_preparation
+    client, sessions = sprint_api
+    client.app.include_router(router)
+    headers={'x-test-user':'1'}
+    case_id=client.get('/application-cases/context',headers=headers).json()['case_id']
+    assert client.put(f'/preparation/cases/{case_id}/crs-inputs',headers=headers,json={'revision':0,'facts':{'age':29}}).status_code == 200
+    body=SavedScenarios(revision=0,items=[{'identifier':'scenario-a','title':'Synthetic preparation','facts':{'age':30}}])
+    with sessions() as db:
+        result=save_scenario_preparation(db,db.get(User,1),case_id,body)
+        assert result['revision']==1 and result['items'][0]['score'] is None
+        expected=copy.deepcopy(db.query(SelfApplication).filter_by(application_case_id=case_id,user_id=1).one().intake_payload['crs_preparation']['scenario_preparation'])
+        with pytest.raises(HTTPException) as exc:
+            save_scenario_preparation(db,db.get(User,1),case_id,body)
+        assert exc.value.status_code==409
+        db.rollback()
+        with pytest.raises(HTTPException) as exc:
+            save_scenario_preparation(db,db.get(User,2),case_id,body)
+        assert exc.value.status_code==404
+    assert client.post('/self/workspace',headers=headers,json={'case_id':case_id,'matter_type':'permanent_residence','preserve_omitted_intake':patch_mode,'intake':{'occupation':'Synthetic','crs_preparation':{'scenario_preparation':{'revision':999}}}}).status_code==200
+    assert client.put(f'/preparation/cases/{case_id}/crs-inputs',headers=headers,json={'revision':1,'facts':{'age':31}}).status_code == 200
+    with sessions() as db:
+        row=db.query(SelfApplication).filter_by(application_case_id=case_id,user_id=1).one()
+        assert row.intake_payload['crs_preparation']['scenario_preparation']==expected
+        assert row.intake_payload['crs_preparation']['facts']['age']==31
+        assert row.intake_payload['occupation']=='Synthetic'
 
 
 def test_admin_validation_report_is_not_activation(sprint_api):

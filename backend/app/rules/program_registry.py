@@ -5,6 +5,8 @@ Stream activation requires a separately reviewed, dated registry release.
 """
 from dataclasses import asdict, dataclass
 from datetime import date
+import json
+from pathlib import Path
 import unicodedata
 from app.rules.official_sources import SOURCES
 
@@ -19,6 +21,51 @@ ALIASES = {"quebec": "QC", "nunavut": "NU", "ontario": "ON", "alberta": "AB",
            "new brunswick": "NB", "nouveau-brunswick": "NB", "newfoundland and labrador": "NL",
            "nova scotia": "NS", "northwest territories": "NT", "prince edward island": "PE",
            "saskatchewan": "SK", "yukon": "YT"}
+
+
+def criteria_records(*, as_of=None):
+    """Read reviewed factual summaries; never activate a stream or assess a user."""
+    today = as_of or date.today()
+    envelope = json.loads(Path(__file__).with_name("program_criteria.json").read_text(encoding="utf-8"))
+    if set(envelope) != {"schema_version", "coverage", "records"} or envelope["schema_version"] != 1:
+        raise ValueError("Unsupported program criteria schema")
+    records = envelope["records"]
+    if not isinstance(records, list) or len(records) != 3:
+        raise ValueError("Expected the bounded three-program criteria slice")
+    expected = {"federal.cec": "ircc.cec", "federal.fsw": "ircc.fsw", "federal.fst": "ircc.fst"}
+    found = set()
+    normalized = []
+    required = {"identifier", "title_en", "title_fr", "source_id", "official_source", "criteria", "jurisdiction", "family", "source_reviewed_on", "source_published_at", "effective_from", "review_required_from", "review_status", "independent_review", "intake_status", "eligibility", "settlement"}
+    for record in records:
+        if not isinstance(record, dict) or set(record) != required:
+            raise ValueError("Malformed criteria record")
+        identifier = record["identifier"]
+        if identifier not in expected or identifier in found or record["source_id"] != expected[identifier]:
+            raise ValueError("Unknown or duplicate program criteria")
+        source = SOURCES.get(record["source_id"])
+        if not source or record["official_source"] != source.url:
+            raise ValueError("Unverified program source")
+        if any(record[key] != value for key, value in {"jurisdiction": "CA", "family": "express_entry", "settlement": "outside_QC", "review_status": "UNDER_REVIEW", "independent_review": "pending", "intake_status": "unknown", "eligibility": "not_assessed"}.items()):
+            raise ValueError("Criteria cannot activate intake or eligibility")
+        # Review/retrieval dates are not legal commencement or publication dates.
+        if record["effective_from"] is not None or record["source_published_at"] is not None:
+            raise ValueError("Unestablished source dates must remain unknown")
+        reviewed = date.fromisoformat(record["source_reviewed_on"])
+        next_review = date.fromisoformat(record["review_required_from"])
+        if reviewed >= next_review or reviewed > today:
+            raise ValueError("Invalid review dates")
+        if not all(isinstance(record[k], str) and record[k].strip() for k in ("title_en", "title_fr")):
+            raise ValueError("Missing bilingual title")
+        if not isinstance(record["criteria"], list) or not record["criteria"]:
+            raise ValueError("Empty criteria")
+        keys = set()
+        for criterion in record["criteria"]:
+            if not isinstance(criterion, dict) or set(criterion) != {"key", "en", "fr"} or not all(isinstance(v, str) and v.strip() for v in criterion.values()) or criterion["key"] in keys:
+                raise ValueError("Malformed bilingual criterion")
+            keys.add(criterion["key"])
+        found.add(identifier)
+        normalized.append({**record, "criteria_status": "review_required" if today >= next_review else "source_reviewed_information"})
+    return normalized
 
 
 def jurisdiction(value):
@@ -83,7 +130,7 @@ def active_streams(destination, *, as_of, programs=PROGRAMS):
             and p.effective_from <= as_of <= p.availability_verified_until]
 
 
-def catalog(query='', destination=None):
+def catalog(query='', destination=None, *, as_of=None):
     target='CA' if str(destination or '').strip().upper()=='CA' else jurisdiction(destination)
     if destination and target is None:
         return {'records':[],'jurisdiction':None,'eligibility':'not_assessed','automatic_activation':False,'status':'unsupported_jurisdiction'}
@@ -103,6 +150,12 @@ def catalog(query='', destination=None):
  'quebec_selection':'Le Québec dispose d’un processus distinct de sélection des travailleurs qualifiés qui souhaitent s’y établir. La sélection québécoise et la décision fédérale de résidence permanente sont des étapes distinctes ; il ne s’agit ni d’un PCP ni d’Entrée express.',
  'pnp':'Référence à la désignation provinciale ou territoriale pour l’établissement dans le territoire concerné. Les critères des volets et leur ouverture exigent une vérification officielle distincte. Une désignation n’est pas une décision fédérale de résidence permanente.'}[p.family],
  'eligibility':'not_assessed','intake_status':p.availability})
+    if target != 'QC':
+        for item in criteria_records(as_of=as_of):
+            records.append({**item, 'title': item['title_en'] + ' / ' + item['title_fr'],
+                'description_status': 'reviewed_factual_summary', 'description_en': 'Program-specific preparation reference, not a personal eligibility decision.',
+                'description_fr': 'Référence de préparation propre au programme, pas une décision d’admissibilité.',
+                'checked_on': item['source_reviewed_on'], 'availability': 'unknown'})
     if terms:
         records=[r for r in records if terms in norm(' '.join([r['title'],r['identifier'],r['description_en'],r['description_fr'],* [name for name,code in ALIASES.items() if code==r['jurisdiction']]]))]
     return {'records':records,'jurisdiction':target,'eligibility':'not_assessed','automatic_activation':False,'constraints':['QC and NU have no PNP','Reference existence is not intake availability','Unsupported streams remain under review']}

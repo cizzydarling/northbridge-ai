@@ -14,7 +14,7 @@ class OfficialResourceSnapshot(Base):
     records = Column(JSON, nullable=False)
     __table_args__ = (
         UniqueConstraint("source_id", "id", name="uq_official_snapshot_source_id"),
-        CheckConstraint("source_id IN ('dli','processing_en','processing_fr')", name="ck_official_snapshot_source"),
+        CheckConstraint("source_id IN ('dli','processing_en','processing_fr','draws_en','draws_fr')", name="ck_official_snapshot_source"),
         CheckConstraint("record_count > 0", name="ck_official_snapshot_nonempty"),
     )
 
@@ -27,5 +27,5 @@ class OfficialResourceHead(Base):
         ForeignKeyConstraint(["source_id", "snapshot_id"],
                              ["official_resource_snapshots.source_id", "official_resource_snapshots.id"],
                              name="fk_official_head_source_snapshot"),
-        CheckConstraint("source_id IN ('dli','processing_en','processing_fr')", name="ck_official_head_source"),
+        CheckConstraint("source_id IN ('dli','processing_en','processing_fr','draws_en','draws_fr')", name="ck_official_head_source"),
     )

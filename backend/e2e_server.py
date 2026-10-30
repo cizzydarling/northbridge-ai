@@ -88,6 +88,7 @@ def seed_resource_snapshots(test_engine):
     module; snapshot APIs keep their normal database read/validation path.
     """
     import re
+    import json
     from sqlalchemy import inspect, select
     from sqlalchemy.engine import make_url
     from sqlalchemy.orm import sessionmaker
@@ -116,8 +117,20 @@ def seed_resource_snapshots(test_engine):
         raise RuntimeError('Initialize disposable snapshot schema first')
 
     seed_at = datetime(2026, 10, 29, tzinfo=timezone.utc)
-    keys = ('dli','processing_en','processing_fr')
-    bundles = {key:snapshots.build_bundle(key, {part:synthetic_source(part) for part in snapshots.component_keys(key)}, observed_at=seed_at) for key in keys}
+    keys = ('dli','processing_en','processing_fr','draws_en','draws_fr')
+    def fixture_source(key):
+        if not key.startswith('draws_'):
+            return synthetic_source(key)
+        fr = key.endswith('_fr')
+        rows = []
+        for identity, day, cutoff in [('9002','2026-10-28','450'),('9001','2026-10-16','470')]:
+            link = f"<a href='https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/policies-operational-instructions-agreements/ministerial-instructions/express-entry-rounds/invitations.html?q={identity}'>SYNTHETIC</a>"
+            rows.append({'drawNumber':identity,'drawDate':day,'drawName':'SYNTHETIC catégorie' if fr else 'SYNTHETIC category',
+                         'drawSize':'1,500','drawCRS':cutoff,'DrawText1':link,
+                         'drawDateTime':('28 octobre 2026 à 10:00:00 UTC' if fr else 'October 28, 2026 at 10:00:00 UTC') if day.endswith('28') else ('16 octobre 2026 à 10:00:00' if fr else 'October 16, 2026 at 10:00:00'),
+                         'drawCutOff':'1 octobre 2026 à 09:00:00 UTC' if fr else 'October 1, 2026 at 09:00:00 UTC'})
+        return json.dumps({'classes':'wb-tables','rounds':rows}, ensure_ascii=False)
+    bundles = {key:snapshots.build_bundle(key, {part:fixture_source(part) for part in snapshots.component_keys(key)}, observed_at=seed_at) for key in keys}
     result = {}
     with test_engine.begin() as connection:
         if url.get_backend_name() == 'sqlite':
@@ -142,10 +155,11 @@ def seed_resource_snapshots(test_engine):
     # snapshot checks still run. Production clocks and source adapters unchanged.
     read_sessions = sessionmaker(bind=test_engine)
     official_resources._snapshot_reader = lambda key:snapshots.read_snapshot(key, session_factory=read_sessions, observed_at=seed_at)
+    os.environ['NBAI_TEST_OFFICIAL_DRAWS'] = 'true'  # after disposable identity/schema checks only
     provider_reader = official_resources._read_source
     def provider_only(key):
         if key in keys or key.startswith('json_'):
-            raise RuntimeError('E2E DLI/processing requests must read snapshots')
+            raise RuntimeError('E2E DLI/processing/draw requests must read snapshots')
         return provider_reader(key)
     provider_only.snapshot_fixture_guard = True
     if not getattr(provider_reader, 'snapshot_fixture_guard', False):

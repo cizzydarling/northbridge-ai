@@ -5,6 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 from app.data.db import get_db
 from app.models.language_assessment_model import LanguageAssessment, LanguageSelection
+from app.models.profile_model import Profile
+from app.services.official_crs import RankingFacts
 from app.routes.self_document_routes import require_self_user
 from app.services.language_assessment_service import assessment_payload, today
 from app.services.crs_assessment_service import review_crs_inputs
@@ -27,6 +29,7 @@ class CRSInputs(BaseModel):
     spouse_canadian_work_years: int | None = Field(default=None, ge=0, le=60)
     spouse_language: Literal["unknown", "no_results", "reported"] | None = None
     occupation_classification: str | None = Field(default=None, pattern=r"^[0-9]{5}$")
+    ranking_facts: RankingFacts | None = None
 
 
 class ScenarioRequest(BaseModel):
@@ -50,6 +53,8 @@ def assess_inputs(payload: ScenarioRequest, db: Session = Depends(get_db), user=
     evidence = language_context(db, user)
     as_of = payload.as_of or today()
     # Current evidence never becomes valid by selecting a historical/future scenario date.
-    baseline = review_crs_inputs(payload.baseline.model_dump(), evidence, as_of=as_of)
-    scenario = review_crs_inputs(payload.scenario.model_dump(), evidence, as_of=as_of) if payload.scenario else None
+    profile = db.query(Profile).filter_by(user_id=user.id).first()
+    profile_context = {key: getattr(profile, key, None) for key in ("age", "education")} if profile else {}
+    baseline = review_crs_inputs(payload.baseline.model_dump(), evidence, as_of=as_of, profile_context=profile_context)
+    scenario = review_crs_inputs(payload.scenario.model_dump(), evidence, as_of=as_of, profile_context=profile_context) if payload.scenario else None
     return {"baseline": baseline, "scenario": scenario, "score_difference": None, "writes": False}

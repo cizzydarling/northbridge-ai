@@ -304,3 +304,34 @@ def test_processing_api_keeps_previous_snapshot_after_malformed_import(api,sourc
  after=client.get(url)
  assert after.status_code==200 and after.json()==before.json()
  assert after.json()['status']=='available' and after.json()['personal_prediction'] is False
+
+
+
+def test_draw_default_paid_boundary_and_production_release_guard(api,monkeypatch):
+ client,db,free,pro,cases,active=api
+ assert client.get('/immigration-intelligence/draws').json()['locked'] is True
+ monkeypatch.setenv('APP_ENV','production');monkeypatch.setenv('NBAI_TEST_OFFICIAL_DRAWS','true')
+ result=client.get('/immigration-intelligence/draws?scope=official_reference').json()
+ assert result['draws']==[] and result['reason']=='reference_release_not_authorized'
+ free.role='agent'
+ assert client.get('/immigration-intelligence/draws?scope=official_reference').status_code==403
+
+
+@pytest.mark.parametrize('language',['en','fr'])
+def test_draw_snapshot_reference_has_no_network_and_historical_context(api,sources,monkeypatch,language):
+ from backend.tests.test_official_resource_snapshots import draw_bundle
+ from app.services.immigration_intelligence_service import official_draw_reference
+ with sources() as session:snapshots.promote(session,draw_bundle(language),expected_head=None)
+ monkeypatch.setattr(resources,'_read_source',lambda *_:pytest.fail('history read must not fetch remotely'))
+ monkeypatch.setenv('APP_ENV','test');monkeypatch.setenv('NBAI_TEST_OFFICIAL_DRAWS','true')
+ client,*_=api
+ result=client.get('/immigration-intelligence/draws',params={'scope':'official_reference','language':language}).json()
+ assert result['available'] and result['historical_only'] and result['total']==1
+ row=result['draws'][0]
+ assert row['invitations_issued']==1500 and row['crs_cutoff']==450 and row['prediction'] is False
+ assert row['tie_break_at_utc']=='2026-10-01T09:00:00+00:00'
+ assert result['source_updated_at'] is None
+ assert official_draw_reference(language=language,category='no-match')['draws']==[]
+ assert official_draw_reference(language=language,offset=1)['draws']==[]
+ assert client.get('/immigration-intelligence/draws?scope=official_reference&limit=100').status_code==422
+ assert client.get('/immigration-intelligence/draws?scope=official_reference&offset=-1').status_code==422

@@ -80,6 +80,8 @@ for (const language of ['en','fr']) {
     const menu=page.getByRole('dialog',{name:fr?'Menu principal':'Main menu'});
     await expect(menu).toBeVisible();
     for (const label of fr?['Explorer le Canada','Langues et études','Ma préparation','Assistant IA']:['Explore Canada','Language & Education','My Preparation','AI Assistant']) await expect(menu.getByRole('paragraph').filter({hasText:label})).toBeVisible();
+    await expect(menu.getByRole('button',{name:fr?'Évaluer mes options':'Assess My Options',exact:true})).toBeVisible();
+    await expect(menu.getByRole('button',{name:fr?'Actualités d’immigration':'Immigration Updates',exact:true})).toBeVisible();
     const centres=menu.getByRole('button',{name:fr?'Centres de tests':'Test centres',exact:true});
     await centres.focus(); await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/official-finders\?tab=tests$/);

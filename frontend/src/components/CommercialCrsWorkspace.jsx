@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import Button from "./ui/Button";
-import { getApplicationContext, getCurrentUserLocal, getCrsPreparation, saveCrsPreparation, recordProductActivity } from "../api";
+import { getApplicationContext, getCurrentUserLocal, getToken, getCrsPreparation, saveCrsPreparation, recordProductActivity } from "../api";
 
 function invalidateEpoch(ref, version) {
   if (ref.current === version) ref.current += 1;
@@ -19,6 +19,23 @@ export default function CommercialCrsWorkspace() {
   const [reload, setReload] = useState(0);
   const epoch = useRef(0);
   const owner = getCurrentUserLocal()?.id;
+  const token = getToken();
+  useEffect(() => {
+    const invalidate = () => {
+      epoch.current += 1;
+      setView({ state: "loading", caseId: null, owner: null, revision: 0, facts: {} });
+      setError(false); setSaved(false); setBusy(false);
+      setReload(value => value + 1);
+    };
+    window.addEventListener('nbai-active-case-updated', invalidate);
+    window.addEventListener('nbai-bootstrap-refresh', invalidate);
+    window.addEventListener('userUpdated', invalidate);
+    return () => {
+      window.removeEventListener('nbai-active-case-updated', invalidate);
+      window.removeEventListener('nbai-bootstrap-refresh', invalidate);
+      window.removeEventListener('userUpdated', invalidate);
+    };
+  }, []);
   useEffect(() => {
     let active = true;
     const version = ++epoch.current;
@@ -28,18 +45,23 @@ export default function CommercialCrsWorkspace() {
       try {
         const context = (await getApplicationContext()).data;
         const result = (await getCrsPreparation(context.case_id)).data;
+        const latest = (await getApplicationContext()).data;
+        if (latest.case_id !== context.case_id) {
+          if (active && epoch.current === version && getToken() === token) setReload(value => value + 1);
+          return;
+        }
         if (result.case_id !== context.case_id || !Number.isInteger(result.revision) || result.score !== null) throw new Error("Invalid preparation contract");
-        if (active && epoch.current === version && getCurrentUserLocal()?.id === owner) {
-          setView({ state: "ready", owner, caseId: result.case_id, revision: result.revision, facts: result.facts });
+        if (active && epoch.current === version && getCurrentUserLocal()?.id === owner && getToken() === token) {
+          setView({ state: "ready", owner, session: token, caseId: result.case_id, revision: result.revision, facts: result.facts, reference: result.owned_reference });
           recordProductActivity("crs_engaged", "strategy");
           recordProductActivity("strategy_engaged", "strategy");
         }
-      } catch { if (active && epoch.current === version && getCurrentUserLocal()?.id === owner) setView({ state: "failed", owner, caseId: null, revision: 0, facts: {} }); }
+      } catch { if (active && epoch.current === version && getCurrentUserLocal()?.id === owner && getToken() === token) setView({ state: "failed", owner, caseId: null, revision: 0, facts: {} }); }
     }
     load();
     return () => { active = false; invalidateEpoch(epoch, version); };
-  }, [owner, reload]);
-  const ready = view.state === "ready" && owner === view.owner;
+  }, [owner, token, reload]);
+  const ready = view.state === "ready" && owner === view.owner && token === view.session;
   function change(key, value) {
     setSaved(false); setError(false);
     setView(v => ({ ...v, facts: { ...v.facts, [key]: value } }));
@@ -49,13 +71,16 @@ export default function CommercialCrsWorkspace() {
     const version = epoch.current;
     setBusy(true); setError(false);
     try {
+      const latest = (await getApplicationContext()).data;
+      if (epoch.current !== version || getToken() !== token || getCurrentUserLocal()?.id !== owner) return;
+      if (latest.case_id !== view.caseId) { setReload(value => value + 1); return; }
       const result = (await saveCrsPreparation(view.caseId, { revision: view.revision, facts: view.facts })).data;
-      if (epoch.current === version && getCurrentUserLocal()?.id === owner) {
+      if (epoch.current === version && getCurrentUserLocal()?.id === owner && getToken() === token) {
         if (result.case_id !== view.caseId || result.revision !== view.revision + 1 || result.score !== null) throw new Error("Invalid save contract");
         setView(v => ({ ...v, revision: result.revision })); setSaved(true);
       }
-    } catch { if (epoch.current === version && getCurrentUserLocal()?.id === owner) setError(true); }
-    finally { if (epoch.current === version && getCurrentUserLocal()?.id === owner) setBusy(false); }
+    } catch { if (epoch.current === version && getCurrentUserLocal()?.id === owner && getToken() === token) setError(true); }
+    finally { if (epoch.current === version && getCurrentUserLocal()?.id === owner && getToken() === token) setBusy(false); }
   }
   const fields = [
     ["age", "Age", "Âge", 120],
@@ -81,6 +106,13 @@ export default function CommercialCrsWorkspace() {
   return <section className="nb-card space-y-4 border border-slate-200 bg-white p-4" aria-label={tr("Saved CRS preparation", "Préparation SCG enregistrée")}>
     <h2 className="text-xl font-semibold">{tr("Save incomplete CRS preparation", "Enregistrer la préparation SCG incomplète")}</h2>
     <p>{tr("Ranking, program eligibility and invitation eligibility are separate decisions. Numerical scoring awaits independent rule review. Unknown answers stay unknown; saving does not change your Profile, language tests or paid access.", "Le classement, l’admissibilité au programme et l’admissibilité à une invitation sont distincts. Le calcul attend la révision indépendante des règles. Les réponses inconnues restent inconnues ; l’enregistrement ne modifie ni le profil, ni les examens, ni l’accès payant.")}</p>
+    {ready && <aside className="rounded border p-3" aria-label={tr("Authoritative evidence", "Preuves de référence")}>
+      <p>{tr("Profile and selected language tests remain authoritative. The fields below are detached preparation declarations, not changes to those records.", "Le profil et les examens linguistiques sélectionnés restent les références. Les champs ci-dessous sont des déclarations de préparation distinctes, sans modifier ces dossiers.")}</p>
+      <p>{tr("Profile age", "Âge dans le profil")}: {view.reference?.profile?.age ?? tr("Unknown", "Inconnu")}</p>
+      {[['en', 'English', 'Anglais'], ['fr', 'French', 'Français']].map(([language, en, french]) => <p key={language}>{tr(en, french)}: {view.reference?.selected_languages?.[language]?.usable ? tr("Current selected four-skill evidence", "Preuves actuelles sélectionnées des quatre compétences") : tr("No current usable selected evidence", "Aucune preuve sélectionnée actuelle utilisable")}</p>)}
+      <Link to="/profile?section=language#language-evidence">{tr("Manage selected language evidence", "Gérer les preuves linguistiques sélectionnées")}</Link>
+      <p>{tr("Saved scenario comparison is prepared but not released. Existing Free preparation saving remains available.", "La comparaison de scénarios enregistrés est préparée, mais non publiée. L’enregistrement de préparation Free reste disponible.")}</p>
+    </aside>}
     {!ready && <p role={view.state === "failed" ? "alert" : "status"}>{view.state === "failed" ? tr("Could not load saved preparation. Saving is blocked.", "Chargement impossible. L’enregistrement est bloqué.") : tr("Loading saved preparation…", "Chargement de la préparation…")}</p>}
     <fieldset disabled={!ready || busy} className="grid min-w-0 gap-4 sm:grid-cols-2">
       <legend className="sr-only">{tr("CRS facts", "Renseignements SCG")}</legend>

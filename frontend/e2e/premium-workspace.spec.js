@@ -192,7 +192,7 @@ for (const lang of ['en', 'fr']) for (const width of [320, 390, 768, 1440]) {
     await page.goto('/self/application');
     await expect(page.locator('.premium-preparation .premium-case-hero')).toBeVisible();
     await expect(page.getByRole('heading',{level:1,name:lang==='fr'?'Votre préparation reste connectée.':'Your preparation stays connected.',exact:true})).toBeVisible();
-    expect(workspaceWrites).toBe(1);
+    expect(workspaceWrites).toBe(0);
     const retained=await(await request.get(api+'/self/application/saved?case_id='+a.context.case_id,{headers:a.headers})).json();expect(retained.intake_payload.custom_note).toBe('PRESERVE PREPARATION NOTE');
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:info.outputPath('preparation-'+lang+'-'+width+'.png'),fullPage:true});
@@ -347,18 +347,18 @@ for (const failure of ['saved Forms','workspace']) test('My Preparation Retry re
     if(failures>0 && workspace===(failure==='workspace')){failures--;await r.fulfill({status:503,json:{detail:'synthetic temporary failure'}});return;}
     const response=await r.fetch();if(workspace&&response.ok())successfulWrites++;await r.fulfill({response});
   });
-  await page.goto('/self/application');await expect(page.getByRole('alert')).toContainText('Failed to load your application');await expect(page.locator('.premium-case-hero')).toHaveCount(0);
+  await page.goto('/self/application');if(failure==='workspace'){await expect(page.locator('.premium-case-hero')).toBeVisible();expect(workspaceRequests).toBe(0);await page.getByRole('button',{name:'Refresh preparation',exact:true}).click();}await expect(page.getByRole('alert')).toContainText('Failed to load your application');await expect(page.locator('.premium-case-hero')).toHaveCount(0);
   await page.getByRole('button',{name:'Try again',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Failed to load your application');expect(successfulWrites).toBe(0);
   await page.getByRole('button',{name:'Try again',exact:true}).click();await expect(page.locator('.premium-case-hero')).toContainText('#'+a.context.case_id);await expect(page.getByRole('alert')).toHaveCount(0);
-  expect(successfulWrites).toBe(1);expect(workspaceRequests).toBe(failure==='workspace'?3:1);
+  expect(successfulWrites).toBe(failure==='workspace'?1:0);expect(workspaceRequests).toBe(failure==='workspace'?3:0);
   for(const link of await page.locator('.premium-preparation a[href^="/forms?"]').all())await expect(link).toHaveAttribute('href','/forms?case_id='+a.context.case_id);
   const after=await(await request.get(api+'/self/application/saved?case_id='+a.context.case_id,{headers:a.headers})).json();expect(after.intake_payload).toEqual(before.intake_payload);
 });
 for (const mode of ['success','error','success without focus','error without focus']) test('My Preparation rejects delayed Case A '+mode+' and renders only active Case B',async({page,request})=>{
   const a=await synthetic(request,'p2-case-'+mode.replaceAll(' ',''));const b=await(await request.post(api+'/application-cases',{headers:a.headers,data:{application_type:'study_permit',case_title:'P2-AUTHORITATIVE-B'}})).json();expect((await request.post(api+'/application-cases/'+a.context.case_id+'/activate',{headers:a.headers})).ok()).toBeTruthy();await signIn(page,a.session);
   const old=deferredResponse(),fresh=deferredResponse();let oldWrites=0,newWrites=0;
-  await page.route(url=>url.pathname==='/self/workspace',async r=>{
-    const id=r.request().postDataJSON().case_id;
+  await page.route(url=>url.pathname==='/self/application/saved',async r=>{
+    const id=Number(new URL(r.request().url()).searchParams.get('case_id'));
     if(id===a.context.case_id){oldWrites++;const response=mode.startsWith('error')?null:await r.fetch();old.enter();await old.pending;if(response)await r.fulfill({response});else await r.fulfill({status:503,json:{detail:'late old-case failure'}});}
     else if(id===b.id){newWrites++;const response=await r.fetch();fresh.enter();await fresh.pending;await r.fulfill({response});}
     else await r.continue();
@@ -367,31 +367,31 @@ for (const mode of ['success','error','success without focus','error without foc
   if(mode.includes('without focus'))old.release();else await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
   await fresh.entered;await expect(page.locator('.premium-case-hero')).toHaveCount(0);await expect(page.locator('.premium-preparation a[href^="/forms?"]')).toHaveCount(0);await expect(page.getByRole('status')).toBeVisible();
   fresh.release();await expect(page.locator('.premium-case-hero')).toContainText('P2-AUTHORITATIVE-B');
-  if(!mode.includes('without focus')){const done=page.waitForResponse(r=>new URL(r.url()).pathname==='/self/workspace'&&r.request().postDataJSON().case_id===a.context.case_id);old.release();await(await done).finished();}
+  if(!mode.includes('without focus')){const done=page.waitForResponse(r=>new URL(r.url()).pathname==='/self/application/saved'&&Number(new URL(r.request().url()).searchParams.get('case_id'))===a.context.case_id);old.release();await(await done).finished();}
   await expect(page.locator('.premium-case-hero')).toContainText('#'+b.id);await expect(page.locator('.premium-case-hero')).not.toContainText('#'+a.context.case_id);await expect(page.getByRole('alert')).toHaveCount(0);
   const links=page.locator('.premium-preparation a[href^="/forms?"]');expect(await links.count()).toBeGreaterThan(0);for(const link of await links.all())await expect(link).toHaveAttribute('href','/forms?case_id='+b.id);
   expect(oldWrites).toBe(1);expect(newWrites).toBe(1);
 });
 for(const outcome of ['success','error'])test('My Preparation ignores old-account '+outcome+' after account switching',async({page,context,request})=>{
   const a=await synthetic(request,'p2-account-a-'+outcome),b=await synthetic(request,'p2-account-b-'+outcome);expect((await request.put(api+'/application-cases/'+b.context.case_id,{headers:b.headers,data:{case_title:'P2-CURRENT-ACCOUNT-B'}})).ok()).toBeTruthy();await signIn(page,a.session);const old=deferredResponse();
-  await page.route(url=>url.pathname==='/self/workspace',async r=>{if(r.request().postDataJSON().case_id!==a.context.case_id){await r.continue();return;}const response=outcome==='success'?await r.fetch():null;old.enter();await old.pending;if(response)await r.fulfill({response});else await r.fulfill({status:503,json:{detail:'old account failure'}});});
+  await page.route(url=>url.pathname==='/self/application/saved',async r=>{if(Number(new URL(r.request().url()).searchParams.get('case_id'))!==a.context.case_id){await r.continue();return;}const response=outcome==='success'?await r.fetch():null;old.enter();await old.pending;if(response)await r.fulfill({response});else await r.fulfill({status:503,json:{detail:'old account failure'}});});
   await page.goto('/self/application');await old.entered;const other=await context.newPage();await other.goto('/auth');await other.evaluate(session=>{localStorage.setItem('current_user',JSON.stringify(session.user));localStorage.setItem('user',JSON.stringify(session.user));localStorage.setItem('token',session.access_token);},b.session);await other.close();
-  await expect(page.locator('.premium-case-hero')).toContainText('P2-CURRENT-ACCOUNT-B');const done=page.waitForResponse(r=>new URL(r.url()).pathname==='/self/workspace'&&r.request().postDataJSON().case_id===a.context.case_id);old.release();await(await done).finished();await expect(page.locator('.premium-case-hero')).toContainText('#'+b.context.case_id);await expect(page.getByRole('alert')).toHaveCount(0);await expect(page.locator('.premium-preparation a[href^="/forms?"]').first()).toHaveAttribute('href','/forms?case_id='+b.context.case_id);
+  await expect(page.locator('.premium-case-hero')).toContainText('P2-CURRENT-ACCOUNT-B');const done=page.waitForResponse(r=>new URL(r.url()).pathname==='/self/application/saved'&&Number(new URL(r.request().url()).searchParams.get('case_id'))===a.context.case_id);old.release();await(await done).finished();await expect(page.locator('.premium-case-hero')).toContainText('#'+b.context.case_id);await expect(page.getByRole('alert')).toHaveCount(0);await expect(page.locator('.premium-preparation a[href^="/forms?"]').first()).toHaveAttribute('href','/forms?case_id='+b.context.case_id);
 });
 test('My Preparation rejects pending workspace completion after logout',async({page,request})=>{
-  const a=await synthetic(request,'p2-logout');await signIn(page,a.session);const old=deferredResponse();await page.route(url=>url.pathname==='/self/workspace',async r=>{const response=await r.fetch();old.enter();await old.pending;await r.fulfill({response});});await page.goto('/self/application');await old.entered;await page.getByRole('button',{name:'Log out',exact:true}).first().click();await expect(page).toHaveURL(/\/auth(?:[?#]|$)/);old.release();await expect(page.locator('.premium-case-hero')).toHaveCount(0);await expect(page.locator('a[href^="/forms?case_id="]')).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('token'))).toBeNull();
+  const a=await synthetic(request,'p2-logout');await signIn(page,a.session);const old=deferredResponse();await page.route(url=>url.pathname==='/self/application/saved',async r=>{const response=await r.fetch();old.enter();await old.pending;await r.fulfill({response});});await page.goto('/self/application');await old.entered;await page.getByRole('button',{name:'Log out',exact:true}).first().click();await expect(page).toHaveURL(/\/auth(?:[?#]|$)/);old.release();await expect(page.locator('.premium-case-hero')).toHaveCount(0);await expect(page.locator('a[href^="/forms?case_id="]')).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('token'))).toBeNull();
 });
 test('My Preparation same-case focus revalidation does not duplicate workspace writes',async({page,request})=>{
   const a=await synthetic(request,'p2-same-case');const before=await preservedForms(request,a);await signIn(page,a.session);let writes=0;page.on('request',r=>{if(new URL(r.url()).pathname==='/self/workspace'&&r.method()==='POST')writes++;});await page.goto('/self/application');await expect(page.locator('.premium-case-hero')).toContainText('#'+a.context.case_id);
-  const checked=page.waitForResponse(r=>new URL(r.url()).pathname==='/application-cases/context');await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await(await checked).finished();await expect(page.getByRole('status')).toHaveCount(0);await expect(page.locator('.premium-case-hero')).toContainText('#'+a.context.case_id);expect(writes).toBe(1);const after=await(await request.get(api+'/self/application/saved?case_id='+a.context.case_id,{headers:a.headers})).json();expect(after.intake_payload).toEqual(before.intake_payload);
+  const checked=page.waitForResponse(r=>new URL(r.url()).pathname==='/application-cases/context');await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await(await checked).finished();await expect(page.getByRole('status')).toHaveCount(0);await expect(page.locator('.premium-case-hero')).toContainText('#'+a.context.case_id);expect(writes).toBe(0);const after=await(await request.get(api+'/self/application/saved?case_id='+a.context.case_id,{headers:a.headers})).json();expect(after.intake_payload).toEqual(before.intake_payload);
 });
 
 // Original independent release-review checks, retained for hosted CI.
 test('review: My Preparation recovers after transient saved-Forms failure',async({page,request},info)=>{
- const a=await synthetic(request,'review-retry');await signIn(page,a.session);let fail=true;
+ const a=await synthetic(request,'review-retry');await preservedForms(request,a);await signIn(page,a.session);let fail=true;
  await page.route(url=>url.pathname==='/self/application/saved',r=>fail?r.fulfill({status:503,json:{detail:'synthetic transient failure'}}):r.continue());
  await page.goto('/self/application');await expect(page.getByRole('alert')).toContainText('Failed to load your application');fail=false;
- const workspace=page.waitForResponse(r=>new URL(r.url()).pathname==='/self/workspace'&&r.request().method()==='POST');
+ const workspace=page.waitForResponse(r=>new URL(r.url()).pathname==='/self/application/saved'&&r.request().method()==='GET');
  await page.getByRole('button',{name:'Try again',exact:true}).click();const response=await workspace;
  expect(response.status()).toBe(200);await expect(page.getByRole('status')).toHaveCount(0);
  await info.attach('review-retry-evidence',{body:JSON.stringify({workspace_status:response.status(),alert:await page.getByRole('alert').allTextContents(),rendered_case_count:await page.locator('.premium-case-hero').count()}),contentType:'application/json'});
@@ -400,7 +400,7 @@ test('review: My Preparation recovers after transient saved-Forms failure',async
 test('review: My Preparation rejects old case after delayed workspace response',async({page,request},info)=>{
  const a=await synthetic(request,'review-case');const b=await(await request.post(api+'/application-cases',{headers:a.headers,data:{application_type:'study_permit',case_title:'REVIEW-CURRENT-B'}})).json();expect((await request.post(api+'/application-cases/'+a.context.case_id+'/activate',{headers:a.headers})).ok()).toBeTruthy();await signIn(page,a.session);
  let release,started;const gate=new Promise(r=>release=r),pending=new Promise(r=>started=r);
- await page.route(url=>url.pathname==='/self/workspace',async r=>{const response=await r.fetch();started();await gate;await r.fulfill({response});});
+ await page.route(url=>url.pathname==='/self/application/saved',async r=>{const response=await r.fetch();started();await gate;await r.fulfill({response});});
  await page.goto('/self/application');await pending;expect((await request.post(api+'/application-cases/'+b.id+'/activate',{headers:a.headers})).ok()).toBeTruthy();release();
  await expect(page.getByRole('status')).toHaveCount(0);const active=await(await request.get(api+'/application-cases/context',{headers:a.headers})).json();
  await info.attach('review-case-evidence',{body:JSON.stringify({original_case:a.context.case_id,active_case:active.case_id,rendered_case:await page.locator('.premium-case-hero').allTextContents()}),contentType:'application/json'});

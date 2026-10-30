@@ -16,10 +16,22 @@ PAGE = b"<html><nav>Menu old</nav><main><h1>Express Entry change</h1><p>As of No
 
 
 def test_registry_coverage_is_official_reference_not_program_opening():
-    assert len(SOURCES) == 19
+    assert len(SOURCES) == 22
     assert {s.jurisdiction for s in SOURCES.values()} == {"CA", "QC", "ON", "BC", "AB", "MB", "SK", "NS", "NB", "NL", "PE", "YT", "NT"}
     assert all(s.url.startswith("https://") and "?" not in s.url and s.cadence_hours in {12, 24, 168} for s in SOURCES.values())
     assert SOURCES["province.qc"].family == "quebec_selection"
+    canonical_program_sources = {
+        "ircc.cec": "canadian-experience-class",
+        "ircc.fsw": "federal-skilled-workers",
+        "ircc.fst": "federal-skilled-trades",
+    }
+    prefix = "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/who-can-apply/"
+    for identifier, page in canonical_program_sources.items():
+        source = SOURCES[identifier]
+        assert source.url == prefix + page + ".html"
+        assert source.authority == "IRCC" and source.jurisdiction == "CA"
+        assert source.family == "express_entry" and source.source_type == "criteria"
+        assert source.cadence_hours == 24 and source.language == "en"
 
 
 def test_normalization_is_conservative_and_rejects_secrets_and_limits():

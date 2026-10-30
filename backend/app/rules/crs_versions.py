@@ -6,6 +6,8 @@ validated qualifying, non-overlapping full-time-equivalent work periods; period
 qualification, ITA list locking and FSW/FST eligibility remain separate blockers.
 """
 from datetime import date
+from hashlib import sha256
+import json
 from types import MappingProxyType
 
 from app.rules.registry import Rule, RuleRegistry, ValidationStatus
@@ -20,6 +22,14 @@ NOC_LEVELS = MappingProxyType({
     3: frozenset("00011 00012 00013 10010 10011 10012 10020 10021 20010 20011 20012 21330 21332 31100 31101 31102 31103 31302 31303 40010 40011 40012 40019 40040 40041 41100 41101 41200 60010 80010 90011".split()),
     2: frozenset("00014 00015 10019 10022 10029 10030 11103 11201 21100 21102 21103 21109 21111 21120 21202 21210 21211 21220 21221 21222 21223 21230 21231 21232 21300 21301 21310 21311 21320 21321 21322 21331 21390 21399 22231 22312 30010 31110 31112 31120 31200 31202 31203 31300 31301 32111 40020 40021 40030 40042 41210 41220 41221 41310 41311 41320 41401 41402 41404 41407 42100 42101 50010 50011 51100 70010 70012 70020 70021 72011 72012 72023 72103 72202 72203 72301 72406 72600 72601 72604 73310 82020 82021 83101 90010 92011 92100 93100 93101".split()),
     1: frozenset("00010 11100 11101 11102 11109 11200 12201 12203 21101 21110 21112 21200 21201 21203 21234 22214 22232 22233 22310 22313 31121 32102 32103 32120 32121 32122 41300 41400 41403 41405 41409 43201 43203 50012 51101 51102 51111 51112 51120 52112 60020 60031 60040 72010 72013 72014 72020 72021 72102 72105 72201 72302 72320 72321 72401 72403 72404 72500 72602 72603 73311 82010 83100 83120 92010 93102".split()),
+})
+NOC_LIST_DIGEST = sha256(json.dumps({str(level): sorted(codes) for level, codes in NOC_LEVELS.items()},
+                                   sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+SOURCE_REVIEW = MappingProxyType({
+    "checked_on": "2026-10-30", "announcement_published_on": "2026-10-16",
+    "november_effective_on": "2026-11-03", "revised_overall_cap": None,
+    "controlling_november_instructions": "NOT_RECONCILED",
+    "independent_arithmetic_acceptance": "PENDING", "production_activation": False,
 })
 
 RULES = (
@@ -82,6 +92,8 @@ def policy_metadata(as_of):
     future = candidate_for(as_of).effective_from == CHANGE_DATE
     return {"candidate_version": candidate_for(as_of).version, "active": False,
             "occupation_source": NOC_SOURCE, "occupation_list_version": NOC_LIST_VERSION,
+            "occupation_list_digest": NOC_LIST_DIGEST, "source_review": dict(SOURCE_REVIEW),
+            "overall_cap": None if future else 1200,
             "personal_salary_is_classification": False, "eligibility_assessed": False,
             "lmia_requirement": "removed_for_qualifying_offers" if future else "prior_program_specific_rules_require_verification",
             "offer_genuineness_review_required": True,

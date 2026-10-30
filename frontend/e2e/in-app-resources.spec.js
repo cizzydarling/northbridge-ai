@@ -73,4 +73,15 @@ for(const language of ['en','fr']){
   await expect(page.getByRole('heading',{name:'SYNTHETIC CELPIP Centre',exact:true})).toHaveCount(0);
   await expect(page.getByRole('link',{name:fr?'Vérifier la source officielle':'Verify official source',exact:true})).toHaveAttribute('href','https://www.france-education-international.fr/centres-d-examen/carte');
  });
+ test('Provider deep links preserve Free access and unknown coverage '+language,async({page,request})=>{
+  await owner(page,request,language);
+  await page.goto('/official-finders?tab=tests&provider=pte');
+  await expect(page.getByRole('combobox',{name:fr?'Fournisseur du test':'Test provider',exact:true})).toHaveValue('pte');
+  await expect(page.getByRole('heading',{name:'SYNTHETIC pte Centre',exact:true})).toBeVisible();
+  await expect(page.getByText(fr?'Couverture : sous-ensemble des sources prises en charge ; pas un répertoire exhaustif.':'Coverage: supported source subset; not an exhaustive directory.',{exact:true}).first()).toBeVisible();
+  await expect(page.getByRole('button',{name:fr?'Enregistrer dans la liste du dossier (Pro)':'Save to case shortlist (Pro)',exact:true}).first()).toBeDisabled();
+  await page.goto('/official-finders?tab=tests&provider=unsupported');
+  await expect(page.getByRole('combobox',{name:fr?'Fournisseur du test':'Test provider',exact:true})).toHaveValue('celpip');
+  await expect(page.getByRole('heading',{name:'SYNTHETIC CELPIP Centre',exact:true})).toBeVisible();
+ });
 }

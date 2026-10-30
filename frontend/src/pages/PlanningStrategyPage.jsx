@@ -11,6 +11,7 @@ import StructuredLanguageEvidence from "../components/StructuredLanguageEvidence
 import CommercialCrsWorkspace from "../components/CommercialCrsWorkspace";
 import CrsReadiness from "../components/CrsReadiness";
 import ProgramReferences from "../components/ProgramReferences";
+import ImmigrationUpdates from "../components/ImmigrationUpdates";
 
 export default function PlanningStrategyPage() {
   const { i18n } = useTranslation();
@@ -36,13 +37,18 @@ export default function PlanningStrategyPage() {
       <a className="underline" href={fr ? "https://www.canada.ca/fr/immigration-refugies-citoyennete/services/demande/verifier-delais-traitement.html" : "https://www.canada.ca/en/immigration-refugees-citizenship/services/application/check-processing-times.html"} target="_blank" rel="noopener noreferrer">{fr ? "Ouvrir le vérificateur IRCC" : "Open the IRCC processing-time checker"}</a>
       <ProcessingTimesExplorer />
     </section>
-    <OfficialCrsHandoff />
+    <section id="assess-my-options" className="scroll-mt-32 space-y-4" aria-label={copy.assess}>
+      <h2 className="text-xl font-semibold">{copy.assess}</h2>
+      <p>{fr ? "Les faits de votre profil et les preuves linguistiques sélectionnées alimentent les outils existants. Une référence de classement n’est pas une décision d’admissibilité." : "Your profile facts and selected language evidence connect to the existing tools. A ranking reference is not an eligibility decision."}</p>
+      <OfficialCrsHandoff />
+    </section>
     <StructuredLanguageEvidence summary />
     <section id="saved-preparation" className="scroll-mt-32 space-y-4" aria-label={fr ? "Préparation enregistrée" : "Saved preparation"}>
       <nav className="flex flex-wrap gap-5 underline"><Link to="/official-finders?tab=schools#resource-shortlist">{fr ? "Liste de ressources" : "Resource shortlist"}</Link><Link to="/documents">{fr ? "Documents enregistrés" : "Saved documents"}</Link><Link to="/forms">{fr ? "Reprendre les formulaires" : "Return to Forms"}</Link></nav>
       <CommercialCrsWorkspace />
     </section>
     <CrsReadiness />
+    <section id="immigration-updates" className="scroll-mt-32" aria-label={copy.updates}><ImmigrationUpdates /></section>
     <ProgramReferences />
     <nav className="flex flex-wrap gap-5">
       <Link to="/profile">{fr ? "Profil et suggestion CNP" : "Profile and NOC suggestion"}</Link>

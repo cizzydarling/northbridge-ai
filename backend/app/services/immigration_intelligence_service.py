@@ -237,7 +237,7 @@ def _parse_draws_from_json(data: Any, limit: int) -> List[Dict[str, Any]]:
             or item.get("number")
             or item.get("id")
         )
-        draw_date = item.get("date") or item.get("draw_date") or item.get("drawDate")
+        draw_date = item.get("date") or item.get("draw_date") or item.get("drawDate") or item.get("drawDateISO")
         draw_date_full = item.get("drawDateFull") or draw_date
         draw_type = (
             item.get("round_type")
@@ -1252,3 +1252,123 @@ def official_processing_reference(application_type=None, country=None, language=
     published=isinstance(value,str) and bool(re.search(r'\d.*\b(?:days?|weeks?|months?|minutes?|hours?|years?|jours?|semaines?|mois|heures?|ans?|années?)\b',value,re.I))
     return {**result,'processing_time':value if published else None,'published_message':value,
             'selection_status':'published_estimate' if published else 'unavailable','country_code':country}
+
+
+
+def normalize_official_draws(payload, language, *, acquired_at=None):
+    """Validate the complete official feed before normalization or promotion.
+
+    Source labels are preserved, not translated or converted to predictions.
+    Missing timezone on historical timestamps stays explicitly unknown.
+    """
+    from datetime import date
+    from urllib.parse import urlsplit, parse_qs
+    from app.services.official_resource_snapshots import SnapshotRejected, _publisher_date
+    if language not in {'en', 'fr'} or not isinstance(payload, dict) or not set(payload) <= {'classes', 'rounds'}:
+        raise SnapshotRejected('draw_component_schema')
+    if 'classes' in payload and (not isinstance(payload['classes'], str) or len(payload['classes']) > 100):
+        raise SnapshotRejected('draw_metadata_schema')
+    source_rows = payload.get('rounds')
+    if not isinstance(source_rows, list) or not 0 < len(source_rows) <= 10000:
+        raise SnapshotRejected('draw_nonempty_history_required')
+    fields = {'drawNumber','drawNumberURL','drawDate','drawDateISO','drawDateFull','drawName','drawSize','drawCRS','mitext','DrawText1','drawText2','drawDateTime','drawCutOff','drawDistributionAsOn'} | {'dd'+str(i) for i in range(1,19)}
+    required = {'drawNumber','drawName','drawSize','drawCRS'}
+    seen, records = set(), []
+    def clean(value, *, optional=False, limit=500):
+        if optional and value is None: return None
+        if not isinstance(value, str) or not value.strip() or len(value) > limit or any(ord(c) < 32 for c in value):
+            raise SnapshotRejected('draw_field_type')
+        return value.strip()
+    def integer(value, maximum, *, allow_zero=False):
+        value = clean(value, limit=20)
+        if not re.fullmatch(r'(?:0|[1-9]\d*|[1-9]\d{0,2}(?:[, \u00a0\u202f]\d{3})+)', value):
+            raise SnapshotRejected('draw_integer_format')
+        number = int(re.sub(r'[, \u00a0\u202f]', '', value))
+        if not (0 if allow_zero else 1) <= number <= maximum: raise SnapshotRejected('draw_integer_range')
+        return number
+    def timestamp(value):
+        if value in (None, ''): return None
+        value = clean(value, limit=100)
+        # Official feeds use localized month text. An explicit UTC suffix is
+        # required before assigning any timezone; absent suffix is not inferred.
+        match = re.fullmatch(r'(.+?) (?:at|à) (\d{2}:\d{2}:\d{2})( UTC)?', value)
+        if not match: raise SnapshotRejected('draw_timestamp_format')
+        day = _publisher_date(match[1])
+        if day is None: raise SnapshotRejected('draw_timestamp_format')
+        try:
+            clock = datetime.strptime(match[2], '%H:%M:%S').time()
+        except ValueError: raise SnapshotRejected('draw_timestamp_format') from None
+        instant = day.replace(hour=clock.hour, minute=clock.minute, second=clock.second)
+        if acquired_at is not None and instant > acquired_at: raise SnapshotRejected('draw_future_timestamp')
+        return instant.isoformat() if match[3] else None
+    for raw in source_rows:
+        if not isinstance(raw, dict) or not required <= set(raw) or not set(raw) <= fields:
+            raise SnapshotRejected('draw_row_schema')
+        for key,value in raw.items():
+            if key not in {'drawDateTime','drawCutOff','drawDistributionAsOn'}:
+                clean(value, limit=2000 if key in {'DrawText1','mitext','drawNumberURL'} else 500)
+            elif value is not None and not isinstance(value,str): raise SnapshotRejected('draw_field_type')
+        round_id = str(integer(raw['drawNumber'], 100000))
+        if round_id in seen: raise SnapshotRejected('duplicate_source_record')
+        seen.add(round_id)
+        iso = raw.get('drawDateISO') or raw.get('drawDate')
+        try:
+            event_day = date.fromisoformat(clean(iso, limit=10))
+        except (ValueError, TypeError): raise SnapshotRejected('draw_date_format') from None
+        if raw.get('drawDateISO') and raw.get('drawDate') and raw['drawDate'] != raw['drawDateISO']:
+            raise SnapshotRejected('draw_date_disagreement')
+        if acquired_at is not None and event_day > acquired_at.date(): raise SnapshotRejected('draw_future_date')
+        if raw.get('drawDateFull') and _publisher_date(raw['drawDateFull']).date() != event_day:
+            raise SnapshotRejected('draw_date_disagreement')
+        draw_at, tie_at = timestamp(raw.get('drawDateTime')), timestamp(raw.get('drawCutOff'))
+        if draw_at and datetime.fromisoformat(draw_at).date() != event_day: raise SnapshotRejected('draw_date_disagreement')
+        if draw_at and tie_at and tie_at > draw_at: raise SnapshotRejected('draw_tie_break_after_round')
+        if raw.get('drawDistributionAsOn'):
+            distribution_date = _publisher_date(raw['drawDistributionAsOn'])
+            if acquired_at is not None and distribution_date > acquired_at: raise SnapshotRejected('draw_future_distribution_date')
+        for key,value in raw.items():
+            if key.startswith('dd'): integer(value, 100000000, allow_zero=True)
+        link = None
+        for key in ('DrawText1','mitext','drawNumberURL'):
+            if key not in raw: continue
+            href = _extract_href(raw[key])
+            if not href: raise SnapshotRejected('draw_detail_link')
+            candidate = _absolute_canada_url(href)
+            parts = urlsplit(candidate)
+            if parts.scheme != 'https' or parts.netloc != 'www.canada.ca' or parts.fragment or not parts.path.startswith(('/en/immigration-refugees-citizenship/','/fr/immigration-refugies-citoyennete/','/content/canadasite/en/immigration-refugees-citizenship/','/content/canadasite/fr/immigration-refugies-citoyennete/')):
+                raise SnapshotRejected('draw_detail_link')
+            query = parse_qs(parts.query)
+            if set(query) - {'q'} or (query and query.get('q') != [round_id]): raise SnapshotRejected('draw_detail_identity')
+            if not any(segment in parts.path for segment in ('/express-entry-rounds/', '/entree-express-rondes/')):
+                raise SnapshotRejected('draw_detail_link')
+            if query and not parts.path.endswith('/invitations.html'):
+                raise SnapshotRejected('draw_detail_identity')
+            if not query and not parts.path.endswith('/invitations-'+round_id+'.html'):
+                raise SnapshotRejected('draw_detail_identity')
+            if link is not None and link != candidate: raise SnapshotRejected('draw_detail_disagreement')
+            link = candidate
+        if link is None: raise SnapshotRejected('draw_detail_link')
+        parsed = _parse_draws_from_json({'rounds':[raw]}, 1)[0]
+        if any(c in clean(raw['drawName']) for c in '<>'): raise SnapshotRejected('draw_category_text')
+        records.append({**parsed,'round':round_id,'date':event_day.isoformat(),
+                        'round_type':raw['drawName'].strip(),'invitations_issued':integer(raw['drawSize'],1000000),
+                        'crs_cutoff':integer(raw['drawCRS'],1200 if event_day < date(2026,11,3) else 1000000),'draw_at_utc':draw_at,
+                        'tie_break_at_utc':tie_at,'source_url':link,'source_language':language,
+                        'rule_version':'crs-2025-03-25' if date(2025,3,25) <= event_day < date(2026,11,3) else 'unverified_historical_rules',
+                        'prediction':False})
+    return sorted(records, key=lambda row:(row['date'],int(row['round'])), reverse=True)
+
+
+def official_draw_reference(limit=6, language='en', offset=0, category=''):
+    """Historical public reference only. No remote fetch or snapshot mutation."""
+    from app.services.official_resources import resource_data
+    language = _normalize_language(language)
+    payload = resource_data('draws_'+language)
+    rows = payload['records']
+    if category:
+        rows = [r for r in rows if category.casefold() in r['round_type'].casefold()]
+    return {**{k:v for k,v in payload.items() if k != 'records'},
+            'available':payload['status'] in {'available','stale'},'draws':rows[offset:offset+limit],
+            'total':len(rows),'offset':offset,'limit':limit,'historical_only':True,
+            'notice':_t('Historical rounds are not future invitation predictions. Compare cutoffs only within their rule and category context.',
+                        'Les rondes historiques ne prédisent pas les invitations futures. Comparez les seuils uniquement selon leurs règles et catégories.', language)}

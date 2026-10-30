@@ -32,6 +32,8 @@ FEDERAL = (
     OfficialSource("ircc.rounds", BASE + "services/immigrate-canada/express-entry/rounds-invitations.html", "IRCC", "CA", "express_entry", "draw", 12, "en", "high", ("Express Entry", "Strategy")),
     OfficialSource("ircc.language", LANGUAGE_SOURCE, "IRCC", "CA", "language", "criteria", 12, "en", "high", ("Language", "CRS", "Schools & Test Centres", "AI")),
     OfficialSource("ircc.forms", BASE + "services/application/application-forms-guides.html", "IRCC", "CA", "forms", "reference", 168, "en", "normal", ("Forms/Documents", "AI")),
+    *(OfficialSource(f"ircc.{identifier}", BASE + "services/immigrate-canada/express-entry/who-can-apply/" + page + ".html", "IRCC", "CA", "express_entry", "criteria", 24, "en", "high", ("Program references", "Language", "NOC"))
+      for identifier, page in (("cec", "canadian-experience-class"), ("fsw", "federal-skilled-workers"), ("fst", "federal-skilled-trades"))),
 )
 PROVINCIAL = (
     ("QC", "MIFI", "quebec_selection", "https://www.quebec.ca/en/immigration/permanent/skilled-workers"),

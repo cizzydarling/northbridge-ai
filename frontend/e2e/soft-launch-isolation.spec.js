@@ -32,6 +32,8 @@ test("individual routes ignore stale cases and deferred routes never load", asyn
     localStorage.setItem("language", "en");
   }, { session });
   const requests = [];
+  let preparationWrites = 0;
+  page.on("request", req => { if(new URL(req.url()).pathname === "/self/workspace" && req.method() === "POST") preparationWrites++; });
   const errors = [];
   page.on("request", (req) => { if (req.url().startsWith(api)) requests.push(req.url()); });
   page.on("pageerror", (error) => errors.push(error.message));
@@ -62,6 +64,7 @@ test("individual routes ignore stale cases and deferred routes never load", asyn
     }
     if (path === "/documents") verifiedStrategy = await (await documentStrategy).json();
   }
+  expect(preparationWrites).toBe(0);
   expect(verifiedStrategy).toBeTruthy();
   // Preserve the real contained Documents response; Overview never needs it.
   await page.route("**/self/strategy?**", route => route.fulfill({json:verifiedStrategy}));

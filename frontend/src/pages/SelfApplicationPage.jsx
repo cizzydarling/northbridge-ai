@@ -69,6 +69,7 @@ export default function SelfApplicationPage() {
   const contextCheck = useRef(0);
   const [reload, setReload] = useState(0);
   const [checkingCase, setCheckingCase] = useState(false);
+  const retryRegeneration = useRef(false);
   const clearWorkspace = useCallback(() => {
     setWorkspace(null);
     setCaseContext(null);
@@ -87,7 +88,8 @@ export default function SelfApplicationPage() {
     if (!Number.isInteger(context?.case_id) || context.case?.id !== context.case_id || context.case.owner_user_id !== userId) throw new Error("Unverified case");
     return context;
   }, [userId]);
-  const loadPage = useCallback(async () => {
+  const loadPage = useCallback(async (regenerate = false) => {
+    retryRegeneration.current = regenerate;
     const epoch = ++requestEpoch.current;
     const valid = () => mounted.current && epoch === requestEpoch.current && getToken() === token && getCurrentUserLocal()?.id === userId;
     if (!valid()) return;
@@ -121,11 +123,15 @@ export default function SelfApplicationPage() {
       if (savedApplication && (savedApplication.application_case_id !== context.case_id || savedApplication.user_id !== userId || !savedApplication.intake_payload || typeof savedApplication.intake_payload !== 'object' || Array.isArray(savedApplication.intake_payload))) throw new Error("Unverified saved Forms");
       const applicationType = context.case.application_type;
       const nextIntakePayload = {
-        ...(savedApplication?.intake_payload || {}),
         ...getProfileIntake(profile),
+        ...(savedApplication?.intake_payload || {}),
         application_type: applicationType
       };
-      const workspaceRes = await runSelfWorkspace({case_id: context.case_id, matter_type: applicationType, intake: nextIntakePayload}, language);
+      // Arrival/retry reads recorded data only. Regeneration is an explicit user
+      // action and never replaces existing answers with newer profile defaults.
+      const workspaceRes = regenerate
+        ? await runSelfWorkspace({case_id: context.case_id, matter_type: applicationType, intake: nextIntakePayload, preserve_omitted_intake: true}, language)
+        : {data: {application: savedApplication}};
       if (!valid() || !await stillCurrentCase()) return;
       setSelectedApplicationType(applicationType);
       setCaseContext({...context, verifiedToken: token, verifiedUser: userId});
@@ -201,5 +207,5 @@ export default function SelfApplicationPage() {
   function handleApplicationTypeChange() {
     navigate('/applications');
   }
-  return <Layout><div className="premium-core premium-preparation"><WorkspaceHeading title={copy.prepTitle}>{copy.prepIntro}</WorkspaceHeading>{loading || checkingCase ? <LoadingState>{copy.loading}</LoadingState> : message ? <Alert onRetry={loadPage} retryLabel={copy.retry}>{message}</Alert> : verified && <><CaseHero context={caseContext} /><WorkflowLinks caseId={caseContext.case_id} /><p className="premium-notice">{copy.workflowNote}</p><Card className="mb-6"><h2>{copy.type}</h2><div className="flex flex-wrap gap-2">{APPLICATION_TYPES.map(item => <Button key={item.value} variant={selectedApplicationType === item.value ? 'primary' : 'secondary'} onClick={handleApplicationTypeChange}>{language === 'fr' ? item.fr : item.en}</Button>)}</div></Card><section className="premium-resource-grid"><Card><h2>{copy.formsSaved}</h2><p>{copy.notComplete}</p><Link to={'/forms?case_id=' + caseContext.case_id}>{copy.forms} →</Link></Card><Card><h2>{copy.documents}</h2><p>{copy.known}</p><Link to="/documents">{copy.docsLink} →</Link></Card><Card><h2>{copy.export}</h2><p>{language === 'fr' ? 'Les brouillons conservent leurs versions. Pro est requis pour créer, modifier, réviser et exporter en DOCX.' : 'Drafts retain their revisions. Pro is required to create, edit, review and export DOCX.'}</p><Link to={'/documents/generator?case_id=' + caseContext.case_id}>{copy.export} →</Link></Card></section>{workspace?.application?.updated_at && <p>{copy.activity}: {new Date(workspace.application.updated_at).toLocaleDateString(language)}</p>}<nav className="premium-workflow" aria-label={copy.case}><Link to="/household">{copy.caseLink}</Link><Link to="/strategy">{copy.resources}</Link><Link to="/chat">{copy.assistantNote}</Link></nav></>}</div></Layout>;
+  return <Layout><div className="premium-core premium-preparation"><WorkspaceHeading title={copy.prepTitle}>{copy.prepIntro}</WorkspaceHeading>{loading || checkingCase ? <LoadingState>{copy.loading}</LoadingState> : message ? <Alert onRetry={() => loadPage(retryRegeneration.current)} retryLabel={copy.retry}>{message}</Alert> : verified && <><CaseHero context={caseContext} /><WorkflowLinks caseId={caseContext.case_id} /><p className="premium-notice">{copy.workflowNote}</p><Card className="mb-6"><h2>{copy.type}</h2><div className="flex flex-wrap gap-2">{APPLICATION_TYPES.map(item => <Button key={item.value} variant={selectedApplicationType === item.value ? 'primary' : 'secondary'} onClick={handleApplicationTypeChange}>{language === 'fr' ? item.fr : item.en}</Button>)}</div><p>{workspace?.application ? copy.readOnlyPreparation : copy.noSavedPreparation}</p><Button variant="secondary" onClick={() => loadPage(true)}>{copy.refreshPreparation}</Button><p>{copy.refreshExplanation}</p></Card><section className="premium-resource-grid"><Card><h2>{copy.formsSaved}</h2><p>{copy.notComplete}</p><Link to={'/forms?case_id=' + caseContext.case_id}>{copy.forms} →</Link></Card><Card><h2>{copy.documents}</h2><p>{copy.known}</p><Link to="/documents">{copy.docsLink} →</Link></Card><Card><h2>{copy.export}</h2><p>{language === 'fr' ? 'Les brouillons conservent leurs versions. Pro est requis pour créer, modifier, réviser et exporter en DOCX.' : 'Drafts retain their revisions. Pro is required to create, edit, review and export DOCX.'}</p><Link to={'/documents/generator?case_id=' + caseContext.case_id}>{copy.export} →</Link></Card></section>{workspace?.application?.updated_at && <p>{copy.activity}: {new Date(workspace.application.updated_at).toLocaleDateString(language)}</p>}<nav className="premium-workflow" aria-label={copy.case}><Link to="/household">{copy.caseLink}</Link><Link to="/strategy">{copy.resources}</Link><Link to="/chat">{copy.assistantNote}</Link></nav></>}</div></Layout>;
 }

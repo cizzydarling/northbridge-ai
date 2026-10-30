@@ -11,6 +11,7 @@ export default function OfficialResourceCard({title,source,children,actions}) {
    <div><dt className="inline font-semibold">{fr?'Mise à jour publiée : ':'Publisher update: '}</dt><dd className="inline">{source.source_updated_at || (fr?'Non indiquée':'Not supplied')}</dd></div>
    {source.expires_at && <div><dt className="inline font-semibold">{fr?'Expiration du cache : ':'Cache expires: '}</dt><dd className="inline">{source.expires_at}</dd></div>}
   </dl>
+  {source.coverage && <p className="text-xs text-slate-600">{fr?'Couverture : sous-ensemble des sources prises en charge ; pas un répertoire exhaustif.':'Coverage: supported source subset; not an exhaustive directory.'}</p>}
   <p className="text-xs text-slate-600">{fr?'La récupération ne constitue pas une vérification de l’admissibilité. Consultez la source pour les renseignements actuels.':'Retrieval is not an eligibility review. Check the source for current information.'}</p>
   <a className="inline-block underline" href={source.source_url} target="_blank" rel="noopener noreferrer">{fr?'Vérifier la source officielle':'Verify official source'}</a>
   {actions && <div className="flex flex-wrap gap-3">{actions}</div>}

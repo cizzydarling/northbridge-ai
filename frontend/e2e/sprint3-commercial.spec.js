@@ -29,6 +29,10 @@ for (const language of ["en", "fr"]) {
     const url=api+`/preparation/cases/${context.case_id}/crs-inputs`;
     const saved=await (await request.get(url,{headers})).json();
     expect(saved.score).toBeNull(); expect(saved.facts.age).toBe(32);
+    const evidence=region.getByRole('complementary',{name:language==='fr'?'Preuves de référence':'Authoritative evidence'});
+    await expect(evidence).toContainText(language==='fr'?'Aucune preuve sélectionnée actuelle utilisable':'No current usable selected evidence');
+    await expect(evidence.getByRole('link')).toHaveAttribute('href','/profile?section=language#language-evidence');
+    expect((await request.get(api+`/preparation/cases/${context.case_id}/crs-scenarios`,{headers})).status()).toBe(403);
     await page.reload();
     await expect(age).toHaveValue('32');
     expect((await request.put(url,{headers,data:{revision:saved.revision,facts:{age:33}}})).ok()).toBeTruthy();
@@ -38,6 +42,52 @@ for (const language of ["en", "fr"]) {
     await expect(age).toHaveValue('34');
     await region.getByRole('button',{name:language==='fr'?'Recharger la préparation':'Reload saved preparation',exact:true}).click();
     await expect(age).toHaveValue('33');
+    const reviewResponse=page.waitForResponse(response=>response.url()===api+'/assessments/crs'&&response.request().method()==='POST');
+    await page.getByRole('button',{name:language==='fr'?'Vérifier les preuves manquantes':'Check missing evidence',exact:true}).click();
+    const readiness=(await (await reviewResponse).json()).baseline;
+    expect(readiness.score).toBeNull();
+    expect(readiness.numerical_activation).toBe(false);
+    expect(readiness.breakdown.every(factor=>factor.points===null)).toBe(true);
+    await expect(page.getByText(language==='fr'?'Aucun score calculé':'No score calculated',{exact:false})).toBeVisible();
+    // A deterministic deferred old-case read cannot restore the previous facts.
+    // These are browser-only response fixtures: no foreign production record or
+    // additional backend case is created, and every waiter is released in finally.
+    let releaseOld;
+    let markEntered;
+    let markFinished;
+    const held=new Promise(resolve=>{releaseOld=resolve;});
+    const entered=new Promise(resolve=>{markEntered=resolve;});
+    const oldFinished=new Promise(resolve=>{markFinished=resolve;});
+    const replacementId=context.case_id+100000;
+    let activeCase=context;
+    let firstOld=true;
+    const contextHandler=route=>route.fulfill({json:activeCase});
+    const factsHandler=async route=>{
+      if(route.request().method()!=='GET') return route.continue();
+      const id=Number(new URL(route.request().url()).pathname.split('/')[3]);
+      const old=id===context.case_id&&firstOld;
+      if(old){firstOld=false;markEntered();await held;}
+      try { await route.fulfill({json:{...saved,case_id:id,facts:{...saved.facts,age:id===replacementId?41:32}}}); }
+      finally { if(old)markFinished(); }
+    };
+    await page.route('**/application-cases/context',contextHandler);
+    await page.route('**/preparation/cases/*/crs-inputs',factsHandler);
+    try {
+      await region.getByRole('button',{name:language==='fr'?'Recharger la préparation':'Reload saved preparation',exact:true}).click();
+      await entered;
+      activeCase={...context,case_id:replacementId,case:{...context.case,id:replacementId}};
+      await page.evaluate(()=>window.dispatchEvent(new Event('nbai-active-case-updated')));
+      await expect(age).toHaveValue('41');
+      const oldResponse=page.waitForResponse(response=>response.url()===url&&response.request().method()==='GET');
+      releaseOld();
+      await (await oldResponse).finished();
+      await expect(age).toHaveValue('41');
+    } finally {
+      releaseOld();
+      if(!firstOld)await oldFinished;
+      await page.unroute('**/preparation/cases/*/crs-inputs',factsHandler);
+      await page.unroute('**/application-cases/context',contextHandler);
+    }
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
     await page.route("**/billing/plans", route => route.fulfill({json:{checkout_available:true}}));
     await page.goto("/pricing?plan=premium");
@@ -53,6 +103,8 @@ for (const language of ["en", "fr"]) {
     await expect(page.getByText(language==='fr'?'Pro donne accès à la révision de préparation complète pour la clarté et l’organisation; elle ne confirme ni l’admissibilité ni la préparation au dépôt.':'Pro provides the full preparation review for clarity and organization; it does not establish eligibility or submission readiness.',{exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:language==='fr'?'Passer à Premium':'Upgrade to Premium',exact:true})).toHaveCount(0);
     expect((await request.post(api+'/_test/sprint2-access',{headers,data:{plan:'individual_pro'}})).ok()).toBeTruthy();
+    // A real Pro fixture does not accidentally release the new paid capability.
+    expect((await request.put(api+`/preparation/cases/${context.case_id}/crs-scenarios`,{headers,data:{revision:0,items:[]}})).status()).toBe(403);
     await page.reload();
     await documentInput.fill(syntheticDraft);
     const reviewResult=page.waitForResponse(response=>response.url()===api+'/documents/review'&&response.request().method()==='POST');

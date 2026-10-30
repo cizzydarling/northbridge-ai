@@ -31,6 +31,7 @@ export default function StructuredLanguageEvidence({ summary = false }) {
   const epoch = useRef(0);
   const invalidate = useCallback(() => { ++epoch.current; }, []);
   const [data, setData] = useState(null);
+  const [dataOwner, setDataOwner] = useState(null);
   const [state, setState] = useState("loading");
   const [exam, setExam] = useState(exams[0][0]);
   const [tested, setTested] = useState("");
@@ -43,7 +44,7 @@ export default function StructuredLanguageEvidence({ summary = false }) {
     const version = ++epoch.current;
     getLanguageAssessments().then(response => {
       if (active && version === epoch.current && getCurrentUserLocal()?.id === userId) {
-        setData(response.data); setState("ready");
+        setData(response.data); setDataOwner(userId); setState("ready");
       }
     }).catch(() => { if (active) setState("failed"); });
     return () => { active = false; invalidate(); };
@@ -54,7 +55,7 @@ export default function StructuredLanguageEvidence({ summary = false }) {
     try {
       await operation();
       const response = await getLanguageAssessments();
-      if (version === epoch.current && getCurrentUserLocal()?.id === userId) { setData(response.data); setState("ready"); }
+      if (version === epoch.current && getCurrentUserLocal()?.id === userId) { setData(response.data); setDataOwner(userId); setState("ready"); }
     } catch {
       if (version === epoch.current) setError(tr("Not saved. Check all four results, exam edition and date. Expired/unsupported results cannot be selected.", "Non enregistré. Vérifiez les quatre résultats, l’édition et la date. Les résultats expirés ou non pris en charge ne peuvent pas être sélectionnés."));
     } finally { if (version === epoch.current) setBusy(false); }
@@ -71,7 +72,7 @@ export default function StructuredLanguageEvidence({ summary = false }) {
     {state === "loading" && <p role="status">{tr("Loading saved results…", "Chargement des résultats…")}</p>}
     {state === "failed" && <div role="alert">{tr("Results could not be loaded. No changes were made.", "Impossible de charger les résultats. Aucune modification effectuée.")} <Button variant="secondary" type="button" onClick={() => setReload(n => n + 1)}>{tr("Retry", "Réessayer")}</Button></div>}
     {error && <p role="alert">{error}</p>}
-    {state === "ready" && <>
+    {state === "ready" && dataOwner === userId && <>
       <p>{tr("Current selections", "Sélections actuelles")}: {[["en", "English", "Anglais"], ["fr", "French", "Français"]].map(([lang, en, french]) => {
         const result = data.assessments.find(a => a.id === data.selected[lang]);
         return <span key={lang} className="mr-4">{tr(en, french)} — {result ? `${result.exam} · ${statusLabel(result.status)}` : tr("Unknown / not tested", "Inconnu / pas encore testé")}</span>;
@@ -99,6 +100,7 @@ export default function StructuredLanguageEvidence({ summary = false }) {
     <nav aria-label={tr("Language resources", "Ressources linguistiques")} className="flex flex-wrap gap-3 underline">
       <Link to="/profile">{tr("Profile and language", "Profil et langues")}</Link>
       <Link to="/strategy">{tr("CRS / Strategy context", "Contexte SCG / stratégie")}</Link>
+      {dataOwner===userId&&data?.assessments.filter(a=>Object.values(data.selected||{}).includes(a.id)&&a.usable).map(a=>{const provider={ielts_general:"ielts",celpip_general:"celpip",pte_core:"pte",tef_canada:"tef",tcf_canada:"tcf"}[a.exam];return provider?<Link key={a.id} to={"/official-finders?tab=tests&provider="+provider}>{tr("Find centres for selected test","Trouver les centres du test sélectionné")} — {a.exam}</Link>:null;})}
       <Link to="/official-finders?tab=tests">{tr("Official test centres", "Centres de tests officiels")}</Link>
       <Link to="/official-finders?tab=schools">{tr("Schools and DLI", "Établissements et EED")}</Link>
       <Link to="/language-practice">{tr("Language practice (Premium; not test evidence)", "Pratique linguistique (Premium ; pas un résultat d’examen)")}</Link>

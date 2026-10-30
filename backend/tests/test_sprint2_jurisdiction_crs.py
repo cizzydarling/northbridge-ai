@@ -116,3 +116,25 @@ def test_mixed_high_wage_levels_and_missing_classification():
             _provisional_lmi(**(args | changes))
     assert policy_metadata(CHANGE_DATE)["fsw_fst_offer_eligibility_separate_from_crs"] is True
     assert policy_metadata(CHANGE_DATE)["personal_salary_is_classification"] is False
+
+
+def test_pinned_source_metadata_and_unknown_future_cap_do_not_authorize_scoring():
+    from app.rules.crs_versions import NOC_LIST_DIGEST, SOURCE_REVIEW
+    assert len(NOC_LIST_DIGEST)==64
+    assert SOURCE_REVIEW['announcement_published_on']=='2026-10-16'
+    assert SOURCE_REVIEW['november_effective_on']=='2026-11-03'
+    assert SOURCE_REVIEW['revised_overall_cap'] is None
+    assert policy_metadata(date(2026,11,2))['overall_cap']==1200
+    assert policy_metadata(CHANGE_DATE)['overall_cap'] is None
+    assert policy_metadata(CHANGE_DATE)['source_review']['production_activation'] is False
+    assert policy_metadata(CHANGE_DATE)['occupation_list_digest']==NOC_LIST_DIGEST
+    with pytest.raises(TypeError):
+        SOURCE_REVIEW['revised_overall_cap']=1270
+
+
+@pytest.mark.parametrize('spouse,months,expected',[(False,12,110),(True,12,105),(False,60,150),(True,60,140)])
+def test_high_wage_offer_and_work_alternatives_never_add(spouse, months, expected):
+    result=_provisional_lmi(spouse=spouse,canadian_months=months,qualifying_months_by_noc={'00011':12},offer_noc='00011',offer_qualifies=True)
+    assert result['factor']==expected
+    assert result['factor']==max(result['work_option'],result['offer_option'])
+    assert result['factor']<result['work_option']+result['offer_option']

@@ -293,7 +293,7 @@ function ResolvedLayout({ children, feedbackEnabled }) {
   const location = useLocation();
   const navigate = useNavigate();
   useEffect(() => {
-    const targets = ["#processing-times", "#official-resources", "#study-preparation", "#saved-preparation", "#language-evidence", "#resource-shortlist", "#program-references"];
+    const targets = ["#processing-times", "#official-resources", "#study-preparation", "#saved-preparation", "#language-evidence", "#resource-shortlist", "#program-references", "#assess-my-options", "#immigration-updates"];
     if (!targets.includes(location.hash)) return;
     const frame = requestAnimationFrame(() => {
       const target = document.getElementById(location.hash.slice(1));
@@ -517,6 +517,8 @@ function ResolvedLayout({ children, feedbackEnabled }) {
     { label: null, items: [{ label: premium.overview, path: "/dashboard", icon: "dashboard" }] },
     { label: premium.explore, items: [
       { label: t("nav.strategy"), path: "/strategy", icon: "strategy", exact: true },
+      { label: premium.assess, path: "/strategy#assess-my-options", icon: "strategy" },
+      { label: premium.updates, path: "/strategy#immigration-updates", icon: "finder" },
       { label: fr ? "Délais de traitement" : "Processing times", path: "/strategy#processing-times", icon: "finder" },
       { label: fr ? "Ressources officielles" : "Official resources", path: "/strategy#official-resources", icon: "finder" },
       { label: fr ? "Carrière" : "Career Match", path: "/career-match", icon: "career" },

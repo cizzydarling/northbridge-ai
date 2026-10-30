@@ -395,3 +395,88 @@ def test_observed_official_variants_remain_compatible(language,published):
     assert next(r['processing_time'] for r in rows if r['application_type']=='visitor_visa_outside_canada' and r['country_code']=='FR')=='37 days'
     assert all(r['country_code']!='GL' for r in rows)  # no fabricated missing country name
     assert next(r['processing_time'] for r in rows if r['application_type']=='express_entry_cec') is None
+
+
+
+def draw_payload(language='en'):
+    identity='9002'
+    link=f"<a href='https://www.canada.ca/en/immigration-refugees-citizenship/corporate/mandate/policies-operational-instructions-agreements/ministerial-instructions/express-entry-rounds/invitations.html?q={identity}'>SYNTHETIC</a>"
+    return {'classes':'wb-tables','rounds':[{'drawNumber':identity,'drawDate':'2026-10-28',
+             'drawName':'SYNTHETIC catégorie' if language=='fr' else 'SYNTHETIC category',
+             'drawSize':'1,500','drawCRS':'450','DrawText1':link,
+             'drawDateTime':'28 octobre 2026 à 10:00:00 UTC' if language=='fr' else 'October 28, 2026 at 10:00:00 UTC',
+             'drawCutOff':'1 octobre 2026 à 09:00:00 UTC' if language=='fr' else 'October 1, 2026 at 09:00:00 UTC'}]}
+
+
+def draw_bundle(language='en', at=None, payload=None):
+    key='draws_'+language
+    return snapshots.build_bundle(key,{key:json.dumps(payload or draw_payload(language),ensure_ascii=False)},observed_at=at)
+
+
+@pytest.mark.parametrize('language',['en','fr'])
+def test_draw_full_schema_locale_source_and_unknown_timezone(language):
+    data=draw_bundle(language);manifest,rows=snapshots.validate_bundle(data)
+    assert manifest['source_language']==language and manifest['published_at']=={'draws_'+language:None}
+    assert rows[0]['round']=='9002' and rows[0]['invitations_issued']==1500 and rows[0]['crs_cutoff']==450
+    assert rows[0]['draw_at_utc']=='2026-10-28T10:00:00+00:00'
+    assert rows[0]['tie_break_at_utc']=='2026-10-01T09:00:00+00:00'
+    payload=draw_payload(language);payload['rounds'][0]['drawDateTime']=payload['rounds'][0]['drawDateTime'].removesuffix(' UTC')
+    assert snapshots.validate_bundle(draw_bundle(language,payload=payload))[1][0]['draw_at_utc'] is None
+
+
+@pytest.mark.parametrize('language',['en','fr'])
+@pytest.mark.parametrize('case',['structure','empty','duplicate','number_object','negative','date','timestamp','link','unknown','date_disagreement'])
+def test_invalid_draw_candidates_preserve_active_head_estimates_and_freshness(store,language,case):
+    at=snapshots.utcnow()-timedelta(minutes=3)
+    previous=promote(store,draw_bundle(language,at=at))
+    active=promote(store,draw_bundle(language,at=at+timedelta(minutes=1)),expected=previous)
+    before=snapshots.read_snapshot('draws_'+language,session_factory=store)
+    payload=draw_payload(language);row=payload['rounds'][0]
+    if case=='structure':payload={'items':payload['rounds']}
+    elif case=='empty':payload['rounds']=[]
+    elif case=='duplicate':payload['rounds'].append(deepcopy(row))
+    elif case=='number_object':row['drawSize']={'value':1500}
+    elif case=='negative':row['drawCRS']='-1'
+    elif case=='date':row['drawDate']='2026-02-30'
+    elif case=='timestamp':row['drawDateTime']='yesterday'
+    elif case=='link':row['DrawText1']="<a href='https://evil.example.invalid/'>SYNTHETIC</a>"
+    elif case=='unknown':row['unknown_structure']={'number':450}
+    elif case=='date_disagreement':row['drawDateISO']='2026-10-27'
+    with pytest.raises(snapshots.SnapshotRejected):
+        candidate=draw_bundle(language,at=at+timedelta(minutes=2),payload=payload)
+        promote(store,candidate,expected=active)
+    assert snapshots.read_snapshot('draws_'+language,session_factory=store)==before
+    with store() as db:
+        assert db.get(Head,'draws_'+language).snapshot_id==active
+        assert set(db.scalars(select(Snapshot.id)))=={previous,active}
+
+
+def test_draw_checksum_and_source_language_rejected():
+    candidate=draw_bundle();candidate['manifest']['records_sha256']='0'*64
+    with pytest.raises(snapshots.SnapshotRejected):snapshots.validate_bundle(candidate)
+    candidate=draw_bundle();candidate['manifest']['source_language']='fr'
+    with pytest.raises(snapshots.SnapshotRejected):snapshots.validate_bundle(candidate)
+
+
+def test_draw_replay_stale_and_concurrent_source_identity(store):
+    at=snapshots.utcnow()-timedelta(hours=2)
+    identity=promote(store,draw_bundle(at=at))
+    assert snapshots.read_snapshot('draws_en',session_factory=store)['status']=='stale'
+    with pytest.raises(snapshots.PromotionConflict):promote(store,draw_bundle(at=at),expected=identity)
+    assert snapshots.read_snapshot('draws_fr',session_factory=store)['records']==[]
+    assert snapshots.read_snapshot('draws_en',session_factory=store,observed_at=at+timedelta(days=1))['records']==[]
+
+
+def test_production_import_also_requires_explicit_source_rights(monkeypatch):
+    monkeypatch.setenv('APP_ENV','production')
+    args=SimpleNamespace(production_host='example.invalid',production_database='northbridgeai',ack_production_public_write=True,ack_source_reuse_rights=False)
+    with pytest.raises(snapshots.SnapshotRejected,match='source_reuse_authorization_required'):
+        cli.import_database('postgresql://example.invalid/northbridgeai',args)
+
+
+@pytest.mark.parametrize('language',['en','fr'])
+def test_official_historical_distribution_zero_is_valid_metadata(language):
+    payload=draw_payload(language)
+    payload['rounds'][0].update(dd1='0',dd18='120,000')
+    _,rows=snapshots.validate_bundle(draw_bundle(language,payload=payload))
+    assert rows[0]['crs_cutoff']==450 and rows[0]['invitations_issued']==1500

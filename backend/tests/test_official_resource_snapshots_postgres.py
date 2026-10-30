@@ -7,7 +7,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 from backend.tests.test_individual_launch_postgres import pg_database_factory, pg_database, migrate  # noqa: F401
-from backend.tests.test_official_resource_snapshots import bundle, promote
+from backend.tests.test_official_resource_snapshots import bundle, promote, draw_bundle
 from app.services import official_resource_snapshots as snapshots
 from app.models.official_resource_snapshot_model import OfficialResourceSnapshot as Snapshot, OfficialResourceHead as Head
 
@@ -24,12 +24,15 @@ def test_additive_migration_preserves_legacy_tables_and_records(pg_database,monk
     def fingerprints():
         with engine.connect() as c:
             return {name:c.exec_driver_sql('SELECT md5(COALESCE(json_agg(x ORDER BY x::text)::text,\'[]\')) FROM (SELECT row_to_json(t) AS x FROM "'+name+'" t) q').scalar() for name in tables-{'alembic_version'}}
-    before=fingerprints();started=time.monotonic();migrate(url)
+    before=fingerprints();started=time.monotonic();migrate(url,'d9a7e3b2f610')
+    assert set(sa.inspect(engine).get_table_names())==tables|{'official_resource_snapshots','official_resource_heads'}
+    assert fingerprints()==before
+    migrate(url)
     assert time.monotonic()-started<30
     assert set(sa.inspect(engine).get_table_names())==tables|{'official_resource_snapshots','official_resource_heads'}
     assert fingerprints()==before
     with engine.connect() as c:
-        assert c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()=='d9a7e3b2f610'
+        assert c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()=='e6b4c1d8a203'
     migrate(url);assert fingerprints()==before
     result=migrate(url,'c4f8a2d6e901',success=False,action='downgrade')
     assert 'destructive downgrade is not supported' in result.stderr
@@ -103,10 +106,10 @@ def test_disposable_e2e_seeding_is_validated_idempotent_and_snapshot_backed(pg_d
     monkeypatch.setattr(resources,'_snapshot_reader',resources._snapshot_reader)
     monkeypatch.setattr(resources,'_read_source',resources._read_source)
     seed=e2e_seed_function();first=seed(engine);second=seed(engine)
-    assert set(first)=={'dli','processing_en','processing_fr'} and first==second
+    assert set(first)=={'dli','processing_en','processing_fr','draws_en','draws_fr'} and first==second
     with sessionmaker(bind=engine)() as db:
-        assert len(db.scalars(sa.select(Snapshot)).all())==3
-        assert len(db.scalars(sa.select(Head)).all())==3
+        assert len(db.scalars(sa.select(Snapshot)).all())==5
+        assert len(db.scalars(sa.select(Head)).all())==5
         assert {x.envelope['retrieved_at'] for x in db.scalars(sa.select(Snapshot))}=={'2026-10-29T00:00:00+00:00'}
     with pytest.raises(RuntimeError,match='must read snapshots'):resources._read_source('dli')
     assert resources.search('dli','Maple')['total']==1
@@ -151,3 +154,51 @@ def test_postgres_invalid_processing_preserves_two_good_versions_and_freshness(p
     with sessions() as db:
         assert db.get(Head,key).snapshot_id==active
         assert set(db.scalars(sa.select(Snapshot.id)))=={previous,active}
+
+
+
+def test_draw_constraint_upgrade_preserves_legacy_and_refuses_destructive_downgrade(pg_database):
+    engine,url=pg_database;migrate(url,'d9a7e3b2f610');sessions=sessionmaker(bind=engine)
+    old=promote(sessions,bundle())
+    before=snapshots.read_snapshot('dli',session_factory=sessions)
+    migrate(url)
+    assert snapshots.read_snapshot('dli',session_factory=sessions)==before
+    draw=promote(sessions,draw_bundle())
+    with engine.connect() as c:
+        names={r['name']:str(r['sqltext']) for r in sa.inspect(engine).get_check_constraints('official_resource_snapshots')}
+        assert 'draws_en' in names['ck_official_snapshot_source'] and 'draws_fr' in names['ck_official_snapshot_source']
+    result=migrate(url,'d9a7e3b2f610',success=False,action='downgrade')
+    assert 'draw snapshot downgrade requires separate recovery authorization' in result.stderr
+    with sessions() as db:
+        assert db.get(Head,'dli').snapshot_id==old and db.get(Head,'draws_en').snapshot_id==draw
+    with engine.connect() as c:
+        assert c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()=='e6b4c1d8a203'
+
+
+@pytest.mark.parametrize('language',['en','fr'])
+def test_postgres_malformed_draw_candidate_preserves_previous_good_versions(pg_database,language):
+    from copy import deepcopy
+    import json
+    engine,url=pg_database;migrate(url);sessions=sessionmaker(bind=engine)
+    at=snapshots.utcnow()-timedelta(minutes=3);key='draws_'+language
+    previous=promote(sessions,draw_bundle(language,at=at))
+    active=promote(sessions,draw_bundle(language,at=at+timedelta(minutes=1)),expected=previous)
+    before=snapshots.read_snapshot(key,session_factory=sessions)
+    candidate=deepcopy(draw_bundle(language,at=at+timedelta(minutes=2)))
+    raw=json.loads(candidate['payloads'][key]);raw['rounds'][0]['drawCRS']={'hidden':450}
+    candidate['payloads'][key]=json.dumps(raw,ensure_ascii=False)
+    candidate['manifest']['components'][key]['content_sha256']=snapshots.checksum(candidate['payloads'][key])
+    with pytest.raises(snapshots.SnapshotRejected):promote(sessions,candidate,expected=active)
+    assert snapshots.read_snapshot(key,session_factory=sessions)==before
+    with sessions() as db:
+        assert db.get(Head,key).snapshot_id==active
+        assert set(db.scalars(sa.select(Snapshot.id)))=={previous,active}
+
+
+def test_draw_constraint_narrowing_is_safe_only_when_unused(pg_database):
+    engine,url=pg_database;migrate(url)
+    migrate(url,'d9a7e3b2f610',action='downgrade')
+    with engine.connect() as c:
+        constraint=next(r for r in sa.inspect(engine).get_check_constraints('official_resource_heads') if r['name']=='ck_official_head_source')
+        assert 'draws_en' not in str(constraint['sqltext'])
+    migrate(url)

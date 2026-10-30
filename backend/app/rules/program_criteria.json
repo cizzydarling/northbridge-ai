@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "coverage": "Original factual preparation summaries; not complete eligibility rules.",
+  "records": [
+    {
+      "identifier": "federal.cec",
+      "title_en": "Canadian Experience Class",
+      "title_fr": "Catégorie de l’expérience canadienne",
+      "source_id": "ircc.cec",
+      "official_source": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/who-can-apply/canadian-experience-class.html",
+      "criteria": [
+        {"key": "work", "en": "Review paid, authorized Canadian TEER0–3 work: at least one year within the preceding three years. Study work and self-employment exclusions have exceptions requiring review.", "fr": "Vérifiez le travail canadien rémunéré et autorisé FÉER0–3 : au moins un an dans les trois années précédentes. Les exclusions liées aux études et au travail autonome comportent des exceptions à vérifier."},
+        {"key": "evidence", "en": "Approved four-skill language evidence is required. This program has no minimum education requirement.", "fr": "Des preuves linguistiques approuvées pour les quatre compétences sont requises. Ce programme n’exige pas de niveau minimal d’études."}
+      ],
+      "jurisdiction": "CA", "family": "express_entry", "settlement": "outside_QC",
+      "source_reviewed_on": "2026-10-30", "source_published_at": null, "effective_from": null,
+      "review_required_from": "2026-11-03", "review_status": "UNDER_REVIEW",
+      "independent_review": "pending", "intake_status": "unknown", "eligibility": "not_assessed"
+    },
+    {
+      "identifier": "federal.fsw",
+      "title_en": "Federal Skilled Worker Program",
+      "title_fr": "Programme des travailleurs qualifiés (fédéral)",
+      "source_id": "ircc.fsw",
+      "official_source": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/who-can-apply/federal-skilled-workers.html",
+      "criteria": [
+        {"key": "work", "en": "Review continuous paid TEER0–3 experience in the primary occupation: at least one year within ten years.", "fr": "Vérifiez l’expérience continue rémunérée FÉER0–3 dans la profession principale : au moins un an dans les dix dernières années."},
+        {"key": "evidence", "en": "Review approved language tests, education/equivalency and settlement-fund conditions. The separate selection grid is not CRS.", "fr": "Vérifiez les tests linguistiques approuvés, les études ou leur équivalence et les conditions de fonds d’établissement. La grille de sélection est distincte du SCG."}
+      ],
+      "jurisdiction": "CA", "family": "express_entry", "settlement": "outside_QC",
+      "source_reviewed_on": "2026-10-30", "source_published_at": null, "effective_from": null,
+      "review_required_from": "2026-11-03", "review_status": "UNDER_REVIEW",
+      "independent_review": "pending", "intake_status": "unknown", "eligibility": "not_assessed"
+    },
+    {
+      "identifier": "federal.fst",
+      "title_en": "Federal Skilled Trades Program",
+      "title_fr": "Programme des travailleurs de métiers spécialisés (fédéral)",
+      "source_id": "ircc.fst",
+      "official_source": "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/who-can-apply/federal-skilled-trades.html",
+      "criteria": [
+        {"key": "work", "en": "Review two years of qualifying trade experience within five years, including the applicable NOC group and qualification to practise.", "fr": "Vérifiez deux ans d’expérience admissible dans le métier dans les cinq dernières années, le groupe CNP applicable et la qualification pour l’exercer."},
+        {"key": "evidence", "en": "Review a qualifying offer or Canadian trade certificate and approved language evidence. There is no minimum education requirement.", "fr": "Vérifiez une offre admissible ou un certificat canadien de qualification et les preuves linguistiques approuvées. Aucun niveau minimal d’études n’est exigé."}
+      ],
+      "jurisdiction": "CA", "family": "express_entry", "settlement": "outside_QC",
+      "source_reviewed_on": "2026-10-30", "source_published_at": null, "effective_from": null,
+      "review_required_from": "2026-11-03", "review_status": "UNDER_REVIEW",
+      "independent_review": "pending", "intake_status": "unknown", "eligibility": "not_assessed"
+    }
+  ]
+}

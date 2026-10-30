@@ -120,6 +120,9 @@ def import_database(raw, args):
     elif not (args.ack_production_public_write and args.production_host and args.production_database
               and url.get_backend_name() == 'postgresql' and url.host == args.production_host and url.database == args.production_database):
         raise snapshots.SnapshotRejected('separate_production_import_authorization_required')
+    elif not getattr(args, 'ack_source_reuse_rights', False):
+        # A checksum and reachable public URL do not grant commercial reuse.
+        raise snapshots.SnapshotRejected('source_reuse_authorization_required')
     return url
 
 
@@ -132,6 +135,7 @@ def main(argv=None):
     load.add_argument('--expected-head', required=True, help='Exact previous ID, or NONE for first import')
     load.add_argument('--production-host'); load.add_argument('--production-database')
     load.add_argument('--ack-production-public-write', action='store_true')
+    load.add_argument('--ack-source-reuse-rights', action='store_true', help='Separate operator confirmation of documented rights for this exact source; not a licence grant')
     args = parser.parse_args(argv)
     try:
         environment()
